@@ -70,7 +70,9 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
     setNeedsUserGesture(false);
     video.muted = false;
     setIsMuted(false);
-    video.src = streamUrl;
+    // Envolvemos la URL original con nuestro proxy de API para bypasear CORS
+const proxiedStreamUrl = `/api/stream?url=${encodeURIComponent(streamUrl)}`;
+video.src = proxiedStreamUrl;
     video.load();
 
     const tryPlay = () => {
