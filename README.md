@@ -106,6 +106,7 @@ Cuando quieras agregar más canales, no necesitas crear otra lista ni tocar el c
 4. Ejecuta de nuevo `npm run db:seed` con la `DATABASE_URL` remota.
 
 El seed reemplaza los canales del hogar demo con el contenido actualizado de la lista, sin duplicados y con categorías normalizadas.
+> **Nota**: El seed se ejecuta manualmente para sincronizar la base de datos con `M3U_URL`. Además, la página principal filtra los canales guardados contra la lista M3U actual y usa esa lista como respaldo si la base de datos todavía no tiene canales importados.
 
 ---
 

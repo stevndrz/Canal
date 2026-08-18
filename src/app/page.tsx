@@ -26,6 +26,9 @@ export default async function HomePage() {
     ? channelRows
         .filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
         .sort((a, b) => (m3uOrderByStreamUrl.get(a.streamUrl ?? "") ?? 0) - (m3uOrderByStreamUrl.get(b.streamUrl ?? "") ?? 0))
+  const allowedStreamUrls = new Set(m3uChannels.map((channel) => channel.streamUrl));
+  const visibleRows = allowedStreamUrls.size > 0
+    ? channelRows.filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
     : channelRows;
 
   const initialChannels = visibleRows.map((row) => ({
