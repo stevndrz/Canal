@@ -1,112 +1,42 @@
 # 📺 CanalCasa
 
-Plataforma de streaming de TV para hogares guatemaltecos. Organiza canales nacionales, conéctalos a tus pantallas y guarda tus favoritos en un solo lugar.
+Plataforma de streaming de TV para hogares guatemaltecos. Organiza canales nacionales, películas/series y más desde una única lista M3U (Gist), sin base de datos ni autenticación: la página queda 100% libre de infraestructura.
 
 ## 🚀 Inicio rápido
 
 ### Requisitos previos
 
 - **Node.js** 18.18+ (recomendado 20+)
-- **PostgreSQL** 14+ corriendo localmente
-- **Archivo M3U** con la lista de canales (ej. `gt.m3u`)
+- Una lista M3U pública (por defecto se usa un [Gist](https://gist.github.com) con los canales de Guatemala)
 
 ### Instalación (desarrollo local)
 
 ```bash
-# 1. Instalar dependencias
 npm install
-
-# 2. Configurar variables de entorno
-cp .env.example .env.local
-# Edita .env.local con tu DATABASE_URL
-
-# 3. Crear la base de datos y aplicar el esquema
-npm run db:push
-
-# 4. Cargar datos de demostración (canales desde gt.m3u)
-npm run db:seed
-
-# 5. Iniciar el servidor de desarrollo
 npm run dev
 ```
 
 Abre [http://localhost:3000](http://localhost:3000).
 
-### Cuenta de demostración
-
-| Campo     | Valor            |
-|-----------|------------------|
-| Correo    | familia@demo.gt  |
-| Contraseña| familia123       |
+Por defecto la app carga la lista M3U desde el Gist configurado en `src/lib/m3u.ts`. Para usar otra lista sin tocar el código, define la variable de entorno `M3U_URL` (ver abajo).
 
 ---
 
 ## ☁️ Despliegue en Vercel
 
-### 1. Base de datos remota
+1. Sube el proyecto a GitHub e impórtalo en Vercel (detecta Next.js automáticamente).
+2. (Opcional) En **Settings → Environment Variables**, define `M3U_URL` si quieres apuntar a una lista distinta a la que trae el código por defecto.
+3. Despliega. No hace falta configurar ninguna base de datos: la lista de canales se descarga en cada request (`revalidate: 30`) directamente desde la URL del M3U.
 
-Crea una base de datos PostgreSQL en la nube (gratis):
+### Actualizar la lista de canales
 
-- **[Neon](https://neon.tech)** - PostgreSQL serverless
-- **[Supabase](https://supabase.com)** - PostgreSQL + auth
-- **[Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres)** - Integrado con Vercel
+No hace falta redesplegar ni tocar el código:
 
-Copia la URL de conexión (ej. `postgres://user:pass@host:5432/db`).
+1. Edita el archivo M3U que apunta `M3U_URL` (o el Gist por defecto).
+2. Agrega/quita bloques `#EXTINF` con su URL de stream.
+3. Guarda los cambios. La página los recoge automáticamente (caché de 30s).
 
-### 2. Sube el archivo M3U a una URL pública
-
-El archivo `gt.m3u` debe estar accesible por URL. Opciones:
-
-- **GitHub Gist** (recomendado): Sube `gt.m3u` como gist público y copia la URL del archivo raw.
-- **Almacenamiento**: S3, Cloudinary, o cualquier hosting estático.
-
-### 3. Configura las variables de entorno en Vercel
-
-En el dashboard de Vercel → **Settings → Environment Variables**:
-
-| Variable       | Valor                                      |
-|----------------|--------------------------------------------|
-| `DATABASE_URL` | URL de tu PostgreSQL remoto (Neon/Supabase)|
-| `M3U_URL`      | URL pública de tu archivo `gt.m3u` principal |
-
-### 4. Despliega
-
-```bash
-# Opción A: CLI de Vercel
-npm i -g vercel
-vercel
-
-# Opción B: Conectar repositorio de GitHub
-# 1. Sube el proyecto a GitHub
-# 2. Importa el repositorio en Vercel
-# 3. Vercel detecta Next.js automáticamente
-```
-
-### 5. Aplica el esquema y carga los datos
-
-Después del primer despliegue, ejecuta desde tu máquina local:
-
-```bash
-# Aplica el esquema a la BD remota
-DATABASE_URL="postgres://tu-url-remota" npm run db:push
-
-# Carga los canales desde M3U_URL
-DATABASE_URL="postgres://tu-url-remota" M3U_URL="https://tu-url/gt.m3u" npm run db:seed
-```
-
-> **Nota**: El seed se ejecuta manualmente para sincronizar la base de datos con tu única lista `M3U_URL`. Puedes seguir agregando canales a ese mismo archivo; al volver a ejecutar el seed, la importación elimina duplicados por URL de stream y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, infantil, música, religión, entretenimiento e idioma. Además, la página principal filtra los canales guardados contra la lista M3U actual y usa esa lista como respaldo si la base de datos todavía no tiene canales importados.
-
-### Actualizar la lista M3U existente
-
-Cuando quieras agregar más canales, no necesitas crear otra lista ni tocar el código:
-
-1. Edita el mismo archivo M3U que apunta `M3U_URL`.
-2. Agrega los nuevos bloques `#EXTINF` con su URL de stream.
-3. Guarda/sube la lista actualizada.
-4. Ejecuta de nuevo `npm run db:seed` con la `DATABASE_URL` remota.
-
-El seed reemplaza los canales del hogar demo con el contenido actualizado de la lista, sin duplicados y con categorías normalizadas.
-> **Nota**: El seed se ejecuta manualmente para sincronizar la base de datos con `M3U_URL`. Además, la página principal filtra los canales guardados contra la lista M3U actual y usa esa lista como respaldo si la base de datos todavía no tiene canales importados.
+La importación elimina duplicados por URL de stream y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, infantil, música, religión, entretenimiento e idioma.
 
 ---
 
@@ -119,8 +49,6 @@ El seed reemplaza los canales del hogar demo con el contenido actualizado de la 
 | `npm run start`    | Inicia el servidor de producción                   |
 | `npm run lint`     | Ejecuta ESLint                                     |
 | `npm run typecheck`| Verifica tipos con TypeScript                      |
-| `npm run db:push`  | Aplica el esquema de Drizzle a la base de datos    |
-| `npm run db:seed`  | Carga los datos de demostración y canales M3U      |
 
 ---
 
@@ -128,120 +56,62 @@ El seed reemplaza los canales del hogar demo con el contenido actualizado de la 
 
 ```
 Canal/
-├── drizzle/                  # Migraciones SQL generadas por Drizzle
 ├── src/
 │   ├── app/
-│   │   ├── api/              # Rutas API (Route Handlers)
-│   │   │   ├── auth/         # login, register, logout
-│   │   │   ├── channels/     # CRUD de canales
-│   │   │   ├── devices/      # CRUD de dispositivos
-│   │   │   └── health/       # Health check de la BD
-│   │   ├── globals.css       # Estilos globales y utilidades
-│   │   ├── layout.tsx        # Layout raíz con metadata
-│   │   └── page.tsx          # Página principal (SSR)
+│   │   ├── globals.css        # Estilos globales y utilidades
+│   │   ├── layout.tsx         # Layout raíz con metadata
+│   │   └── page.tsx           # Página principal (SSR, dynamic)
 │   ├── components/
-│   │   ├── dashboard.tsx     # Dashboard principal con reproductor
-│   │   └── login-screen.tsx  # Pantalla de autenticación
-│   ├── db/
-│   │   ├── index.ts          # Conexión a PostgreSQL (Pool)
-│   │   ├── schema.ts         # Esquema de tablas (Drizzle ORM)
-│   │   └── seed.ts           # Datos demo + importación M3U
+│   │   ├── dashboard.tsx      # Dashboard: lista de canales, categorías, favoritos
+│   │   └── stream-player.tsx  # Reproductor (hls.js / mpegts.js), carga solo en cliente
 │   └── lib/
-│       └── auth.ts           # Autenticación (sesiones, hash, cookies)
-├── drizzle.config.json       # Configuración de Drizzle Kit
-├── next.config.ts            # Configuración de Next.js
+│       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       └── types.ts           # Tipo `Channel` compartido
+├── next.config.ts
 ├── package.json
 └── tsconfig.json
 ```
 
----
-
-## 🗄️ Esquema de base de datos
-
-### Tablas
-
-| Tabla       | Descripción                                    |
-|-------------|------------------------------------------------|
-| `households`| Hogares/familias que usan la plataforma        |
-| `users`     | Usuarios pertenecientes a un hogar             |
-| `sessions`  | Sesiones de autenticación (cookie httpOnly)    |
-| `channels`  | Canales de TV con metadatos y URL de streaming |
-| `devices`   | Dispositivos conectados (Smart TVs, etc.)      |
-
-### Relaciones
-
-```
-households 1───N users
-households 1───N channels
-households 1───N devices
-users      1───N sessions
-```
-
-### Campos clave de `channels`
-
-| Campo           | Tipo      | Descripción                          |
-|-----------------|-----------|--------------------------------------|
-| `name`          | text      | Nombre del canal                     |
-| `number`        | text      | Número de canal (para zapping)       |
-| `category`      | text      | Categoría (Nacional, Deportes, etc.) |
-| `streamUrl`     | text      | URL del stream (HLS, MPEG-TS, etc.)  |
-| `isFavorite`    | boolean   | Marcado como favorito                |
-| `isLive`        | boolean   | Indica si está en vivo               |
-| `currentProgram`| text      | Programa actual                      |
-| `nextProgram`   | text      | Siguiente programa                   |
-| `progress`      | integer   | Progreso del programa actual (0-100) |
+No hay carpeta `api/`, `db/` ni variables `DATABASE_URL`: todo el estado vive en memoria del servidor (por request) y en `localStorage` del navegador para los favoritos.
 
 ---
 
-## 📡 API
+## 📡 Reproducción de video
 
-### Autenticación
+El reproductor (`src/components/stream-player.tsx`) reproduce las URLs del M3U **directamente**, sin proxy intermedio:
 
-| Método | Endpoint              | Descripción                    |
-|--------|-----------------------|--------------------------------|
-| POST   | `/api/auth/login`     | Inicia sesión                  |
-| POST   | `/api/auth/register`  | Crea cuenta + hogar            |
-| POST   | `/api/auth/logout`    | Cierra sesión                  |
+- **HLS (`.m3u8` o sin extensión, el caso más común en listas IPTV)** → [`hls.js`](https://github.com/video-dev/hls.js) si el navegador lo soporta (Chrome, Firefox, Edge); en Safari se usa reproducción nativa.
+- **MPEG-TS / FLV (`.ts`, `.flv`)** → [`mpegts.js`](https://github.com/xqq/mpegts.js).
+- **Otros formatos (`.mp4`, `.webm`, `.mkv`, `.mov`)** → `<video>` nativo.
 
-### Canales
+El componente se carga con `next/dynamic` (`ssr: false`) porque estas librerías dependen de globals del navegador (`self`, `MediaSource`) y no pueden evaluarse en el servidor.
 
-| Método | Endpoint              | Descripción                    |
-|--------|-----------------------|--------------------------------|
-| GET    | `/api/channels`       | Lista canales del hogar        |
-| POST   | `/api/channels`       | Crea un canal                  |
-| PATCH  | `/api/channels/[id]`  | Actualiza un canal             |
-| DELETE | `/api/channels/[id]`  | Elimina un canal               |
+> Si un canal específico no carga, normalmente es porque esa fuente no tiene CORS habilitado para reproducción web — no es un problema de la app. El botón **Reintentar** vuelve a intentar la conexión ante cortes momentáneos de la señal.
 
-### Dispositivos
+---
 
-| Método | Endpoint              | Descripción                    |
-|--------|-----------------------|--------------------------------|
-| GET    | `/api/devices`        | Lista dispositivos del hogar   |
-| POST   | `/api/devices`        | Registra un dispositivo        |
-| PATCH  | `/api/devices/[id]`   | Actualiza un dispositivo       |
-| DELETE | `/api/devices/[id]`   | Elimina un dispositivo         |
+## ⭐ Favoritos (sin base de datos)
 
-### Salud
-
-| Método | Endpoint              | Descripción                    |
-|--------|-----------------------|--------------------------------|
-| GET    | `/api/health`         | Verifica conexión a la BD      |
+Los favoritos se guardan en `localStorage` del navegador (clave `canalcasa:favorites`), identificados por la URL del stream. No se pierden al recargar la página, pero son locales a cada navegador/dispositivo.
 
 ---
 
 ## 📺 Optimización para TV
 
-CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes:
+CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes.
 
 ### Navegación con control remoto
 
 | Tecla          | Acción                          |
-|----------------|---------------------------------|
+|----------------|----------------------------------|
 | `↑` / `↓`      | Cambiar canal en la lista       |
+| `PgUp` / `PgDn`| Salto de 10 canales             |
+| `← / →`        | Cambiar categoría                |
 | `0-9`          | Ir directamente a un canal      |
 | `Espacio` / `K`| Play / Pausa                    |
 | `M`            | Silenciar / Activar sonido      |
 | `F`            | Pantalla completa               |
+| `Enter`        | Marcar/quitar favorito           |
 | `?`            | Mostrar atajos de teclado       |
 | `Esc`          | Cerrar paneles                  |
 
@@ -252,101 +122,29 @@ CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes:
 3. **Tipografía grande**: En pantallas ≥1280px el texto base aumenta a 16px.
 4. **Scroll suave**: El canal seleccionado siempre se mantiene visible con `scrollIntoView`.
 5. **Reduced motion**: Respeta `prefers-reduced-motion` para usuarios sensibles.
-6. **Contraste**: Fondo oscuro (`zinc-950`) con texto claro para mejor legibilidad en TV.
 
 ---
 
 ## 🎨 Guía de estilos
 
-### Paleta de colores
-
 | Color        | Uso                          |
-|--------------|------------------------------|
+|--------------|-------------------------------|
 | `#168766`    | Verde primario (acciones)    |
 | `#34d399`    | Verde claro (foco, acentos)  |
-| `#18181b`    | Fondo oscuro (zinc-950)      |
-| `#f4f7f6`    | Fondo claro (login)          |
+| `#f4f7f6`    | Fondo claro                  |
 | `#f59e0b`    | Ámbar (favoritos)            |
 
-### Tipografía
-
-- **Fuente**: `ui-sans-serif, system-ui, -apple-system, ...`
-- **Títulos**: `font-black` / `font-bold` con `tracking-tight`
-- **Cuerpo**: `text-sm` / `text-base` con `text-zinc-400`
-
-### Componentes
-
-- **Botones**: `btn-primary`, `btn-secondary`, `btn-light`, `player-action`
-- **Tarjetas**: `.panel`, `.channel-grid`, `.card-icon`
-- **Inputs**: `.input`, `.form-label`
-- **Scroll**: `.scrollbar-none`, `.custom-scrollbar`
+Fuente: `ui-sans-serif, system-ui, -apple-system, ...`. Utilidades relevantes: `.scrollbar-none`, `.custom-scrollbar`, `.virtual-list-item` (renderizado eficiente de listas largas).
 
 ---
 
-## 🔐 Seguridad
+## 🧑‍💻 Cómo agregar un campo a `Channel`
 
-- **Contraseñas**: Hash con `scrypt` + salt aleatorio (16 bytes).
-- **Sesiones**: Cookie `httpOnly` + `sameSite=lax` + `secure` en producción.
-- **Tokens**: Hash SHA-256 antes de almacenar en BD.
-- **Autorización**: Cada consulta verifica que el recurso pertenezca al `householdId` del usuario.
-- **Validación**: Entrada validada en las rutas API (nombre, email, contraseña mínima).
+1. Actualiza `ParsedM3uChannel` en `src/lib/m3u.ts` y `Channel` en `src/lib/types.ts`.
+2. Llena el campo al construir el objeto en `parseM3uChannels` (`src/lib/m3u.ts`).
+3. Úsalo donde haga falta en `src/components/dashboard.tsx` o `stream-player.tsx`.
 
----
-
-## 🧑‍💻 Guía de programación
-
-### Cómo agregar un nuevo campo a `channels`
-
-1. **Edita el schema** en `src/db/schema.ts`:
-
-```ts
-// Ejemplo: agregar campo "language"
-language: text("language").default("es"),
-```
-
-2. **Aplica la migración**:
-
-```bash
-npm run db:push
-```
-
-3. **Actualiza la interfaz** en `src/components/dashboard.tsx`:
-
-```ts
-interface Channel {
-  // ...
-  language: string;
-}
-```
-
-4. **Actualiza el mapeo** en `src/app/page.tsx`:
-
-```ts
-language: row.language ?? "es",
-```
-
-### Cómo agregar una nueva ruta API
-
-1. Crea la carpeta en `src/app/api/`:
-
-```
-src/app/api/mi-recurso/route.ts
-```
-
-2. Implementa el handler:
-
-```ts
-import { getCurrentUser } from "@/lib/auth";
-
-export async function GET() {
-  const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "No autorizado" }, { status: 401 });
-  // ... lógica
-  return Response.json({ ok: true });
-}
-```
-
-### Cómo agregar un nuevo atajo de teclado
+## 🧑‍💻 Cómo agregar un atajo de teclado
 
 En `src/components/dashboard.tsx`, dentro del `useEffect` de `handleKeyDown`:
 
@@ -357,25 +155,13 @@ if (e.key === "r" || e.key === "R") {
 }
 ```
 
-### Cómo importar un nuevo archivo M3U
-
-```bash
-# Edita la ruta en src/db/seed.ts y ejecuta:
-npm run db:seed
-```
-
 ---
 
 ## 🧪 Verificación
 
 ```bash
-# Verificar tipos
 npm run typecheck
-
-# Verificar lint
 npm run lint
-
-# Compilar para producción
 npm run build
 ```
 

@@ -8,11 +8,6 @@ export interface ParsedM3uChannel {
   logoText: string;
   logoUrl: string;
   streamUrl: string;
-  color: string;
-  websiteUrl: string;
-  currentProgram: string;
-  nextProgram: string;
-  progress: number;
   isFavorite: boolean;
   isLive: boolean;
 }
@@ -146,11 +141,6 @@ export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
       logoText: name.substring(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
-      color: "#2dd4bf",
-      websiteUrl: "",
-      currentProgram: "Transmisión en vivo",
-      nextProgram: "Programación regular",
-      progress: 50,
       isFavorite: false,
       isLive: true,
     };
