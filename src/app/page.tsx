@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { channels } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth";
 import { Dashboard } from "@/components/dashboard";
+import { loadM3uChannels } from "@/lib/m3u";
 import { LoginScreen } from "@/components/login-screen";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,16 @@ export default async function HomePage() {
     .where(eq(channels.householdId, user.householdId))
     .orderBy(asc(channels.id));
 
-  const initialChannels = channelRows.map((row) => ({
+  const m3uChannels = await loadM3uChannels();
+  const m3uOrderByStreamUrl = new Map(m3uChannels.map((channel, index) => [channel.streamUrl, index]));
+  const allowedStreamUrls = new Set(m3uOrderByStreamUrl.keys());
+  const visibleRows = allowedStreamUrls.size > 0
+    ? channelRows
+        .filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
+        .sort((a, b) => (m3uOrderByStreamUrl.get(a.streamUrl ?? "") ?? 0) - (m3uOrderByStreamUrl.get(b.streamUrl ?? "") ?? 0))
+    : channelRows;
+
+  const initialChannels = visibleRows.map((row) => ({
     ...row,
     number: row.number ?? String(row.id),
     category: row.category ?? "Nacional",
@@ -37,5 +47,12 @@ export default async function HomePage() {
     updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : new Date().toISOString(),
   }));
 
-  return <Dashboard initialChannels={initialChannels} />;
+  const fallbackChannels = m3uChannels.map((channel, index) => ({
+    id: index + 1,
+    ...channel,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }));
+
+  return <Dashboard initialChannels={initialChannels.length > 0 ? initialChannels : fallbackChannels} />;
 }

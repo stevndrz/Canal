@@ -67,7 +67,8 @@ En el dashboard de Vercel → **Settings → Environment Variables**:
 | Variable       | Valor                                      |
 |----------------|--------------------------------------------|
 | `DATABASE_URL` | URL de tu PostgreSQL remoto (Neon/Supabase)|
-| `M3U_URL`      | URL pública de tu archivo `gt.m3u`         |
+| `M3U_URLS`     | Una o varias URLs M3U separadas por coma o salto de línea |
+| `M3U_URL`      | URL pública de un archivo M3U único (compatible con la config anterior) |
 
 ### 4. Despliega
 
@@ -91,10 +92,10 @@ Después del primer despliegue, ejecuta desde tu máquina local:
 DATABASE_URL="postgres://tu-url-remota" npm run db:push
 
 # Carga los canales desde M3U_URL
-DATABASE_URL="postgres://tu-url-remota" M3U_URL="https://tu-url/gt.m3u" npm run db:seed
+DATABASE_URL="postgres://tu-url-remota" M3U_URLS="https://tu-url/gt.m3u,https://tu-url/extra.m3u" npm run db:seed
 ```
 
-> **Nota**: El seed solo se ejecuta manualmente. La app no re-importa canales en cada request.
+> **Nota**: El seed se ejecuta manualmente para sincronizar la base de datos con `M3U_URLS`/`M3U_URL`. La importación combina varias listas, elimina duplicados por URL de stream y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, infantil, música, religión, entretenimiento e idioma. Además, la página principal filtra los canales guardados contra la lista M3U actual y usa esa lista como respaldo si la base de datos todavía no tiene canales importados.
 
 ---
 
