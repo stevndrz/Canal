@@ -94,7 +94,7 @@ DATABASE_URL="postgres://tu-url-remota" npm run db:push
 DATABASE_URL="postgres://tu-url-remota" M3U_URL="https://tu-url/gt.m3u" npm run db:seed
 ```
 
-> **Nota**: El seed solo se ejecuta manualmente. La app no re-importa canales en cada request.
+> **Nota**: El seed se ejecuta manualmente para sincronizar la base de datos con `M3U_URL`. Además, la página principal filtra los canales guardados contra la lista M3U actual y usa esa lista como respaldo si la base de datos todavía no tiene canales importados.
 
 ---
 

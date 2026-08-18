@@ -91,21 +91,10 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
       if (!cancelled) setStreamError(true);
     };
 
-    const handleUserGesture = () => {
-      if (needsUserGesture) {
-        setNeedsUserGesture(false);
-        video.muted = false;
-        setIsMuted(false);
-        video.play().then(() => setIsPlaying(true)).catch(() => setStreamError(true));
-      }
-    };
-
     video.addEventListener("error", handleError);
-    video.addEventListener("click", handleUserGesture);
     return () => {
       cancelled = true;
       video.removeEventListener("error", handleError);
-      video.removeEventListener("click", handleUserGesture);
       video.pause();
       video.removeAttribute("src");
       video.load();
@@ -167,7 +156,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
 
   return (
     <div
-      className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10 group"
+      className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-slate-200 group"
       onMouseMove={() => setShowControls(true)}
       onMouseLeave={() => setShowControls(false)}
     >
@@ -193,7 +182,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
             {channel.number} • {channel.name}
           </span>
         </div>
-        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 backdrop-blur-md border border-emerald-500/30">
+        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-100 backdrop-blur-md border border-emerald-500/30">
           <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
           <span>Reproducción Nativa</span>
         </div>
@@ -206,7 +195,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
             type="button"
             onClick={togglePlay}
             aria-label={isPlaying ? "Pausar (espacio)" : "Reproducir (espacio)"}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="p-3 rounded-xl bg-white/15 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             {isPlaying ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
           </button>
@@ -216,7 +205,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
             onClick={toggleMute}
             aria-label={isMuted ? "Activar sonido (M)" : "Silenciar (M)"}
             aria-pressed={isMuted}
-            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="p-3 rounded-xl bg-white/15 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             {isMuted ? <VolumeX aria-hidden="true" className="h-5 w-5" /> : <Volume2 aria-hidden="true" className="h-5 w-5" />}
           </button>
@@ -226,7 +215,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
           type="button"
           onClick={toggleFullscreen}
           aria-label="Pantalla completa (F)"
-          className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          className="p-3 rounded-xl bg-white/15 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
         >
           <Maximize aria-hidden="true" className="h-5 w-5" />
         </button>
@@ -234,15 +223,15 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
 
       {needsUserGesture && !streamError && (
         <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 p-6 text-center z-10">
-          <Volume1 aria-hidden="true" className="h-14 w-14 text-emerald-400 mb-4 animate-pulse" />
+          <Volume1 aria-hidden="true" className="h-14 w-14 text-teal-600 mb-4 animate-pulse" />
           <p className="text-xl font-bold text-white mb-1">Activar sonido</p>
-          <p className="text-sm text-zinc-400 max-w-sm mb-5">
+          <p className="text-sm text-slate-500 max-w-sm mb-5">
             Presiona para reproducir con audio.
           </p>
           <button
             type="button"
             onClick={handleEnableSound}
-            className="btn-primary text-base px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-600/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+            className="btn-primary text-base px-8 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-teal-600/20 focus:outline-none focus:ring-2 focus:ring-emerald-400"
           >
             🔊 Activar sonido
           </button>
@@ -253,7 +242,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
         <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/95 p-6 text-center z-10">
           <Radio aria-hidden="true" className="h-12 w-12 text-red-500 mb-3 animate-pulse" />
           <p className="text-lg font-bold text-white">Error de Reproducción</p>
-          <p className="text-sm text-zinc-400 mt-1 max-w-sm mb-4">
+          <p className="text-sm text-slate-500 mt-1 max-w-sm mb-4">
             El navegador no pudo decodificar este formato directamente.
           </p>
         </div>
@@ -281,8 +270,8 @@ const ChannelListItem = memo(function ChannelListItem({
     <div
       className={`virtual-list-item w-full p-3 rounded-xl border flex items-center gap-4 transition text-left focus-within:ring-2 focus-within:ring-emerald-500 ${
         selected
-          ? "bg-emerald-500/10 border-emerald-500/60 text-white shadow-md shadow-emerald-500/5"
-          : "bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/80 text-zinc-300"
+          ? "bg-teal-50 border-teal-300 text-slate-950 shadow-md shadow-teal-200/60"
+          : "bg-white/60 border-slate-200 hover:bg-slate-100/80 text-slate-700"
       }`}
     >
       <button
@@ -291,17 +280,17 @@ const ChannelListItem = memo(function ChannelListItem({
         aria-pressed={selected}
         className="flex flex-1 min-w-0 items-center gap-4 text-left focus:outline-none"
       >
-        <div className="h-10 w-10 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center font-bold text-emerald-400 shrink-0 shadow-inner">
+        <div className="h-10 w-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center font-bold text-teal-600 shrink-0 shadow-inner">
           {channel.number}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-sm truncate">{channel.name}</p>
-          <p className="text-xs text-zinc-500 truncate mt-0.5">
+          <p className="text-xs text-slate-500 truncate mt-0.5">
             {channel.category || "Nacional"}
           </p>
         </div>
         {selected && (
-          <Play aria-hidden="true" className="h-4 w-4 text-emerald-400 shrink-0 fill-current" />
+          <Play aria-hidden="true" className="h-4 w-4 text-teal-600 shrink-0 fill-current" />
         )}
       </button>
       <button
@@ -310,7 +299,7 @@ const ChannelListItem = memo(function ChannelListItem({
         aria-label={channel.isFavorite ? `Quitar ${channel.name} de favoritos` : `Agregar ${channel.name} a favoritos`}
         aria-pressed={channel.isFavorite}
         className={`p-2 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-          channel.isFavorite ? "text-amber-400" : "text-zinc-600 hover:text-amber-400"
+          channel.isFavorite ? "text-amber-400" : "text-slate-400 hover:text-amber-400"
         }`}
       >
         <Star aria-hidden="true" className={`h-4 w-4 ${channel.isFavorite ? "fill-current" : ""}`} />
@@ -320,7 +309,7 @@ const ChannelListItem = memo(function ChannelListItem({
           type="button"
           onClick={() => onDelete(channel)}
           aria-label={`Eliminar ${channel.name}`}
-          className="p-2 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-red-500/10 transition focus:outline-none focus:ring-2 focus:ring-red-500"
+          className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition focus:outline-none focus:ring-2 focus:ring-red-500"
         >
           <Trash2 aria-hidden="true" className="h-4 w-4" />
         </button>
@@ -534,20 +523,20 @@ export function Dashboard({ initialChannels }: DashboardProps) {
   }, [filteredChannels]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8">
+    <div className="min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8">
       {/* Resplandor decorativo de fondo */}
-      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-emerald-500/[.07] to-transparent" />
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-teal-200/60 to-transparent" />
 
       <header className="relative mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-4">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/30">
-                <Tv aria-hidden="true" className="h-6 w-6 text-emerald-400" />
+            <h1 className="text-3xl font-black tracking-tight text-slate-950 flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-teal-100 ring-1 ring-teal-200">
+                <Tv aria-hidden="true" className="h-6 w-6 text-teal-600" />
               </span>
               CanalCasa
             </h1>
-            <p className="text-sm text-zinc-400 mt-1">
+            <p className="text-sm text-slate-500 mt-1">
               Plataforma de streaming HD con reproducción nativa
             </p>
           </div>
@@ -555,7 +544,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
             type="button"
             onClick={() => setShowShortcuts((s) => !s)}
             aria-label="Ver atajos de teclado"
-            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-950 hover:border-slate-300 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
           >
             <Info aria-hidden="true" className="h-5 w-5" />
           </button>
@@ -566,17 +555,17 @@ export function Dashboard({ initialChannels }: DashboardProps) {
             className={`px-3 py-2.5 rounded-xl border transition focus:outline-none focus:ring-2 focus:ring-emerald-500 text-xs font-bold flex items-center gap-1.5 ${
               editMode
                 ? "bg-red-500/15 border-red-500/40 text-red-400"
-                : "bg-zinc-900 border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700"
+                : "bg-white border-slate-200 text-slate-500 hover:text-slate-950 hover:border-slate-300"
             }`}
           >
             <Trash2 aria-hidden="true" className="h-4 w-4" />
-            {editMode ? "Saliendo..." : "Editar"}
+            {editMode ? "Editando" : "Editar"}
           </button>
         </div>
 
         <div className="flex items-center gap-3">
           <div className="relative min-w-[280px]">
-            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input
               ref={searchRef}
               type="search"
@@ -584,7 +573,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Buscar canales"
-              className="w-full rounded-xl bg-zinc-900 border border-zinc-800 py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+              className="w-full rounded-xl bg-white border border-slate-200 py-2.5 pl-10 pr-4 text-sm text-slate-950 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
             />
             {isSearchStale && (
               <span className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-emerald-500/40 border-t-emerald-400 animate-spin" aria-hidden="true" />
@@ -594,7 +583,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
             type="button"
             onClick={handleLogout}
             aria-label="Cerrar sesión"
-            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/40 transition focus:outline-none focus:ring-2 focus:ring-red-500"
+            className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-red-400 hover:border-red-500/40 transition focus:outline-none focus:ring-2 focus:ring-red-500"
           >
             <LogOut aria-hidden="true" className="h-5 w-5" />
           </button>
@@ -603,61 +592,61 @@ export function Dashboard({ initialChannels }: DashboardProps) {
 
       {/* Panel de atajos */}
       {showShortcuts && (
-        <div className="relative mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[.04] p-5 backdrop-blur-sm">
+        <div className="relative mb-6 rounded-2xl border border-teal-200 bg-teal-50 p-5 backdrop-blur-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Atajos de control remoto</h2>
+            <h2 className="text-sm font-bold text-teal-600 uppercase tracking-widest">Atajos de control remoto</h2>
             <button
               type="button"
               onClick={() => setShowShortcuts(false)}
               aria-label="Cerrar atajos"
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-950 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               ✕
             </button>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">↑ ↓</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">↑ ↓</kbd>
               Cambiar canal
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">PgUp PgDn</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">PgUp PgDn</kbd>
               Salto 10 canales
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">← →</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">← →</kbd>
               Cambiar categoría
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">0-9</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">0-9</kbd>
               Ir al canal
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">Espacio</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">Espacio</kbd>
               Play / Pausa
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">⏮ ⏭</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">⏮ ⏭</kbd>
               Canal ant/sig
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">M</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">M</kbd>
               Silenciar
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">F</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">F</kbd>
               Pantalla completa
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">Supr</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">Supr</kbd>
               Modo edición
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">?</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">?</kbd>
               Mostrar atajos
             </div>
-            <div className="flex items-center gap-2 text-zinc-300">
-              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">Esc</kbd>
+            <div className="flex items-center gap-2 text-slate-700">
+              <kbd className="px-2 py-1 rounded bg-slate-100 border border-slate-300 text-xs font-mono">Esc</kbd>
               Cerrar
             </div>
           </div>
@@ -667,15 +656,15 @@ export function Dashboard({ initialChannels }: DashboardProps) {
       {/* Confirmación de eliminación */}
       {pendingDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-zinc-900 p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl border border-red-500/30 bg-white p-6 shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-red-500/15 text-red-400">
                 <Trash2 aria-hidden="true" className="h-5 w-5" />
               </span>
-              <h2 className="text-lg font-bold text-white">¿Eliminar canal?</h2>
+              <h2 className="text-lg font-bold text-slate-950">¿Eliminar canal?</h2>
             </div>
-            <p className="text-sm text-zinc-400 mb-6">
-              <strong className="text-white">{pendingDelete.number}. {pendingDelete.name}</strong> se eliminará de tu lista.
+            <p className="text-sm text-slate-500 mb-6">
+              <strong className="text-slate-950">{pendingDelete.number}. {pendingDelete.name}</strong> se eliminará de tu lista.
             </p>
             <div className="flex gap-3">
               <button
@@ -688,7 +677,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               <button
                 type="button"
                 onClick={() => setPendingDelete(null)}
-                className="flex-1 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold transition focus:outline-none focus:ring-2 focus:ring-zinc-500"
+                className="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition focus:outline-none focus:ring-2 focus:ring-zinc-500"
               >
                 Cancelar
               </button>
@@ -709,59 +698,59 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                   type="button"
                   onClick={goToPrevChannel}
                   aria-label="Canal anterior"
-                  className="flex-1 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white transition flex items-center justify-center gap-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition flex items-center justify-center gap-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   <SkipBack aria-hidden="true" className="h-4 w-4" />
                   Anterior
                 </button>
-                <span className="text-xs text-zinc-500 font-mono">
+                <span className="text-xs text-slate-500 font-mono">
                   {selectedChannel.number} / {filteredChannels.length}
                 </span>
                 <button
                   type="button"
                   onClick={goToNextChannel}
                   aria-label="Canal siguiente"
-                  className="flex-1 py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800 hover:text-white transition flex items-center justify-center gap-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 hover:text-slate-950 transition flex items-center justify-center gap-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
                   Siguiente
                   <SkipForward aria-hidden="true" className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-sm">
+              <div className="bg-white/50 border border-slate-200 rounded-2xl p-6 backdrop-blur-sm">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
+                  <span className="text-xs font-bold text-teal-600 uppercase tracking-widest">
                     {selectedChannel.category || "General"}
                   </span>
                   <div className="flex items-center gap-2">
                     {selectedChannel.isFavorite && (
                       <Star aria-hidden="true" className="h-4 w-4 text-amber-400 fill-current" />
                     )}
-                    <span className="text-xs text-zinc-500 font-mono">
+                    <span className="text-xs text-slate-500 font-mono">
                       ID: #{selectedChannel.id}
                     </span>
                   </div>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">
+                <h2 className="text-2xl font-bold text-slate-950 mb-2">
                   {selectedChannel.number}. {selectedChannel.name}
                 </h2>
-                <p className="text-zinc-400 text-sm leading-relaxed">
+                <p className="text-slate-500 text-sm leading-relaxed">
                   {selectedChannel.description || "Transmisión oficial en vivo."}
                 </p>
 
                 {(selectedChannel.currentProgram || selectedChannel.nextProgram) && (
                   <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     {selectedChannel.currentProgram && (
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[.06] p-4">
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                      <div className="rounded-xl border border-teal-200 bg-teal-50 p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-teal-600">
                           <Radio aria-hidden="true" className="h-3.5 w-3.5" />
                           En el aire
                         </p>
-                        <p className="mt-1.5 text-sm font-semibold text-white">
+                        <p className="mt-1.5 text-sm font-semibold text-slate-950">
                           {selectedChannel.currentProgram}
                         </p>
                         {typeof selectedChannel.progress === "number" && (
-                          <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                          <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/15">
                             <div
                               className="h-full rounded-full bg-emerald-400 transition-[width] duration-500"
                               style={{ width: `${Math.min(100, Math.max(0, selectedChannel.progress))}%` }}
@@ -771,12 +760,12 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                       </div>
                     )}
                     {selectedChannel.nextProgram && (
-                      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
-                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                      <div className="rounded-xl border border-slate-200 bg-white/60 p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-500">
                           <CalendarClock aria-hidden="true" className="h-3.5 w-3.5" />
                           Sigue
                         </p>
-                        <p className="mt-1.5 text-sm font-semibold text-zinc-200">
+                        <p className="mt-1.5 text-sm font-semibold text-slate-700">
                           {selectedChannel.nextProgram}
                         </p>
                       </div>
@@ -786,10 +775,10 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               </div>
             </>
           ) : (
-            <div className="aspect-video bg-zinc-900/60 rounded-2xl flex flex-col items-center justify-center border border-zinc-800 text-center p-6">
-              <Tv aria-hidden="true" className="h-12 w-12 text-zinc-600 mb-3" />
-              <p className="text-zinc-400 font-medium">Ningún canal seleccionado</p>
-              <p className="text-xs text-zinc-600 mt-1">
+            <div className="aspect-video bg-white/60 rounded-2xl flex flex-col items-center justify-center border border-slate-200 text-center p-6">
+              <Tv aria-hidden="true" className="h-12 w-12 text-slate-400 mb-3" />
+              <p className="text-slate-500 font-medium">Ningún canal seleccionado</p>
+              <p className="text-xs text-slate-400 mt-1">
                 Elige un canal de la lista para iniciar la reproducción
               </p>
             </div>
@@ -807,8 +796,8 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                 onClick={() => setSelectedCategory(category)}
                 className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
                   selectedCategory === category
-                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
-                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800/60"
+                    ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20"
+                    : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 {category}
@@ -821,7 +810,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition focus:outline-none focus:ring-2 focus:ring-amber-500 flex items-center gap-1.5 ${
                 showFavoritesOnly
                   ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
-                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800/60"
+                  : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
               }`}
             >
               <Heart aria-hidden="true" className={`h-3.5 w-3.5 ${showFavoritesOnly ? "fill-current" : ""}`} />
@@ -855,14 +844,14 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                 </div>
               ))
             ) : (
-              <div role="status" className="p-8 text-center text-zinc-500 text-sm bg-zinc-900/40 rounded-xl border border-zinc-800/50">
+              <div role="status" className="p-8 text-center text-slate-500 text-sm bg-white/40 rounded-xl border border-slate-200">
                 No se encontraron canales que coincidan con la búsqueda.
               </div>
             )}
           </div>
 
           {/* Indicador de navegación TV */}
-          <div className="hidden lg:flex items-center justify-center gap-4 text-[11px] text-zinc-600 pt-1 flex-wrap">
+          <div className="hidden lg:flex items-center justify-center gap-4 text-[11px] text-slate-400 pt-1 flex-wrap">
             <span className="flex items-center gap-1">
               <ArrowUp aria-hidden="true" className="h-3 w-3" />
               <ArrowDown aria-hidden="true" className="h-3 w-3" />
@@ -874,11 +863,11 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               Categorías
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono">0-9</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono">0-9</kbd>
               Canal directo
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono">Supr</kbd>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-300 font-mono">Supr</kbd>
               Editar
             </span>
           </div>
