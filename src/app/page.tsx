@@ -20,6 +20,12 @@ export default async function HomePage() {
     .orderBy(asc(channels.id));
 
   const m3uChannels = await loadM3uChannels();
+  const m3uOrderByStreamUrl = new Map(m3uChannels.map((channel, index) => [channel.streamUrl, index]));
+  const allowedStreamUrls = new Set(m3uOrderByStreamUrl.keys());
+  const visibleRows = allowedStreamUrls.size > 0
+    ? channelRows
+        .filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
+        .sort((a, b) => (m3uOrderByStreamUrl.get(a.streamUrl ?? "") ?? 0) - (m3uOrderByStreamUrl.get(b.streamUrl ?? "") ?? 0))
   const allowedStreamUrls = new Set(m3uChannels.map((channel) => channel.streamUrl));
   const visibleRows = allowedStreamUrls.size > 0
     ? channelRows.filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
