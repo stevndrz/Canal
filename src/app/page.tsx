@@ -9,8 +9,6 @@ export default async function HomePage() {
   const initialChannels = m3uChannels.map((channel, index) => ({
     id: index + 1,
     ...channel,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   }));
 
   return <Dashboard initialChannels={initialChannels} />;
