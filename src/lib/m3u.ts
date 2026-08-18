@@ -1,5 +1,4 @@
 import fs from "fs";
-import path from "path";
 import * as iptvParser from "iptv-playlist-parser";
 
 export interface ParsedM3uChannel {
@@ -48,62 +47,35 @@ const CATEGORY_PRIORITY = [
   "General",
 ];
 
-function splitList(value?: string) {
-  return (value ?? "")
-    .split(/[\n,]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-export function getConfiguredM3uSources(): string[] {
-  return [
-    ...splitList(process.env.M3U_URLS),
-    ...splitList(process.env.M3U_URL),
-    ...splitList(process.env.M3U_PATHS),
-    ...splitList(process.env.M3U_PATH),
-    path.join(process.cwd(), "gt.m3u"),
-  ];
+export function getConfiguredM3uSource() {
+  return process.env.M3U_URL || process.env.M3U_PATH || "gt.m3u";
 }
 
 /**
- * Obtiene una o varias listas M3U desde URLs remotas o archivos locales.
- * En Vercel se recomienda configurar M3U_URLS con URLs separadas por coma o salto de línea.
+ * Obtiene la lista M3U principal desde una URL remota o desde el archivo local del proyecto.
+ * Para Vercel, configura M3U_URL con la URL pública de la lista que vas a seguir editando.
  */
-export async function getM3uContents(): Promise<string[]> {
-  const contents: string[] = [];
-  const seenSources = new Set<string>();
+export async function getM3uContent(): Promise<string | null> {
+  const source = getConfiguredM3uSource();
 
-  for (const source of getConfiguredM3uSources()) {
-    if (seenSources.has(source)) continue;
-    seenSources.add(source);
-
-    if (/^https?:\/\//i.test(source)) {
-      try {
-        const res = await fetch(source, { next: { revalidate: 300 } });
-        if (res.ok) {
-          contents.push(await res.text());
-        } else {
-          console.error(`❌ No se pudo descargar M3U desde ${source}`);
-        }
-      } catch (error) {
-        console.error(`❌ Error descargando M3U desde ${source}:`, error);
-      }
-      continue;
-    }
-
+  if (/^https?:\/\//i.test(source)) {
     try {
-      if (fs.existsSync(source)) contents.push(fs.readFileSync(source, "utf-8"));
+      const res = await fetch(source, { next: { revalidate: 300 } });
+      if (res.ok) return await res.text();
+      console.error(`❌ No se pudo descargar M3U desde ${source}`);
     } catch (error) {
-      console.error(`❌ Error leyendo M3U local en ${source}:`, error);
+      console.error(`❌ Error descargando M3U desde ${source}:`, error);
     }
+    return null;
   }
 
-  return contents;
-}
+  try {
+    if (fs.existsSync(source)) return fs.readFileSync(source, "utf-8");
+  } catch (error) {
+    console.error(`❌ Error leyendo M3U local en ${source}:`, error);
+  }
 
-export async function getM3uContent(): Promise<string | null> {
-  const contents = await getM3uContents();
-  return contents.length > 0 ? contents.join("\n") : null;
+  return null;
 }
 
 function getParser() {
@@ -203,6 +175,6 @@ export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
 }
 
 export async function loadM3uChannels(): Promise<ParsedM3uChannel[]> {
-  const contents = await getM3uContents();
-  return parseM3uChannels(contents.join("\n"));
+  const m3uText = await getM3uContent();
+  return m3uText ? parseM3uChannels(m3uText) : [];
 }

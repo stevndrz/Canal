@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { getConfiguredM3uSources, normalizeM3uCategory, parseM3uChannels } from "../src/lib/m3u";
+import { getConfiguredM3uSource, normalizeM3uCategory, parseM3uChannels } from "../src/lib/m3u";
 
 test("parseM3uChannels removes duplicates and sorts important categories first", () => {
   const channels = parseM3uChannels(`#EXTM3U
@@ -26,30 +26,17 @@ test("normalizeM3uCategory groups channels by content and language", () => {
   assert.equal(normalizeM3uCategory({ name: "Canal Familiar", group: "Spanish" }), "Español");
 });
 
-test("getConfiguredM3uSources accepts multiple URLs and paths", () => {
-  const previousUrls = process.env.M3U_URLS;
+test("getConfiguredM3uSource uses the single editable playlist source", () => {
   const previousUrl = process.env.M3U_URL;
-  const previousPaths = process.env.M3U_PATHS;
   const previousPath = process.env.M3U_PATH;
 
-  process.env.M3U_URLS = "https://example.com/a.m3u,https://example.com/b.m3u";
-  process.env.M3U_URL = "https://example.com/c.m3u";
-  process.env.M3U_PATHS = "/tmp/a.m3u\n/tmp/b.m3u";
-  process.env.M3U_PATH = "/tmp/c.m3u";
+  process.env.M3U_URL = "https://example.com/gt.m3u";
+  process.env.M3U_PATH = "/tmp/gt.m3u";
+  assert.equal(getConfiguredM3uSource(), "https://example.com/gt.m3u");
 
-  const sources = getConfiguredM3uSources();
+  delete process.env.M3U_URL;
+  assert.equal(getConfiguredM3uSource(), "/tmp/gt.m3u");
 
-  assert.deepEqual(sources.slice(0, 6), [
-    "https://example.com/a.m3u",
-    "https://example.com/b.m3u",
-    "https://example.com/c.m3u",
-    "/tmp/a.m3u",
-    "/tmp/b.m3u",
-    "/tmp/c.m3u",
-  ]);
-
-  process.env.M3U_URLS = previousUrls;
   process.env.M3U_URL = previousUrl;
-  process.env.M3U_PATHS = previousPaths;
   process.env.M3U_PATH = previousPath;
 });
