@@ -1,76 +1,642 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Airplay, Bell, Check, ChevronRight, CircleHelp, Clock3, Edit3, ExternalLink, Heart, Home, Library, ListPlus, Loader2, LogOut, Menu, Monitor, MoreHorizontal, Play, Plus, Radio, Search, Settings, ShieldCheck, Signal, Sparkles, Star, Trash2, Tv2, Users, Wifi, WifiOff, X } from "lucide-react";
+import { memo, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Search,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Tv,
+  Radio,
+  Sparkles,
+  CalendarClock,
+  Star,
+  Heart,
+  ArrowUp,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  LogOut,
+  Info,
+} from "lucide-react";
 
-type User = { id:number; name:string; email:string; avatar:string; householdId:number; householdName:string };
-type Channel = { id:number; householdId:number; name:string; number:string; category:string; description:string; logoText:string; color:string; streamUrl:string; websiteUrl:string; currentProgram:string; nextProgram:string; progress:number; isFavorite:boolean; isLive:boolean; createdAt:string; updatedAt:string };
-type Device = { id:number; householdId:number; name:string; type:string; room:string; status:string; code:string; lastSeen:string; createdAt:string };
-type View = "inicio" | "canales" | "favoritos" | "guia" | "dispositivos" | "ajustes";
+interface Channel {
+  id: number;
+  name: string;
+  number: string;
+  category: string;
+  description: string;
+  logoText: string;
+  logoUrl: string;
+  streamUrl: string;
+  color: string;
+  websiteUrl: string;
+  currentProgram: string;
+  nextProgram: string;
+  progress: number;
+  isFavorite: boolean;
+  isLive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
 
-const nav: {id:View; label:string; icon:typeof Home}[] = [
-  {id:"inicio",label:"Inicio",icon:Home},{id:"canales",label:"Todos los canales",icon:Library},{id:"favoritos",label:"Mis favoritos",icon:Heart},{id:"guia",label:"Guía de TV",icon:Clock3},{id:"dispositivos",label:"Dispositivos",icon:Monitor},{id:"ajustes",label:"Configuración",icon:Settings},
-];
+interface DashboardProps {
+  initialChannels: Channel[];
+}
 
-export function Dashboard({ user, initialChannels, initialDevices }: { user:User; initialChannels:Channel[]; initialDevices:Device[] }) {
-  const [view,setView]=useState<View>("inicio"); const [channels,setChannels]=useState(initialChannels); const [devices,setDevices]=useState(initialDevices);
-  const [query,setQuery]=useState(""); const [menu,setMenu]=useState(false); const [playing,setPlaying]=useState<Channel|null>(null); const [channelModal,setChannelModal]=useState<Channel|"new"|null>(null); const [deviceModal,setDeviceModal]=useState<Device|"new"|null>(null); const [toast,setToast]=useState("");
-  const favorites=channels.filter(c=>c.isFavorite); const filtered=channels.filter(c=>(c.name+c.category+c.number).toLowerCase().includes(query.toLowerCase()));
-  function notify(text:string){setToast(text);setTimeout(()=>setToast(""),2600)}
-  async function toggleFavorite(channel:Channel){ setChannels(v=>v.map(c=>c.id===channel.id?{...c,isFavorite:!c.isFavorite}:c)); const res=await fetch(`/api/channels/${channel.id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({isFavorite:!channel.isFavorite})}); if(!res.ok)setChannels(v=>v.map(c=>c.id===channel.id?channel:c)); else notify(channel.isFavorite?"Eliminado de favoritos":"Guardado en favoritos"); }
-  async function logout(){await fetch("/api/auth/logout",{method:"POST"});window.location.reload()}
-  const pageTitle=nav.find(n=>n.id===view)?.label;
-  const showChannels=view==="canales"?filtered:view==="favoritos"?favorites:channels;
-  return <div className="min-h-screen bg-[#f4f7f6] text-[#18332e]">
-    {menu&&<button aria-label="Cerrar menú" className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" onClick={()=>setMenu(false)}/>} 
-    <aside className={`fixed inset-y-0 left-0 z-40 flex w-[252px] flex-col border-r border-[#dfe8e5] bg-white transition-transform lg:translate-x-0 ${menu?"translate-x-0":"-translate-x-full"}`}>
-      <div className="flex h-[74px] items-center justify-between border-b border-slate-100 px-6"><div className="flex items-center gap-3 text-lg font-bold"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#1a9b75] text-white"><Play className="ml-0.5 h-4 w-4 fill-white"/></span>CanalCasa</div><button onClick={()=>setMenu(false)} className="lg:hidden"><X/></button></div>
-      <div className="px-4 py-6"><p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Mi televisión</p><nav className="space-y-1">{nav.slice(0,5).map(item=><button key={item.id} onClick={()=>{setView(item.id);setMenu(false)}} className={`sidebar-link ${view===item.id?"active":""}`}><item.icon className="h-[18px] w-[18px]"/>{item.label}{item.id==="favoritos"&&favorites.length>0&&<span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">{favorites.length}</span>}</button>)}</nav><p className="mb-3 mt-8 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-slate-400">Cuenta</p><button onClick={()=>{setView("ajustes");setMenu(false)}} className={`sidebar-link ${view==="ajustes"?"active":""}`}><Settings className="h-[18px] w-[18px]"/>Configuración</button></div>
-      <div className="mx-4 mt-auto mb-4 rounded-2xl bg-[#edf8f4] p-4"><div className="mb-2 flex items-center gap-2 text-xs font-bold text-[#136c53]"><ShieldCheck className="h-4 w-4"/>Hogar protegido</div><p className="text-[11px] leading-4 text-slate-500">Solo los miembros de tu familia pueden acceder.</p></div>
-      <div className="border-t border-slate-100 p-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-[#d8eee7] text-xs font-bold text-[#147457]">{user.avatar}</span><div className="min-w-0 flex-1"><p className="truncate text-xs font-bold">{user.name}</p><p className="truncate text-[10px] text-slate-400">{user.householdName}</p></div><button onClick={logout} title="Cerrar sesión" className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-red-500"><LogOut className="h-4 w-4"/></button></div></div>
-    </aside>
-    <div className="lg:pl-[252px]">
-      <header className="sticky top-0 z-20 flex h-[74px] items-center gap-4 border-b border-[#dfe8e5] bg-white/95 px-4 backdrop-blur md:px-7"><button onClick={()=>setMenu(true)} className="rounded-lg p-2 hover:bg-slate-100 lg:hidden"><Menu className="h-5 w-5"/></button><div className="hidden md:block"><p className="text-sm font-bold">{pageTitle}</p><p className="text-[11px] text-slate-400">{user.householdName}</p></div><div className="relative ml-auto w-full max-w-xs"><Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400"/><input value={query} onChange={e=>setQuery(e.target.value)} onFocus={()=>setView("canales")} placeholder="Buscar canal o categoría..." className="h-9 w-full rounded-xl border border-slate-200 bg-[#f8faf9] pl-9 pr-3 text-xs outline-none focus:border-emerald-400"/></div><button className="relative rounded-xl border border-slate-200 p-2 text-slate-500"><Bell className="h-4 w-4"/><span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-red-500"/></button></header>
-      <main className="mx-auto max-w-[1400px] p-4 md:p-7">
-        {view==="inicio"&&<HomeView channels={channels} devices={devices} setPlaying={setPlaying} toggleFavorite={toggleFavorite} go={setView}/>} 
-        {(view==="canales"||view==="favoritos")&&<ChannelLibrary title={view==="favoritos"?"Mis favoritos":"Todos los canales"} subtitle={view==="favoritos"?"Tus señales preferidas, siempre a mano.":"Administra las señales disponibles en tu hogar."} channels={showChannels} onPlay={setPlaying} onFavorite={toggleFavorite} onEdit={setChannelModal} onAdd={()=>setChannelModal("new")}/>} 
-        {view==="guia"&&<Guide channels={channels} onPlay={setPlaying}/>} 
-        {view==="dispositivos"&&<DevicesView devices={devices} onAdd={()=>setDeviceModal("new")} onEdit={setDeviceModal} onDelete={async d=>{if(!confirm(`¿Desconectar ${d.name}?`))return;setDevices(v=>v.filter(x=>x.id!==d.id));await fetch(`/api/devices/${d.id}`,{method:"DELETE"});notify("Dispositivo desconectado")}}/>}
-        {view==="ajustes"&&<SettingsView user={user}/>} 
-      </main>
+const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [streamError, setStreamError] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const streamUrl = channel.streamUrl;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    let cancelled = false;
+    setStreamError(false);
+    video.src = streamUrl;
+    video.load();
+
+    video.play().then(() => {
+      if (!cancelled) setIsPlaying(true);
+    }).catch(() => {
+      if (cancelled) return;
+      // Si el navegador bloquea el autoplay con audio, silenciamos e intentamos de nuevo
+      video.muted = true;
+      setIsMuted(true);
+      video.play().catch(() => setIsPlaying(false));
+    });
+
+    const handleError = () => {
+      if (!cancelled) setStreamError(true);
+    };
+
+    video.addEventListener("error", handleError);
+    return () => {
+      cancelled = true;
+      video.removeEventListener("error", handleError);
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [channel.id, streamUrl]);
+
+  // Auto-ocultar controles en TV después de 4s
+  useEffect(() => {
+    const show = () => {
+      setShowControls(true);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => setShowControls(false), 4000);
+    };
+    show();
+    return () => {
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    };
+  }, [channel.id]);
+
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().then(() => setIsPlaying(true)).catch(() => {});
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+    setShowControls(true);
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
+    setShowControls(true);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      video.requestFullscreen();
+    }
+    setShowControls(true);
+  }, []);
+
+  return (
+    <div
+      className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-2xl ring-1 ring-white/10 group"
+      onMouseMove={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
+      <video
+        ref={videoRef}
+        className="h-full w-full object-contain"
+        playsInline
+        autoPlay
+        muted={isMuted}
+      />
+
+      {/* Header flotante - siempre visible en TV */}
+      <div className={`absolute inset-x-0 top-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent p-4 flex items-center justify-between transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        <div className="flex items-center gap-3">
+          <span className="flex h-3 w-3 relative" aria-hidden="true">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+          </span>
+          <span className="text-xs font-bold uppercase tracking-wider text-red-500">
+            EN VIVO
+          </span>
+          <span className="text-sm font-semibold text-white/90">
+            {channel.number} • {channel.name}
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-medium text-emerald-400 backdrop-blur-md border border-emerald-500/30">
+          <Sparkles aria-hidden="true" className="h-3.5 w-3.5" />
+          <span>Reproducción Nativa</span>
+        </div>
+      </div>
+
+      {/* Controles del reproductor - siempre visibles en TV */}
+      <div className={`absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-4 flex items-center justify-between transition-opacity duration-300 ${showControls ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label={isPlaying ? "Pausar (espacio)" : "Reproducir (espacio)"}
+            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            {isPlaying ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleMute}
+            aria-label={isMuted ? "Activar sonido (M)" : "Silenciar (M)"}
+            aria-pressed={isMuted}
+            className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+          >
+            {isMuted ? <VolumeX aria-hidden="true" className="h-5 w-5" /> : <Volume2 aria-hidden="true" className="h-5 w-5" />}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          aria-label="Pantalla completa (F)"
+          className="p-3 rounded-xl bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        >
+          <Maximize aria-hidden="true" className="h-5 w-5" />
+        </button>
+      </div>
+
+      {streamError && (
+        <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/95 p-6 text-center z-10">
+          <Radio aria-hidden="true" className="h-12 w-12 text-red-500 mb-3 animate-pulse" />
+          <p className="text-lg font-bold text-white">Error de Reproducción</p>
+          <p className="text-sm text-zinc-400 mt-1 max-w-sm mb-4">
+            El navegador no pudo decodificar este formato directamente.
+          </p>
+        </div>
+      )}
     </div>
-    {playing&&<Player channel={playing} devices={devices} onClose={()=>setPlaying(null)} onFavorite={()=>toggleFavorite(playing)}/>} 
-    {channelModal&&<ChannelForm item={channelModal} onClose={()=>setChannelModal(null)} onSaved={item=>{setChannels(v=>channelModal==="new"?[...v,item]:v.map(c=>c.id===item.id?item:c));setChannelModal(null);notify(channelModal==="new"?"Canal agregado":"Cambios guardados")}} onDelete={async item=>{setChannels(v=>v.filter(c=>c.id!==item.id));await fetch(`/api/channels/${item.id}`,{method:"DELETE"});setChannelModal(null);notify("Canal eliminado")}}/>}
-    {deviceModal&&<DeviceForm item={deviceModal} onClose={()=>setDeviceModal(null)} onSaved={item=>{setDevices(v=>deviceModal==="new"?[...v,item]:v.map(d=>d.id===item.id?item:d));setDeviceModal(null);notify(deviceModal==="new"?"Código de enlace creado":"Dispositivo actualizado")}}/>}
-    {toast&&<div className="fixed bottom-5 left-1/2 z-[70] flex -translate-x-1/2 items-center gap-2 rounded-xl bg-[#123d35] px-4 py-3 text-sm font-semibold text-white shadow-2xl"><Check className="h-4 w-4 text-emerald-300"/>{toast}</div>}
-  </div>
+  );
+});
+
+const ChannelListItem = memo(function ChannelListItem({
+  channel,
+  selected,
+  onSelect,
+  onToggleFavorite,
+}: {
+  channel: Channel;
+  selected: boolean;
+  onSelect: (channel: Channel) => void;
+  onToggleFavorite: (channel: Channel) => void;
+}) {
+  return (
+    <div
+      className={`virtual-list-item w-full p-3 rounded-xl border flex items-center gap-4 transition text-left focus-within:ring-2 focus-within:ring-emerald-500 ${
+        selected
+          ? "bg-emerald-500/10 border-emerald-500/60 text-white shadow-md shadow-emerald-500/5"
+          : "bg-zinc-900/60 border-zinc-800/80 hover:bg-zinc-800/80 text-zinc-300"
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(channel)}
+        aria-pressed={selected}
+        className="flex flex-1 min-w-0 items-center gap-4 text-left focus:outline-none"
+      >
+        <div className="h-10 w-10 rounded-lg bg-zinc-800 border border-zinc-700/50 flex items-center justify-center font-bold text-emerald-400 shrink-0 shadow-inner">
+          {channel.number}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-sm truncate">{channel.name}</p>
+          <p className="text-xs text-zinc-500 truncate mt-0.5">
+            {channel.category || "Nacional"}
+          </p>
+        </div>
+        {selected && (
+          <Play aria-hidden="true" className="h-4 w-4 text-emerald-400 shrink-0 fill-current" />
+        )}
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggleFavorite(channel)}
+        aria-label={channel.isFavorite ? `Quitar ${channel.name} de favoritos` : `Agregar ${channel.name} a favoritos`}
+        aria-pressed={channel.isFavorite}
+        className={`p-2 rounded-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+          channel.isFavorite ? "text-amber-400" : "text-zinc-600 hover:text-amber-400"
+        }`}
+      >
+        <Star aria-hidden="true" className={`h-4 w-4 ${channel.isFavorite ? "fill-current" : ""}`} />
+      </button>
+    </div>
+  );
+});
+
+export function Dashboard({ initialChannels }: DashboardProps) {
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(
+    initialChannels[0] ?? null
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  const categories = useMemo(
+    () => [
+      "Todas",
+      ...Array.from(new Set(channels.map((c) => c.category).filter(Boolean))),
+    ],
+    [channels]
+  );
+
+  const filteredChannels = useMemo(() => {
+    const query = deferredSearchQuery.trim().toLowerCase();
+    return channels.filter((channel) => {
+      const matchesSearch =
+        !query ||
+        channel.name.toLowerCase().includes(query) ||
+        channel.number.includes(query);
+      const matchesCategory =
+        selectedCategory === "Todas" || channel.category === selectedCategory;
+      const matchesFavorites = !showFavoritesOnly || channel.isFavorite;
+      return matchesSearch && matchesCategory && matchesFavorites;
+    });
+  }, [channels, deferredSearchQuery, selectedCategory, showFavoritesOnly]);
+
+  const handleSelectChannel = useCallback((channel: Channel) => {
+    setSelectedChannel(channel);
+  }, []);
+
+  const handleToggleFavorite = useCallback((channel: Channel) => {
+    setChannels((prev) =>
+      prev.map((c) => (c.id === channel.id ? { ...c, isFavorite: !c.isFavorite } : c))
+    );
+  }, []);
+
+  const isSearchStale = searchQuery !== deferredSearchQuery;
+
+  // Navegación por teclado / control remoto
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Atajos globales
+      if (e.key === "m" || e.key === "M") {
+        // Silenciar - el botón de mute está en el player, disparamos click
+        const muteBtn = document.querySelector('[aria-label*="Silenciar"], [aria-label*="Activar sonido"]') as HTMLButtonElement | null;
+        muteBtn?.click();
+        return;
+      }
+      if (e.key === "f" || e.key === "F") {
+        const fsBtn = document.querySelector('[aria-label="Pantalla completa (F)"]') as HTMLButtonElement | null;
+        fsBtn?.click();
+        return;
+      }
+      if (e.key === " " || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        const playBtn = document.querySelector('[aria-label*="Pausar"], [aria-label*="Reproducir"]') as HTMLButtonElement | null;
+        playBtn?.click();
+        return;
+      }
+      if (e.key === "Escape") {
+        setShowShortcuts(false);
+        return;
+      }
+      if (e.key === "?") {
+        setShowShortcuts((s) => !s);
+        return;
+      }
+      // Números para cambiar de canal
+      if (/^[0-9]$/.test(e.key)) {
+        const num = e.key;
+        const match = channels.find((c) => c.number === num);
+        if (match) {
+          setSelectedChannel(match);
+          return;
+        }
+      }
+      // Flechas para navegar la lista
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedChannel((current) => {
+          if (!current) return filteredChannels[0] ?? null;
+          const idx = filteredChannels.findIndex((c) => c.id === current.id);
+          const next = e.key === "ArrowDown"
+            ? filteredChannels[Math.min(idx + 1, filteredChannels.length - 1)]
+            : filteredChannels[Math.max(idx - 1, 0)];
+          return next ?? current;
+        });
+      }
+      if (e.key === "Enter") {
+        // Si el foco está en la búsqueda, no interferir
+        if (document.activeElement === searchRef.current) return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [channels, filteredChannels]);
+
+  // Scroll al canal seleccionado
+  useEffect(() => {
+    if (!selectedChannel || !listRef.current) return;
+    const selectedEl = listRef.current.querySelector(`[data-channel-id="${selectedChannel.id}"]`);
+    selectedEl?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selectedChannel]);
+
+  const handleLogout = useCallback(async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.reload();
+  }, []);
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 p-4 md:p-8">
+      {/* Resplandor decorativo de fondo */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 h-72 bg-gradient-to-b from-emerald-500/[.07] to-transparent" />
+
+      <header className="relative mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-black tracking-tight text-white flex items-center gap-3">
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-500/15 ring-1 ring-emerald-500/30">
+                <Tv aria-hidden="true" className="h-6 w-6 text-emerald-400" />
+              </span>
+              CanalCasa
+            </h1>
+            <p className="text-sm text-zinc-400 mt-1">
+              Plataforma de streaming HD con reproducción nativa
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowShortcuts((s) => !s)}
+            aria-label="Ver atajos de teclado"
+            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          >
+            <Info aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-[280px]">
+            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" />
+            <input
+              ref={searchRef}
+              type="search"
+              placeholder="Buscar por nombre o número..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Buscar canales"
+              className="w-full rounded-xl bg-zinc-900 border border-zinc-800 py-2.5 pl-10 pr-4 text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition"
+            />
+            {isSearchStale && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-emerald-500/40 border-t-emerald-400 animate-spin" aria-hidden="true" />
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Cerrar sesión"
+            className="p-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-red-400 hover:border-red-500/40 transition focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            <LogOut aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </div>
+      </header>
+
+      {/* Panel de atajos */}
+      {showShortcuts && (
+        <div className="relative mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/[.04] p-5 backdrop-blur-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-bold text-emerald-400 uppercase tracking-widest">Atajos de control remoto</h2>
+            <button
+              type="button"
+              onClick={() => setShowShortcuts(false)}
+              aria-label="Cerrar atajos"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-white transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              ✕
+            </button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">↑ ↓</kbd>
+              Cambiar canal
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">0-9</kbd>
+              Ir al canal
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">Espacio</kbd>
+              Play / Pausa
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">M</kbd>
+              Silenciar
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">F</kbd>
+              Pantalla completa
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">?</kbd>
+              Mostrar atajos
+            </div>
+            <div className="flex items-center gap-2 text-zinc-300">
+              <kbd className="px-2 py-1 rounded bg-zinc-800 border border-zinc-700 text-xs font-mono">Esc</kbd>
+              Cerrar
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="relative grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-6">
+          {selectedChannel ? (
+            <>
+              <StreamPlayer channel={selectedChannel} />
+
+              <div className="bg-zinc-900/50 border border-zinc-800/80 rounded-2xl p-6 backdrop-blur-sm">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest">
+                    {selectedChannel.category || "General"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedChannel.isFavorite && (
+                      <Star aria-hidden="true" className="h-4 w-4 text-amber-400 fill-current" />
+                    )}
+                    <span className="text-xs text-zinc-500 font-mono">
+                      ID: #{selectedChannel.id}
+                    </span>
+                  </div>
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">
+                  {selectedChannel.number}. {selectedChannel.name}
+                </h2>
+                <p className="text-zinc-400 text-sm leading-relaxed">
+                  {selectedChannel.description || "Transmisión oficial en vivo."}
+                </p>
+
+                {(selectedChannel.currentProgram || selectedChannel.nextProgram) && (
+                  <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                    {selectedChannel.currentProgram && (
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[.06] p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400">
+                          <Radio aria-hidden="true" className="h-3.5 w-3.5" />
+                          En el aire
+                        </p>
+                        <p className="mt-1.5 text-sm font-semibold text-white">
+                          {selectedChannel.currentProgram}
+                        </p>
+                        {typeof selectedChannel.progress === "number" && (
+                          <div className="mt-2.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                            <div
+                              className="h-full rounded-full bg-emerald-400 transition-[width] duration-500"
+                              style={{ width: `${Math.min(100, Math.max(0, selectedChannel.progress))}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {selectedChannel.nextProgram && (
+                      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-4">
+                        <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500">
+                          <CalendarClock aria-hidden="true" className="h-3.5 w-3.5" />
+                          Sigue
+                        </p>
+                        <p className="mt-1.5 text-sm font-semibold text-zinc-200">
+                          {selectedChannel.nextProgram}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="aspect-video bg-zinc-900/60 rounded-2xl flex flex-col items-center justify-center border border-zinc-800 text-center p-6">
+              <Tv aria-hidden="true" className="h-12 w-12 text-zinc-600 mb-3" />
+              <p className="text-zinc-400 font-medium">Ningún canal seleccionado</p>
+              <p className="text-xs text-zinc-600 mt-1">
+                Elige un canal de la lista para iniciar la reproducción
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="Categorías">
+            {categories.map((category) => (
+              <button
+                key={category}
+                type="button"
+                role="tab"
+                aria-selected={selectedCategory === category}
+                onClick={() => setSelectedCategory(category)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                  selectedCategory === category
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20"
+                    : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800/60"
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={() => setShowFavoritesOnly((s) => !s)}
+              aria-pressed={showFavoritesOnly}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition focus:outline-none focus:ring-2 focus:ring-amber-500 flex items-center gap-1.5 ${
+                showFavoritesOnly
+                  ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 border border-zinc-800/60"
+              }`}
+            >
+              <Heart aria-hidden="true" className={`h-3.5 w-3.5 ${showFavoritesOnly ? "fill-current" : ""}`} />
+              Favoritos
+            </button>
+          </div>
+
+          <div
+            ref={listRef}
+            className="max-h-[620px] overflow-y-auto space-y-2 pr-1 custom-scrollbar"
+            role="list"
+            aria-label="Lista de canales"
+          >
+            {filteredChannels.length > 0 ? (
+              filteredChannels.map((channel) => (
+                <div key={channel.id} data-channel-id={channel.id}>
+                  <ChannelListItem
+                    channel={channel}
+                    selected={selectedChannel?.id === channel.id}
+                    onSelect={handleSelectChannel}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                </div>
+              ))
+            ) : (
+              <div role="status" className="p-8 text-center text-zinc-500 text-sm bg-zinc-900/40 rounded-xl border border-zinc-800/50">
+                No se encontraron canales que coincidan con la búsqueda.
+              </div>
+            )}
+          </div>
+
+          {/* Indicador de navegación TV */}
+          <div className="hidden lg:flex items-center justify-center gap-4 text-[11px] text-zinc-600 pt-1">
+            <span className="flex items-center gap-1">
+              <ArrowUp aria-hidden="true" className="h-3 w-3" />
+              <ArrowDown aria-hidden="true" className="h-3 w-3" />
+              Canales
+            </span>
+            <span className="flex items-center gap-1">
+              <ArrowLeft aria-hidden="true" className="h-3 w-3" />
+              <ArrowRight aria-hidden="true" className="h-3 w-3" />
+              Categorías
+            </span>
+            <span className="flex items-center gap-1">
+              <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono">0-9</kbd>
+              Canal directo
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
-
-function HomeView({channels,devices,setPlaying,toggleFavorite,go}:{channels:Channel[];devices:Device[];setPlaying:(c:Channel)=>void;toggleFavorite:(c:Channel)=>void;go:(v:View)=>void}){
- const hero=channels.find(c=>c.number==="3")||channels[0]; return <div className="space-y-8"><section className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="mb-1 text-xs font-semibold text-[#19906d]">BUENAS TARDES</p><h1 className="text-2xl font-bold tracking-[-.03em] md:text-3xl">¿Qué quieren ver hoy?</h1><p className="mt-1 text-sm text-slate-500">La televisión de Guatemala, reunida para tu familia.</p></div><div className="flex items-center gap-2 text-xs text-slate-500"><span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500"/>{channels.filter(c=>c.isLive).length} señales disponibles</div></section>
- {hero&&<section className="hero-card relative overflow-hidden rounded-[24px] bg-[#103e36] p-6 text-white shadow-xl shadow-emerald-950/10 md:p-9"><div className="absolute -right-16 -top-28 h-80 w-80 rounded-full bg-emerald-400/20 blur-2xl"/><div className="relative max-w-xl"><span className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-2.5 py-1 text-[10px] font-bold tracking-wider"><Radio className="h-3 w-3"/> EN VIVO</span><div className="mt-6 flex items-center gap-4"><ChannelLogo channel={hero} size="lg"/><div><p className="text-xs text-white/55">AHORA EN CANAL {hero.number}</p><h2 className="mt-1 text-2xl font-bold md:text-3xl">{hero.currentProgram}</h2></div></div><p className="mt-5 text-sm leading-6 text-white/65">{hero.description}</p><div className="mt-5 h-1 overflow-hidden rounded-full bg-white/15"><div className="h-full bg-[#58d5ab]" style={{width:`${hero.progress}%`}}/></div><div className="mt-2 flex justify-between text-[10px] text-white/45"><span>En emisión</span><span>A continuación: {hero.nextProgram}</span></div><div className="mt-6 flex gap-3"><button onClick={()=>setPlaying(hero)} className="btn-light"><Play className="h-4 w-4 fill-[#134a3e]"/>Ver ahora</button><button onClick={()=>toggleFavorite(hero)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/20 bg-white/10"><Heart className={`h-4 w-4 ${hero.isFavorite?"fill-white":""}`}/></button></div></div></section>}
- <section><SectionTitle title="Canales favoritos" action="Ver todos" onClick={()=>go("favoritos")}/>{channels.length?<div className="channel-grid mt-4">{channels.slice(0,4).map(c=><ChannelCard key={c.id} channel={c} onPlay={setPlaying} onFavorite={toggleFavorite}/>)}</div>:<Empty icon={Tv2} title="Aún no hay canales" text="Agrega tu primera señal para comenzar."/>}</section>
- <section><SectionTitle title="Tu hogar conectado" action="Administrar" onClick={()=>go("dispositivos")}/><div className="mt-4 grid gap-3 md:grid-cols-3">{devices.slice(0,3).map(d=><div key={d.id} className="panel flex items-center gap-4 p-4"><span className="grid h-11 w-11 place-items-center rounded-xl bg-slate-100 text-slate-600"><Tv2 className="h-5 w-5"/></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{d.name}</p><p className="text-xs text-slate-400">{d.room}</p></div><span className={`h-2.5 w-2.5 rounded-full ${d.status==="online"?"bg-emerald-500":"bg-slate-300"}`}/></div>)}</div></section></div>
-}
-
-function ChannelLibrary({title,subtitle,channels,onPlay,onFavorite,onEdit,onAdd}:{title:string;subtitle:string;channels:Channel[];onPlay:(c:Channel)=>void;onFavorite:(c:Channel)=>void;onEdit:(c:Channel)=>void;onAdd:()=>void}){return <div><div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-bold tracking-[-.03em]">{title}</h1><p className="mt-1 text-sm text-slate-500">{subtitle}</p></div><button onClick={onAdd} className="btn-primary"><Plus className="h-4 w-4"/>Agregar canal</button></div>{channels.length?<div className="channel-grid">{channels.map(c=><ChannelCard key={c.id} channel={c} onPlay={onPlay} onFavorite={onFavorite} onEdit={onEdit}/>)}</div>:<Empty icon={Heart} title="Aquí está muy tranquilo" text="Agrega canales o marca alguno como favorito." action={onAdd}/>}</div>}
-
-function ChannelCard({channel,onPlay,onFavorite,onEdit}:{channel:Channel;onPlay:(c:Channel)=>void;onFavorite:(c:Channel)=>void;onEdit?:(c:Channel)=>void}){return <article className="group panel overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lg"><div className="relative flex h-32 items-center justify-center bg-[#eaf1ef]"><div className="absolute inset-0 opacity-10" style={{background:`radial-gradient(circle at 70% 20%, ${channel.color}, transparent 55%)`}}/><ChannelLogo channel={channel} size="md"/><span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[9px] font-bold text-red-600 shadow-sm"><span className="h-1.5 w-1.5 rounded-full bg-red-500"/> EN VIVO</span><div className="absolute right-3 top-3 flex gap-1"><button onClick={()=>onFavorite(channel)} className="card-icon"><Heart className={`h-4 w-4 ${channel.isFavorite?"fill-red-500 text-red-500":""}`}/></button>{onEdit&&<button onClick={()=>onEdit(channel)} className="card-icon"><MoreHorizontal className="h-4 w-4"/></button>}</div><button onClick={()=>onPlay(channel)} className="absolute grid h-11 w-11 place-items-center rounded-full bg-[#168766] text-white opacity-0 shadow-lg transition group-hover:opacity-100"><Play className="ml-0.5 h-4 w-4 fill-white"/></button></div><div className="p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-wider text-[#19906d]">Canal {channel.number} · {channel.category}</p><h3 className="mt-1 text-sm font-bold">{channel.name}</h3></div><ChevronRight className="mt-3 h-4 w-4 text-slate-300"/></div><p className="mt-3 truncate text-xs text-slate-500">Ahora: <strong className="font-semibold text-slate-700">{channel.currentProgram}</strong></p><div className="mt-3 h-1 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-[#26a77e]" style={{width:`${channel.progress}%`}}/></div></div></article>}
-
-function Guide({channels,onPlay}:{channels:Channel[];onPlay:(c:Channel)=>void}){const hours=["Ahora","+ 30 min","+ 1 hora"];return <div><h1 className="text-2xl font-bold tracking-[-.03em]">Guía de TV</h1><p className="mt-1 text-sm text-slate-500">Programación de hoy · Ciudad de Guatemala</p><div className="panel mt-7 overflow-x-auto"><div className="min-w-[700px]"><div className="grid grid-cols-[180px_repeat(3,1fr)] border-b border-slate-100 bg-slate-50 px-4 py-3"> <span className="text-xs font-bold">Canal</span>{hours.map(h=><span key={h} className="text-xs font-semibold text-slate-400">{h}</span>)}</div>{channels.map(c=><div key={c.id} className="grid grid-cols-[180px_repeat(3,1fr)] items-center border-b border-slate-100 px-4 py-4 last:border-0"><button onClick={()=>onPlay(c)} className="flex items-center gap-3 text-left"><ChannelLogo channel={c} size="sm"/><span><strong className="block text-xs">{c.name}</strong><small className="text-slate-400">Canal {c.number}</small></span></button><div className="mr-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900">{c.currentProgram}<div className="mt-2 h-1 rounded bg-emerald-100"><div className="h-full rounded bg-emerald-500" style={{width:`${c.progress}%`}}/></div></div><span className="mr-3 rounded-lg bg-slate-50 p-3 text-xs text-slate-600">{c.nextProgram}</span><span className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Programación nacional</span></div>)}</div></div></div>}
-
-function DevicesView({devices,onAdd,onEdit,onDelete}:{devices:Device[];onAdd:()=>void;onEdit:(d:Device)=>void;onDelete:(d:Device)=>void}){return <div><div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-bold tracking-[-.03em]">Dispositivos</h1><p className="mt-1 text-sm text-slate-500">Conecta y administra las pantallas de tu hogar.</p></div><button onClick={onAdd} className="btn-primary"><Plus className="h-4 w-4"/>Vincular dispositivo</button></div><div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900"><div className="flex gap-3"><Airplay className="h-5 w-5 shrink-0 text-blue-600"/><div><strong>Cómo conectar tu Smart TV</strong><p className="mt-1 text-xs leading-5 text-blue-800/70">Abre CanalCasa en el navegador de tu TV, elige “Vincular” e ingresa el código generado aquí. Ambos equipos deben tener conexión a internet.</p></div></div></div>{devices.length?<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{devices.map(d=><article key={d.id} className="panel p-5"><div className="flex items-start"><span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#edf8f4] text-[#168766]"><Tv2 className="h-6 w-6"/></span><span className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-bold ${d.status==="online"?"bg-emerald-50 text-emerald-700":"bg-slate-100 text-slate-500"}`}>{d.status==="online"?<Wifi className="h-3 w-3"/>:<WifiOff className="h-3 w-3"/>}{d.status==="online"?"CONECTADO":"SIN CONEXIÓN"}</span></div><h3 className="mt-4 font-bold">{d.name}</h3><p className="mt-1 text-xs text-slate-400">{d.type} · {d.room}</p><div className="mt-4 flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2"><span className="text-[10px] text-slate-400">CÓDIGO</span><strong className="text-xs tracking-widest">{d.code}</strong></div><div className="mt-4 flex gap-2"><button onClick={()=>onEdit(d)} className="btn-secondary flex-1"><Edit3 className="h-3.5 w-3.5"/>Editar</button><button onClick={()=>onDelete(d)} className="grid h-9 w-9 place-items-center rounded-lg border border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-500"><Trash2 className="h-4 w-4"/></button></div></article>)}</div>:<Empty icon={Monitor} title="No hay pantallas conectadas" text="Vincula tu Smart TV, Roku o Chromecast." action={onAdd}/>}</div>}
-
-function SettingsView({user}:{user:User}){return <div className="max-w-3xl"><h1 className="text-2xl font-bold tracking-[-.03em]">Configuración</h1><p className="mt-1 text-sm text-slate-500">Preferencias y privacidad de tu hogar.</p><section className="panel mt-7 divide-y divide-slate-100"><div className="flex items-center gap-4 p-5"><span className="grid h-12 w-12 place-items-center rounded-full bg-emerald-100 font-bold text-emerald-700">{user.avatar}</span><div><p className="font-bold">{user.name}</p><p className="text-xs text-slate-400">{user.email}</p></div></div>{[{icon:Users,title:"Nombre del hogar",value:user.householdName},{icon:ShieldCheck,title:"Privacidad",value:"Cuenta privada"},{icon:Signal,title:"Calidad preferida",value:"Automática"},{icon:CircleHelp,title:"Ayuda y soporte",value:"Centro de ayuda"}].map(({icon:Icon,title,value})=><button key={title} className="flex w-full items-center gap-4 p-5 text-left hover:bg-slate-50"><Icon className="h-5 w-5 text-slate-400"/><span className="flex-1 text-sm font-semibold">{title}</span><span className="text-xs text-slate-400">{value}</span><ChevronRight className="h-4 w-4 text-slate-300"/></button>)}</section><div className="mt-5 rounded-2xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-900"><strong>Uso responsable:</strong> CanalCasa no retransmite ni provee señales. Agrega únicamente URLs oficiales o fuentes para las que tengas autorización de uso.</div></div>}
-
-function Player({channel,devices,onClose,onFavorite}:{channel:Channel;devices:Device[];onClose:()=>void;onFavorite:()=>void}){const ref=useRef<HTMLVideoElement>(null);const [loading,setLoading]=useState(!!channel.streamUrl);useEffect(()=>{let hls:{destroy:()=>void}|undefined;if(!channel.streamUrl||!ref.current)return;const video=ref.current;if(channel.streamUrl.includes(".m3u8")&&!video.canPlayType("application/vnd.apple.mpegurl")){import("hls.js").then(({default:Hls})=>{if(Hls.isSupported()){const instance=new Hls();instance.loadSource(channel.streamUrl);instance.attachMedia(video);hls=instance}})}else video.src=channel.streamUrl;return()=>hls?.destroy()},[channel]);return <div className="fixed inset-0 z-50 overflow-y-auto bg-[#061713]/95 p-4 backdrop-blur-md md:p-8"><div className="mx-auto max-w-6xl"><div className="mb-4 flex items-center justify-between text-white"><div className="flex items-center gap-3"><ChannelLogo channel={channel} size="sm"/><div><p className="text-sm font-bold">{channel.name}</p><p className="text-[10px] text-white/50">Canal {channel.number} · En vivo</p></div></div><button onClick={onClose} className="rounded-full bg-white/10 p-2 hover:bg-white/20"><X/></button></div><div className="overflow-hidden rounded-2xl bg-black shadow-2xl"><div className="aspect-video relative grid place-items-center">{channel.streamUrl?<><video ref={ref} controls autoPlay onCanPlay={()=>setLoading(false)} className="h-full w-full"/>{loading&&<Loader2 className="absolute h-8 w-8 animate-spin text-white"/>}</>:<div className="max-w-md p-8 text-center text-white"><div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl" style={{background:channel.color}}><span className="text-3xl font-black">{channel.logoText}</span></div><h2 className="mt-6 text-xl font-bold">Fuente de video pendiente</h2><p className="mt-2 text-sm leading-6 text-white/55">Agrega la URL HLS o MP4 oficial de este canal desde “Editar canal”. Mientras tanto, puedes visitar su sitio oficial.</p>{channel.websiteUrl&&<a href={channel.websiteUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-slate-900"><ExternalLink className="h-4 w-4"/>Abrir sitio oficial</a>}</div>}</div></div><div className="mt-5 grid gap-4 text-white md:grid-cols-[1fr_300px]"><div><span className="text-[10px] font-bold text-emerald-400">AHORA</span><h1 className="mt-1 text-2xl font-bold">{channel.currentProgram}</h1><p className="mt-2 text-sm text-white/50">A continuación: {channel.nextProgram}</p></div><div className="flex items-center gap-2 md:justify-end"><button onClick={onFavorite} className="player-action"><Heart className={`h-4 w-4 ${channel.isFavorite?"fill-white":""}`}/>Favorito</button><button disabled={!devices.some(d=>d.status==="online")} className="player-action disabled:opacity-40"><Airplay className="h-4 w-4"/>Enviar a TV</button></div></div></div></div>}
-
-function ChannelForm({item,onClose,onSaved,onDelete}:{item:Channel|"new";onClose:()=>void;onSaved:(c:Channel)=>void;onDelete:(c:Channel)=>void}){const base=item==="new"?{name:"",number:"",category:"Nacional",description:"",logoText:"",color:"#168766",streamUrl:"",websiteUrl:"",currentProgram:"Señal en vivo",nextProgram:"Próximamente"}:item;const [form,setForm]=useState(base);const [saving,setSaving]=useState(false);async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);const res=await fetch(item==="new"?"/api/channels":`/api/channels/${item.id}`,{method:item==="new"?"POST":"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});if(res.ok)onSaved(await res.json());else setSaving(false)}return <Modal title={item==="new"?"Agregar canal":"Editar canal"} subtitle="Configura una fuente autorizada para tu hogar." onClose={onClose}><form onSubmit={submit} className="space-y-4"><div className="grid grid-cols-[1fr_90px] gap-3"><FormField label="Nombre" value={form.name} set={v=>setForm({...form,name:v})}/><FormField label="Número" value={form.number} set={v=>setForm({...form,number:v})}/></div><div className="grid grid-cols-2 gap-3"><FormField label="Categoría" value={form.category} set={v=>setForm({...form,category:v})}/><label><span className="form-label">Color</span><input type="color" className="h-11 w-full rounded-xl border border-slate-200 p-1" value={form.color} onChange={e=>setForm({...form,color:e.target.value})}/></label></div><FormField label="Programa actual" value={form.currentProgram} set={v=>setForm({...form,currentProgram:v})}/><FormField label="URL de señal oficial (HLS o MP4)" value={form.streamUrl} set={v=>setForm({...form,streamUrl:v})} placeholder="https://.../señal.m3u8"/><FormField label="Sitio web oficial" value={form.websiteUrl} set={v=>setForm({...form,websiteUrl:v})} placeholder="https://..."/><label><span className="form-label">Descripción</span><textarea className="input min-h-20 resize-none py-3" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></label><div className="flex items-center justify-between pt-2">{item!=="new"?<button type="button" onClick={()=>onDelete(item)} className="text-xs font-semibold text-red-500">Eliminar canal</button>:<span/>}<div className="flex gap-2"><button type="button" onClick={onClose} className="btn-secondary">Cancelar</button><button disabled={saving} className="btn-primary">{saving&&<Loader2 className="h-4 w-4 animate-spin"/>}Guardar</button></div></div></form></Modal>}
-
-function DeviceForm({item,onClose,onSaved}:{item:Device|"new";onClose:()=>void;onSaved:(d:Device)=>void}){const [form,setForm]=useState(item==="new"?{name:"",type:"Smart TV",room:"Sala",status:"offline"}:item);const [saving,setSaving]=useState(false);async function submit(e:React.FormEvent){e.preventDefault();setSaving(true);const res=await fetch(item==="new"?"/api/devices":`/api/devices/${item.id}`,{method:item==="new"?"POST":"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(form)});if(res.ok)onSaved(await res.json());else setSaving(false)}return <Modal title={item==="new"?"Vincular dispositivo":"Editar dispositivo"} subtitle="Identifica esta pantalla dentro de tu hogar." onClose={onClose}><form onSubmit={submit} className="space-y-4"><FormField label="Nombre" value={form.name} set={v=>setForm({...form,name:v})} placeholder="Ej. TV de la sala"/><div className="grid grid-cols-2 gap-3"><label><span className="form-label">Tipo</span><select className="input" value={form.type} onChange={e=>setForm({...form,type:e.target.value})}><option>Smart TV</option><option>Google Cast</option><option>Roku</option><option>Apple TV</option></select></label><FormField label="Habitación" value={form.room} set={v=>setForm({...form,room:v})}/></div>{item!=="new"&&<label><span className="form-label">Estado</span><select className="input" value={form.status} onChange={e=>setForm({...form,status:e.target.value})}><option value="online">Conectado</option><option value="offline">Sin conexión</option></select></label>}<div className="flex justify-end gap-2 pt-3"><button type="button" onClick={onClose} className="btn-secondary">Cancelar</button><button disabled={saving} className="btn-primary">{saving&&<Loader2 className="h-4 w-4 animate-spin"/>}{item==="new"?"Generar código":"Guardar"}</button></div></form></Modal>}
-
-function Modal({title,subtitle,onClose,children}:{title:string;subtitle:string;onClose:()=>void;children:React.ReactNode}){return <div className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-slate-950/55 p-4 backdrop-blur-sm"><div className="my-5 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-100 p-6"><div><h2 className="text-xl font-bold">{title}</h2><p className="mt-1 text-xs text-slate-400">{subtitle}</p></div><button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5"/></button></div><div className="p-6">{children}</div></div></div>}
-function FormField({label,value,set,placeholder=""}:{label:string;value:string;set:(v:string)=>void;placeholder?:string}){return <label><span className="form-label">{label}</span><input required={label==="Nombre"||label==="Número"} className="input" value={value} onChange={e=>set(e.target.value)} placeholder={placeholder}/></label>}
-function ChannelLogo({channel,size}:{channel:Channel;size:"sm"|"md"|"lg"}){const cls=size==="sm"?"h-10 w-10 rounded-xl text-sm":size==="md"?"h-16 w-16 rounded-2xl text-2xl":"h-20 w-20 rounded-[22px] text-3xl";return <span className={`grid shrink-0 place-items-center font-black text-white shadow-lg ${cls}`} style={{background:`linear-gradient(145deg, ${channel.color}, color-mix(in srgb, ${channel.color}, #000 22%))`}}>{channel.logoText||channel.number}</span>}
-function SectionTitle({title,action,onClick}:{title:string;action:string;onClick:()=>void}){return <div className="flex items-center justify-between"><h2 className="text-base font-bold">{title}</h2><button onClick={onClick} className="flex items-center gap-1 text-xs font-semibold text-[#168766]">{action}<ChevronRight className="h-3.5 w-3.5"/></button></div>}
-function Empty({icon:Icon,title,text,action}:{icon:typeof Tv2;title:string;text:string;action?:()=>void}){return <div className="panel mt-5 grid min-h-64 place-items-center p-8 text-center"><div><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-emerald-50 text-emerald-600"><Icon className="h-6 w-6"/></span><h3 className="mt-4 font-bold">{title}</h3><p className="mt-1 text-sm text-slate-400">{text}</p>{action&&<button onClick={action} className="btn-primary mx-auto mt-5"><Plus className="h-4 w-4"/>Agregar</button>}</div></div>}

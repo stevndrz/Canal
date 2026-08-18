@@ -5,13 +5,13 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function GET() {
   const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "No autorizado" }, { status: 401 });
+  if (!user || !user.householdId) return Response.json({ error: "No autorizado" }, { status: 401 });
   return Response.json(await db.select().from(devices).where(eq(devices.householdId, user.householdId)).orderBy(asc(devices.id)));
 }
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "No autorizado" }, { status: 401 });
+  if (!user || !user.householdId) return Response.json({ error: "No autorizado" }, { status: 401 });
   const body = await request.json().catch(() => ({}));
   const name = String(body.name ?? "").trim();
   if (!name) return Response.json({ error: "Escribe un nombre para el dispositivo." }, { status: 400 });

@@ -1,59 +1,63 @@
-import { boolean, integer, pgTable, serial, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, integer, boolean, timestamp } from "drizzle-orm/pg-core";
 
+// 1. Tabla Households
 export const households = pgTable("households", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// 2. Tabla Users
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
-  householdId: integer("household_id").references(() => households.id, { onDelete: "cascade" }).notNull(),
+  householdId: integer("household_id").references(() => households.id),
   name: text("name").notNull(),
-  email: text("email").notNull(),
+  email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
-  avatar: text("avatar").notNull().default("FM"),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-}, (table) => [uniqueIndex("users_email_idx").on(table.email)]);
-
-export const sessions = pgTable("sessions", {
-  id: text("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  avatar: text("avatar"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// 3. Tabla Sessions
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+// 4. Tabla Channels
 export const channels = pgTable("channels", {
   id: serial("id").primaryKey(),
-  householdId: integer("household_id").references(() => households.id, { onDelete: "cascade" }).notNull(),
+  householdId: integer("household_id").references(() => households.id),
   name: text("name").notNull(),
-  number: text("number").notNull(),
-  category: text("category").notNull().default("General"),
-  description: text("description").notNull().default(""),
-  logoText: text("logo_text").notNull(),
-  color: text("color").notNull().default("#0f766e"),
-  streamUrl: text("stream_url").notNull().default(""),
-  websiteUrl: text("website_url").notNull().default(""),
-  currentProgram: text("current_program").notNull().default("Programación nacional"),
-  nextProgram: text("next_program").notNull().default("Próximamente"),
-  progress: integer("progress").notNull().default(35),
-  isFavorite: boolean("is_favorite").notNull().default(false),
-  isLive: boolean("is_live").notNull().default(true),
+  number: text("number"),
+  category: text("category"),
+  description: text("description"),
+  logoText: text("logo_text"),
+  logoUrl: text("logo_url"),
+  streamUrl: text("stream_url"),
+  color: text("color"),
+  websiteUrl: text("website_url"),
+  currentProgram: text("current_program"),
+  nextProgram: text("next_program"),
+  progress: integer("progress"),
+  isFavorite: boolean("is_favorite").default(false),
+  isLive: boolean("is_live").default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+// 5. Tabla Devices
 export const devices = pgTable("devices", {
   id: serial("id").primaryKey(),
-  householdId: integer("household_id").references(() => households.id, { onDelete: "cascade" }).notNull(),
+  householdId: integer("household_id").references(() => households.id),
   name: text("name").notNull(),
-  type: text("type").notNull().default("Smart TV"),
-  room: text("room").notNull().default("Sala"),
-  status: text("status").notNull().default("offline"),
+  type: text("type").notNull(),
+  room: text("room").notNull(),
+  status: text("status").notNull(),
   code: text("code").notNull(),
-  lastSeen: timestamp("last_seen", { withTimezone: true }).defaultNow().notNull(),
+  lastSeen: timestamp("last_seen", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
-
-export type Channel = typeof channels.$inferSelect;
-export type Device = typeof devices.$inferSelect;
