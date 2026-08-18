@@ -47,7 +47,7 @@ const CATEGORY_PRIORITY = [
 ];
 
 export async function getM3uContent(): Promise<string | null> {
-  const source = process.env.M3U_URL || "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/864b7ab968630d1ae0e90cf4fc448cf6bc1c508d/gt.m3u";
+  const source = process.env.M3U_URL || "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/831ef3c4a41bd6751993c204741fa5aee6be82f5/gt.m3u";
 
   try {
     const res = await fetch(source, { next: { revalidate: 30 } });
