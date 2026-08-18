@@ -1,6 +1,28 @@
+# Dependencias
 node_modules/
+
+# Build
 .next/
-.env
-.env.local
 build/
 dist/
+out/
+
+# Entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Next.js
+next-env.d.ts
