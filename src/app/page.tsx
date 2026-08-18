@@ -21,7 +21,7 @@ export default async function HomePage() {
 
   const m3uChannels = await loadM3uChannels();
   const allowedStreamUrls = new Set(m3uChannels.map((channel) => channel.streamUrl));
-  
+
   const visibleRows = allowedStreamUrls.size > 0
     ? channelRows.filter((row) => row.streamUrl && allowedStreamUrls.has(row.streamUrl))
     : channelRows;
