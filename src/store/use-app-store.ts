@@ -12,9 +12,6 @@ import { persist } from "zustand/middleware";
  * principal, que es justo lo que se nota en el procesador de una Smart TV.
  */
 
-/** Nitidez al escalar el video en pantallas grandes. */
-export type SharpnessMode = "smooth" | "sharp";
-
 interface AppState {
   /** URLs de stream marcadas como favoritas (sobreviven a cambios de la lista). */
   favoriteUrls: string[];
@@ -24,17 +21,6 @@ interface AppState {
   /** Último canal visto, para reabrir donde se quedó. */
   lastChannelUrl: string | null;
   setLastChannel: (streamUrl: string) => void;
-
-  /** Preferencias de imagen. */
-  sharpness: SharpnessMode;
-  setSharpness: (mode: SharpnessMode) => void;
-
-  /**
-   * Modo TV: desactiva desenfoques y sombras caras, que son lo primero que
-   * hace tirones en la GPU de un televisor.
-   */
-  tvMode: boolean;
-  setTvMode: (enabled: boolean) => void;
 
   /** Cómo se listan los canales: cuadritos con logo o lista compacta. */
   channelView: "grid" | "list";
@@ -69,12 +55,6 @@ export const useAppStore = create<AppState>()(
       lastChannelUrl: null,
       setLastChannel: (streamUrl) => set({ lastChannelUrl: streamUrl }),
 
-      sharpness: "smooth",
-      setSharpness: (sharpness) => set({ sharpness }),
-
-      tvMode: false,
-      setTvMode: (tvMode) => set({ tvMode }),
-
       channelView: "grid",
       setChannelView: (channelView) => set({ channelView }),
 
@@ -87,11 +67,9 @@ export const useAppStore = create<AppState>()(
     {
       name: "canalcasa",
       // La sala de Watch Party es de la sesión, no debe revivir al reabrir.
-      partialize: ({ favoriteUrls, lastChannelUrl, sharpness, tvMode, preferredProvider, channelView }) => ({
+      partialize: ({ favoriteUrls, lastChannelUrl, preferredProvider, channelView }) => ({
         favoriteUrls,
         lastChannelUrl,
-        sharpness,
-        tvMode,
         preferredProvider,
         channelView,
       }),

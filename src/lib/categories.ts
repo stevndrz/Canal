@@ -120,6 +120,75 @@ export const FEATURED_CHANNEL_PATTERNS: { label: string; pattern: RegExp }[] = [
 ];
 
 /**
+ * Canales que deben salir primero dentro de su categoría, en este orden.
+ *
+ * La lista M3U trae miles de canales y el número que traiga cada uno no dice
+ * nada de lo que la gente quiere ver: hay decenas de "Canal 5" de países
+ * distintos. Aquí manda la importancia real, no el número.
+ *
+ * Guatemala reutiliza `FEATURED_CHANNEL_PATTERNS`, que ya define ese orden para
+ * el acceso rápido: tener dos listas del mismo país acabaría con una
+ * desactualizada respecto a la otra.
+ */
+const CHANNEL_PRIORITY: Record<string, RegExp[]> = {
+  Guatemala: FEATURED_CHANNEL_PATTERNS.map((featured) => featured.pattern),
+  Deportes: [
+    /^espn$|^espn ?1$/,
+    /^espn ?2$/,
+    /^espn ?3$|^espn ?deportes$/,
+    /tudn/,
+    // Tigo Sports pasó a llamarse Fox y Fox+ en Guatemala en mayo de 2026, así
+    // que la lista puede traer cualquiera de los dos nombres.
+    /tigo ?sports|^fox ?sports|^fox\+?$/,
+    /tnt ?sports/,
+    /sky ?sports/,
+    /^win ?sports/,
+  ],
+  "Películas y series": [
+    /^hbo$|^hbo ?2$/,
+    /cinemax/,
+    /^tnt$|^tnt ?hd$/,
+    /star ?channel|^fox$/,
+    /^space$/,
+    /cinecanal/,
+    /^warner|warner ?channel/,
+    /^amc$/,
+    /^tcm$/,
+    /studio ?universal/,
+    /^sony$|sony ?channel/,
+    /^axn$/,
+  ],
+  Noticias: [
+    /cnn ?(en )?espanol/,
+    /^cnn$/,
+    /^bbc/,
+    /^dw$|deutsche ?welle/,
+    /telesur/,
+    /france ?24/,
+  ],
+  Infantil: [
+    /cartoon ?network/,
+    /disney ?channel/,
+    /nickelodeon|^nick$/,
+    /discovery ?kids/,
+    /boomerang/,
+  ],
+};
+
+/**
+ * Posición del canal dentro de la lista de importantes de su categoría.
+ * Devuelve un número grande si no está, para que caiga detrás de todos ellos.
+ */
+export function priorityRank(name: string, category: string): number {
+  const patterns = CHANNEL_PRIORITY[category];
+  if (!patterns) return Number.MAX_SAFE_INTEGER;
+
+  const normalized = normalizeText(name);
+  const index = patterns.findIndex((pattern) => pattern.test(normalized));
+  return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+}
+
+/**
  * Paleta por categoría. Las clases van completas (nunca interpoladas) para que
  * Tailwind las conserve al compilar.
  */

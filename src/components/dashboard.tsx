@@ -22,7 +22,6 @@ import { ChannelTile } from "./channel-tile";
 import { ChannelRow } from "./channel-row";
 import { QuickAccess } from "./quick-access";
 import { ShortcutsPanel } from "./shortcuts-panel";
-import { DisplaySettings } from "./display-settings";
 import { SiteNav } from "./site-nav";
 import { StickyPlayerFrame } from "./sticky-player-frame";
 import { useAppStore } from "@/store/use-app-store";
@@ -102,7 +101,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   // genera decenas de MB de HTML y bloquea teléfonos y TVs viejas. Se muestran
   // por tandas y se amplía al llegar al final de la guía.
   const [visibleCount, setVisibleCount] = useState(CHANNELS_PER_PAGE);
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreObserverRef = useRef<IntersectionObserver | null>(null);
 
   // Al cambiar de filtro se vuelve a empezar desde la primera tanda.
   useEffect(() => {
@@ -110,9 +109,26 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     setVisibleCount(CHANNELS_PER_PAGE);
   }, [deferredQuery, selectedCategory, showFavoritesOnly]);
 
-  useEffect(() => {
-    const sentinel = loadMoreRef.current;
-    if (!sentinel) return;
+  /**
+   * Se engancha al marcador de "cargar más" con una ref de callback y no con un
+   * efecto, porque el efecto se perdía el nodo.
+   *
+   * Al cambiar de categoría hay un instante en que `visibleCount` todavía es el
+   * de la categoría anterior: si era mayor que el total de la nueva, el
+   * marcador no llega a dibujarse. Los efectos corrían justo en ese hueco, no
+   * encontraban nodo y se iban; después `visibleCount` bajaba y el marcador
+   * volvía, pero el efecto ya no se repetía porque su dependencia
+   * (`filteredChannels.length`) no había cambiado. Resultado: al volver a una
+   * categoría por la que ya se había pasado, la guía se quedaba en la primera
+   * tanda para siempre.
+   *
+   * Con una ref de callback el navegador avisa en el momento exacto en que el
+   * nodo entra y sale del DOM, así que no hay hueco donde perderse.
+   */
+  const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
+    loadMoreObserverRef.current?.disconnect();
+    if (!node) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) {
@@ -121,9 +137,12 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
       },
       { rootMargin: "600px" }
     );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [filteredChannels.length]);
+    observer.observe(node);
+    loadMoreObserverRef.current = observer;
+  }, []);
+
+  // Al desmontar la guía no queda ningún observador vivo.
+  useEffect(() => () => loadMoreObserverRef.current?.disconnect(), []);
 
   const visibleChannels = useMemo(
     () => filteredChannels.slice(0, visibleCount),
@@ -267,13 +286,19 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             En una televisión, el encabezado grande con su logo, su título y la
             navegación debajo ocupaba media pantalla y empujaba el vídeo hasta
             la mitad: había que bajar para ver lo único que importa. */}
-        <header className="mb-3 flex items-center gap-2">
+        {/* Dos alturas en el teléfono, una sola desde tablet.
+            Antes iba todo en una fila y en 360 px de ancho no cabía: la marca,
+            el buscador, los dos botones de navegación y los ajustes se peleaban
+            por el mismo espacio y acababan solapados. `flex-wrap` con el
+            buscador ocupando toda la fila de abajo (`basis-full`) evita que
+            nada se comprima por debajo de su tamaño legible. */}
+        <header className="mb-3 flex flex-wrap items-center gap-2">
           <span className="flex shrink-0 items-center gap-2 text-slate-900">
             <Tv aria-hidden="true" className="h-5 w-5 text-emerald-600" />
-            <h1 className="hidden text-base font-bold tracking-tight sm:block">CanalCasa</h1>
+            <h1 className="text-base font-bold tracking-tight">CanalCasa</h1>
           </span>
 
-          <div className="relative min-w-0 flex-1">
+          <div className="order-last basis-full sm:order-none sm:basis-auto relative min-w-0 flex-1">
             <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               ref={searchRef}
@@ -292,17 +317,17 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             )}
           </div>
 
-          <SiteNav />
-          <DisplaySettings />
-
-          <button
-            type="button"
-            onClick={() => setShowShortcuts((visible) => !visible)}
-            aria-label="Ver atajos de control remoto"
-            className="shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-          >
-            <Info aria-hidden="true" className="h-5 w-5" />
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            <SiteNav />
+            <button
+              type="button"
+              onClick={() => setShowShortcuts((visible) => !visible)}
+              aria-label="Ver atajos de control remoto"
+              className="shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <Info aria-hidden="true" className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
         {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}

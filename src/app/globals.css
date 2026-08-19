@@ -94,13 +94,6 @@ button:disabled { cursor: not-allowed; }
   will-change: transform;
 }
 
-/* Nitidez opcional (clase en <html>, ver TvModeEffect).
-   Va como opción y no por defecto porque realzar el contraste en una señal
-   de baja resolución marca los bloques de compresión en vez de mejorarla. */
-.sharpen .player-surface video {
-  image-rendering: -webkit-optimize-contrast;
-}
-
 /* ==========================================================================
    Modo TV: los desenfoques y las sombras grandes son lo primero que hace
    tirones en la GPU de un televisor. Se sustituyen por color plano.

@@ -1,5 +1,5 @@
 import * as iptvParser from "iptv-playlist-parser";
-import { classifyChannel, compareByCategory } from "./categories";
+import { classifyChannel, compareByCategory, priorityRank } from "./categories";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { ParsedChannel } from "./types";
@@ -98,8 +98,28 @@ const QUALITY_TAG = /(?:fhd|uhd|4k|8k|hd|sd|hevc|h\.?26[45]|x26[45]|av1|\d{2,3}\
  * `BBC Persian (720p) (HEVC) [Not 24/7]` -> `BBC Persian`. Se repite porque
  * suelen venir apilados.
  */
+/**
+ * Restos de atributos que se cuelan en el nombre cuando quien generó la lista
+ * partió mal la línea `#EXTINF`. En el gist actual hay entradas cuyo nombre es
+ * literalmente un trozo de user-agent: `like Gecko) Chrome/120.0 ...",SIL TV`.
+ */
+const SPILLED_ATTRIBUTES = /gecko\)|chrome\/|libvlc|group-title|user-agent|safari\//i;
+
+/**
+ * Rescata el nombre real de una entrada mal formada.
+ *
+ * En `#EXTINF` el nombre es lo que va tras la última coma, así que cuando se
+ * detecta basura de atributos se toma ese trozo. Se hace solo en ese caso: hay
+ * canales con coma legítima en el nombre y partirlos siempre los estropearía.
+ */
+function rescueSpilledName(rawName: string): string {
+  if (!SPILLED_ATTRIBUTES.test(rawName)) return rawName;
+  const afterLastComma = rawName.slice(rawName.lastIndexOf(",") + 1).trim();
+  return afterLastComma || rawName;
+}
+
 export function cleanChannelName(rawName: string): string {
-  let result = rawName.trim();
+  let result = rescueSpilledName(rawName).trim();
   let previous: string;
   do {
     previous = result;
@@ -137,9 +157,21 @@ function getDeduplicationKey(item: RawM3uChannel): string {
 const nameCollator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
 
 function sortChannels(channels: ParsedChannel[]): ParsedChannel[] {
+  // Se calcula el rango una sola vez por canal: hacerlo dentro del comparador
+  // significaría recorrer las expresiones regulares en cada comparación, y con
+  // listas de miles de canales eso son cientos de miles de evaluaciones.
+  const rank = new Map(channels.map((channel) => [channel, priorityRank(channel.name, channel.category)]));
+
   return [...channels].sort((a, b) => {
     const byCategory = compareByCategory(a.category, b.category);
     if (byCategory !== 0) return byCategory;
+
+    // Dentro de la categoría mandan los canales importantes, en su orden. El
+    // número de canal no interviene: en una lista con miles de señales de
+    // varios países no dice nada de lo que alguien quiere ver.
+    const byPriority = (rank.get(a) ?? 0) - (rank.get(b) ?? 0);
+    if (byPriority !== 0) return byPriority;
+
     return nameCollator.compare(a.name, b.name);
   });
 }

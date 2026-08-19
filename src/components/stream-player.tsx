@@ -33,6 +33,30 @@ function detectStreamKind(url: string): "hls" | "mpegts" | "flv" | "native" {
 const MAX_RECOVERY_ATTEMPTS = 3;
 
 /**
+ * Fijar la mejor calidad del canal en vez de dejar que el reproductor decida.
+ *
+ * Por defecto hls.js empieza bajo y va subiendo según mide la conexión, que es
+ * lo que hace que un canal nacional se vea borroso justo al abrirlo y tarde en
+ * arreglarse. Aquí se pide la versión más alta desde el primer segmento.
+ *
+ * El coste es real y conviene tenerlo presente: al no bajar de calidad nunca,
+ * si la conexión o el servidor del canal no dan el ancho de banda necesario, el
+ * vídeo se queda cargando en lugar de continuar con una versión más ligera.
+ * Poner esto en `false` devuelve el comportamiento automático de fábrica.
+ */
+const FORCE_MAX_QUALITY = true;
+
+/** Pasa al nivel de mayor resolución y deja de ajustar solo. */
+function selectBestQuality(hls: import("hls.js").default): void {
+  if (!FORCE_MAX_QUALITY || hls.levels.length < 2) return;
+
+  // `levels` viene ordenado de menor a mayor calidad, así que el mejor es el
+  // último. Asignar `currentLevel` (y no `nextLevel`) desactiva el modo
+  // automático, que es justo lo que se busca.
+  hls.currentLevel = hls.levels.length - 1;
+}
+
+/**
  * ¿Conviene reproducir HLS de forma nativa en vez de con hls.js?
  *
  * Importa para AirPlay: el Apple TV necesita una **URL real** que reproducir.
@@ -143,10 +167,17 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
           fragLoadingMaxRetry: 4,
           manifestLoadingMaxRetry: 3,
           levelLoadingMaxRetry: 4,
+          // Sin este `false`, hls.js limita la calidad al tamaño en píxeles del
+          // reproductor: con el vídeo en una ventana pequeña nunca pediría la
+          // versión buena, ni siquiera al pasar a pantalla completa.
+          capLevelToPlayerSize: false,
         });
         hlsRef.current = hls;
 
-        hls.on(Hls.Events.MANIFEST_PARSED, tryPlay);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          selectBestQuality(hls);
+          tryPlay();
+        });
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (cancelled || !data.fatal) return;
           // Los fallos fatales suelen ser recuperables: reintentamos en vez de
@@ -160,9 +191,14 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
           if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
             setIsLoading(true);
             hls.startLoad();
+            // Recuperarse devuelve el reproductor al ajuste automático, así que
+            // hay que volver a pedir la mejor calidad o el canal se quedaría en
+            // baja resolución después del primer corte de señal.
+            selectBestQuality(hls);
           } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
             setIsLoading(true);
             hls.recoverMediaError();
+            selectBestQuality(hls);
           } else {
             destroyEngines();
             fail();
@@ -283,6 +319,25 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
       onMouseMove={revealControls}
       onMouseLeave={() => setShowControls(false)}
       onTouchStart={revealControls}
+      // Doble clic o doble toque a pantalla completa, como en cualquier
+      // reproductor. Se comprueba `canFullscreen` para no dejar un gesto que
+      // no hace nada donde el navegador no lo permite (iPhone, sobre todo).
+      onDoubleClick={canFullscreen ? toggleFullscreen : undefined}
+      // Con el control remoto no hay doble clic: el mando manda Enter. Se pone
+      // sobre el contenedor y no en `window` para no pisar el Enter de la guía,
+      // que marca favoritos.
+      onKeyDown={(event) => {
+        if (!canFullscreen) return;
+        if (event.key === "Enter" && event.target === event.currentTarget) {
+          event.preventDefault();
+          toggleFullscreen();
+        }
+      }}
+      // `tabIndex` para que el mando pueda posarse en el reproductor; sin esto
+      // el contenedor nunca recibiría el Enter de arriba.
+      tabIndex={canFullscreen ? 0 : undefined}
+      role={canFullscreen ? "button" : undefined}
+      aria-label={canFullscreen ? "Reproductor. Pulsa Enter para pantalla completa" : undefined}
     >
       <video
         ref={videoRef}
