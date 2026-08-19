@@ -3,14 +3,32 @@ import type { MediaType } from "./types";
 /**
  * Proveedores de reproducción por iframe.
  *
- * Las URL no se incrustan en el código a propósito: se configuran por entorno,
- * así se cambia de proveedor (o se apunta a un servidor propio) sin tocar ni
- * recompilar nada. Si no hay ninguno configurado, la ficha lo dice con un
- * mensaje claro en vez de mostrar un marco en blanco.
+ * Se pueden configurar por entorno para cambiar de proveedor (o apuntar a un
+ * servidor propio) sin recompilar, pero hay un valor por defecto para que la
+ * app funcione recién clonada, sin preparar nada.
+ *
+ * Que estén aquí escritas no expone nada: estas variables llevan el prefijo
+ * `NEXT_PUBLIC_`, así que Next las incrusta en el JavaScript que descarga el
+ * navegador. Son públicas mirando el código o mirando la pestaña de red del
+ * navegador: da igual. Las credenciales de verdad (Pusher, TMDB) no llevan ese
+ * prefijo y nunca salen del servidor.
  *
  * Marcadores admitidos en la plantilla: {tmdbId} {season} {episode}
  * Ejemplo: https://mi-proveedor/embed/movie/{tmdbId}
  */
+
+/**
+ * Proveedor por defecto. `ds_lang=es` le pide subtítulos en español, que es lo
+ * que hace mirable el cine en inglés sin tocar nada a media película.
+ *
+ * Si algún día deja de responder hay espejos (vidsrc.xyz, vidsrc.in,
+ * vidsrc.me): se cambia el dominio aquí, o se define la variable de entorno
+ * para no tocar el código.
+ */
+const DEFAULT_TEMPLATE: Record<MediaType, string> = {
+  movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
+  tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
+};
 
 export interface EmbedTarget {
   tmdbId: number;
@@ -19,9 +37,13 @@ export interface EmbedTarget {
 }
 
 function template(mediaType: MediaType): string {
-  return mediaType === "movie"
-    ? process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE ?? ""
-    : process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV ?? "";
+  const configured =
+    mediaType === "movie"
+      ? process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE
+      : process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV;
+  // `||` y no `??`: una variable definida pero vacía (lo más común al
+  // configurarlas mal) debe caer al valor por defecto, no dejar la ficha muerta.
+  return configured?.trim() || DEFAULT_TEMPLATE[mediaType];
 }
 
 export function isEmbedConfigured(mediaType: MediaType): boolean {
