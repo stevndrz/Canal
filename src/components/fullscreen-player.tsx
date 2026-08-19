@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { List, Maximize, Minimize, Pause, Play, Star, Volume2, VolumeX } from "lucide-react";
+import { Cast, List, Maximize, Minimize, Pause, Play, Star, Users, Volume2, VolumeX } from "lucide-react";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -9,6 +9,9 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 import { channelMark, stepChannel } from "@/lib/channels";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useCast } from "@/hooks/use-cast";
+import { useWatchParty } from "@/hooks/use-watch-party";
+import { normalizeRoomId } from "@/lib/watch-party/sign";
 
 interface FullscreenPlayerProps {
   channel: Channel;
@@ -51,6 +54,17 @@ export function FullscreenPlayer({
    * respaldo a `documentElement` cuando el contenedor lo rechaza.
    */
   const { isFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoElRef);
+
+  // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
+  // real que usa la pantalla completa: da igual cuál de los dos consuma el
+  // elemento primero, ambos leen `.current` en el momento de actuar.
+  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+    useCast(videoElRef, channel.streamUrl, channel.name);
+
+  const [showParty, setShowParty] = useState(false);
+  const [roomInput, setRoomInput] = useState("");
+  const [activeRoom, setActiveRoom] = useState("");
+  const watchParty = useWatchParty(videoElRef, activeRoom || undefined);
 
   const [showControls, setShowControls] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
@@ -265,6 +279,30 @@ export function FullscreenPlayer({
           <button
             type="button"
             data-nav="button"
+            aria-label="Ver en familia"
+            aria-expanded={showParty}
+            onClick={() => setShowParty((value) => !value)}
+            className={controlClass}
+          >
+            <Users aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
+          </button>
+
+          {canCast && (
+            <button
+              type="button"
+              data-nav="button"
+              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
+              aria-pressed={isCasting}
+              onClick={isCasting ? stopCasting : startCasting}
+              className={`${controlClass} ${isCasting ? "text-live" : ""}`}
+            >
+              <Cast aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
+            </button>
+          )}
+
+          <button
+            type="button"
+            data-nav="button"
             aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
             aria-pressed={isFullscreen}
             onClick={toggleFullscreen}
@@ -337,6 +375,68 @@ export function FullscreenPlayer({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Aviso de fallo al transmitir. Antes solo se veía en la consola del
+          navegador, así que desde fuera parecía que el botón no hacía nada. */}
+      {castError && (
+        <div className="tv-safe absolute inset-x-0 top-24 z-30 flex items-start gap-2.5 rounded-2xl border border-white/12 bg-app/92 p-4 text-sm backdrop-blur-xl">
+          <Cast aria-hidden="true" strokeWidth={1.5} className="mt-0.5 h-4 w-4 shrink-0 text-live" />
+          <p className="flex-1 text-zinc-100/85">{castError}</p>
+          <button
+            type="button"
+            data-nav="button"
+            onClick={dismissCastError}
+            aria-label="Cerrar aviso"
+            className="shrink-0 rounded-lg px-2 text-zinc-100/50 hover:text-accent"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Ver en familia: sala de Pusher, sincroniza play/pause/seek entre
+          quien la abra con el mismo nombre. */}
+      {showParty && (
+        <div className="tv-safe absolute inset-x-0 top-24 z-30 w-full max-w-sm rounded-2xl border border-white/12 bg-app/92 p-4 backdrop-blur-xl sm:right-6 sm:left-auto">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              setActiveRoom(normalizeRoomId(roomInput));
+            }}
+            className="flex flex-col gap-3"
+          >
+            <label htmlFor="watch-party-room" className="text-sm font-semibold">
+              Ver en familia
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="watch-party-room"
+                data-nav="input"
+                value={roomInput}
+                onChange={(event) => setRoomInput(event.target.value)}
+                placeholder="nombre de la sala"
+                className="min-w-0 flex-1 rounded-xl border border-white/12 bg-surface-2 px-3.5 py-2.5 text-sm placeholder-zinc-100/35 outline-none focus:border-accent"
+              />
+              <button
+                type="submit"
+                data-nav="button"
+                className="shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-on"
+              >
+                {activeRoom ? "Cambiar" : "Entrar"}
+              </button>
+            </div>
+            <p className="text-[13px] text-zinc-100/50">
+              {watchParty.status === "connected"
+                ? "Conectado: quien abra la misma sala verá esto sincronizado."
+                : watchParty.status === "connecting"
+                  ? "Conectando…"
+                  : watchParty.status === "error"
+                    ? "No se pudo conectar la sala."
+                    : "Quien abra esta misma sala verá el canal sincronizado."}
+            </p>
+          </form>
         </div>
       )}
     </div>
