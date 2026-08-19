@@ -1,4 +1,5 @@
 import catalogData from "@/data/catalog.json";
+import { fetchCatalogRows, tmdbIdFromCatalogId } from "./discover";
 import { fetchSeason, fetchTitle } from "./tmdb";
 import type {
   CatalogItem,
@@ -23,7 +24,15 @@ export function getCatalog(): CatalogItem[] {
 }
 
 export function findCatalogItem(mediaType: MediaType, id: string): CatalogItem | null {
-  return catalog.find((item) => item.id === id && item.mediaType === mediaType) ?? null;
+  const own = catalog.find((item) => item.id === id && item.mediaType === mediaType);
+  if (own) return own;
+
+  // Las fichas que vienen de TMDB no están en el JSON: son miles y cambian
+  // solas. Se reconstruyen a partir del id (`tmdb-550`), que es todo lo que
+  // hace falta para pedir los datos y armar la URL del reproductor. Sin esto,
+  // cada tarjeta del catálogo daría 404 al abrirla.
+  const tmdbId = tmdbIdFromCatalogId(id);
+  return tmdbId ? { id, mediaType, tmdbId, source: { kind: "embed" } } : null;
 }
 
 /** Ficha lista para pintar: JSON por encima, TMDB de relleno. */
@@ -63,6 +72,19 @@ export function groupByCollection(items: ResolvedCatalogItem[]): { title: string
     else groups.set(key, [item]);
   }
   return Array.from(groups, ([title, groupItems]) => ({ title, items: groupItems }));
+}
+
+/**
+ * Todo lo que se pinta en /peliculas: primero lo escrito a mano, después el
+ * catálogo de TMDB.
+ *
+ * El orden no es casual y es el mismo criterio de todo el módulo: **lo que tú
+ * escribes manda**, así que tus colecciones salen arriba y el catálogo
+ * automático va debajo, sin poder desplazarlas.
+ */
+export async function getCatalogSections(): Promise<{ title: string; items: ResolvedCatalogItem[] }[]> {
+  const [own, rows] = await Promise.all([resolveCatalog(), fetchCatalogRows()]);
+  return [...groupByCollection(own), ...rows];
 }
 
 /**

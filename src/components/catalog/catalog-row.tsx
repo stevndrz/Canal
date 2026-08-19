@@ -18,6 +18,27 @@ export interface CatalogSection {
  * saltan a la fila vecina. Si cada fila gestionara sus propias teclas, con el
  * control remoto se quedaría uno atrapado en la primera.
  */
+/**
+ * Rejilla de resultados de búsqueda.
+ *
+ * A diferencia de las filas, aquí las tarjetas envuelven en varias líneas: una
+ * búsqueda devuelve una lista sin orden temático, y obligar a recorrerla en
+ * horizontal con el control remoto sería peor. Comparte el mismo contenedor de
+ * navegación, así que las cuatro flechas funcionan igual.
+ */
+export function CatalogGrid({ items }: { items: ResolvedCatalogItem[] }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useGridNavigation(containerRef, "[data-poster-card]");
+
+  return (
+    <div ref={containerRef} className="flex flex-wrap gap-3 sm:gap-4">
+      {items.map((item) => (
+        <PosterCard key={`${item.mediaType}-${item.id}`} item={item} />
+      ))}
+    </div>
+  );
+}
+
 export function CatalogRows({ sections }: { sections: CatalogSection[] }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   useGridNavigation(containerRef, "[data-poster-card]");

@@ -1,14 +1,28 @@
 import Link from "next/link";
-import { Clapperboard, Info, Tv } from "lucide-react";
-import { CatalogRows } from "@/components/catalog/catalog-row";
-import { groupByCollection, resolveCatalog } from "@/lib/catalog/catalog";
+import { Clapperboard, Info, SearchX, Tv } from "lucide-react";
+import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
+import { CatalogSearch } from "@/components/catalog/catalog-search";
+import { getCatalogSections } from "@/lib/catalog/catalog";
+import { searchCatalog } from "@/lib/catalog/discover";
 import { isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 export const dynamic = "force-dynamic";
 
-export default async function MoviesPage() {
-  const items = await resolveCatalog();
-  const rows = groupByCollection(items);
+export default async function MoviesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+  const query = q?.trim() ?? "";
+  const searching = query.length > 0;
+
+  // Solo se pide lo que se va a pintar: buscando no hace falta traer las diez
+  // filas del catálogo, que son diez peticiones a TMDB.
+  const [rows, results] = await Promise.all([
+    searching ? Promise.resolve([]) : getCatalogSections(),
+    searching ? searchCatalog(query) : Promise.resolve([]),
+  ]);
   const tmdbReady = isTmdbConfigured();
 
   return (
@@ -56,7 +70,32 @@ export default async function MoviesPage() {
           </div>
         )}
 
-        {rows.length > 0 ? (
+        <CatalogSearch query={query} />
+
+        {searching ? (
+          results.length > 0 ? (
+            <>
+              <h2 className="mb-3 text-lg font-bold tracking-tight text-white sm:text-xl">
+                Resultados para “{query}”
+              </h2>
+              <CatalogGrid items={results} />
+            </>
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
+              <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-white/40" />
+              <p className="font-medium text-white/80">Sin resultados para “{query}”</p>
+              <p className="mt-1 text-sm text-white/50">
+                Prueba con menos palabras, o con el título original.
+              </p>
+              <Link
+                href="/peliculas"
+                className="mt-4 inline-block rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400"
+              >
+                Volver al catálogo
+              </Link>
+            </div>
+          )
+        ) : rows.length > 0 ? (
           <CatalogRows sections={rows} />
         ) : (
           <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">

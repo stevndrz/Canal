@@ -137,6 +137,95 @@ export async function fetchSeason(tmdbId: number, season: number): Promise<TmdbE
   }));
 }
 
+/** Una ficha tal y como viene en una lista (discover, trending, búsqueda). */
+interface TmdbListItem {
+  id: number;
+  media_type?: string;
+  title?: string;
+  name?: string;
+  overview?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+}
+
+interface TmdbListResponse {
+  results?: TmdbListItem[];
+}
+
+export interface TmdbListEntry {
+  tmdbId: number;
+  mediaType: MediaType;
+  title: string;
+  overview: string;
+  poster: string | null;
+  backdrop: string | null;
+  year: string | null;
+  rating: number | null;
+}
+
+/**
+ * Convierte un resultado de lista en ficha.
+ *
+ * Merece la pena porque estas respuestas **ya traen título, póster, sinopsis,
+ * año y nota**: pintar una fila cuesta una sola petición en vez de una por
+ * ficha. Con diez filas de veinte, son doscientas peticiones menos por visita.
+ *
+ * `fallbackType` es para `/discover`, que no devuelve `media_type` porque el
+ * tipo ya va en la URL; `/trending` y `/search/multi` sí lo mandan y mezclan.
+ */
+function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry | null {
+  const mediaType: MediaType =
+    item.media_type === "movie" || item.media_type === "tv" ? item.media_type : fallbackType;
+
+  const title = item.title ?? item.name ?? "";
+  // Sin póster la fila se ve rota, y sin título no hay nada que enseñar.
+  if (!title || !item.poster_path) return null;
+
+  const date = item.release_date || item.first_air_date || "";
+  return {
+    tmdbId: item.id,
+    mediaType,
+    title,
+    overview: item.overview ?? "",
+    poster: tmdbImage(item.poster_path, POSTER_SIZE),
+    backdrop: tmdbImage(item.backdrop_path, BACKDROP_SIZE),
+    year: date ? date.slice(0, 4) : null,
+    rating: typeof item.vote_average === "number" ? Math.round(item.vote_average * 10) / 10 : null,
+  };
+}
+
+/** Una lista de TMDB (discover/trending). Sin clave o sin respuesta, vacía. */
+export async function fetchList(path: string, fallbackType: MediaType): Promise<TmdbListEntry[]> {
+  const data = await tmdbFetch<TmdbListResponse>(path);
+  if (!data?.results) return [];
+  return data.results
+    .map((item) => toListEntry(item, fallbackType))
+    .filter((entry): entry is TmdbListEntry => entry !== null);
+}
+
+/**
+ * Busca en todo el catálogo de TMDB. Devuelve el título en español aunque la
+ * película sea en inglés (`Batman Begins` -> `Batman inicia`), que es lo que
+ * hace utilizable un catálogo internacional en casa.
+ */
+export async function searchTitles(query: string): Promise<TmdbListEntry[]> {
+  const term = query.trim();
+  if (!term) return [];
+  // `/search/multi` mezcla películas, series y personas; las personas se caen
+  // solas al no encajar en el tipo, pero se filtran antes para no perder sitio.
+  const data = await tmdbFetch<TmdbListResponse>(
+    `/search/multi?query=${encodeURIComponent(term)}&include_adult=false`
+  );
+  if (!data?.results) return [];
+  return data.results
+    .filter((item) => item.media_type === "movie" || item.media_type === "tv")
+    .map((item) => toListEntry(item, "movie"))
+    .filter((entry): entry is TmdbListEntry => entry !== null);
+}
+
 export function isTmdbConfigured(): boolean {
   // Mismo criterio que tmdbFetch(): una variable con solo espacios no cuenta,
   // o el aviso de "falta la clave" no saldría y las fichas quedarían vacías.
