@@ -278,7 +278,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
   return (
     <div
       ref={containerRef}
-      className="group relative aspect-video w-full overflow-hidden bg-black"
+      className="player-surface group relative aspect-video w-full overflow-hidden bg-black"
       onMouseMove={revealControls}
       onMouseLeave={() => setShowControls(false)}
       onTouchStart={revealControls}

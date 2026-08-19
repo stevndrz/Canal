@@ -1,0 +1,449 @@
+"use client";
+
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Hls from "hls.js";
+import {
+  Captions,
+  Cast,
+  Languages,
+  Loader2,
+  Maximize,
+  Minimize,
+  Pause,
+  Play,
+  RefreshCw,
+  Users,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { useCast } from "@/hooks/use-cast";
+import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useWatchParty } from "@/hooks/use-watch-party";
+import type { ManualStream } from "@/lib/catalog/types";
+
+/**
+ * Reproductor nativo para los enlaces propios del catálogo (`manual`).
+ *
+ * Solo aquí tiene sentido añadir controles avanzados: en las fichas de tipo
+ * `embed` manda el reproductor del proveedor, con sus propios controles.
+ *
+ * Reutiliza el mismo patrón de recuperación de errores que el de canales, pero
+ * añade barra de progreso (una película sí se busca, un canal en vivo no),
+ * selector de pistas de audio y de subtítulos.
+ */
+
+const MAX_RECOVERY_ATTEMPTS = 3;
+
+interface AudioTrackOption {
+  id: number;
+  label: string;
+}
+
+function detectKind(stream: ManualStream): "hls" | "native" {
+  if (stream.type === "hls") return "hls";
+  if (stream.type === "mp4") return "native";
+  const path = stream.url.toLowerCase().split("?")[0];
+  return path.endsWith(".m3u8") ? "hls" : "native";
+}
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+  const total = Math.floor(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return h > 0
+    ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${m}:${String(s).padStart(2, "0")}`;
+}
+
+export const NativePlayer = memo(function NativePlayer({
+  streams,
+  title,
+  roomId,
+}: {
+  streams: ManualStream[];
+  title: string;
+  /** Sala de Watch Party; vacío = reproducción normal. */
+  roomId?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  const [streamIndex, setStreamIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [audioTracks, setAudioTracks] = useState<AudioTrackOption[]>([]);
+  const [activeAudio, setActiveAudio] = useState<number | null>(null);
+  const [activeSubtitle, setActiveSubtitle] = useState<number | null>(null);
+
+  const stream = streams[streamIndex] ?? streams[0];
+  const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
+
+  const { canCast, isCasting, startCasting } = useCast(videoRef, stream?.url ?? "", title);
+  const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
+  const watchParty = useWatchParty(videoRef, roomId);
+
+  const retry = useCallback(() => setRetryCount((count) => count + 1), []);
+
+  // --- Carga del stream -----------------------------------------------------
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream?.url) return;
+
+    let cancelled = false;
+    let recoveryAttempts = 0;
+    setHasError(false);
+    setIsLoading(true);
+    setAudioTracks([]);
+    setActiveAudio(null);
+
+    hlsRef.current?.destroy();
+    hlsRef.current = null;
+    video.removeAttribute("src");
+    video.load();
+
+    const fail = () => {
+      if (cancelled) return;
+      setHasError(true);
+      setIsLoading(false);
+    };
+
+    if (detectKind(stream) === "hls" && !video.canPlayType("application/vnd.apple.mpegurl") && Hls.isSupported()) {
+      const hls = new Hls({ enableWorker: true });
+      hlsRef.current = hls;
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (cancelled) return;
+        // Las pistas de audio solo son accesibles de forma fiable por hls.js:
+        // Chrome no expone video.audioTracks.
+        const tracks = hls.audioTracks ?? [];
+        setAudioTracks(tracks.map((track, index) => ({ id: index, label: track.name || track.lang || `Pista ${index + 1}` })));
+        setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
+      });
+
+      hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (cancelled || !data.fatal) return;
+        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+          hls.destroy();
+          hlsRef.current = null;
+          fail();
+          return;
+        }
+        recoveryAttempts++;
+        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
+        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
+        else {
+          hls.destroy();
+          hlsRef.current = null;
+          fail();
+        }
+      });
+
+      hls.loadSource(stream.url);
+      hls.attachMedia(video);
+    } else {
+      video.src = stream.url;
+    }
+
+    const onLoadedMetadata = () => {
+      if (cancelled) return;
+      setDuration(video.duration);
+      setIsLoading(false);
+    };
+    const onTimeUpdate = () => !cancelled && setCurrentTime(video.currentTime);
+    const onPlay = () => !cancelled && setIsPlaying(true);
+    const onPause = () => !cancelled && setIsPlaying(false);
+    const onWaiting = () => !cancelled && setIsLoading(true);
+    const onPlaying = () => {
+      if (cancelled) return;
+      setIsLoading(false);
+      setHasError(false);
+    };
+    const onNativeError = () => {
+      if (!hlsRef.current) fail();
+    };
+
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("error", onNativeError);
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("error", onNativeError);
+      hlsRef.current?.destroy();
+      hlsRef.current = null;
+      video.pause();
+      video.removeAttribute("src");
+      video.load();
+    };
+  }, [stream, retryCount]);
+
+  // --- Subtítulos -----------------------------------------------------------
+  // Los <track> se declaran en el JSX; aquí solo se decide cuál se muestra.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    for (let i = 0; i < video.textTracks.length; i++) {
+      video.textTracks[i].mode = i === activeSubtitle ? "showing" : "disabled";
+    }
+  }, [activeSubtitle, subtitles]);
+
+  // --- Controles ------------------------------------------------------------
+  const togglePlay = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play().catch(() => {});
+      watchParty.broadcast("play");
+    } else {
+      video.pause();
+      watchParty.broadcast("pause");
+    }
+  }, [watchParty]);
+
+  const seekTo = useCallback(
+    (time: number) => {
+      const video = videoRef.current;
+      if (!video) return;
+      video.currentTime = time;
+      setCurrentTime(time);
+      watchParty.broadcast("seek");
+    },
+    [watchParty]
+  );
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = !video.muted;
+    setIsMuted(video.muted);
+  }, []);
+
+  const selectAudio = useCallback((id: number) => {
+    if (hlsRef.current) {
+      hlsRef.current.audioTrack = id;
+      setActiveAudio(id);
+    }
+  }, []);
+
+  if (!stream) {
+    return (
+      <div className="flex aspect-video items-center justify-center rounded-2xl bg-black text-sm text-white/60">
+        Esta ficha no tiene ningún enlace configurado.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div ref={containerRef} className="player-surface relative aspect-video w-full overflow-hidden rounded-2xl bg-black">
+        <video
+          ref={videoRef}
+          className="h-full w-full object-contain"
+          playsInline
+          muted={isMuted}
+          x-webkit-airplay="allow"
+          crossOrigin="anonymous"
+        >
+          {subtitles.map((track) => (
+            <track
+              key={track.url}
+              kind="subtitles"
+              src={track.url}
+              srcLang={track.srclang}
+              label={track.label}
+            />
+          ))}
+        </video>
+
+        {isLoading && !hasError && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center" role="status">
+            <Loader2 aria-hidden="true" className="h-10 w-10 animate-spin text-white/70" />
+            <span className="sr-only">Cargando…</span>
+          </div>
+        )}
+
+        {hasError && (
+          <div role="alert" className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/95 p-6 text-center">
+            <p className="text-lg font-bold text-white">No se pudo reproducir</p>
+            <p className="mb-4 mt-1 max-w-sm text-sm text-slate-400">
+              El enlace no respondió. Prueba otra versión o inténtalo de nuevo.
+            </p>
+            <button
+              type="button"
+              onClick={retry}
+              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            >
+              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+              Reintentar
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Barra de progreso: una película sí se busca, un canal en vivo no. */}
+      <div className="flex items-center gap-3 text-xs text-white/70">
+        <span className="w-12 shrink-0 text-right font-mono">{formatTime(currentTime)}</span>
+        <input
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={1}
+          value={currentTime}
+          onChange={(event) => seekTo(Number(event.target.value))}
+          aria-label="Posición de reproducción"
+          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-emerald-400"
+        />
+        <span className="w-12 shrink-0 font-mono">{formatTime(duration)}</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={togglePlay}
+          aria-label={isPlaying ? "Pausar" : "Reproducir"}
+          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        >
+          {isPlaying ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={isMuted ? "Activar sonido" : "Silenciar"}
+          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+        >
+          {isMuted ? <VolumeX aria-hidden="true" className="h-5 w-5" /> : <Volume2 aria-hidden="true" className="h-5 w-5" />}
+        </button>
+
+        {/* Versiones del mismo título (doblajes, calidades) */}
+        {streams.length > 1 && (
+          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
+            <Languages aria-hidden="true" className="h-4 w-4" />
+            <span className="sr-only">Versión</span>
+            <select
+              value={streamIndex}
+              onChange={(event) => setStreamIndex(Number(event.target.value))}
+              className="bg-transparent font-semibold focus:outline-none"
+            >
+              {streams.map((option, index) => (
+                <option key={option.url} value={index} className="bg-slate-900">
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {/* Solo aparece si el archivo trae más de una pista de audio */}
+        {audioTracks.length > 1 && (
+          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
+            <Languages aria-hidden="true" className="h-4 w-4" />
+            <span className="sr-only">Audio</span>
+            <select
+              value={activeAudio ?? 0}
+              onChange={(event) => selectAudio(Number(event.target.value))}
+              className="bg-transparent font-semibold focus:outline-none"
+            >
+              {audioTracks.map((track) => (
+                <option key={track.id} value={track.id} className="bg-slate-900">
+                  {track.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        {subtitles.length > 0 && (
+          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
+            <Captions aria-hidden="true" className="h-4 w-4" />
+            <span className="sr-only">Subtítulos</span>
+            <select
+              value={activeSubtitle ?? -1}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                setActiveSubtitle(value < 0 ? null : value);
+              }}
+              className="bg-transparent font-semibold focus:outline-none"
+            >
+              <option value={-1} className="bg-slate-900">
+                Sin subtítulos
+              </option>
+              {subtitles.map((track, index) => (
+                <option key={track.url} value={index} className="bg-slate-900">
+                  {track.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <div className="ml-auto flex items-center gap-2">
+          {roomId && (
+            <span
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold ${
+                watchParty.status === "connected"
+                  ? "bg-emerald-500/20 text-emerald-200"
+                  : "bg-white/10 text-white/60"
+              }`}
+            >
+              <Users aria-hidden="true" className="h-4 w-4" />
+              {watchParty.status === "connected"
+                ? `Sala ${roomId}`
+                : watchParty.status === "connecting"
+                  ? "Conectando…"
+                  : "Sala no disponible"}
+            </span>
+          )}
+
+          {canCast && (
+            <button
+              type="button"
+              onClick={startCasting}
+              aria-label="Transmitir a la TV"
+              className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+                isCasting ? "bg-sky-500/40" : "bg-white/10"
+              }`}
+            >
+              <Cast aria-hidden="true" className="h-5 w-5" />
+            </button>
+          )}
+
+          {canFullscreen && (
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+              className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            >
+              {isFullscreen ? (
+                <Minimize aria-hidden="true" className="h-5 w-5" />
+              ) : (
+                <Maximize aria-hidden="true" className="h-5 w-5" />
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+export default NativePlayer;

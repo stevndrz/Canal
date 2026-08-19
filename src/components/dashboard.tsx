@@ -19,6 +19,10 @@ import {
 import { ChannelTile } from "./channel-tile";
 import { QuickAccess } from "./quick-access";
 import { ShortcutsPanel } from "./shortcuts-panel";
+import { DisplaySettings } from "./display-settings";
+import { SiteNav } from "./site-nav";
+import { StickyPlayerFrame } from "./sticky-player-frame";
+import { useAppStore } from "@/store/use-app-store";
 import { FEATURED_CHANNEL_PATTERNS, getCategoryStyle } from "@/lib/categories";
 import { normalizeText } from "@/lib/text";
 import { useFavorites } from "@/hooks/use-favorites";
@@ -36,6 +40,7 @@ const StreamPlayer = dynamic(() => import("./stream-player"), {
 
 export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   const { channels, toggleFavorite } = useFavorites(initialChannels);
+  const setLastChannel = useAppStore((state) => state.setLastChannel);
 
   const [selectedId, setSelectedId] = useState<number | undefined>(initialChannels[0]?.id);
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +51,8 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   const deferredQuery = useDeferredValue(searchQuery);
   const gridRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  /** Marca un cambio de canal hecho con clic, para no arrastrar el scroll. */
+  const skipScrollIntoViewRef = useRef(false);
 
   // Derivar el canal del id evita mantener dos copias del mismo objeto en
   // estado (que se desincronizaban al marcar favoritos).
@@ -118,7 +125,21 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     [filteredChannels, visibleCount]
   );
 
-  const selectChannel = useCallback((channel: Channel) => setSelectedId(channel.id), []);
+  const selectChannel = useCallback((channel: Channel) => {
+    // Avisa al efecto de "mantener visible la tarjeta" que se salte este
+    // cambio: si no, arrastraría la página de vuelta hacia la guía y anularía
+    // el scroll hacia arriba que se pide justo debajo.
+    skipScrollIntoViewRef.current = true;
+    setSelectedId(channel.id);
+    setLastChannel(channel.streamUrl);
+    // Al elegir canal se vuelve arriba, donde está el reproductor: en la TV
+    // el usuario acaba de "cambiar de canal" y espera ver la imagen, no
+    // quedarse mirando la mitad de la guía.
+    window.scrollTo({
+      top: 0,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [setLastChannel]);
 
   const stepChannel = useCallback(
     (delta: number) => {
@@ -214,8 +235,15 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   }, [channels, categories, selectedChannel, stepChannel, toggleFavorite]);
 
   // Mantiene visible el canal seleccionado al navegar con el control remoto.
+  // Se omite cuando el canal se eligió con un clic, porque en ese caso la
+  // página se está desplazando hacia el reproductor y arrastrarla de vuelta
+  // hacia la tarjeta dejaría el scroll a medias.
   useEffect(() => {
     if (selectedId === undefined) return;
+    if (skipScrollIntoViewRef.current) {
+      skipScrollIntoViewRef.current = false;
+      return;
+    }
     gridRef.current
       ?.querySelector(`[data-channel-id="${selectedId}"]`)
       ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -272,6 +300,11 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
           </div>
         </header>
 
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <SiteNav />
+          <DisplaySettings />
+        </div>
+
         {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
 
         <QuickAccess channels={featuredChannels} selectedId={selectedId} onSelect={selectChannel} />
@@ -279,9 +312,11 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         <section className="mb-6">
           {selectedChannel ? (
             <>
-              <div className="overflow-hidden rounded-2xl shadow-2xl shadow-slate-900/10 ring-1 ring-slate-200 sm:rounded-3xl">
-                <StreamPlayer channel={selectedChannel} />
-              </div>
+              <StickyPlayerFrame>
+                <div className="overflow-hidden rounded-2xl shadow-2xl shadow-slate-900/10 ring-1 ring-slate-200 sm:rounded-3xl">
+                  <StreamPlayer channel={selectedChannel} />
+                </div>
+              </StickyPlayerFrame>
 
               <div className="relative mt-4 flex flex-col gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
                 <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${selectedStyle.chip}`} />
@@ -393,7 +428,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             <>
               <div
                 ref={gridRef}
-                className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
+                className="channel-grid grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
                 role="list"
                 aria-label="Guía de canales"
               >

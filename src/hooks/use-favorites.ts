@@ -1,58 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useAppStore, useStoreHydrated } from "@/store/use-app-store";
 import type { Channel } from "@/lib/types";
 
 /**
- * Favoritos guardados en el navegador (sin base de datos), identificados por
- * la URL del stream para que sobrevivan a cambios de orden o de numeración de
- * la lista M3U.
+ * Favoritos del usuario, identificados por la URL del stream para que
+ * sobrevivan a cambios de orden o de numeración de la lista M3U.
+ *
+ * La firma se mantiene igual que antes (`{ channels, toggleFavorite }`), pero
+ * por dentro ahora lee del store de Zustand, que persiste en localStorage. Ya
+ * no hace falta escribir estado dentro de un efecto tras el montaje.
  */
-const STORAGE_KEY = "canalcasa:favorites";
-
-function readStoredUrls(): Set<string> {
-  if (typeof window === "undefined") return new Set();
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function writeStoredUrls(urls: Set<string>) {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(urls)));
-  } catch {
-    // localStorage no disponible (modo privado, cuota llena): los favoritos
-    // siguen funcionando en esta sesión.
-  }
-}
-
 export function useFavorites(initialChannels: Channel[]) {
-  const [channels, setChannels] = useState<Channel[]>(initialChannels);
+  const favoriteUrls = useAppStore((state) => state.favoriteUrls);
+  const toggleInStore = useAppStore((state) => state.toggleFavorite);
+  // Hasta que localStorage esté leído se usa la lista tal cual llegó del
+  // servidor, para que el HTML del servidor y el del navegador coincidan.
+  const hydrated = useStoreHydrated();
 
-  // Se aplica después del montaje a propósito: localStorage no existe durante
-  // el render en servidor, así que hacerlo antes rompería la hidratación.
-  useEffect(() => {
-    const storedUrls = readStoredUrls();
-    if (storedUrls.size === 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setChannels((previous) =>
-      previous.map((channel) => (storedUrls.has(channel.streamUrl) ? { ...channel, isFavorite: true } : channel))
+  const favoriteSet = useMemo(() => new Set(favoriteUrls), [favoriteUrls]);
+
+  const channels = useMemo(() => {
+    if (!hydrated || favoriteSet.size === 0) return initialChannels;
+    return initialChannels.map((channel) =>
+      favoriteSet.has(channel.streamUrl) ? { ...channel, isFavorite: true } : channel
     );
-  }, []);
+  }, [initialChannels, favoriteSet, hydrated]);
 
-  const toggleFavorite = useCallback((target: Channel) => {
-    setChannels((previous) => {
-      const next = previous.map((channel) =>
-        channel.id === target.id ? { ...channel, isFavorite: !channel.isFavorite } : channel
-      );
-      writeStoredUrls(new Set(next.filter((channel) => channel.isFavorite).map((channel) => channel.streamUrl)));
-      return next;
-    });
-  }, []);
+  const toggleFavorite = useCallback(
+    (channel: Channel) => toggleInStore(channel.streamUrl),
+    [toggleInStore]
+  );
 
   return { channels, toggleFavorite };
 }

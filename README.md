@@ -56,31 +56,35 @@ La importación elimina duplicados por URL de stream, quita sufijos de calidad d
 
 ```
 Canal/
-├── scripts/
-│   └── build-logo-index.mjs   # Regenera el índice de logos desde iptv-org
+├── scripts/build-logo-index.mjs   # Regenera el índice de logos desde iptv-org
+├── tizen/                         # Contenedor .wgt para Samsung Smart TV
 ├── src/
 │   ├── app/
-│   │   ├── globals.css        # Estilos globales y utilidades
-│   │   ├── layout.tsx         # Layout raíz con metadata
-│   │   └── page.tsx           # Página principal (SSR): M3U + EPG -> Channel[]
+│   │   ├── page.tsx                        # Canales (SSR)
+│   │   ├── peliculas/page.tsx              # Catálogo
+│   │   ├── peliculas/[mediaType]/[id]/     # Ficha + reproductor
+│   │   └── api/pusher/auth/route.ts        # Auth del Watch Party
 │   ├── components/
-│   │   ├── dashboard.tsx      # Estado, filtros y navegación por teclado
-│   │   ├── channel-tile.tsx   # Tarjeta de canal + logo con respaldo
-│   │   ├── quick-access.tsx   # Fila fija de canales principales
-│   │   ├── shortcuts-panel.tsx# Panel de atajos de control remoto
-│   │   └── stream-player.tsx  # Reproductor (solo cliente)
+│   │   ├── dashboard.tsx           # Estado, filtros y navegación por teclado
+│   │   ├── channel-tile.tsx        # Tarjeta de canal + logo con respaldo
+│   │   ├── quick-access.tsx        # Fila fija de canales principales
+│   │   ├── sticky-player-frame.tsx # Miniatura al recorrer la guía
+│   │   ├── display-settings.tsx    # Modo TV y nitidez
+│   │   ├── stream-player.tsx       # Reproductor de canales en vivo
+│   │   ├── native-player.tsx       # Reproductor de enlaces propios
+│   │   └── catalog/                # Pósters, filas y ficha de detalle
 │   ├── hooks/
-│   │   ├── use-cast.ts        # Chromecast / AirPlay / Remote Playback
-│   │   ├── use-fullscreen.ts  # Pantalla completa (incluye iPhone)
-│   │   └── use-favorites.ts   # Favoritos en localStorage
+│   │   ├── use-cast.ts             # Chromecast / AirPlay / Remote Playback
+│   │   ├── use-fullscreen.ts       # Pantalla completa (incluye iPhone)
+│   │   ├── use-favorites.ts        # Favoritos (respaldados por el store)
+│   │   ├── use-grid-navigation.ts  # Navegación espacial por flechas
+│   │   └── use-watch-party.ts      # Sincronización por Pusher
+│   ├── store/use-app-store.ts      # Zustand + persist
+│   ├── data/catalog.json           # Catálogo de películas y series
 │   └── lib/
-│       ├── m3u.ts             # Descarga y normaliza la lista M3U
-│       ├── epg.ts             # Parser XMLTV opcional para horarios reales
-│       ├── logos.ts           # Resolución de logos por nombre
-│       ├── logo-index.json    # Índice de logos (generado, solo servidor)
-│       ├── categories.ts      # Clasificación + paleta por categoría
-│       ├── text.ts            # Normalización compartida de nombres
-│       └── types.ts           # Tipos `ParsedChannel` / `Channel`
+│       ├── m3u.ts / epg.ts / logos.ts / categories.ts / text.ts
+│       ├── catalog/                # Tipos, TMDB y proveedores de iframe
+│       └── watch-party/sign.ts     # Firma HMAC de canales privados
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
@@ -103,6 +107,75 @@ El componente se carga con `next/dynamic` (`ssr: false`) porque estas librerías
 **Recuperación de errores**: ante un fallo fatal de hls.js el reproductor no se rinde a la primera — reintenta hasta 3 veces (`startLoad()` en errores de red, `recoverMediaError()` en errores de medio) antes de mostrar la pantalla de error con el botón **Reintentar**. Los micro-cortes de señal, muy comunes en IPTV público, se resuelven solos.
 
 > Si un canal concreto nunca carga, normalmente es porque esa fuente no tiene CORS habilitado o sirve por HTTP inseguro — no es un problema de la app.
+
+---
+
+## 🎬 Películas y Series
+
+Catálogo híbrido definido a mano en `src/data/catalog.json`. Cada ficha se
+reproduce de una de dos formas:
+
+| Fuente | Cómo se reproduce | Watch Party |
+|---|---|---|
+| `embed` | iframe del proveedor externo, con sus propios controles | El del proveedor |
+| `manual` | Reproductor nativo propio (`.mp4` / `.m3u8`) | El nuestro, sincronizado |
+
+Los metadatos (título, póster, sinopsis, temporadas y episodios) los rellena
+**TMDB** a partir del `tmdbId`; lo que escribas en el JSON siempre manda sobre
+lo que devuelva la API, para poder corregir un título o apuntar a un doblaje
+concreto. Sin `TMDB_API_KEY` la sección sigue funcionando con lo que haya en el
+JSON y lo avisa en pantalla.
+
+Los proveedores de iframe **no están escritos en el código**: se configuran con
+`NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` y `NEXT_PUBLIC_EMBED_PROVIDER_TV`, así se
+cambia de proveedor —o se apunta a un servidor propio— sin recompilar. Conviene
+tener presente que muchos servicios de ese tipo distribuyen cine y series sin
+licencia; la arquitectura sirve igual para contenido propio.
+
+### Reproductor nativo (solo para enlaces propios)
+
+- **Pistas de audio** desde `hls.audioTracks`. Solo aparece si el archivo trae
+  más de una: Chrome no expone `video.audioTracks`, así que en reproducción
+  nativa el selector se oculta en vez de dejar un control muerto.
+- **Subtítulos** `.vtt` declarados en el JSON, conmutables desde el reproductor.
+- **Barra de progreso**: un canal en vivo no se busca, una película sí.
+
+---
+
+## 👨‍👩‍👧 Watch Party (Pusher)
+
+Sincroniza play, pausa y posición entre navegadores, **solo en los enlaces
+propios**: en las fichas `embed` manda el reproductor del proveedor.
+
+Se usan **client events sobre un canal privado**, así los mensajes viajan de
+navegador a navegador a través de Pusher sin pasar por nuestro servidor: sin
+coste por evento y con menos latencia. `/api/pusher/auth` solo firma la
+suscripción (HMAC-SHA256 de `socket_id:canal`), y para eso no hace falta el SDK
+de servidor de Pusher.
+
+Detalles que evitan que se sienta a tirones:
+
+- **Tolerancia de 1,5 s**: corregir cada diferencia mínima daría saltos
+  constantes.
+- **Compensación de latencia** con la marca de tiempo del mensaje.
+- **Supresión de eco**: al aplicar un cambio recibido el `<video>` dispara sus
+  propios eventos; sin una ventana de silencio se reenviarían y los
+  participantes entrarían en un bucle.
+
+> Hay que activar **"Enable client events"** en el panel de Pusher
+> (App Settings). `pusher-js` se carga solo al entrar en una sala.
+
+---
+
+## 📺 Miniatura y vuelta arriba
+
+Al bajar por la guía el reproductor se encoge a una esquina y **sigue
+reproduciendo**: se mueve el contenedor, nunca el `<video>` en el DOM, porque
+cambiarlo de sitio hace que el navegador reinicie la carga y en un directo eso
+son varios segundos en negro.
+
+Al elegir un canal la página vuelve arriba, donde está la imagen: quien acaba
+de cambiar de canal espera verlo, no quedarse a mitad de la guía.
 
 ---
 

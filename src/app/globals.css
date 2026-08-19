@@ -51,8 +51,11 @@ button:disabled { cursor: not-allowed; }
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 
-/* Mejora el renderizado de guías con cientos de canales */
-.channel-tile { content-visibility: auto; contain-intrinsic-size: 150px; }
+/* Evita pintar las tarjetas que quedan fuera del área visible: alivia trabajo
+   a la GPU del televisor. `auto` en contain-intrinsic-size hace que el
+   navegador recuerde el alto real de cada tarjeta ya pintada, en vez de
+   estimarlo siempre igual, así el scroll no se descuadra. */
+.channel-tile { content-visibility: auto; contain-intrinsic-size: auto 160px; }
 
 /* ====== Optimización TV: tipografía y espaciado ====== */
 @media (min-width: 1280px) {
@@ -68,3 +71,80 @@ button:disabled { cursor: not-allowed; }
   * { scroll-behavior: auto !important; transition: none !important; }
   .animate-pulse, .animate-spin, .animate-ping { animation: none !important; }
 }
+
+/* ==========================================================================
+   Capa de reescalado del video
+   El objetivo es que escalar un canal de 480p a una pantalla de 55" lo haga
+   la GPU y no el procesador, que en una Smart TV es bastante limitado.
+   ========================================================================== */
+
+.player-surface {
+  /* Promueve el reproductor a su propia capa de composición: al escalar o
+     mover la miniatura no se repinta el resto de la página. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  /* Aísla el repintado dentro del reproductor. */
+  contain: paint;
+}
+
+.player-surface video {
+  object-fit: contain;
+  /* La decodificación de video ya va por hardware; esto evita que el
+     navegador aplique además un filtrado costoso en CPU. */
+  will-change: transform;
+}
+
+/* Nitidez opcional (clase en <html>, ver TvModeEffect).
+   Va como opción y no por defecto porque realzar el contraste en una señal
+   de baja resolución marca los bloques de compresión en vez de mejorarla. */
+.sharpen .player-surface video {
+  image-rendering: -webkit-optimize-contrast;
+}
+
+/* ==========================================================================
+   Modo TV: los desenfoques y las sombras grandes son lo primero que hace
+   tirones en la GPU de un televisor. Se sustituyen por color plano.
+   ========================================================================== */
+
+.tv-mode [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  background-color: rgb(0 0 0 / 0.55);
+}
+
+.tv-mode [class*="shadow-2xl"],
+.tv-mode [class*="shadow-xl"] {
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.18) !important;
+}
+
+.tv-mode [class*="blur-3xl"] {
+  display: none;
+}
+
+/* Foco aún más marcado: a tres metros el anillo fino no se distingue. */
+.tv-mode :focus-visible {
+  outline-width: 5px;
+  outline-offset: 3px;
+}
+
+/* ==========================================================================
+   Miniatura fija del reproductor al recorrer la guía
+   ========================================================================== */
+
+.player-dock {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: min(20rem, 45vw);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.35);
+}
+
+@media (min-width: 1280px) {
+  .player-dock { width: 24rem; }
+}
+
+/* Reserva el hueco que deja el reproductor al despegarse, para que la página
+   no dé un salto al pasar a miniatura. */
+.player-dock-placeholder { display: block; }
