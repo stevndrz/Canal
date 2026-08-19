@@ -95,6 +95,15 @@ export function useFullscreen(
     }
 
     // Entrar. Preferimos el contenedor para conservar nuestros controles encima.
+    //
+    // Antes, si esta llamada fallaba (algunos navegadores de TV la rechazan
+    // sobre un <div> normal, solo la aceptan sobre <html>), el error se
+    // TRAGABA en un catch vacío y se caía directo al modo nativo del
+    // <video> — que en Chrome/TV no existe, así que no pasaba nada visible
+    // salvo el vídeo agrandándose por CSS, con la barra del navegador
+    // seguía ahí. Ahora, si el contenedor falla, se reintenta sobre
+    // `document.documentElement`: eso es lo que de verdad oculta el marco
+    // del navegador en una televisión.
     try {
       if (container?.requestFullscreen) {
         await container.requestFullscreen();
@@ -105,7 +114,21 @@ export function useFullscreen(
         return;
       }
     } catch {
-      // Cae al modo nativo del <video> más abajo.
+      // Sigue al respaldo de abajo en vez de darse por vencido aquí.
+    }
+
+    try {
+      const root = document.documentElement as FullscreenElement;
+      if (root.requestFullscreen) {
+        await root.requestFullscreen();
+        return;
+      }
+      if (root.webkitRequestFullscreen) {
+        await root.webkitRequestFullscreen();
+        return;
+      }
+    } catch {
+      // Cae al modo nativo del <video>, último recurso y solo real en iPhone.
     }
 
     // iPhone: única vía posible; abre el reproductor del sistema.

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { List, Minimize, Pause, Play, Star, Volume2, VolumeX } from "lucide-react";
+import { List, Maximize, Minimize, Pause, Play, Star, Volume2, VolumeX } from "lucide-react";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
   type StreamPlayerState,
 } from "@/components/stream-player";
 import { channelMark, stepChannel } from "@/lib/channels";
+import { useFullscreen } from "@/hooks/use-fullscreen";
 
 interface FullscreenPlayerProps {
   channel: Channel;
@@ -38,6 +39,18 @@ export function FullscreenPlayer({
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const guideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const railRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+
+  /**
+   * Pantalla completa DE VERDAD, no solo el CSS `absolute inset-0` de este
+   * componente. Antes el botón "Salir de pantalla completa" solo volvía a la
+   * vista de navegación del SPA — nunca llamaba a la Fullscreen API del
+   * navegador — así que en una TV el vídeo se veía grande pero el marco del
+   * navegador seguía encima. `toggleFullscreen` sí pide el modo real, con
+   * respaldo a `documentElement` cuando el contenedor lo rechaza.
+   */
+  const { isFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
   const [showControls, setShowControls] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
@@ -78,6 +91,10 @@ export function FullscreenPlayer({
     // cambia el canal sintonizado.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     wake();
+    // El <video> real vive dentro de StreamPlayer; se reengancha en cada
+    // cambio de canal porque togglear pantalla completa necesita el elemento
+    // vigente, no uno de un canal ya abandonado.
+    videoElRef.current = playerRef.current?.video() ?? null;
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
       if (guideTimer.current) clearTimeout(guideTimer.current);
@@ -140,7 +157,14 @@ export function FullscreenPlayer({
     "grid h-[58px] w-[58px] place-items-center rounded-2xl border border-white/12 bg-white/12 text-accent backdrop-blur-md";
 
   return (
-    <div className="absolute inset-0 z-20 bg-black" onMouseMove={wake}>
+    <div
+      ref={containerRef}
+      className="absolute inset-0 z-20 bg-black"
+      onMouseMove={wake}
+      // Doble clic o doble toque: pantalla completa real, como en cualquier
+      // reproductor de escritorio.
+      onDoubleClick={toggleFullscreen}
+    >
       <StreamPlayer
         ref={playerRef}
         channel={channel}
@@ -241,8 +265,25 @@ export function FullscreenPlayer({
           <button
             type="button"
             data-nav="button"
-            aria-label="Salir de pantalla completa"
-            onClick={onExit}
+            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+            aria-pressed={isFullscreen}
+            onClick={toggleFullscreen}
+            className={controlClass}
+          >
+            <Maximize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
+          </button>
+
+          <button
+            type="button"
+            data-nav="button"
+            aria-label="Volver a la guía"
+            onClick={() => {
+              // Si se había pedido pantalla completa real, se cierra antes de
+              // volver: si no, el navegador se queda "atascado" en modo
+              // fullscreen mostrando la vista de navegación por debajo.
+              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+              onExit();
+            }}
             className={controlClass}
           >
             <Minimize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
