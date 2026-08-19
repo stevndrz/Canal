@@ -36,6 +36,15 @@ interface AppState {
   tvMode: boolean;
   setTvMode: (enabled: boolean) => void;
 
+  /**
+   * Último servidor de video que se usó.
+   *
+   * Se recuerda porque estos proveedores fallan de forma desigual: si uno le
+   * funcionó, no tiene sentido obligar a redescubrirlo en cada película.
+   */
+  preferredProvider: string | null;
+  setPreferredProvider: (id: string) => void;
+
   /** Sala de Watch Party activa (vacía = no hay sala). */
   watchPartyRoom: string;
   setWatchPartyRoom: (room: string) => void;
@@ -62,17 +71,21 @@ export const useAppStore = create<AppState>()(
       tvMode: false,
       setTvMode: (tvMode) => set({ tvMode }),
 
+      preferredProvider: null,
+      setPreferredProvider: (preferredProvider) => set({ preferredProvider }),
+
       watchPartyRoom: "",
       setWatchPartyRoom: (watchPartyRoom) => set({ watchPartyRoom }),
     }),
     {
       name: "canalcasa",
       // La sala de Watch Party es de la sesión, no debe revivir al reabrir.
-      partialize: ({ favoriteUrls, lastChannelUrl, sharpness, tvMode }) => ({
+      partialize: ({ favoriteUrls, lastChannelUrl, sharpness, tvMode, preferredProvider }) => ({
         favoriteUrls,
         lastChannelUrl,
         sharpness,
         tvMode,
+        preferredProvider,
       }),
     }
   )

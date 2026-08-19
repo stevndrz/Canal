@@ -23,6 +23,7 @@ export function tmdbImage(path: string | null | undefined, size: string): string
 
 interface TmdbTitle {
   title?: string;
+  original_language?: string;
   name?: string;
   overview?: string;
   poster_path?: string | null;
@@ -110,6 +111,8 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
 
 export interface TmdbTitleData {
   title: string | null;
+  /** Idioma en que se rodó (`es`, `en`…). Ver ResolvedCatalogItem. */
+  originalLanguage: string | null;
   overview: string;
   poster: string | null;
   backdrop: string | null;
@@ -125,6 +128,7 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
   const date = data.release_date || data.first_air_date || "";
   return {
     title: data.title ?? data.name ?? null,
+    originalLanguage: data.original_language ?? null,
     overview: data.overview ?? "",
     poster: tmdbImage(data.poster_path, POSTER_SIZE),
     backdrop: tmdbImage(data.backdrop_path, BACKDROP_SIZE),
@@ -159,6 +163,7 @@ export async function fetchSeason(tmdbId: number, season: number): Promise<TmdbE
 /** Una ficha tal y como viene en una lista (discover, trending, búsqueda). */
 interface TmdbListItem {
   id: number;
+  original_language?: string;
   media_type?: string;
   title?: string;
   name?: string;
@@ -176,6 +181,7 @@ interface TmdbListResponse {
 
 export interface TmdbListEntry {
   tmdbId: number;
+  originalLanguage: string | null;
   mediaType: MediaType;
   title: string;
   overview: string;
@@ -207,6 +213,7 @@ function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry
   return {
     tmdbId: item.id,
     mediaType,
+    originalLanguage: item.original_language ?? null,
     title,
     overview: item.overview ?? "",
     poster: tmdbImage(item.poster_path, POSTER_SIZE),

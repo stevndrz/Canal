@@ -103,6 +103,7 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
     backdrop: entry.backdrop,
     year: entry.year,
     rating: entry.rating,
+    originalLanguage: entry.originalLanguage,
     source: { kind: "embed" },
     // Las temporadas solo hacen falta en la ficha, y allí se piden aparte con
     // fetchTitle(). Pedirlas aquí costaría una petición por serie.

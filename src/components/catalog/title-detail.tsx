@@ -5,8 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Info, Star, Users } from "lucide-react";
-import { buildEmbedUrl } from "@/lib/catalog/providers";
+import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
 import { useGridNavigation } from "@/hooks/use-grid-navigation";
+import { ServerPicker } from "./server-picker";
+import { useAppStore } from "@/store/use-app-store";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 
@@ -35,18 +37,33 @@ export function TitleDetail({
   const episodeListRef = useRef<HTMLDivElement | null>(null);
   useGridNavigation(episodeListRef, "[data-episode]");
 
+  const providers = getProviders();
+  const preferredProvider = useAppStore((state) => state.preferredProvider);
+  const setPreferredProvider = useAppStore((state) => state.setPreferredProvider);
+  // El guardado manda si sigue existiendo; si no, el primero de la lista, que
+  // ya viene ordenada poniendo delante los que piden subtítulos en español.
+  const activeProvider =
+    providers.find((provider) => provider.id === preferredProvider) ?? providers[0] ?? null;
+
+  /**
+   * Si se rodó en español, el audio se oye en español sin depender de doblajes.
+   * Es lo único que se puede afirmar: ningún proveedor publica qué pistas de
+   * audio tiene, así que para el resto solo se promete subtítulo.
+   */
+  const spokenInSpanish = item.originalLanguage === "es";
+
   // Qué se reproduce ahora mismo: el episodio elegido en series, el título en
   // películas. Los episodios pueden traer su propia fuente (otro doblaje).
   const activeSource: PlaybackSource = isSeries ? (selectedEpisode?.source ?? item.source) : item.source;
 
   const embedUrl = useMemo(() => {
-    if (activeSource.kind !== "embed" || !item.tmdbId) return null;
-    return buildEmbedUrl(item.mediaType, {
+    if (activeSource.kind !== "embed" || !item.tmdbId || !activeProvider) return null;
+    return buildEmbedUrl(activeProvider, item.mediaType, {
       tmdbId: item.tmdbId,
       season: selectedSeason,
       episode: selectedEpisode?.episode ?? 1,
     });
-  }, [activeSource, item.tmdbId, item.mediaType, selectedSeason, selectedEpisode]);
+  }, [activeSource, item.tmdbId, item.mediaType, selectedSeason, selectedEpisode, activeProvider]);
 
   return (
     <div className="min-h-screen bg-[#0b0f14] text-white">
@@ -124,17 +141,35 @@ export function TitleDetail({
                   referrerPolicy="origin"
                 />
               </div>
-              <p className="mt-2 text-xs text-white/40">
-                Este título usa el reproductor del proveedor externo, con sus propios controles.
+              {/* Qué esperar del idioma. Se distingue lo que se sabe con
+                  certeza (se rodó en español) de lo que solo se puede pedir
+                  (subtítulos), para no prometer un doblaje que quizá no exista. */}
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-white/40">
+                {spokenInSpanish ? (
+                  <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 font-semibold text-emerald-300">
+                    Hablada en español
+                  </span>
+                ) : activeProvider?.spanishSubtitles ? (
+                  <span className="rounded-md bg-sky-500/15 px-2 py-0.5 font-semibold text-sky-300">
+                    Se piden subtítulos en español
+                  </span>
+                ) : null}
+                <span>Este título usa el reproductor del proveedor externo, con sus propios controles.</span>
               </p>
+
+              <ServerPicker
+                providers={providers}
+                activeId={activeProvider?.id ?? ""}
+                onSelect={setPreferredProvider}
+              />
             </>
           ) : (
             <div className="flex aspect-video flex-col items-center justify-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-8 text-center">
               <Info aria-hidden="true" className="h-8 w-8 text-white/40" />
-              <p className="font-semibold text-white/80">No hay proveedor configurado</p>
+              <p className="font-semibold text-white/80">No se puede reproducir esta ficha</p>
               <p className="max-w-md text-sm text-white/50">
-                Define <code className="rounded bg-black/40 px-1">NEXT_PUBLIC_EMBED_PROVIDER_{isSeries ? "TV" : "MOVIE"}</code>{" "}
-                en <code className="rounded bg-black/40 px-1">.env.local</code>, o cambia esta ficha a un enlace propio en{" "}
+                Le falta el identificador de TMDB, que es lo que usan los servidores para
+                encontrar el título. Añádelo, o pon un enlace propio en{" "}
                 <code className="rounded bg-black/40 px-1">catalog.json</code>.
               </p>
             </div>

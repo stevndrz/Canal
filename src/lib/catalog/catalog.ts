@@ -47,6 +47,7 @@ export async function resolveItem(item: CatalogItem): Promise<ResolvedCatalogIte
     backdrop: tmdb?.backdrop ?? null,
     year: tmdb?.year ?? null,
     rating: tmdb?.rating ?? null,
+    originalLanguage: tmdb?.originalLanguage ?? null,
     seasons: tmdb?.seasons ?? seasonsFromOverrides(item),
   };
 }

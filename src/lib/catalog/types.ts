@@ -88,6 +88,15 @@ export interface ResolvedCatalogItem extends Omit<CatalogItem, "title" | "poster
   rating: number | null;
   /** Números de temporada disponibles (vacío en películas). */
   seasons: number[];
+  /**
+   * Idioma en que se rodó, según TMDB (`es`, `en`…).
+   *
+   * Es la ÚNICA señal fiable sobre el audio: si es `es`, se oye en español sin
+   * depender de doblajes. Ningún proveedor de iframe publica qué pistas de
+   * audio tiene, así que cualquier otra promesa de "audio en español" sería
+   * inventada.
+   */
+  originalLanguage: string | null;
 }
 
 export interface ResolvedEpisode {
