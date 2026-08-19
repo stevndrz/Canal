@@ -187,39 +187,3 @@ export function priorityRank(name: string, category: string): number {
   const index = patterns.findIndex((pattern) => pattern.test(normalized));
   return index === -1 ? Number.MAX_SAFE_INTEGER : index;
 }
-
-/**
- * Paleta por categoría. Las clases van completas (nunca interpoladas) para que
- * Tailwind las conserve al compilar.
- */
-export interface CategoryStyle {
-  chip: string;
-  dot: string;
-  ring: string;
-  tint: string;
-  text: string;
-}
-
-const CATEGORY_STYLES: Record<string, CategoryStyle> = {
-  Guatemala: { chip: "bg-gradient-to-r from-teal-600 to-emerald-600", dot: "bg-teal-500", ring: "ring-teal-400", tint: "bg-teal-50", text: "text-teal-600" },
-  Deportes: { chip: "bg-gradient-to-r from-orange-500 to-amber-500", dot: "bg-orange-500", ring: "ring-orange-400", tint: "bg-orange-50", text: "text-orange-600" },
-  Noticias: { chip: "bg-gradient-to-r from-sky-600 to-blue-600", dot: "bg-sky-500", ring: "ring-sky-400", tint: "bg-sky-50", text: "text-sky-600" },
-  "Películas y series": { chip: "bg-gradient-to-r from-violet-600 to-purple-600", dot: "bg-violet-500", ring: "ring-violet-400", tint: "bg-violet-50", text: "text-violet-600" },
-  Documentales: { chip: "bg-gradient-to-r from-amber-600 to-yellow-600", dot: "bg-amber-500", ring: "ring-amber-400", tint: "bg-amber-50", text: "text-amber-600" },
-  Infantil: { chip: "bg-gradient-to-r from-pink-500 to-rose-500", dot: "bg-pink-500", ring: "ring-pink-400", tint: "bg-pink-50", text: "text-pink-600" },
-  Música: { chip: "bg-gradient-to-r from-fuchsia-600 to-pink-600", dot: "bg-fuchsia-500", ring: "ring-fuchsia-400", tint: "bg-fuchsia-50", text: "text-fuchsia-600" },
-  Religión: { chip: "bg-gradient-to-r from-indigo-600 to-blue-600", dot: "bg-indigo-500", ring: "ring-indigo-400", tint: "bg-indigo-50", text: "text-indigo-600" },
-  Entretenimiento: { chip: "bg-gradient-to-r from-rose-500 to-red-500", dot: "bg-rose-500", ring: "ring-rose-400", tint: "bg-rose-50", text: "text-rose-600" },
-};
-
-const DEFAULT_CATEGORY_STYLE: CategoryStyle = {
-  chip: "bg-gradient-to-r from-slate-600 to-slate-700",
-  dot: "bg-slate-400",
-  ring: "ring-slate-400",
-  tint: "bg-slate-100",
-  text: "text-slate-600",
-};
-
-export function getCategoryStyle(category: string): CategoryStyle {
-  return CATEGORY_STYLES[category] ?? DEFAULT_CATEGORY_STYLE;
-}

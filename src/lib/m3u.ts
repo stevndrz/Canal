@@ -2,15 +2,22 @@ import * as iptvParser from "iptv-playlist-parser";
 import { classifyChannel, compareByCategory, priorityRank } from "./categories";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
-import type { ParsedChannel } from "./types";
+import type { Channel } from "./types";
 
-const DEFAULT_M3U_URL =
-  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
+/**
+ * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
+ * `page.tsx` al numerar) ni datos de EPG (se cruzan aparte, porque la guía es
+ * una fuente independiente que puede fallar sin tumbar la lista de canales).
+ */
+export type ParsedChannel = Omit<Channel, "id" | "currentProgram" | "nextProgram">;
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
   epgUrl: string | null;
 }
+
+const DEFAULT_M3U_URL =
+  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
 
 /** Forma laxa: cada lista M3U trae un subconjunto distinto de atributos. */
 type RawM3uChannel = {
@@ -44,7 +51,7 @@ export function getM3uSourceUrl(): string {
   return process.env.M3U_URL || DEFAULT_M3U_URL;
 }
 
-export async function fetchM3uText(): Promise<string | null> {
+async function fetchM3uText(): Promise<string | null> {
   const source = getM3uSourceUrl();
   try {
     // `no-store` a propósito: la caché de datos de Next descarta respuestas de
@@ -57,9 +64,10 @@ export async function fetchM3uText(): Promise<string | null> {
     if (response.ok) return await response.text();
     console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
   } catch (error) {
-    const reason = error instanceof Error && error.name === "TimeoutError"
-      ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
-      : String(error);
+    const reason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
+        : String(error);
     console.error(`❌ Error descargando la lista M3U (${reason}) — ${source}`);
   }
   return null;
@@ -94,13 +102,8 @@ function getGroupTitle(item: RawM3uChannel): string {
 const QUALITY_TAG = /(?:fhd|uhd|4k|8k|hd|sd|hevc|h\.?26[45]|x26[45]|av1|\d{2,3}\s?fps)/;
 
 /**
- * Quita sufijos de calidad y notas del nombre, ej.
- * `BBC Persian (720p) (HEVC) [Not 24/7]` -> `BBC Persian`. Se repite porque
- * suelen venir apilados.
- */
-/**
  * Restos de atributos que se cuelan en el nombre cuando quien generó la lista
- * partió mal la línea `#EXTINF`. En el gist actual hay entradas cuyo nombre es
+ * partió mal la línea `#EXTINF`. El gist trae entradas cuyo nombre es
  * literalmente un trozo de user-agent: `like Gecko) Chrome/120.0 ...",SIL TV`.
  */
 const SPILLED_ATTRIBUTES = /gecko\)|chrome\/|libvlc|group-title|user-agent|safari\//i;
@@ -118,6 +121,11 @@ function rescueSpilledName(rawName: string): string {
   return afterLastComma || rawName;
 }
 
+/**
+ * Quita sufijos de calidad y notas del nombre, ej.
+ * `BBC Persian (720p) (HEVC) [Not 24/7]` -> `BBC Persian`. Se repite porque
+ * suelen venir apilados.
+ */
 export function cleanChannelName(rawName: string): string {
   let result = rescueSpilledName(rawName).trim();
   let previous: string;
@@ -138,7 +146,7 @@ export function cleanChannelName(rawName: string): string {
  * fiable que adivinar por el nombre, sobre todo para distinguir el "Canal 3"
  * de Guatemala del de Argentina.
  */
-export function countryFromTvgId(tvgId: string): string {
+function countryFromTvgId(tvgId: string): string {
   const match = tvgId.match(/\.([a-z]{2})(?:@|$)/i);
   return match ? match[1].toLowerCase() : "";
 }
@@ -204,20 +212,25 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const group = getGroupTitle(item);
     const tvgId = item.tvg?.id?.trim() ?? "";
     // El logo de la lista manda; si no trae, se busca por nombre en el índice local.
-    const logoUrl = item.tvg?.logo || item.logo || findLogoUrl(name);
+    const logoUrl = item.tvg?.logo || item.logo || findLogoUrl(name) || "";
 
     return {
       name,
+      // Provisional: withChannelNumbers() lo reemplaza según la categoría ya
+      // ordenada (101+, 201+...). Aquí solo hace falta que el campo exista.
+      number: String(index + 1),
       category: classifyChannel({
         name,
         group,
         country: item.tvg?.country || countryFromTvgId(tvgId),
         language: item.tvg?.language ?? "",
       }),
+      description: `Señal en vivo de ${name}`,
       logoText: name.slice(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
-      tvgId,
+      isFavorite: false,
+      isLive: true,
     };
   });
 
