@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast, List, Maximize, Minimize, Pause, Play, Star, Users, Volume2, VolumeX } from "lucide-react";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
@@ -44,6 +44,19 @@ export function FullscreenPlayer({
   const railRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
+
+  // El <video> real vive dentro de StreamPlayer y se expone por método
+  // imperativo, no por ref directa: `videoElRef.current` hay que copiarlo a
+  // mano en vez de que React lo rellene solo al montar. Tiene que ser
+  // `useLayoutEffect`, no `useEffect`: los hooks de abajo (useCast,
+  // useWatchParty) leen `videoElRef.current` en SU PROPIO useEffect, que se
+  // dispara en el mismo commit — con useEffect aquí, el suyo se ejecutaba
+  // primero y siempre veía `null`, así que Chromecast/AirPlay nunca se
+  // detectaban. useLayoutEffect corre antes que cualquier useEffect del
+  // árbol, sin importar el orden de declaración de los hooks.
+  useLayoutEffect(() => {
+    videoElRef.current = playerRef.current?.video() ?? null;
+  }, [channel.id]);
 
   /**
    * Pantalla completa DE VERDAD, no solo el CSS `absolute inset-0` de este
@@ -105,10 +118,6 @@ export function FullscreenPlayer({
     // cambia el canal sintonizado.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     wake();
-    // El <video> real vive dentro de StreamPlayer; se reengancha en cada
-    // cambio de canal porque togglear pantalla completa necesita el elemento
-    // vigente, no uno de un canal ya abandonado.
-    videoElRef.current = playerRef.current?.video() ?? null;
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);
       if (guideTimer.current) clearTimeout(guideTimer.current);
@@ -168,7 +177,7 @@ export function FullscreenPlayer({
   }, [zap, showGuide, openGuide, wake]);
 
   const controlClass =
-    "grid h-[58px] w-[58px] place-items-center rounded-2xl border border-white/12 bg-white/12 text-accent backdrop-blur-md";
+    "grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl border border-white/12 bg-white/12 text-accent backdrop-blur-md";
 
   return (
     <div
@@ -211,7 +220,7 @@ export function FullscreenPlayer({
           showControls ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="flex items-center gap-2.5">
+        <div className="scroll-none flex min-w-0 items-center gap-2.5 overflow-x-auto">
           <button
             type="button"
             data-nav="button"
@@ -220,7 +229,7 @@ export function FullscreenPlayer({
               playerRef.current?.togglePlay();
               wake();
             }}
-            className="grid h-[58px] w-[58px] place-items-center rounded-2xl bg-accent text-accent-on"
+            className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl bg-accent text-accent-on"
           >
             {state.isPlaying ? (
               <Pause aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
