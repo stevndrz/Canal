@@ -9,6 +9,9 @@ export interface Channel {
   streamUrl: string;
   isFavorite: boolean;
   isLive: boolean;
+  /** Vacíos cuando no hay guía EPG real: nunca se rellenan con texto inventado. */
+  currentProgram: string;
+  nextProgram: string;
 }
 
 /** Vistas del App Shell. "player" es pantalla completa, no una vista de nav. */

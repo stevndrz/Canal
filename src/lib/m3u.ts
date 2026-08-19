@@ -1,17 +1,25 @@
 import * as iptvParser from "iptv-playlist-parser";
+import { classifyChannel, compareByCategory, priorityRank } from "./categories";
+import { normalizeText } from "./text";
+import { findLogoUrl } from "./logos";
+import type { Channel } from "./types";
 
-export interface ParsedM3uChannel {
-  name: string;
-  number: string;
-  category: string;
-  description: string;
-  logoText: string;
-  logoUrl: string;
-  streamUrl: string;
-  isFavorite: boolean;
-  isLive: boolean;
+/**
+ * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
+ * `page.tsx` al numerar) ni datos de EPG (se cruzan aparte, porque la guía es
+ * una fuente independiente que puede fallar sin tumbar la lista de canales).
+ */
+export type ParsedChannel = Omit<Channel, "id" | "currentProgram" | "nextProgram">;
+
+export interface M3uPlaylist {
+  channels: ParsedChannel[];
+  epgUrl: string | null;
 }
 
+const DEFAULT_M3U_URL =
+  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
+
+/** Forma laxa: cada lista M3U trae un subconjunto distinto de atributos. */
 type RawM3uChannel = {
   name?: string;
   title?: string;
@@ -20,135 +28,245 @@ type RawM3uChannel = {
   group?: string | { title?: string };
   tvg?: {
     id?: string;
+    name?: string;
     logo?: string;
     language?: string;
     country?: string;
   };
 };
 
-const CATEGORY_PRIORITY = [
-  "Guatemala",
-  "Deportes",
-  "Noticias",
-  "Películas y series",
-  "Infantil",
-  "Música",
-  "Religión",
-  "Entretenimiento",
-  "Español",
-  "Inglés",
-  "Internacional",
-  "General",
-];
+const ADULT_CONTENT = /\b(xxx|adult|porn|erotic|erotico|hentai|playboy)\b/i;
 
-export async function getM3uContent(): Promise<string | null> {
-  const source = process.env.M3U_URL || "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/235ef6daf40f9b546138b312d788e0adead2d955/gt.m3u";
+/**
+ * Tope de espera al descargar la lista. Sin él, un origen que no responde deja
+ * la petición colgada hasta que la plataforma corta la función entera y la
+ * página no llega a pintarse.
+ */
+const M3U_TIMEOUT_MS = 8000;
 
+/** Cuánto se reutiliza la lista ya interpretada antes de volver a descargarla. */
+const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
+
+export function getM3uSourceUrl(): string {
+  return process.env.M3U_URL || DEFAULT_M3U_URL;
+}
+
+async function fetchM3uText(): Promise<string | null> {
+  const source = getM3uSourceUrl();
   try {
-    const res = await fetch(source, { next: { revalidate: 30 } });
-    if (res.ok) {
-      return await res.text();
-    }
+    // `no-store` a propósito: la caché de datos de Next descarta respuestas de
+    // más de 2 MB, y estas listas las superan de largo. El almacenamiento lo
+    // hace loadM3uPlaylist(), que además evita volver a descargar.
+    const response = await fetch(source, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(M3U_TIMEOUT_MS),
+    });
+    if (response.ok) return await response.text();
+    console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
   } catch (error) {
-    console.error("❌ Error descargando M3U:", error);
+    const reason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
+        : String(error);
+    console.error(`❌ Error descargando la lista M3U (${reason}) — ${source}`);
   }
-
   return null;
 }
 
+/**
+ * Algunas listas referencian su guía de programación (EPG XMLTV) en la primera
+ * línea: `#EXTM3U url-tvg="https://.../epg.xml.gz"`.
+ */
+export function extractEpgUrl(m3uText: string): string | null {
+  const headerLine = m3uText.split("\n", 1)[0] ?? "";
+  const match = headerLine.match(/\b(?:url-tvg|x-tvg-url|tvg-url)="([^"]+)"/i);
+  if (!match) return null;
+  // Varias URLs separadas por coma: usamos la primera.
+  return match[1].split(",")[0]?.trim() || null;
+}
+
 function getParser() {
-  return iptvParser.parse || (iptvParser as unknown as { default?: typeof iptvParser.parse }).default || iptvParser;
+  return (
+    iptvParser.parse ||
+    (iptvParser as unknown as { default?: typeof iptvParser.parse }).default ||
+    iptvParser
+  );
 }
 
-function normalize(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-function getGroupTitle(item: RawM3uChannel) {
+function getGroupTitle(item: RawM3uChannel): string {
   if (typeof item.group === "string") return item.group;
   return item.group?.title ?? "";
 }
 
-function detectLanguageCategory(text: string) {
-  const normalized = normalize(text);
-  if (/\b(english|ingles|usa|united states|uk|britain|canada)\b/.test(normalized)) return "Inglés";
-  if (/\b(espanol|spanish|latino|latin|mexico|colombia|argentina|chile|peru|espana)\b/.test(normalized)) return "Español";
-  return "Internacional";
+/** Etiquetas de calidad/códec que las listas pegan al final del nombre. */
+const QUALITY_TAG = /(?:fhd|uhd|4k|8k|hd|sd|hevc|h\.?26[45]|x26[45]|av1|\d{2,3}\s?fps)/;
+
+/**
+ * Restos de atributos que se cuelan en el nombre cuando quien generó la lista
+ * partió mal la línea `#EXTINF`. El gist trae entradas cuyo nombre es
+ * literalmente un trozo de user-agent: `like Gecko) Chrome/120.0 ...",SIL TV`.
+ */
+const SPILLED_ATTRIBUTES = /gecko\)|chrome\/|libvlc|group-title|user-agent|safari\//i;
+
+/**
+ * Rescata el nombre real de una entrada mal formada.
+ *
+ * En `#EXTINF` el nombre es lo que va tras la última coma, así que cuando se
+ * detecta basura de atributos se toma ese trozo. Se hace solo en ese caso: hay
+ * canales con coma legítima en el nombre y partirlos siempre los estropearía.
+ */
+function rescueSpilledName(rawName: string): string {
+  if (!SPILLED_ATTRIBUTES.test(rawName)) return rawName;
+  const afterLastComma = rawName.slice(rawName.lastIndexOf(",") + 1).trim();
+  return afterLastComma || rawName;
 }
 
-export function normalizeM3uCategory(item: RawM3uChannel) {
-  const name = item.name || item.title || "";
-  const group = getGroupTitle(item);
-  const country = item.tvg?.country ?? "";
-  const language = item.tvg?.language ?? "";
-  const text = `${name} ${group} ${country} ${language}`;
-  const normalized = normalize(text);
-
-  if (/\b(gt|guatemala|guatemalteco|chapin|canal ?3|canal ?7|tn23|totovision|rhema)\b/.test(normalized)) return "Guatemala";
-  if (/\b(sport|sports|deporte|deportes|futbol|football|soccer|nba|nfl|mlb|tennis|ufc|espn|fox sports|tigo sports)\b/.test(normalized)) return "Deportes";
-  if (/\b(news|noticias|noticiero|cnn|bbc|dw|tn23|teleprensa)\b/.test(normalized)) return "Noticias";
-  if (/\b(movie|movies|cine|pelicula|peliculas|series|film|films)\b/.test(normalized)) return "Películas y series";
-  if (/\b(kids|kid|infantil|ninos|niños|cartoon|disney|nick)\b/.test(normalized)) return "Infantil";
-  if (/\b(music|musica|música|radio|mtv)\b/.test(normalized)) return "Música";
-  if (/\b(religion|religious|religioso|iglesia|dios|peniel|bethel|rhema)\b/.test(normalized)) return "Religión";
-  if (/\b(entertainment|entretenimiento|variedades)\b/.test(normalized)) return "Entretenimiento";
-
-  return detectLanguageCategory(text);
+/**
+ * Quita sufijos de calidad y notas del nombre, ej.
+ * `BBC Persian (720p) (HEVC) [Not 24/7]` -> `BBC Persian`. Se repite porque
+ * suelen venir apilados.
+ */
+export function cleanChannelName(rawName: string): string {
+  let result = rescueSpilledName(rawName).trim();
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(/\s*\[[^\]]*\]\s*$/, "")
+      .replace(new RegExp(`[\\s([-]*\\b${QUALITY_TAG.source}\\b[\\s)\\]-]*$`, "i"), "")
+      .replace(/[\s([-]*\d{3,4}p[\s)\]-]*$/i, "")
+      .trim();
+  } while (result !== previous && result.length > 0);
+  return result || rawName.trim();
 }
 
-function getDeduplicationKey(item: RawM3uChannel) {
+/**
+ * Los `tvg-id` estilo iptv-org codifican el país del canal:
+ * `Canal3.gt@SD` -> `gt`, `00sReplay.us@SD` -> `us`. Es una señal mucho más
+ * fiable que adivinar por el nombre, sobre todo para distinguir el "Canal 3"
+ * de Guatemala del de Argentina.
+ */
+function countryFromTvgId(tvgId: string): string {
+  const match = tvgId.match(/\.([a-z]{2})(?:@|$)/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function getDeduplicationKey(item: RawM3uChannel): string {
   const streamUrl = item.url?.trim();
   if (streamUrl) return `url:${streamUrl}`;
-
   const tvgId = item.tvg?.id?.trim();
-  if (tvgId) return `tvg:${normalize(tvgId)}`;
-
-  return `name:${normalize(item.name || item.title || "")}`;
+  if (tvgId) return `tvg:${normalizeText(tvgId)}`;
+  return `name:${normalizeText(item.name || item.title || "")}`;
 }
 
-export function sortM3uChannels(channels: ParsedM3uChannel[]) {
+// Un Collator reutilizado en vez de String.localeCompare: con listas de más de
+// 10.000 canales la diferencia es de ~1300 ms a ~50 ms, porque localeCompare
+// reconstruye el colador en cada comparación.
+const nameCollator = new Intl.Collator("es", { numeric: true, sensitivity: "base" });
+
+function sortChannels(channels: ParsedChannel[]): ParsedChannel[] {
+  // Se calcula el rango una sola vez por canal: hacerlo dentro del comparador
+  // significaría recorrer las expresiones regulares en cada comparación, y con
+  // listas de miles de canales eso son cientos de miles de evaluaciones.
+  const rank = new Map(channels.map((channel) => [channel, priorityRank(channel.name, channel.category)]));
+
   return [...channels].sort((a, b) => {
-    const categoryDelta = CATEGORY_PRIORITY.indexOf(a.category) - CATEGORY_PRIORITY.indexOf(b.category);
-    if (categoryDelta !== 0) return categoryDelta;
-    return a.name.localeCompare(b.name, "es", { numeric: true, sensitivity: "base" });
+    const byCategory = compareByCategory(a.category, b.category);
+    if (byCategory !== 0) return byCategory;
+
+    // Dentro de la categoría mandan los canales importantes, en su orden. El
+    // número de canal no interviene: en una lista con miles de señales de
+    // varios países no dice nada de lo que alguien quiere ver.
+    const byPriority = (rank.get(a) ?? 0) - (rank.get(b) ?? 0);
+    if (byPriority !== 0) return byPriority;
+
+    return nameCollator.compare(a.name, b.name);
   });
 }
 
-export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
-  const parsed = getParser()(m3uText);
-  const rawChannels: RawM3uChannel[] = (parsed as { channels?: RawM3uChannel[]; items?: RawM3uChannel[] })?.channels || (parsed as { items?: RawM3uChannel[] })?.items || [];
+export function parseM3uChannels(m3uText: string): ParsedChannel[] {
+  let parsed: unknown;
+  try {
+    parsed = getParser()(m3uText);
+  } catch (error) {
+    console.error("❌ Error interpretando la lista M3U:", error);
+    return [];
+  }
 
+  const rawChannels =
+    (parsed as { channels?: RawM3uChannel[] })?.channels ||
+    (parsed as { items?: RawM3uChannel[] })?.items ||
+    [];
   if (!Array.isArray(rawChannels)) return [];
 
-  const uniqueChannels = new Map<string, RawM3uChannel>();
-  rawChannels.filter((item) => Boolean(item?.url)).forEach((item) => {
+  const unique = new Map<string, RawM3uChannel>();
+  for (const item of rawChannels) {
+    if (!item?.url) continue;
+    if (ADULT_CONTENT.test(`${item.name || item.title || ""} ${getGroupTitle(item)}`)) continue;
     const key = getDeduplicationKey(item);
-    if (!uniqueChannels.has(key)) uniqueChannels.set(key, item);
-  });
+    if (!unique.has(key)) unique.set(key, item);
+  }
 
-  return sortM3uChannels(Array.from(uniqueChannels.values()).map((item, index) => {
-    const name = item.name || item.title || `Canal ${index + 1}`;
-    const logoUrl = item.tvg?.logo || item.logo || "";
+  const channels = Array.from(unique.values()).map<ParsedChannel>((item, index) => {
+    const name = cleanChannelName(item.name || item.title || item.tvg?.name || `Canal ${index + 1}`);
+    const group = getGroupTitle(item);
+    const tvgId = item.tvg?.id?.trim() ?? "";
+    // El logo de la lista manda; si no trae, se busca por nombre en el índice local.
+    const logoUrl = item.tvg?.logo || item.logo || findLogoUrl(name) || "";
 
     return {
       name,
+      // Provisional: withChannelNumbers() lo reemplaza según la categoría ya
+      // ordenada (101+, 201+...). Aquí solo hace falta que el campo exista.
       number: String(index + 1),
-      category: normalizeM3uCategory(item),
+      category: classifyChannel({
+        name,
+        group,
+        country: item.tvg?.country || countryFromTvgId(tvgId),
+        language: item.tvg?.language ?? "",
+      }),
       description: `Señal en vivo de ${name}`,
-      logoText: name.substring(0, 2).toUpperCase(),
+      logoText: name.slice(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
       isFavorite: false,
       isLive: true,
     };
-  })).map((channel, index) => ({ ...channel, number: String(index + 1) }));
+  });
+
+  return sortChannels(channels);
 }
 
-// ⭐ ESTA ES LA FUNCIÓN QUE FALTABA Y QUE PIDE LA PÁGINA PRINCIPAL:
-export async function loadM3uChannels(): Promise<ParsedM3uChannel[]> {
-  const m3uText = await getM3uContent();
-  return m3uText ? parseM3uChannels(m3uText) : [];
+/**
+ * Lista ya descargada e interpretada, guardada en memoria del proceso.
+ *
+ * La caducidad es por tiempo y no por contenido: comparar el texto obligaba a
+ * descargar los 3 MB en cada visita solo para descubrir que no había cambiado.
+ * Así, dentro de la ventana no se toca la red siquiera.
+ */
+let cachedPlaylist: { source: string; playlist: M3uPlaylist; expiresAt: number } | null = null;
+
+export async function loadM3uPlaylist(): Promise<M3uPlaylist> {
+  const source = getM3uSourceUrl();
+  const fresh = cachedPlaylist?.source === source && cachedPlaylist.expiresAt > Date.now();
+  if (fresh && cachedPlaylist) return cachedPlaylist.playlist;
+
+  const m3uText = await fetchM3uText();
+
+  if (!m3uText) {
+    // Antes que dejar la guía vacía, se sirve la última lista buena aunque
+    // haya caducado: que GitHub tenga un mal momento no debe apagar la TV.
+    if (cachedPlaylist?.source === source) {
+      console.warn("⚠️ Fallo al refrescar la lista M3U; se sirve la última copia buena.");
+      return cachedPlaylist.playlist;
+    }
+    return { channels: [], epgUrl: null };
+  }
+
+  const playlist: M3uPlaylist = {
+    channels: parseM3uChannels(m3uText),
+    epgUrl: extractEpgUrl(m3uText),
+  };
+  cachedPlaylist = { source, playlist, expiresAt: Date.now() + PLAYLIST_CACHE_MS };
+  return playlist;
 }

@@ -1,20 +1,19 @@
 import type { Channel } from "@/lib/types";
+import { CATEGORY_ORDER } from "@/lib/categories";
 
-/** Orden de categorías: el mismo CATEGORY_PRIORITY de src/lib/m3u.ts. */
-export const CATEGORY_ORDER = [
-  "Guatemala",
-  "Deportes",
-  "Noticias",
-  "Películas y series",
-  "Infantil",
-  "Música",
-  "Religión",
-  "Entretenimiento",
-  "Español",
-  "Inglés",
-  "Internacional",
-  "General",
-];
+// CATEGORY_ORDER vive en categories.ts: es también quien clasifica cada canal
+// en m3u.ts, así que una sola lista evita que las dos rutinas se desincronicen
+// (antes esta duplicaba el orden a mano y le faltaba "Documentales").
+export { CATEGORY_ORDER };
+
+/**
+ * Posición de una categoría dentro de CATEGORY_ORDER, con el `as const` del
+ * origen: `.category` en Channel es un `string` genérico (viene de un M3U
+ * ajeno, no de un enum), así que `indexOf` necesita este cast explícito.
+ */
+function orderIndex(category: string): number {
+  return CATEGORY_ORDER.indexOf(category as (typeof CATEGORY_ORDER)[number]);
+}
 
 /**
  * Renumera al estilo IPTV: 101+, 201+, 301+ por categoría.
@@ -25,7 +24,7 @@ export const CATEGORY_ORDER = [
 export function withChannelNumbers(channels: Channel[]): Channel[] {
   const seen = new Map<string, number>();
   return channels.map((channel) => {
-    const base = (CATEGORY_ORDER.indexOf(channel.category) + 1 || CATEGORY_ORDER.length) * 100;
+    const base = (orderIndex(channel.category) + 1 || CATEGORY_ORDER.length) * 100;
     const next = (seen.get(channel.category) ?? 0) + 1;
     seen.set(channel.category, next);
     return { ...channel, number: String(base + next) };
@@ -66,7 +65,7 @@ export function groupByCategory(channels: Channel[]) {
     else groups.set(channel.category, [channel]);
   });
   return [...groups.entries()]
-    .sort((a, b) => CATEGORY_ORDER.indexOf(a[0]) - CATEGORY_ORDER.indexOf(b[0]))
+    .sort((a, b) => orderIndex(a[0]) - orderIndex(b[0]))
     .map(([category, items]) => ({ category, items }));
 }
 
