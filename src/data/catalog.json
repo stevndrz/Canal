@@ -1,0 +1,41 @@
+[
+  {
+    "id": "ejemplo-pelicula-embed",
+    "mediaType": "movie",
+    "tmdbId": 129,
+    "collection": "Para la familia",
+    "source": { "kind": "embed" }
+  },
+  {
+    "id": "ejemplo-pelicula-embed-2",
+    "mediaType": "movie",
+    "tmdbId": 12,
+    "collection": "Para la familia",
+    "source": { "kind": "embed" }
+  },
+  {
+    "id": "ejemplo-serie-embed",
+    "mediaType": "tv",
+    "tmdbId": 1399,
+    "collection": "Series",
+    "source": { "kind": "embed" }
+  },
+  {
+    "id": "ejemplo-manual",
+    "mediaType": "movie",
+    "title": "Ejemplo con enlace propio",
+    "overview": "Ficha de muestra para el reproductor nativo: aquí funcionan el selector de audio, los subtítulos y el Watch Party. Reemplaza la URL por la tuya.",
+    "collection": "Mis archivos",
+    "source": {
+      "kind": "manual",
+      "streams": [
+        {
+          "label": "Latino 1080p",
+          "url": "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+          "type": "hls",
+          "subtitles": []
+        }
+      ]
+    }
+  }
+]

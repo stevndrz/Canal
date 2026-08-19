@@ -1,103 +1,159 @@
 @import "tailwindcss";
 
-/* ── CanalCasa: tokens de app nativa (Tailwind v4) ───────────────── */
-@theme {
-  --color-app: #09090b;
-  --color-surface: #111113;
-  --color-surface-2: #18181b;
-  --color-mark: #1c1c1f;
-  --color-hairline: rgba(255, 255, 255, 0.08);
-  --color-live: #ff453a;
-
-  --color-accent: #fafafa;
-  --color-accent-on: #09090b;
-
-  --radius-tile: 15px;
-  --radius-card: 20px;
-
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
-
-  --ease-native: cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
+:root { --ink: #18332e; --green: #168766; }
 * { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--color-app);
-}
+html { background: #f4f7f6; }
 
 body {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
+  margin: 0;
+  color: var(--ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* App shell: nunca scroll de ventana. El scroll vive en los contenedores. */
-  overflow: hidden;
-  overscroll-behavior: none;
 }
 
-button { cursor: pointer; font: inherit; }
-button:disabled { cursor: not-allowed; opacity: 0.45; }
+button, a, input, select, textarea {
+  transition: border-color .18s, background-color .18s, color .18s, opacity .18s, transform .18s;
+}
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 
-a { color: var(--color-accent); text-decoration: none; }
-a:hover { color: #a1a1aa; }
-
-/* ── Foco D-pad ──────────────────────────────────────────────────────
-   Un único lenguaje de foco para toda la app. Usamos :focus-visible en
-   punteros y :focus a secas cuando la entrada es un control remoto
-   (data-input="dpad" lo pone useRemoteInput). */
-:focus { outline: none; }
-
-[data-nav]:focus-visible {
-  outline: 3px solid var(--color-accent);
-  outline-offset: 4px;
+/* ====== Optimización TV: foco visible y navegación ====== */
+:focus-visible {
+  outline: 3px solid #34d399;
+  outline-offset: 2px;
+  border-radius: 8px;
 }
 
-[data-input="dpad"] [data-nav]:focus {
-  outline: 3px solid var(--color-accent);
-  outline-offset: 4px;
+/* Evitar que el foco se pierda en pantallas táctiles */
+@media (hover: none) {
+  :focus-visible { outline-width: 4px; }
 }
 
-[data-nav] {
-  transition: transform 0.2s var(--ease-native),
-    background-color 0.2s var(--ease-native), color 0.2s var(--ease-native),
-    outline-color 0.16s var(--ease-native);
-  scroll-margin: 28px;
+.btn-primary {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 11px;
+  padding: 0 15px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #168766;
+  color: #fff;
+  box-shadow: 0 5px 14px rgba(22,135,102,.14);
+}
+.btn-primary:hover { background: #107557; }
+
+/* Utilidades de scroll */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+
+/* Evita pintar las tarjetas que quedan fuera del área visible: alivia trabajo
+   a la GPU del televisor. `auto` en contain-intrinsic-size hace que el
+   navegador recuerde el alto real de cada tarjeta ya pintada, en vez de
+   estimarlo siempre igual, así el scroll no se descuadra. */
+.channel-tile { content-visibility: auto; contain-intrinsic-size: auto 160px; }
+
+/* ====== Optimización TV: tipografía y espaciado ====== */
+@media (min-width: 1280px) {
+  body { font-size: 17px; }
 }
 
-[data-nav="tile"]:focus-visible,
-[data-input="dpad"] [data-nav="tile"]:focus {
-  transform: scale(1.045);
+/* ====== Optimización TV: selección de canal ====== */
+[data-channel-id] {
+  scroll-margin: 16px;
 }
-
-::selection { background: rgba(250, 250, 250, 0.18); }
-
-/* ── Utilidades de scroll ────────────────────────────────────────── */
-.scroll-none { scrollbar-width: none; }
-.scroll-none::-webkit-scrollbar { display: none; }
-
-.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.16) transparent; }
-.scroll-thin::-webkit-scrollbar { width: 6px; }
-.scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 999px; }
-.scroll-thin::-webkit-scrollbar-track { background: transparent; }
-
-/* Listas de 500+ canales: no pintes lo que no se ve. */
-.row-virtual { content-visibility: auto; contain-intrinsic-size: 68px; }
-
-/* ── Margen seguro de TV (overscan) ─────────────────────────────── */
-.tv-safe {
-  padding-left: max(40px, env(safe-area-inset-left));
-  padding-right: max(40px, env(safe-area-inset-right));
-}
-
-/* ── En vivo ─────────────────────────────────────────────────────── */
-@keyframes cc-live { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
-.live-dot { animation: cc-live 2.4s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, [data-nav] { transition: none !important; animation: none !important; }
-  * { scroll-behavior: auto !important; }
+  * { scroll-behavior: auto !important; transition: none !important; }
+  .animate-pulse, .animate-spin, .animate-ping { animation: none !important; }
+}
+
+/* ==========================================================================
+   Capa de reescalado del video
+   El objetivo es que escalar un canal de 480p a una pantalla de 55" lo haga
+   la GPU y no el procesador, que en una Smart TV es bastante limitado.
+   ========================================================================== */
+
+.player-surface {
+  /* Promueve el reproductor a su propia capa de composición: al escalar o
+     mover la miniatura no se repinta el resto de la página. */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  /* Aísla el repintado dentro del reproductor. */
+  contain: paint;
+}
+
+.player-surface video {
+  object-fit: contain;
+  /* La decodificación de video ya va por hardware; esto evita que el
+     navegador aplique además un filtrado costoso en CPU. */
+  will-change: transform;
+}
+
+/* ==========================================================================
+   Modo TV: los desenfoques y las sombras grandes son lo primero que hace
+   tirones en la GPU de un televisor. Se sustituyen por color plano.
+   ========================================================================== */
+
+.tv-mode [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  background-color: rgb(0 0 0 / 0.55);
+}
+
+.tv-mode [class*="shadow-2xl"],
+.tv-mode [class*="shadow-xl"] {
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.18) !important;
+}
+
+.tv-mode [class*="blur-3xl"] {
+  display: none;
+}
+
+/* Foco aún más marcado: a tres metros el anillo fino no se distingue. */
+.tv-mode :focus-visible {
+  outline-width: 5px;
+  outline-offset: 3px;
+}
+
+/* ==========================================================================
+   Miniatura fija del reproductor al recorrer la guía
+   ========================================================================== */
+
+.player-dock {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: min(20rem, 45vw);
+  border-radius: 0.875rem;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgb(15 23 42 / 0.35);
+}
+
+@media (min-width: 1280px) {
+  .player-dock { width: 24rem; }
+}
+
+/* ==========================================================================
+   Transición entre secciones
+   ========================================================================== */
+
+.app-fade {
+  animation: app-fade-in .22s ease-out both;
+}
+
+@keyframes app-fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Quien pida menos movimiento no recibe el desplazamiento, solo el fundido;
+   la regla general de prefers-reduced-motion desactiva transiciones pero no
+   animaciones con nombre, así que hace falta decirlo aquí. */
+@media (prefers-reduced-motion: reduce) {
+  .app-fade { animation: none; }
 }

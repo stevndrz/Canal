@@ -1,25 +1,26 @@
 import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { TvModeEffect } from "@/components/tv-mode-effect";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CanalCasa",
-  description: "TV en vivo en casa: televisor, tablet o teléfono.",
+  title: "CanalCasa · Televisión para tu hogar",
+  description: "Canales en vivo, películas y series para las pantallas de tu familia.",
 };
 
-/** App instalable y a pantalla completa; sin zoom accidental con el mando. */
 export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
+  themeColor: "#0f766e",
+  // Evita el zoom accidental al tocar controles del reproductor en el teléfono.
   maximumScale: 1,
-  userScalable: false,
-  themeColor: "#09090b",
-  colorScheme: "dark",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="es" data-input="pointer">
-      <body>{children}</body>
+    <html lang="es">
+      <body className="antialiased">
+        <TvModeEffect />
+        {children}
+      </body>
     </html>
   );
 }
