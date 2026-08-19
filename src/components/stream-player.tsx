@@ -32,6 +32,29 @@ function detectStreamKind(url: string): "hls" | "mpegts" | "flv" | "native" {
 /** Reintentos ante fallos recuperables antes de darse por vencido. */
 const MAX_RECOVERY_ATTEMPTS = 3;
 
+/**
+ * ¿Conviene reproducir HLS de forma nativa en vez de con hls.js?
+ *
+ * Importa para AirPlay: el Apple TV necesita una **URL real** que reproducir.
+ * Con MSE (Media Source Extensions) el <video> se alimenta de un blob sin URL,
+ * así que AirPlay solo consigue llevarse el audio y la TV se queda sin imagen.
+ *
+ * Y esto no es teórico en iPhone: desde iOS 17.1 Safari expone
+ * `ManagedMediaSource`, que hls.js toma como MSE válido, por lo que
+ * `Hls.isSupported()` devuelve true también en el teléfono. Si no lo
+ * comprobáramos antes, en iPhone siempre acabaríamos en la rama MSE.
+ *
+ * En Chrome de Android `canPlayType` puede devolver "maybe" para HLS aunque lo
+ * reproduzca mal, por eso solo preferimos lo nativo si la respuesta es
+ * "probably" o si el navegador es WebKit con AirPlay.
+ */
+function shouldUseNativeHls(video: HTMLVideoElement): boolean {
+  const support = video.canPlayType("application/vnd.apple.mpegurl");
+  if (support === "") return false;
+  if (support === "probably") return true;
+  return typeof window !== "undefined" && "WebKitPlaybackTargetAvailabilityEvent" in window;
+}
+
 const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -106,7 +129,12 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
     const kind = detectStreamKind(streamUrl);
 
     if (kind === "hls") {
-      if (Hls.isSupported()) {
+      if (shouldUseNativeHls(video)) {
+        // Safari/iOS: reproducción nativa, que es la única que permite mandar
+        // imagen por AirPlay (ver shouldUseNativeHls).
+        video.src = streamUrl;
+        video.addEventListener("loadedmetadata", tryPlay, { once: true });
+      } else if (Hls.isSupported()) {
         const hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
@@ -143,7 +171,7 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
         hls.loadSource(streamUrl);
         hls.attachMedia(video);
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        // Safari/iOS reproduce HLS nativo; además así funciona AirPlay.
+        // Último recurso: el navegador dice reproducir HLS aunque sin MSE.
         video.src = streamUrl;
         video.addEventListener("loadedmetadata", tryPlay, { once: true });
       } else {

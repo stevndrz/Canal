@@ -11,10 +11,19 @@ export interface ParsedChannel {
   tvgId: string;
 }
 
-/** Canal listo para la UI. */
-export interface Channel extends ParsedChannel {
+/**
+ * Canal listo para la UI. No hereda de ParsedChannel a propósito: `tvgId` solo
+ * se usa en el servidor para cruzar con el EPG, y con listas de más de 10.000
+ * canales cada campo de más se paga en el HTML que descarga el teléfono.
+ */
+export interface Channel {
   id: number;
   number: string;
+  name: string;
+  category: string;
+  logoText: string;
+  logoUrl: string;
+  streamUrl: string;
   /** Vacíos cuando no hay guía EPG real: nunca se rellenan con texto inventado. */
   currentProgram: string;
   nextProgram: string;

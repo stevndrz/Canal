@@ -94,7 +94,7 @@ No hay carpeta `api/`, `db/` ni variables `DATABASE_URL`: todo el estado vive en
 
 El reproductor (`src/components/stream-player.tsx`) reproduce las URLs del M3U **directamente**, sin proxy intermedio:
 
-- **HLS (`.m3u8` o sin extensión, el caso más común en listas IPTV)** → [`hls.js`](https://github.com/video-dev/hls.js) si el navegador lo soporta (Chrome, Firefox, Edge); en Safari/iOS se usa reproducción nativa, que además habilita AirPlay.
+- **HLS (`.m3u8` o sin extensión, el caso más común en listas IPTV)** → reproducción **nativa** en Safari/iOS (necesaria para AirPlay, ver abajo); [`hls.js`](https://github.com/video-dev/hls.js) en el resto (Chrome, Firefox, Edge).
 - **MPEG-TS / FLV (`.ts`, `.flv`)** → [`mpegts.js`](https://github.com/xqq/mpegts.js).
 - **Otros formatos (`.mp4`, `.webm`, `.mkv`, `.mov`)** → `<video>` nativo.
 
@@ -121,10 +121,19 @@ Ese último paso es el que hace que **funcione en iPhone**: Safari en iOS no imp
 | Vía | Dónde funciona | Cómo |
 |-----|----------------|------|
 | **Google Cast** | Chrome (escritorio) y Android | Manda la URL del stream al Chromecast, así que funciona aunque localmente se reproduzca con hls.js/MSE |
-| **AirPlay** | Safari / iPhone / iPad | `webkitShowPlaybackTargetPicker()` |
+| **AirPlay** | Safari / iPhone / iPad | `webkitShowPlaybackTargetPicker()` sobre reproducción HLS **nativa** |
 | **Remote Playback API** | Respaldo estándar donde exista | `video.remote.prompt()` |
 
 El botón de transmitir solo aparece cuando hay alguna vía disponible. El SDK de Google Cast se carga de forma diferida y solo en navegadores Chromium; si no carga, no pasa nada.
+
+> **AirPlay necesita reproducción nativa.** El Apple TV reproduce una URL, no
+> un buffer: si el `<video>` se alimenta por MSE (Media Source Extensions),
+> AirPlay solo consigue llevarse el audio y la TV se queda en negro. Y esto
+> pasa en iPhone más de lo que parece: desde iOS 17.1 Safari expone
+> `ManagedMediaSource`, que hls.js acepta como MSE, así que `Hls.isSupported()`
+> devuelve `true` también en el teléfono. Por eso `shouldUseNativeHls()` en
+> `stream-player.tsx` comprueba **primero** si el navegador reproduce HLS de
+> forma nativa y solo cae en hls.js cuando no puede.
 
 ---
 
@@ -148,9 +157,47 @@ node scripts/build-logo-index.mjs
 
 ---
 
+## 🚀 Rendimiento con listas grandes
+
+Probado con **12.718 canales** (una lista M3U de 1,6 MB):
+
+| | Antes | Después |
+|---|---|---|
+| HTML enviado al navegador | 28,2 MB | 4,2 MB (0,6 MB con gzip) |
+| Tiempo de respuesta | 3–7 s | ~0,5 s |
+| Interpretar la lista | 2447 ms | 385 ms |
+
+Tres cambios lo hacen posible:
+
+1. **La guía se pinta por tandas** de 120 tarjetas y crece al llegar al final
+   (`IntersectionObserver`). Pintar 12.718 de golpe generaba decenas de MB de
+   HTML y bloqueaba teléfonos y TVs viejas. La búsqueda y los filtros siguen
+   siendo instantáneos porque la lista completa vive en memoria.
+2. **Un `Intl.Collator` reutilizado** en vez de `String.localeCompare`, que
+   reconstruye el colador en cada comparación: 1289 ms → 48 ms al ordenar.
+3. **Caché del parseo en memoria del proceso**, así solo la primera visita tras
+   un cambio de lista paga el costo.
+
+---
+
 ## ⚡ Acceso rápido
 
 `FEATURED_CHANNEL_PATTERNS` en `src/lib/categories.ts` define los canales que aparecen fijos arriba (Canal 3, Canal 7, Guatevisión, TN23, Canal 11, Canal 13, Tigo Sports…). Se emparejan por nombre contra la lista cargada: los que no estén, simplemente no se muestran. Para cambiarlos, edita esa lista.
+
+### Cómo se decide que un canal es de Guatemala
+
+Media Latinoamérica tiene un "Canal 3" o un "Canal 13", así que buscar esos
+nombres como subcadena llenaba la categoría prioritaria de canales de Formosa,
+Jujuy o Chiapas. `classifyChannel()` distingue dos tipos de señal:
+
+- **Inequívocas** (`guatemala`, `chapin`, `guatevision`, `tn23`, `totovision`,
+  `tigo sports`, o `tvg-country="GT"`): valen en cualquier parte del texto.
+- **Genéricas** (`Canal 3`, `Canal 7`, `Canal 11`, `Canal 13`, `Canal 27`):
+  solo cuentan si el canal se llama **exactamente** así y la lista no dice ya
+  de qué país es.
+
+Con una lista internacional de 12.718 canales esto baja los falsos positivos de
+42 a 17, sin perder ninguno de los canales reales de Guatemala.
 
 ---
 

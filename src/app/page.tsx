@@ -20,9 +20,13 @@ export default async function HomePage() {
   const initialChannels: Channel[] = parsedChannels.map((channel, index) => {
     const entry = epg ? getEpgEntry(epg, channel.tvgId, channel.name, now) : null;
     return {
-      ...channel,
       id: index + 1,
       number: String(index + 1),
+      name: channel.name,
+      category: channel.category,
+      logoText: channel.logoText,
+      logoUrl: channel.logoUrl,
+      streamUrl: channel.streamUrl,
       currentProgram: entry?.current?.title ?? "",
       nextProgram: entry?.next?.title ?? "",
       isFavorite: false,

@@ -24,9 +24,22 @@ export const CATEGORY_ORDER = [
   "General",
 ] as const;
 
+/**
+ * Señales inequívocas de canal guatemalteco: pueden aparecer en cualquier parte
+ * del texto sin riesgo de confundirse con canales de otros países.
+ */
+const GUATEMALA_SIGNALS = /\b(guatemal\w*|chapin\w*|guatevision|tn ?23|totovision|tigo ?sports)\b/;
+
+/**
+ * Nombres genéricos que SOLO cuentan si el canal se llama exactamente así.
+ * Media Latinoamérica tiene un "Canal 3" o un "Canal 13" (Formosa, Jujuy,
+ * Chiapas, Boaco...), así que buscarlos como subcadena llenaba la categoría
+ * Guatemala de canales de otros países.
+ */
+const GUATEMALA_EXACT_NAMES = /^(canal ?[3789]|canal ?1[13]|canal ?2[07]|canal ?11 tutv)$/;
+
 /** Reglas en orden: la primera que coincide gana. */
 const CATEGORY_RULES: { category: string; pattern: RegExp }[] = [
-  { category: "Guatemala", pattern: /\b(gt|guatemal\w*|chapin\w*|canal ?3|canal ?7|canal ?11|canal ?13|tn23|totovision|guatevision|tigo sports)\b/ },
   { category: "Deportes", pattern: /\b(sport|sports|deporte|deportes|futbol|football|soccer|nba|nfl|mlb|tennis|ufc|espn|fox sports)\b/ },
   { category: "Noticias", pattern: /\b(news|noticias|noticiero|cnn|bbc|dw|teleprensa|legislative|public)\b/ },
   { category: "Películas y series", pattern: /\b(movie|movies|cine|pelicula|peliculas|series|film|films|classic|cinemax|hbo|cinecanal)\b/ },
@@ -42,13 +55,32 @@ const LANGUAGE_RULES: { category: string; pattern: RegExp }[] = [
   { category: "Español", pattern: /\b(espanol|spanish|latino|latin|mexico|colombia|argentina|chile|peru|espana)\b/ },
 ];
 
-export function classifyChannel(searchableText: string): string {
-  const normalized = normalizeText(searchableText);
+export interface ChannelClassificationInput {
+  name: string;
+  group?: string;
+  country?: string;
+  language?: string;
+}
+
+export function classifyChannel({ name, group = "", country = "", language = "" }: ChannelClassificationInput): string {
+  const normalizedName = normalizeText(name).trim();
+  const normalizedCountry = normalizeText(country).trim();
+  const haystack = normalizeText(`${name} ${group} ${country} ${language}`);
+
+  // Guatemala se evalúa primero y con reglas propias: es la categoría
+  // prioritaria y la que más se contamina si se busca por subcadena.
+  const isGuatemala =
+    GUATEMALA_SIGNALS.test(haystack) ||
+    /\bgt\b/.test(normalizedCountry) ||
+    // El nombre genérico solo cuenta si la lista no dice ya de qué país es.
+    (!normalizedCountry && GUATEMALA_EXACT_NAMES.test(normalizedName));
+  if (isGuatemala) return "Guatemala";
+
   for (const { category, pattern } of CATEGORY_RULES) {
-    if (pattern.test(normalized)) return category;
+    if (pattern.test(haystack)) return category;
   }
   for (const { category, pattern } of LANGUAGE_RULES) {
-    if (pattern.test(normalized)) return category;
+    if (pattern.test(haystack)) return category;
   }
   return "Internacional";
 }

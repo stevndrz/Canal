@@ -24,6 +24,9 @@ import { normalizeText } from "@/lib/text";
 import { useFavorites } from "@/hooks/use-favorites";
 import type { Channel } from "@/lib/types";
 
+/** Tarjetas que se pintan por tanda al recorrer la guía. */
+const CHANNELS_PER_PAGE = 120;
+
 // hls.js y mpegts.js dependen de globals del navegador (self, MediaSource) y
 // no pueden evaluarse durante el render en servidor.
 const StreamPlayer = dynamic(() => import("./stream-player"), {
@@ -78,6 +81,38 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     });
   }, [channels, deferredQuery, selectedCategory, showFavoritesOnly]);
 
+  // Con listas de más de 10.000 canales, pintar todas las tarjetas de golpe
+  // genera decenas de MB de HTML y bloquea teléfonos y TVs viejas. Se muestran
+  // por tandas y se amplía al llegar al final de la guía.
+  const [visibleCount, setVisibleCount] = useState(CHANNELS_PER_PAGE);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+
+  // Al cambiar de filtro se vuelve a empezar desde la primera tanda.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setVisibleCount(CHANNELS_PER_PAGE);
+  }, [deferredQuery, selectedCategory, showFavoritesOnly]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setVisibleCount((count) => count + CHANNELS_PER_PAGE);
+        }
+      },
+      { rootMargin: "600px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredChannels.length]);
+
+  const visibleChannels = useMemo(
+    () => filteredChannels.slice(0, visibleCount),
+    [filteredChannels, visibleCount]
+  );
+
   const selectChannel = useCallback((channel: Channel) => setSelectedId(channel.id), []);
 
   const stepChannel = useCallback(
@@ -87,6 +122,11 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         const index = filteredChannels.findIndex((channel) => channel.id === currentId);
         if (index === -1) return filteredChannels[0].id;
         const nextIndex = Math.min(Math.max(index + delta, 0), filteredChannels.length - 1);
+        // Al navegar con el control remoto más allá de la tanda pintada, se
+        // amplía para que la tarjeta exista y se pueda hacer scroll hasta ella.
+        setVisibleCount((count) =>
+          nextIndex < count ? count : Math.ceil((nextIndex + 1) / CHANNELS_PER_PAGE) * CHANNELS_PER_PAGE
+        );
         return filteredChannels[nextIndex].id;
       });
     },
@@ -345,22 +385,29 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
           </div>
 
           {filteredChannels.length > 0 ? (
-            <div
-              ref={gridRef}
-              className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
-              role="list"
-              aria-label="Guía de canales"
-            >
-              {filteredChannels.map((channel) => (
-                <ChannelTile
-                  key={channel.id}
-                  channel={channel}
-                  selected={channel.id === selectedId}
-                  onSelect={selectChannel}
-                  onToggleFavorite={toggleFavorite}
-                />
-              ))}
-            </div>
+            <>
+              <div
+                ref={gridRef}
+                className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
+                role="list"
+                aria-label="Guía de canales"
+              >
+                {visibleChannels.map((channel) => (
+                  <ChannelTile
+                    key={channel.id}
+                    channel={channel}
+                    selected={channel.id === selectedId}
+                    onSelect={selectChannel}
+                    onToggleFavorite={toggleFavorite}
+                  />
+                ))}
+              </div>
+              {visibleChannels.length < filteredChannels.length && (
+                <div ref={loadMoreRef} className="py-6 text-center text-xs text-slate-400">
+                  Mostrando {visibleChannels.length} de {filteredChannels.length} canales…
+                </div>
+              )}
+            </>
           ) : (
             <div
               role="status"
