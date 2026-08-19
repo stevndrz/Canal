@@ -15,8 +15,11 @@ import {
   SkipForward,
   Star,
   Tv,
+  LayoutGrid,
+  List,
 } from "lucide-react";
 import { ChannelTile } from "./channel-tile";
+import { ChannelRow } from "./channel-row";
 import { QuickAccess } from "./quick-access";
 import { ShortcutsPanel } from "./shortcuts-panel";
 import { DisplaySettings } from "./display-settings";
@@ -50,6 +53,8 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
 
   const deferredQuery = useDeferredValue(searchQuery);
   const gridRef = useRef<HTMLDivElement | null>(null);
+  const channelView = useAppStore((state) => state.channelView);
+  const setChannelView = useAppStore((state) => state.setChannelView);
   const searchRef = useRef<HTMLInputElement | null>(null);
   /** Marca un cambio de canal hecho con clic, para no arrastrar el scroll. */
   const skipScrollIntoViewRef = useRef(false);
@@ -252,35 +257,23 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   const isSearchStale = searchQuery !== deferredQuery;
   const selectedStyle = getCategoryStyle(selectedChannel?.category ?? "");
 
+  // Sin degradados ni manchas difuminadas de fondo: en una TV grande no se
+  // aprecian, cuestan GPU y son justo lo que hacía que esto pareciera una
+  // página web de plantilla en vez de una aplicación de televisión.
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(20,184,166,0.16),transparent)]"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed -right-32 top-24 -z-10 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl"
-      />
+      <div className="mx-auto max-w-[1400px] px-3 pb-4 pt-2 sm:px-6 md:px-8">
+        {/* Una sola fila delgada, no tres bloques apilados.
+            En una televisión, el encabezado grande con su logo, su título y la
+            navegación debajo ocupaba media pantalla y empujaba el vídeo hasta
+            la mitad: había que bajar para ver lo único que importa. */}
+        <header className="mb-3 flex items-center gap-2">
+          <span className="flex shrink-0 items-center gap-2 text-slate-900">
+            <Tv aria-hidden="true" className="h-5 w-5 text-emerald-600" />
+            <h1 className="hidden text-base font-bold tracking-tight sm:block">CanalCasa</h1>
+          </span>
 
-      <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-6 md:px-8 md:py-6">
-        <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-600/25">
-              <Tv aria-hidden="true" className="h-6 w-6" />
-            </span>
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">CanalCasa</h1>
-            <button
-              type="button"
-              onClick={() => setShowShortcuts((visible) => !visible)}
-              aria-label="Ver atajos de control remoto"
-              className="rounded-xl border border-slate-200 bg-white p-2 text-slate-500 shadow-sm transition hover:border-slate-300 hover:text-slate-950 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              <Info aria-hidden="true" className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="relative sm:w-72">
+          <div className="relative min-w-0 flex-1">
             <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
               ref={searchRef}
@@ -298,16 +291,21 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
               />
             )}
           </div>
-        </header>
 
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <SiteNav />
           <DisplaySettings />
-        </div>
+
+          <button
+            type="button"
+            onClick={() => setShowShortcuts((visible) => !visible)}
+            aria-label="Ver atajos de control remoto"
+            className="shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 transition hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+          >
+            <Info aria-hidden="true" className="h-5 w-5" />
+          </button>
+        </header>
 
         {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
-
-        <QuickAccess channels={featuredChannels} selectedId={selectedId} onSelect={selectChannel} />
 
         <section className="mb-6">
           {selectedChannel ? (
@@ -424,23 +422,66 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             </button>
           </div>
 
+          {/* Cuadrícula o lista. Las dos sirven: los logos se reconocen de un
+              vistazo, pero en la lista caben el triple de canales por pantalla
+              y con el control remoto se llega mucho antes. */}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-xs text-slate-400">
+              {filteredChannels.length} {filteredChannels.length === 1 ? "canal" : "canales"}
+            </span>
+            <div className="flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="Forma de ver los canales">
+              {([
+                { id: "grid", label: "Cuadrícula", Icon: LayoutGrid },
+                { id: "list", label: "Lista", Icon: List },
+              ] as const).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setChannelView(id)}
+                  aria-pressed={channelView === id}
+                  aria-label={label}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${
+                    channelView === id ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  <Icon aria-hidden="true" className="h-4 w-4" />
+                  <span className="hidden sm:inline">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           {filteredChannels.length > 0 ? (
             <>
               <div
                 ref={gridRef}
-                className="channel-grid grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
+                className={
+                  channelView === "grid"
+                    ? "channel-grid grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(104px,1fr))] sm:[grid-template-columns:repeat(auto-fill,minmax(136px,1fr))]"
+                    : "overflow-hidden rounded-xl border border-slate-200 bg-white"
+                }
                 role="list"
                 aria-label="Guía de canales"
               >
-                {visibleChannels.map((channel) => (
-                  <ChannelTile
-                    key={channel.id}
-                    channel={channel}
-                    selected={channel.id === selectedId}
-                    onSelect={selectChannel}
-                    onToggleFavorite={toggleFavorite}
-                  />
-                ))}
+                {visibleChannels.map((channel) =>
+                  channelView === "grid" ? (
+                    <ChannelTile
+                      key={channel.id}
+                      channel={channel}
+                      selected={channel.id === selectedId}
+                      onSelect={selectChannel}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  ) : (
+                    <ChannelRow
+                      key={channel.id}
+                      channel={channel}
+                      selected={channel.id === selectedId}
+                      onSelect={selectChannel}
+                      onToggleFavorite={toggleFavorite}
+                    />
+                  )
+                )}
               </div>
               {visibleChannels.length < filteredChannels.length && (
                 <div ref={loadMoreRef} className="py-6 text-center text-xs text-slate-400">
@@ -458,6 +499,11 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
                 : "No se encontraron canales que coincidan con la búsqueda."}
             </div>
           )}
+
+          {/* El acceso directo baja aquí: arriba empujaba el reproductor fuera
+              de la pantalla en la TV, y es algo que se busca a propósito, no
+              lo primero que uno necesita ver al abrir. */}
+          <QuickAccess channels={featuredChannels} selectedId={selectedId} onSelect={selectChannel} />
 
           <div className="mt-5 hidden flex-wrap items-center justify-center gap-4 text-[11px] text-slate-400 sm:flex">
             <span className="flex items-center gap-1">

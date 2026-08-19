@@ -36,6 +36,10 @@ interface AppState {
   tvMode: boolean;
   setTvMode: (enabled: boolean) => void;
 
+  /** Cómo se listan los canales: cuadritos con logo o lista compacta. */
+  channelView: "grid" | "list";
+  setChannelView: (view: "grid" | "list") => void;
+
   /**
    * Último servidor de video que se usó.
    *
@@ -71,6 +75,9 @@ export const useAppStore = create<AppState>()(
       tvMode: false,
       setTvMode: (tvMode) => set({ tvMode }),
 
+      channelView: "grid",
+      setChannelView: (channelView) => set({ channelView }),
+
       preferredProvider: null,
       setPreferredProvider: (preferredProvider) => set({ preferredProvider }),
 
@@ -80,12 +87,13 @@ export const useAppStore = create<AppState>()(
     {
       name: "canalcasa",
       // La sala de Watch Party es de la sesión, no debe revivir al reabrir.
-      partialize: ({ favoriteUrls, lastChannelUrl, sharpness, tvMode, preferredProvider }) => ({
+      partialize: ({ favoriteUrls, lastChannelUrl, sharpness, tvMode, preferredProvider, channelView }) => ({
         favoriteUrls,
         lastChannelUrl,
         sharpness,
         tvMode,
         preferredProvider,
+        channelView,
       }),
     }
   )
