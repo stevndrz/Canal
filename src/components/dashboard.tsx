@@ -2,19 +2,32 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, filterChannels, withChannelNumbers } from "@/lib/channels";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { AppBottomNav, AppSidebar } from "@/components/app-nav";
-import { FullscreenPlayer } from "@/components/fullscreen-player";
 import { HomeView } from "@/components/views/home-view";
 import { CanalesView } from "@/components/views/canales-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
 import { BuscarView } from "@/components/views/buscar-view";
 import { CategoriasView } from "@/components/views/categorias-view";
 import { AjustesView } from "@/components/views/ajustes-view";
+
+/**
+ * El reproductor se carga solo en el navegador.
+ *
+ * `hls.js`/`mpegts.js` se evalúan al importarse y tocan `self`, que en el
+ * servidor no existe: con un import normal, la página entera revienta con
+ * `ReferenceError: self is not defined` y Vercel devuelve un 500 — es lo que
+ * tumbó este mismo diseño la primera vez que se intentó desplegar.
+ */
+const FullscreenPlayer = dynamic(
+  () => import("@/components/fullscreen-player").then((m) => m.FullscreenPlayer),
+  { ssr: false, loading: () => <div className="fixed inset-0 z-50 bg-app" /> }
+);
 
 const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
 

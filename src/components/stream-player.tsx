@@ -9,8 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import Hls from "hls.js";
-import mpegts from "mpegts.js";
+import type HlsType from "hls.js";
+import type MpegtsType from "mpegts.js";
 import { RefreshCw, Radio, Volume1 } from "lucide-react";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
@@ -32,6 +32,28 @@ function getStreamKind(url: string): "hls" | "mpegts" | "flv" | "native" {
   if (/\.ts$/.test(clean)) return "mpegts";
   if (/\.(mp4|webm|mkv|mov)$/.test(clean)) return "native";
   return "hls";
+}
+
+/**
+ * `hls.js` y `mpegts.js` se cargan solo cuando hace falta reproducir.
+ *
+ * Segunda capa de la misma defensa que en dashboard.tsx: si algo llegara a
+ * evaluar este módulo en el servidor pese a la frontera de arriba, un import
+ * de nivel de módulo tocaría `self` y tumbaría la página igual. Con
+ * `await import()` dentro del efecto, el servidor nunca llega a evaluarlos.
+ * Cada uno se pide una sola vez y se reutiliza: la promesa queda cacheada.
+ */
+let hlsModule: Promise<typeof HlsType> | null = null;
+let mpegtsModule: Promise<typeof MpegtsType> | null = null;
+
+function loadHls(): Promise<typeof HlsType> {
+  hlsModule ??= import("hls.js").then((m) => m.default);
+  return hlsModule;
+}
+
+function loadMpegts(): Promise<typeof MpegtsType> {
+  mpegtsModule ??= import("mpegts.js").then((m) => m.default);
+  return mpegtsModule;
 }
 
 export interface StreamPlayerHandle {
@@ -63,8 +85,8 @@ const StreamPlayer = memo(
     ref,
   ) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const hlsRef = useRef<Hls | null>(null);
-    const mpegtsRef = useRef<ReturnType<typeof mpegts.createPlayer> | null>(null);
+    const hlsRef = useRef<HlsType | null>(null);
+    const mpegtsRef = useRef<ReturnType<typeof MpegtsType.createPlayer> | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [streamError, setStreamError] = useState(false);
@@ -130,7 +152,13 @@ const StreamPlayer = memo(
             ? "mpegts"
             : detected;
 
+      // Selección de motor en una función asíncrona: las librerías se piden
+      // ahora, no al cargar el módulo. `cancelled` se revisa tras cada espera
+      // porque el canal puede haber cambiado mientras llegaba el import.
+      void (async () => {
       if (kind === "hls") {
+        const Hls = await loadHls();
+        if (cancelled) return;
         if (Hls.isSupported()) {
           const hls = new Hls({
             enableWorker: settings.enableWorker,
@@ -150,6 +178,8 @@ const StreamPlayer = memo(
           handleFatalError();
         }
       } else if (kind === "mpegts" || kind === "flv") {
+        const mpegts = await loadMpegts();
+        if (cancelled) return;
         if (mpegts.isSupported()) {
           const player = mpegts.createPlayer(
             { type: kind === "flv" ? "flv" : "mpegts", url: streamUrl, isLive: true },
@@ -171,6 +201,7 @@ const StreamPlayer = memo(
         video.src = streamUrl;
         tryPlay();
       }
+      })();
 
       const handleNativeError = () => handleFatalError();
       video.addEventListener("error", handleNativeError);
