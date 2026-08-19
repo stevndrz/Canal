@@ -144,7 +144,3 @@ button:disabled { cursor: not-allowed; }
 @media (min-width: 1280px) {
   .player-dock { width: 24rem; }
 }
-
-/* Reserva el hueco que deja el reproductor al despegarse, para que la página
-   no dé un salto al pasar a miniatura. */
-.player-dock-placeholder { display: block; }

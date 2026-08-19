@@ -4,6 +4,17 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ChevronUp, X } from "lucide-react";
 
 /**
+ * Umbrales de visibilidad del reproductor para pasar a miniatura y volver.
+ *
+ * Encoger en cuanto asoma el borde superior resultaba molesto en televisión:
+ * ahí el reproductor mide unos 790 px y bastaba bajar un poco —lo justo para
+ * llegar a la primera fila de canales— para que se encogiera estando aún
+ * entero en pantalla. Ahora espera a que se haya ido más de la mitad.
+ */
+const DOCK_VISIBILITY = 0.5;
+const UNDOCK_VISIBILITY = 0.65;
+
+/**
  * Mantiene el reproductor visible como miniatura al bajar por la guía.
  *
  * Detalle que condiciona todo el diseño: **el `<video>` nunca se desmonta ni
@@ -23,7 +34,7 @@ export function StickyPlayerFrame({
   /** Llevar de vuelta al reproductor a tamaño completo. */
   onExpand?: () => void;
 }) {
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
   const frameRef = useRef<HTMLDivElement | null>(null);
   /** Espejo de `docked` legible desde el observador, sin re-suscribirlo. */
   const dockedRef = useRef(false);
@@ -31,15 +42,45 @@ export function StickyPlayerFrame({
   const [dismissed, setDismissed] = useState(false);
   const [placeholderHeight, setPlaceholderHeight] = useState(0);
 
-  // El centinela va justo encima del reproductor: cuando sale por arriba de la
-  // pantalla, el reproductor pasa a miniatura.
+  /**
+   * Encoge cuando el reproductor ya casi no se ve, no al primer píxel.
+   *
+   * Se observa el envoltorio y no el marco: al encoger, el marco pasa a
+   * `position: fixed`, así que se quedaría clavado en la esquina y el
+   * observador lo leería siempre como visible — encoger y agrandar en bucle.
+   * El envoltorio nunca sale del flujo, de modo que sus medidas valen igual en
+   * los dos estados.
+   */
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        const shouldDock = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+        const rect = entry.boundingClientRect;
+        // Cuánto del reproductor queda dentro de la ventana, de 0 a 1. Se
+        // calcula a mano en vez de usar `intersectionRatio` porque ese valor
+        // no distingue si lo que sobra se fue por arriba o por abajo.
+        const visible =
+          rect.height > 0
+            ? Math.max(0, Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0)) /
+              rect.height
+            : 0;
+
+        // Solo cuenta salirse por ARRIBA; que la ventana recorte el reproductor
+        // por abajo no es motivo para encoger.
+        //
+        // Esta condición sola no basta: al abrir la app la página ya aparece
+        // algo desplazada (se restaura el canal elegido), así que el borde
+        // superior del reproductor puede estar unos píxeles por encima del
+        // cero — que es justo lo que hacía que arrancara en miniatura. Quien
+        // decide es el porcentaje visible.
+        const scrolledPast = rect.top < 0;
+        // La distancia entre 0.5 y 0.65 es histéresis: sin ella, quedarse
+        // justo en el límite haría parpadear el reproductor con cada píxel.
+        const shouldDock = dockedRef.current
+          ? scrolledPast && visible < UNDOCK_VISIBILITY
+          : scrolledPast && visible < DOCK_VISIBILITY;
 
         // Se mide SOLO en la transición a miniatura, nunca estando ya
         // encogido: con la clase `player-dock` puesta se guardaría el alto de
@@ -52,9 +93,11 @@ export function StickyPlayerFrame({
         dockedRef.current = shouldDock;
         setDocked(shouldDock);
       },
-      { threshold: 0 }
+      // Varios pasos para que avise mientras el reproductor se va saliendo, y
+      // no solo al entrar y salir del todo.
+      { threshold: [0, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.8, 0.9, 1] }
     );
-    observer.observe(sentinel);
+    observer.observe(wrapper);
     return () => observer.disconnect();
   }, []);
 
@@ -69,14 +112,12 @@ export function StickyPlayerFrame({
   const isDocked = docked && !disabled && !dismissed;
 
   return (
-    <>
-      <div ref={sentinelRef} aria-hidden="true" />
-
-      {/* Hueco que ocupa el reproductor mientras está en miniatura */}
-      {isDocked && placeholderHeight > 0 && (
-        <div aria-hidden="true" style={{ height: placeholderHeight }} />
-      )}
-
+    // El envoltorio guarda el hueco del reproductor mientras está en
+    // miniatura; así la guía no da un salto al encoger ni al volver.
+    <div
+      ref={wrapperRef}
+      style={isDocked && placeholderHeight > 0 ? { height: placeholderHeight } : undefined}
+    >
       <div ref={frameRef} className={isDocked ? "player-dock" : undefined}>
         {children}
 
@@ -101,6 +142,6 @@ export function StickyPlayerFrame({
           </div>
         )}
       </div>
-    </>
+    </div>
   );
 }

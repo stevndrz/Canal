@@ -42,21 +42,49 @@ interface TmdbSeason {
   }[];
 }
 
+/**
+ * Tope de espera, por la misma razón que en la lista M3U y la guía EPG: una
+ * API externa lenta no debe poder agotar el tiempo de la función y dejar la
+ * página sin pintar. Sin clave o sin respuesta, la sección usa el catálogo
+ * local.
+ */
+const TMDB_TIMEOUT_MS = 5000;
+
 async function tmdbFetch<T>(path: string): Promise<T | null> {
-  const apiKey = process.env.TMDB_API_KEY;
-  if (!apiKey) return null;
+  const credential = process.env.TMDB_API_KEY?.trim();
+  if (!credential) return null;
+
+  // TMDB reparte dos credenciales distintas en la misma pantalla de ajustes y
+  // es fácil copiar la que no es. La v4 ("API Read Access Token") es un JWT y
+  // va en la cabecera; la v3 ("API Key") va en la URL. Los endpoints /3
+  // aceptan las dos, así que se detecta cuál pegaron en vez de exigir una.
+  const isReadAccessToken = credential.startsWith("eyJ");
 
   try {
-    const url = `${TMDB_API}${path}${path.includes("?") ? "&" : "?"}api_key=${apiKey}&language=es-MX`;
+    const url =
+      `${TMDB_API}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
+      (isReadAccessToken ? "" : `&api_key=${encodeURIComponent(credential)}`);
     // Un día de caché: el reparto de una película no cambia cada hora.
-    const response = await fetch(url, { next: { revalidate: 86400 } });
+    const response = await fetch(url, {
+      next: { revalidate: 86400 },
+      signal: AbortSignal.timeout(TMDB_TIMEOUT_MS),
+      headers: isReadAccessToken ? { Authorization: `Bearer ${credential}` } : undefined,
+    });
     if (!response.ok) {
-      console.error(`❌ TMDB respondió HTTP ${response.status} en ${path}`);
+      const hint =
+        response.status === 401
+          ? " — revisa TMDB_API_KEY (sirve la API Key v3 o el API Read Access Token v4)"
+          : "";
+      console.error(`❌ TMDB respondió HTTP ${response.status} en ${path}${hint}`);
       return null;
     }
     return (await response.json()) as T;
   } catch (error) {
-    console.error("❌ Error consultando TMDB:", error);
+    const reason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? `no respondió en ${TMDB_TIMEOUT_MS / 1000}s`
+        : String(error);
+    console.error(`❌ Error consultando TMDB (${reason}) — ${path}`);
     return null;
   }
 }
@@ -110,5 +138,7 @@ export async function fetchSeason(tmdbId: number, season: number): Promise<TmdbE
 }
 
 export function isTmdbConfigured(): boolean {
-  return Boolean(process.env.TMDB_API_KEY);
+  // Mismo criterio que tmdbFetch(): una variable con solo espacios no cuenta,
+  // o el aviso de "falta la clave" no saldría y las fichas quedarían vacías.
+  return Boolean(process.env.TMDB_API_KEY?.trim());
 }
