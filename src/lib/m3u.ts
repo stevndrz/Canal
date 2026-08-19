@@ -5,7 +5,7 @@ import { findLogoUrl } from "./logos";
 import type { ParsedChannel } from "./types";
 
 const DEFAULT_M3U_URL =
-  "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/a3067ccfe1f760eb5c50924eae45b346af03e3b3/gt.m3u";
+  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
