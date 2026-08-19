@@ -25,7 +25,7 @@ Por defecto la app carga la lista M3U desde el Gist configurado en `src/lib/m3u.
 ## ☁️ Despliegue en Vercel
 
 1. Sube el proyecto a GitHub e impórtalo en Vercel (detecta Next.js automáticamente).
-2. (Opcional) En **Settings → Environment Variables**, define `M3U_URL` si quieres apuntar a una lista distinta a la que trae el código por defecto.
+2. (Opcional) En **Settings → Environment Variables**, define `M3U_URL` si quieres apuntar a una lista distinta a la que trae el código por defecto, y/o `EPG_URL` para horarios reales (ver [Horarios de programación](#️-horarios-de-programación-epg)).
 3. Despliega. No hace falta configurar ninguna base de datos: la lista de canales se descarga en cada request (`revalidate: 30`) directamente desde la URL del M3U.
 
 ### Actualizar la lista de canales
@@ -36,7 +36,7 @@ No hace falta redesplegar ni tocar el código:
 2. Agrega/quita bloques `#EXTINF` con su URL de stream.
 3. Guarda los cambios. La página los recoge automáticamente (caché de 30s).
 
-La importación elimina duplicados por URL de stream y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, infantil, música, religión, entretenimiento e idioma.
+La importación elimina duplicados por URL de stream, quita sufijos de calidad del nombre (ej. "Canal 3 (720p)" → "Canal 3"), filtra contenido para adultos, y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, documentales, infantil, música, religión, entretenimiento e idioma.
 
 ---
 
@@ -105,9 +105,12 @@ El formato M3U (`#EXTINF`) no trae horarios — solo nombre, logo y categoría. 
 #EXTM3U url-tvg="https://ejemplo.com/epg.xml.gz"
 ```
 
-`src/lib/m3u.ts` detecta automáticamente ese atributo (`url-tvg`, `x-tvg-url` o `tvg-url`) y, si existe, `src/lib/epg.ts` descarga y parsea la guía (soporta gzip, con un límite de 15MB) para mostrar **"Al aire" / "Sigue"** con la programación real de cada canal, emparejando por `tvg-id`.
+Si tu M3U trae esa línea, `src/lib/m3u.ts` la detecta sola (`url-tvg`, `x-tvg-url` o `tvg-url`). Si no la trae (como el Gist actual), puedes fijar una guía manualmente con la variable de entorno **`EPG_URL`** — por ejemplo, la de Guatemala en [iptv-epg.org/guides](https://iptv-epg.org/guides). En Vercel: **Settings → Environment Variables → `EPG_URL`**.
 
-Si tu lista M3U no referencia ningún EPG, esa sección simplemente no aparece — la app nunca inventa horarios de relleno.
+`src/lib/epg.ts` descarga y parsea esa guía (soporta gzip, con un límite de 15MB) para mostrar **"Al aire" / "Sigue"** con la programación real de cada canal:
+
+- Si el canal tiene `tvg-id` en el M3U, empareja por ese id (lo ideal).
+- Si no lo tiene (caso del Gist actual, que no trae `tvg-id`), empareja por **nombre normalizado** contra el `<display-name>` de la guía XMLTV — ej. "Canal 3" del M3U encuentra "Canal 3 de Guatemala" en la guía. Es un emparejamiento best-effort: puede no encontrar todos los canales, pero nunca inventa horarios — si no hay coincidencia, esa sección simplemente no aparece.
 
 ---
 

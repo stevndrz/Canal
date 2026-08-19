@@ -13,13 +13,21 @@ export interface EpgEntry {
   next: EpgProgramme | null;
 }
 
+export interface EpgGuide {
+  programmesByChannel: EpgByChannel;
+  // Normaliza nombre de canal -> id XMLTV. Sirve de respaldo cuando la
+  // lista M3U no trae tvg-id (caso común en listas públicas grandes).
+  idByName: Map<string, string>;
+}
+
 // Las guías XMLTV compartidas suelen cubrir cientos de canales de varios
 // países; evitamos cargar/parsear archivos desproporcionados en una función
 // serverless.
 const MAX_EPG_BYTES = 15 * 1024 * 1024;
 const MAX_PROGRAMMES = 200_000;
+const MAX_CHANNELS = 50_000;
 
-export async function fetchEpg(url: string): Promise<EpgByChannel | null> {
+export async function fetchEpg(url: string): Promise<EpgGuide | null> {
   try {
     const res = await fetch(url, { next: { revalidate: 600 } });
     if (!res.ok) return null;
@@ -74,10 +82,41 @@ function parseXmltvTime(value: string): number | null {
   return asUtcMs - offsetMinutes * 60_000;
 }
 
-export function parseXmltv(xml: string): EpgByChannel {
-  const byChannel: EpgByChannel = new Map();
-  const programmeRe = /<programme([^>]*)>([\s\S]*?)<\/programme>/g;
+// Normaliza un nombre de canal para emparejar entre el M3U y el <display-name>
+// del XMLTV: minúsculas, sin acentos/puntuación, y sin sufijos genéricos como
+// "de guatemala" o "hd" que suelen variar entre fuentes.
+export function normalizeChannelName(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
+    .toLowerCase()
+    .replace(/\b(de guatemala|guatemala|hd|fhd|uhd|4k|sd)\b/g, "")
+    .replace(/[^a-z0-9]+/g, "")
+    .trim();
+}
 
+export function parseXmltv(xml: string): EpgGuide {
+  const programmesByChannel: EpgByChannel = new Map();
+  const idByName = new Map<string, string>();
+
+  const channelRe = /<channel([^>]*)>([\s\S]*?)<\/channel>/g;
+  let channelMatch: RegExpExecArray | null;
+  let channelCount = 0;
+  while (channelCount < MAX_CHANNELS && (channelMatch = channelRe.exec(xml))) {
+    channelCount++;
+    const [, attrs, inner] = channelMatch;
+    const id = getAttr(attrs, "id")?.trim();
+    if (!id) continue;
+
+    const displayNameRe = /<display-name[^>]*>([\s\S]*?)<\/display-name>/g;
+    let nameMatch: RegExpExecArray | null;
+    while ((nameMatch = displayNameRe.exec(inner))) {
+      const normalized = normalizeChannelName(decodeXmlEntities(nameMatch[1]));
+      if (normalized && !idByName.has(normalized)) idByName.set(normalized, id);
+    }
+  }
+
+  const programmeRe = /<programme([^>]*)>([\s\S]*?)<\/programme>/g;
   let match: RegExpExecArray | null;
   let count = 0;
   while (count < MAX_PROGRAMMES && (match = programmeRe.exec(xml))) {
@@ -89,18 +128,30 @@ export function parseXmltv(xml: string): EpgByChannel {
     const title = extractTitle(inner);
     if (!channelId || start == null || stop == null || !title) continue;
 
-    const list = byChannel.get(channelId);
+    const list = programmesByChannel.get(channelId);
     if (list) list.push({ title, start, stop });
-    else byChannel.set(channelId, [{ title, start, stop }]);
+    else programmesByChannel.set(channelId, [{ title, start, stop }]);
   }
 
-  return byChannel;
+  return { programmesByChannel, idByName };
 }
 
-export function getEpgEntry(byChannel: EpgByChannel, tvgId: string, now: number): EpgEntry | null {
-  const key = tvgId.trim().toLowerCase();
-  if (!key) return null;
-  const programmes = byChannel.get(key);
+function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): EpgProgramme[] | null {
+  const byId = tvgId.trim().toLowerCase();
+  if (byId) {
+    const direct = guide.programmesByChannel.get(byId);
+    if (direct) return direct;
+  }
+
+  const normalizedName = normalizeChannelName(channelName);
+  const resolvedId = normalizedName ? guide.idByName.get(normalizedName) : undefined;
+  if (resolvedId) return guide.programmesByChannel.get(resolvedId.toLowerCase()) ?? null;
+
+  return null;
+}
+
+export function getEpgEntry(guide: EpgGuide, tvgId: string, channelName: string, now: number): EpgEntry | null {
+  const programmes = findProgrammes(guide, tvgId, channelName);
   if (!programmes || programmes.length === 0) return null;
 
   let current: EpgProgramme | null = null;

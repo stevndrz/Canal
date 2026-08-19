@@ -36,6 +36,7 @@ const CATEGORY_PRIORITY = [
   "Deportes",
   "Noticias",
   "Películas y series",
+  "Documentales",
   "Infantil",
   "Música",
   "Religión",
@@ -47,7 +48,7 @@ const CATEGORY_PRIORITY = [
 ];
 
 export async function getM3uContent(): Promise<string | null> {
-  const source = process.env.M3U_URL || "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/235ef6daf40f9b546138b312d788e0adead2d955/gt.m3u";
+  const source = process.env.M3U_URL || "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/ec8c09da44fd188564e57b71e21767983c6f1182/gt.m3u";
 
   try {
     const res = await fetch(source, { next: { revalidate: 30 } });
@@ -95,6 +96,9 @@ function detectLanguageCategory(text: string) {
   return "Internacional";
 }
 
+// Listas públicas grandes (ej. agregados tipo iptv-org/iptv) suelen traer
+// group-title en inglés y sin tvg-id/tvg-country, así que la clasificación
+// se apoya sobre todo en el nombre del canal y ese group-title.
 export function normalizeM3uCategory(item: RawM3uChannel) {
   const name = item.name || item.title || "";
   const group = getGroupTitle(item);
@@ -103,16 +107,35 @@ export function normalizeM3uCategory(item: RawM3uChannel) {
   const text = `${name} ${group} ${country} ${language}`;
   const normalized = normalize(text);
 
-  if (/\b(gt|guatemala|guatemalteco|chapin|canal ?3|canal ?7|tn23|totovision|rhema)\b/.test(normalized)) return "Guatemala";
+  if (/\b(gt|guatemal\w*|chapin\w*|canal ?3|canal ?7|canal ?11|canal ?13|tn23|totovision|guatevision)\b/.test(normalized)) return "Guatemala";
   if (/\b(sport|sports|deporte|deportes|futbol|football|soccer|nba|nfl|mlb|tennis|ufc|espn|fox sports|tigo sports)\b/.test(normalized)) return "Deportes";
-  if (/\b(news|noticias|noticiero|cnn|bbc|dw|tn23|teleprensa)\b/.test(normalized)) return "Noticias";
-  if (/\b(movie|movies|cine|pelicula|peliculas|series|film|films)\b/.test(normalized)) return "Películas y series";
-  if (/\b(kids|kid|infantil|ninos|niños|cartoon|disney|nick)\b/.test(normalized)) return "Infantil";
+  if (/\b(news|noticias|noticiero|cnn|bbc|dw|tn23|teleprensa|legislative|public)\b/.test(normalized)) return "Noticias";
+  if (/\b(movie|movies|cine|pelicula|peliculas|series|film|films|classic|cinemax|hbo|cinecanal)\b/.test(normalized)) return "Películas y series";
+  if (/\b(documentary|documental|documentales|culture|cultura|science|ciencia|education|educativo|history|historia)\b/.test(normalized)) return "Documentales";
+  if (/\b(kids|kid|infantil|ninos|niños|cartoon|disney|nick|boomerang|animation|animacion)\b/.test(normalized)) return "Infantil";
   if (/\b(music|musica|música|radio|mtv)\b/.test(normalized)) return "Música";
   if (/\b(religion|religious|religioso|iglesia|dios|peniel|bethel|rhema)\b/.test(normalized)) return "Religión";
-  if (/\b(entertainment|entretenimiento|variedades)\b/.test(normalized)) return "Entretenimiento";
+  if (/\b(entertainment|entretenimiento|variedades|lifestyle|travel|viajes|outdoor|auto|business|comedy|comedia)\b/.test(normalized)) return "Entretenimiento";
 
   return detectLanguageCategory(text);
+}
+
+const ADULT_CONTENT_RE = /\b(xxx|adult|porn|erotic|erotico|hentai|playboy)\b/i;
+
+// Limpia sufijos de calidad que muchas listas pegan al nombre del canal,
+// ej. "Canal 3 (720p)" -> "Canal 3". Algunas listas apilan varios sufijos
+// (ej. "Canal 3 HD 720p"), así que repite hasta que no quede nada por quitar.
+function stripQualityTags(name: string): string {
+  let result = name.trim();
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(/[\s([-]*\b(?:fhd|uhd|4k|8k|hd|sd|h\.?26[45])\b[\s)\]-]*$/gi, "")
+      .replace(/[\s([-]*\d{3,4}p[\s)\]-]*$/gi, "")
+      .trim();
+  } while (result !== previous && result.length > 0);
+  return result || name.trim();
 }
 
 function getDeduplicationKey(item: RawM3uChannel) {
@@ -140,13 +163,16 @@ export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
   if (!Array.isArray(rawChannels)) return [];
 
   const uniqueChannels = new Map<string, RawM3uChannel>();
-  rawChannels.filter((item) => Boolean(item?.url)).forEach((item) => {
-    const key = getDeduplicationKey(item);
-    if (!uniqueChannels.has(key)) uniqueChannels.set(key, item);
-  });
+  rawChannels
+    .filter((item) => Boolean(item?.url))
+    .filter((item) => !ADULT_CONTENT_RE.test(`${item.name || item.title || ""} ${getGroupTitle(item)}`))
+    .forEach((item) => {
+      const key = getDeduplicationKey(item);
+      if (!uniqueChannels.has(key)) uniqueChannels.set(key, item);
+    });
 
   return sortM3uChannels(Array.from(uniqueChannels.values()).map((item, index) => {
-    const name = item.name || item.title || `Canal ${index + 1}`;
+    const name = stripQualityTags(item.name || item.title || `Canal ${index + 1}`);
     const logoUrl = item.tvg?.logo || item.logo || "";
 
     return {
