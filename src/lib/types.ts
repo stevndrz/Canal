@@ -3,10 +3,14 @@ export interface Channel {
   name: string;
   number: string;
   category: string;
-  description: string;
   logoText: string;
   logoUrl: string;
   streamUrl: string;
+  tvgId: string;
+  // Vacíos cuando no hay guía EPG real disponible: nunca se rellenan con
+  // texto de relleno.
+  currentProgram: string;
+  nextProgram: string;
   isFavorite: boolean;
   isLive: boolean;
 }

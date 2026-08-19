@@ -4,12 +4,17 @@ export interface ParsedM3uChannel {
   name: string;
   number: string;
   category: string;
-  description: string;
   logoText: string;
   logoUrl: string;
   streamUrl: string;
+  tvgId: string;
   isFavorite: boolean;
   isLive: boolean;
+}
+
+export interface M3uPlaylist {
+  channels: ParsedM3uChannel[];
+  epgUrl: string | null;
 }
 
 type RawM3uChannel = {
@@ -54,6 +59,17 @@ export async function getM3uContent(): Promise<string | null> {
   }
 
   return null;
+}
+
+// Muchas listas M3U públicas referencian su guía de programación (EPG en
+// formato XMLTV) en la primera línea, ej: #EXTM3U url-tvg="https://.../epg.xml.gz"
+export function getEpgUrl(m3uText: string): string | null {
+  const headerLine = m3uText.split("\n", 1)[0] ?? "";
+  const match = headerLine.match(/\b(?:url-tvg|x-tvg-url|tvg-url)="([^"]+)"/i);
+  if (!match) return null;
+  // Algunas listas separan varias URLs con coma; usamos la primera.
+  const firstUrl = match[1].split(",")[0]?.trim();
+  return firstUrl || null;
 }
 
 function getParser() {
@@ -137,18 +153,18 @@ export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
       name,
       number: String(index + 1),
       category: normalizeM3uCategory(item),
-      description: `Señal en vivo de ${name}`,
       logoText: name.substring(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
+      tvgId: item.tvg?.id?.trim() ?? "",
       isFavorite: false,
       isLive: true,
     };
   })).map((channel, index) => ({ ...channel, number: String(index + 1) }));
 }
 
-// ⭐ ESTA ES LA FUNCIÓN QUE FALTABA Y QUE PIDE LA PÁGINA PRINCIPAL:
-export async function loadM3uChannels(): Promise<ParsedM3uChannel[]> {
+export async function loadM3uPlaylist(): Promise<M3uPlaylist> {
   const m3uText = await getM3uContent();
-  return m3uText ? parseM3uChannels(m3uText) : [];
+  if (!m3uText) return { channels: [], epgUrl: null };
+  return { channels: parseM3uChannels(m3uText), epgUrl: getEpgUrl(m3uText) };
 }

@@ -62,10 +62,11 @@ Canal/
 │   │   ├── layout.tsx         # Layout raíz con metadata
 │   │   └── page.tsx           # Página principal (SSR, dynamic)
 │   ├── components/
-│   │   ├── dashboard.tsx      # Dashboard: lista de canales, categorías, favoritos
+│   │   ├── dashboard.tsx      # Guía de canales: grid, categorías, favoritos
 │   │   └── stream-player.tsx  # Reproductor (hls.js / mpegts.js), carga solo en cliente
 │   └── lib/
 │       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       ├── epg.ts             # Parser XMLTV opcional para horarios reales
 │       └── types.ts           # Tipo `Channel` compartido
 ├── next.config.ts
 ├── package.json
@@ -93,6 +94,20 @@ El componente se carga con `next/dynamic` (`ssr: false`) porque estas librerías
 ## ⭐ Favoritos (sin base de datos)
 
 Los favoritos se guardan en `localStorage` del navegador (clave `canalcasa:favorites`), identificados por la URL del stream. No se pierden al recargar la página, pero son locales a cada navegador/dispositivo.
+
+---
+
+## 🗓️ Horarios de programación (EPG)
+
+El formato M3U (`#EXTINF`) no trae horarios — solo nombre, logo y categoría. Los horarios reales vienen de un archivo aparte en formato **XMLTV**, que muchas listas públicas referencian en su primera línea:
+
+```
+#EXTM3U url-tvg="https://ejemplo.com/epg.xml.gz"
+```
+
+`src/lib/m3u.ts` detecta automáticamente ese atributo (`url-tvg`, `x-tvg-url` o `tvg-url`) y, si existe, `src/lib/epg.ts` descarga y parsea la guía (soporta gzip, con un límite de 15MB) para mostrar **"Al aire" / "Sigue"** con la programación real de cada canal, emparejando por `tvg-id`.
+
+Si tu lista M3U no referencia ningún EPG, esa sección simplemente no aparece — la app nunca inventa horarios de relleno.
 
 ---
 
@@ -134,7 +149,7 @@ CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes.
 | `#f4f7f6`    | Fondo claro                  |
 | `#f59e0b`    | Ámbar (favoritos)            |
 
-Fuente: `ui-sans-serif, system-ui, -apple-system, ...`. Utilidades relevantes: `.scrollbar-none`, `.custom-scrollbar`, `.virtual-list-item` (renderizado eficiente de listas largas).
+Fuente: `ui-sans-serif, system-ui, -apple-system, ...`. Utilidades relevantes: `.scrollbar-none`, `.channel-tile` (renderizado eficiente de guías con cientos de canales).
 
 ---
 
