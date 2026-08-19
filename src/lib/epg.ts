@@ -25,22 +25,55 @@ export interface EpgGuide {
 // países; evitamos cargar/parsear archivos desproporcionados en una función
 // serverless.
 const MAX_EPG_BYTES = 15 * 1024 * 1024;
+/** Tope tras descomprimir: un .gz pequeño puede expandirse a cientos de MB. */
+const MAX_EPG_TEXT_BYTES = 150 * 1024 * 1024;
 const MAX_PROGRAMMES = 200_000;
 const MAX_CHANNELS = 50_000;
 
+/** Cuánto se reutiliza la guía ya interpretada antes de volver a descargarla. */
+const EPG_CACHE_MS = 10 * 60 * 1000;
+
+/**
+ * Interpretar un XMLTV de miles de canales cuesta bastante y el resultado
+ * cambia como mucho cada pocos minutos, así que se guarda en memoria del
+ * proceso en vez de repetirlo en cada visita.
+ */
+let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null = null;
+
 export async function fetchEpg(url: string): Promise<EpgGuide | null> {
+  if (cachedEpg?.url === url && cachedEpg.expiresAt > Date.now()) return cachedEpg.guide;
+
+  const guide = await downloadAndParseEpg(url);
+  cachedEpg = { url, guide, expiresAt: Date.now() + EPG_CACHE_MS };
+  return guide;
+}
+
+async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
   try {
     const res = await fetch(url, { next: { revalidate: 600 } });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`❌ La guía EPG respondió HTTP ${res.status}`);
+      return null;
+    }
+
+    const tooLarge = (bytes: number) => {
+      console.error(
+        `❌ Guía EPG descartada por tamaño (${Math.round(bytes / 1024 / 1024)} MB). ` +
+          "Configura EPG_URL con una guía más pequeña si quieres horarios."
+      );
+      return null;
+    };
 
     const contentLength = Number(res.headers.get("content-length") || 0);
-    if (contentLength && contentLength > MAX_EPG_BYTES) return null;
+    if (contentLength && contentLength > MAX_EPG_BYTES) return tooLarge(contentLength);
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    if (buffer.byteLength > MAX_EPG_BYTES) return null;
+    if (buffer.byteLength > MAX_EPG_BYTES) return tooLarge(buffer.byteLength);
 
     const isGzip = buffer.length > 2 && buffer[0] === 0x1f && buffer[1] === 0x8b;
-    const xml = isGzip ? gunzipSync(buffer).toString("utf-8") : buffer.toString("utf-8");
+    const xml = isGzip
+      ? gunzipSync(buffer, { maxOutputLength: MAX_EPG_TEXT_BYTES }).toString("utf-8")
+      : buffer.toString("utf-8");
 
     return parseXmltv(xml);
   } catch (error) {
@@ -130,6 +163,14 @@ function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): Ep
   if (byId) {
     const direct = guide.programmesByChannel.get(byId);
     if (direct) return direct;
+
+    // Las listas estilo iptv-org marcan la señal en el id (`Canal3.gt@SD`)
+    // mientras que la guía suele publicarlo sin ese sufijo.
+    const withoutFeed = byId.split("@")[0];
+    if (withoutFeed !== byId) {
+      const base = guide.programmesByChannel.get(withoutFeed);
+      if (base) return base;
+    }
   }
 
   // Respaldo por nombre: la mayoría de listas públicas no traen tvg-id.

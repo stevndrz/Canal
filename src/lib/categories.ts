@@ -68,14 +68,23 @@ export function classifyChannel({ name, group = "", country = "", language = "" 
   const haystack = normalizeText(`${name} ${group} ${country} ${language}`);
 
   // Guatemala se evalúa primero y con reglas propias: es la categoría
-  // prioritaria y la que más se contamina si se busca por subcadena.
-  const isGuatemala =
-    GUATEMALA_SIGNALS.test(haystack) ||
-    /\bgt\b/.test(normalizedCountry) ||
-    // El nombre genérico solo cuenta si la lista no dice ya de qué país es.
-    (!normalizedCountry && GUATEMALA_EXACT_NAMES.test(normalizedName));
-  if (isGuatemala) return "Guatemala";
+  // prioritaria y la que más se contamina si se adivina por el nombre.
+  //
+  // Cuando la lista dice de qué país es el canal (por `tvg-country` o por el
+  // sufijo del `tvg-id`, ej. `Canal3.gt@SD`), esa información manda y el
+  // nombre no se consulta: así "Tigo Sports" de Bolivia o "Canal 3" de
+  // Formosa no acaban en la categoría de Guatemala.
+  if (normalizedCountry) {
+    return /\bgt\b/.test(normalizedCountry) ? "Guatemala" : classifyByContent(haystack);
+  }
+  if (GUATEMALA_SIGNALS.test(haystack) || GUATEMALA_EXACT_NAMES.test(normalizedName)) {
+    return "Guatemala";
+  }
+  return classifyByContent(haystack);
+}
 
+/** Resto de categorías, ya descartada Guatemala. */
+function classifyByContent(haystack: string): string {
   for (const { category, pattern } of CATEGORY_RULES) {
     if (pattern.test(haystack)) return category;
   }

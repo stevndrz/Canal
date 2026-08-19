@@ -139,13 +139,13 @@ El botón de transmitir solo aparece cuando hay alguna vía disponible. El SDK d
 
 ## 🖼️ Logos de canales (para cualquier lista M3U)
 
-Muchas listas —incluida la actual— no traen `tvg-logo`. El orden de resolución es:
+No todas las listas traen `tvg-logo` (el Gist actual sí; el anterior no). El orden de resolución es:
 
 1. `tvg-logo` de la lista, si viene.
 2. Búsqueda por **nombre normalizado** en `src/lib/logo-index.json`, un índice de ~47.000 nombres generado desde la base de datos pública de [iptv-org](https://github.com/iptv-org/database).
 3. **Monograma** con las iniciales del canal, coloreado según su categoría.
 
-Medido contra los ~16.600 canales de las listas por país de iptv-org, el índice resuelve **~73%** de los logos (98% en la lista de Guatemala). Nunca falla de forma visible: si una imagen no carga, la tarjeta cae al monograma sin mostrar el ícono de imagen rota.
+Cuando la lista no trae logos, medido contra los ~16.600 canales de las listas por país de iptv-org, el índice resuelve **~73%** (98% en la lista de Guatemala). Con el Gist actual, que sí los trae, la cobertura total sube al **87%**. Nunca falla de forma visible: si una imagen no carga, la tarjeta cae al monograma sin mostrar el ícono de imagen rota.
 
 El índice se importa solo desde el servidor, así que **no se descarga al navegador**.
 
@@ -167,6 +167,9 @@ Probado con **12.718 canales** (una lista M3U de 1,6 MB):
 | Tiempo de respuesta | 3–7 s | ~0,5 s |
 | Interpretar la lista | 2447 ms | 385 ms |
 
+Con el Gist actual (15.556 canales, ya con `tvg-id` y `tvg-logo`): ~300 ms de
+parseo, 5,0 MB de HTML (0,66 MB con gzip) y **87% de logos** resueltos.
+
 Tres cambios lo hacen posible:
 
 1. **La guía se pinta por tandas** de 120 tarjetas y crece al llegar al final
@@ -186,18 +189,24 @@ Tres cambios lo hacen posible:
 
 ### Cómo se decide que un canal es de Guatemala
 
-Media Latinoamérica tiene un "Canal 3" o un "Canal 13", así que buscar esos
-nombres como subcadena llenaba la categoría prioritaria de canales de Formosa,
-Jujuy o Chiapas. `classifyChannel()` distingue dos tipos de señal:
+Media Latinoamérica tiene un "Canal 3" o un "Canal 13", así que adivinar por el
+nombre llenaba la categoría prioritaria de canales de Formosa, Jujuy o Chiapas.
+`classifyChannel()` resuelve así:
 
-- **Inequívocas** (`guatemala`, `chapin`, `guatevision`, `tn23`, `totovision`,
-  `tigo sports`, o `tvg-country="GT"`): valen en cualquier parte del texto.
-- **Genéricas** (`Canal 3`, `Canal 7`, `Canal 11`, `Canal 13`, `Canal 27`):
-  solo cuentan si el canal se llama **exactamente** así y la lista no dice ya
-  de qué país es.
+1. **Si la lista dice el país, ese dato manda** y el nombre ni se consulta. El
+   país sale de `tvg-country` o, si no está, del sufijo del `tvg-id`
+   (`Canal3.gt@SD` → `gt`), que es el formato de las listas estilo iptv-org.
+   Así "Tigo Sports" de Bolivia o "Canal 3" de Formosa no acaban en Guatemala.
+2. **Si no hay país**, se cae a señales por nombre: las inequívocas
+   (`guatemala`, `chapin`, `guatevision`, `tn23`, `totovision`, `tigo sports`)
+   valen en cualquier parte, y las genéricas (`Canal 3`, `Canal 7`, `Canal 11`,
+   `Canal 13`, `Canal 27`) solo si el canal se llama **exactamente** así.
 
-Con una lista internacional de 12.718 canales esto baja los falsos positivos de
-42 a 17, sin perder ninguno de los canales reales de Guatemala.
+Medido sobre 15.556 canales internacionales en el formato del Gist actual:
+66 canales en la categoría Guatemala y **cero falsos positivos**.
+
+El acceso rápido se restringe además a esa categoría, para no ofrecer como
+atajo un "Canal 11" que en realidad es de otro país.
 
 ---
 

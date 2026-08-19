@@ -5,7 +5,7 @@ import { findLogoUrl } from "./logos";
 import type { ParsedChannel } from "./types";
 
 const DEFAULT_M3U_URL =
-  "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/ec8c09da44fd188564e57b71e21767983c6f1182/gt.m3u";
+  "https://gist.githubusercontent.com/stevndrz/12132a130be81db9ed3ac94a7ef1213f/raw/a3067ccfe1f760eb5c50924eae45b346af03e3b3/gt.m3u";
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
@@ -89,6 +89,17 @@ export function cleanChannelName(rawName: string): string {
   return result || rawName.trim();
 }
 
+/**
+ * Los `tvg-id` estilo iptv-org codifican el país del canal:
+ * `Canal3.gt@SD` -> `gt`, `00sReplay.us@SD` -> `us`. Es una señal mucho más
+ * fiable que adivinar por el nombre, sobre todo para distinguir el "Canal 3"
+ * de Guatemala del de Argentina.
+ */
+export function countryFromTvgId(tvgId: string): string {
+  const match = tvgId.match(/\.([a-z]{2})(?:@|$)/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
 function getDeduplicationKey(item: RawM3uChannel): string {
   const streamUrl = item.url?.trim();
   if (streamUrl) return `url:${streamUrl}`;
@@ -136,6 +147,7 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
   const channels = Array.from(unique.values()).map<ParsedChannel>((item, index) => {
     const name = cleanChannelName(item.name || item.title || item.tvg?.name || `Canal ${index + 1}`);
     const group = getGroupTitle(item);
+    const tvgId = item.tvg?.id?.trim() ?? "";
     // El logo de la lista manda; si no trae, se busca por nombre en el índice local.
     const logoUrl = item.tvg?.logo || item.logo || findLogoUrl(name);
 
@@ -144,13 +156,13 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
       category: classifyChannel({
         name,
         group,
-        country: item.tvg?.country ?? "",
+        country: item.tvg?.country || countryFromTvgId(tvgId),
         language: item.tvg?.language ?? "",
       }),
       logoText: name.slice(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
-      tvgId: item.tvg?.id?.trim() ?? "",
+      tvgId,
     };
   });
 

@@ -55,9 +55,14 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
   );
 
   const featuredChannels = useMemo(() => {
+    // Solo se buscan entre los clasificados como Guatemala si los hay: en una
+    // lista internacional grande hay muchos "Canal 11" o "Canal 13" de otros
+    // países, y colarlos aquí sería peor que no mostrar ese acceso directo.
+    const guatemalan = channels.filter((channel) => channel.category === "Guatemala");
+    const pool = guatemalan.length > 0 ? guatemalan : channels;
     const result: Channel[] = [];
     for (const { pattern } of FEATURED_CHANNEL_PATTERNS) {
-      const match = channels.find(
+      const match = pool.find(
         (channel) => pattern.test(normalizeText(channel.name)) && !result.includes(channel)
       );
       if (match) result.push(match);
