@@ -49,7 +49,11 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
 
   const channels = useMemo(() => withChannelNumbers(initialChannels), [initialChannels]);
 
-  const [view, setView] = useState<ViewId>("home");
+  // Arranca directo en el reproductor, con el canal más importante ya
+  // sintonizado (channels[0], tras la clasificación y el orden por
+  // importancia de m3u.ts): es lo que se pidió — el vídeo como protagonista
+  // al abrir, y navegar entre pestañas después para ir viendo cada canal.
+  const [view, setView] = useState<ViewId>("player");
   const [lastView, setLastView] = useState<ViewId>("home");
   const [tunedId, setTunedId] = useState<number | null>(channels[0]?.id ?? null);
   const [category, setCategory] = useState("Todas");
