@@ -1,4 +1,5 @@
 import { gunzipSync } from "node:zlib";
+import { channelNameVariants, normalizeChannelName } from "./text";
 
 export interface EpgProgramme {
   title: string;
@@ -82,18 +83,6 @@ function parseXmltvTime(value: string): number | null {
   return asUtcMs - offsetMinutes * 60_000;
 }
 
-// Normaliza un nombre de canal para emparejar entre el M3U y el <display-name>
-// del XMLTV: minúsculas, sin acentos/puntuación, y sin sufijos genéricos como
-// "de guatemala" o "hd" que suelen variar entre fuentes.
-export function normalizeChannelName(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(new RegExp("[\\u0300-\\u036f]", "g"), "")
-    .toLowerCase()
-    .replace(/\b(de guatemala|guatemala|hd|fhd|uhd|4k|sd)\b/g, "")
-    .replace(/[^a-z0-9]+/g, "")
-    .trim();
-}
 
 export function parseXmltv(xml: string): EpgGuide {
   const programmesByChannel: EpgByChannel = new Map();
@@ -143,9 +132,12 @@ function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): Ep
     if (direct) return direct;
   }
 
-  const normalizedName = normalizeChannelName(channelName);
-  const resolvedId = normalizedName ? guide.idByName.get(normalizedName) : undefined;
-  if (resolvedId) return guide.programmesByChannel.get(resolvedId.toLowerCase()) ?? null;
+  // Respaldo por nombre: la mayoría de listas públicas no traen tvg-id.
+  for (const variant of channelNameVariants(channelName)) {
+    const resolvedId = guide.idByName.get(normalizeChannelName(variant));
+    const programmes = resolvedId ? guide.programmesByChannel.get(resolvedId.toLowerCase()) : undefined;
+    if (programmes) return programmes;
+  }
 
   return null;
 }

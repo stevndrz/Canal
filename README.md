@@ -26,7 +26,7 @@ Por defecto la app carga la lista M3U desde el Gist configurado en `src/lib/m3u.
 
 1. Sube el proyecto a GitHub e impórtalo en Vercel (detecta Next.js automáticamente).
 2. (Opcional) En **Settings → Environment Variables**, define `M3U_URL` si quieres apuntar a una lista distinta a la que trae el código por defecto, y/o `EPG_URL` para horarios reales (ver [Horarios de programación](#️-horarios-de-programación-epg)).
-3. Despliega. No hace falta configurar ninguna base de datos: la lista de canales se descarga en cada request (`revalidate: 30`) directamente desde la URL del M3U.
+3. Despliega. No hace falta configurar ninguna base de datos: la lista de canales se descarga en cada request (`revalidate: 300`) directamente desde la URL del M3U.
 
 ### Actualizar la lista de canales
 
@@ -34,15 +34,9 @@ No hace falta redesplegar ni tocar el código:
 
 1. Edita el archivo M3U que apunta `M3U_URL` (o el Gist por defecto).
 2. Agrega/quita bloques `#EXTINF` con su URL de stream.
-3. Guarda los cambios. La página los recoge automáticamente (caché de 30s).
+3. Guarda los cambios. La página los recoge automáticamente (caché de 5 min).
 
 La importación elimina duplicados por URL de stream, quita sufijos de calidad del nombre (ej. "Canal 3 (720p)" → "Canal 3"), filtra contenido para adultos, y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, documentales, infantil, música, religión, entretenimiento e idioma.
-
-### Logos de canales de Guatemala
-
-El Gist actual no trae `tvg-logo`. Para los canales nacionales, `src/lib/gt-logos.json` es un índice local (generado desde [iptv-org/database](https://github.com/iptv-org/database)) que empareja por nombre normalizado y da un logo real, sin depender de una descarga externa en cada request. Los canales que no estén en ese índice (la mayoría de la lista, que es internacional) muestran un monograma con el color de su categoría en vez de un logo.
-
-Para regenerar `gt-logos.json` (por ejemplo si aparecen canales de Guatemala nuevos): cruza `streams/gt.m3u` de `iptv-org/iptv` (tvg-id + nombre) contra `data/logos.csv` de `iptv-org/database` (tvg-id → url, prefiriendo `in_use=TRUE`) y guarda el resultado como `[{ name, tvgId, logoUrl }]`.
 
 ---
 
@@ -62,19 +56,31 @@ Para regenerar `gt-logos.json` (por ejemplo si aparecen canales de Guatemala nue
 
 ```
 Canal/
+├── scripts/
+│   └── build-logo-index.mjs   # Regenera el índice de logos desde iptv-org
 ├── src/
 │   ├── app/
 │   │   ├── globals.css        # Estilos globales y utilidades
 │   │   ├── layout.tsx         # Layout raíz con metadata
-│   │   └── page.tsx           # Página principal (SSR, dynamic)
+│   │   └── page.tsx           # Página principal (SSR): M3U + EPG -> Channel[]
 │   ├── components/
-│   │   ├── dashboard.tsx      # Guía de canales: grid, categorías, favoritos
-│   │   └── stream-player.tsx  # Reproductor (hls.js / mpegts.js), carga solo en cliente
+│   │   ├── dashboard.tsx      # Estado, filtros y navegación por teclado
+│   │   ├── channel-tile.tsx   # Tarjeta de canal + logo con respaldo
+│   │   ├── quick-access.tsx   # Fila fija de canales principales
+│   │   ├── shortcuts-panel.tsx# Panel de atajos de control remoto
+│   │   └── stream-player.tsx  # Reproductor (solo cliente)
+│   ├── hooks/
+│   │   ├── use-cast.ts        # Chromecast / AirPlay / Remote Playback
+│   │   ├── use-fullscreen.ts  # Pantalla completa (incluye iPhone)
+│   │   └── use-favorites.ts   # Favoritos en localStorage
 │   └── lib/
-│       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       ├── m3u.ts             # Descarga y normaliza la lista M3U
 │       ├── epg.ts             # Parser XMLTV opcional para horarios reales
-│       ├── gt-logos.json      # Índice local de logos de canales de Guatemala
-│       └── types.ts           # Tipo `Channel` compartido
+│       ├── logos.ts           # Resolución de logos por nombre
+│       ├── logo-index.json    # Índice de logos (generado, solo servidor)
+│       ├── categories.ts      # Clasificación + paleta por categoría
+│       ├── text.ts            # Normalización compartida de nombres
+│       └── types.ts           # Tipos `ParsedChannel` / `Channel`
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
@@ -88,13 +94,63 @@ No hay carpeta `api/`, `db/` ni variables `DATABASE_URL`: todo el estado vive en
 
 El reproductor (`src/components/stream-player.tsx`) reproduce las URLs del M3U **directamente**, sin proxy intermedio:
 
-- **HLS (`.m3u8` o sin extensión, el caso más común en listas IPTV)** → [`hls.js`](https://github.com/video-dev/hls.js) si el navegador lo soporta (Chrome, Firefox, Edge); en Safari se usa reproducción nativa.
+- **HLS (`.m3u8` o sin extensión, el caso más común en listas IPTV)** → [`hls.js`](https://github.com/video-dev/hls.js) si el navegador lo soporta (Chrome, Firefox, Edge); en Safari/iOS se usa reproducción nativa, que además habilita AirPlay.
 - **MPEG-TS / FLV (`.ts`, `.flv`)** → [`mpegts.js`](https://github.com/xqq/mpegts.js).
 - **Otros formatos (`.mp4`, `.webm`, `.mkv`, `.mov`)** → `<video>` nativo.
 
 El componente se carga con `next/dynamic` (`ssr: false`) porque estas librerías dependen de globals del navegador (`self`, `MediaSource`) y no pueden evaluarse en el servidor.
 
-> Si un canal específico no carga, normalmente es porque esa fuente no tiene CORS habilitado para reproducción web — no es un problema de la app. El botón **Reintentar** vuelve a intentar la conexión ante cortes momentáneos de la señal.
+**Recuperación de errores**: ante un fallo fatal de hls.js el reproductor no se rinde a la primera — reintenta hasta 3 veces (`startLoad()` en errores de red, `recoverMediaError()` en errores de medio) antes de mostrar la pantalla de error con el botón **Reintentar**. Los micro-cortes de señal, muy comunes en IPTV público, se resuelven solos.
+
+> Si un canal concreto nunca carga, normalmente es porque esa fuente no tiene CORS habilitado o sirve por HTTP inseguro — no es un problema de la app.
+
+---
+
+## 📱 Pantalla completa y transmitir a la TV
+
+### Pantalla completa (incluye iPhone)
+
+`src/hooks/use-fullscreen.ts` intenta, en orden: `requestFullscreen()` estándar → `webkitRequestFullscreen()` → `video.webkitEnterFullscreen()`.
+
+Ese último paso es el que hace que **funcione en iPhone**: Safari en iOS no implementa la Fullscreen API sobre elementos normales (un `<div>` no tiene `requestFullscreen`), así que la única vía es pedirle pantalla completa al propio `<video>`, que abre el reproductor nativo del sistema. Si ninguna vía existe, el botón se oculta en vez de quedarse sin hacer nada.
+
+### Transmitir a la TV
+
+`src/hooks/use-cast.ts` cubre las tres vías que existen en navegadores:
+
+| Vía | Dónde funciona | Cómo |
+|-----|----------------|------|
+| **Google Cast** | Chrome (escritorio) y Android | Manda la URL del stream al Chromecast, así que funciona aunque localmente se reproduzca con hls.js/MSE |
+| **AirPlay** | Safari / iPhone / iPad | `webkitShowPlaybackTargetPicker()` |
+| **Remote Playback API** | Respaldo estándar donde exista | `video.remote.prompt()` |
+
+El botón de transmitir solo aparece cuando hay alguna vía disponible. El SDK de Google Cast se carga de forma diferida y solo en navegadores Chromium; si no carga, no pasa nada.
+
+---
+
+## 🖼️ Logos de canales (para cualquier lista M3U)
+
+Muchas listas —incluida la actual— no traen `tvg-logo`. El orden de resolución es:
+
+1. `tvg-logo` de la lista, si viene.
+2. Búsqueda por **nombre normalizado** en `src/lib/logo-index.json`, un índice de ~47.000 nombres generado desde la base de datos pública de [iptv-org](https://github.com/iptv-org/database).
+3. **Monograma** con las iniciales del canal, coloreado según su categoría.
+
+Medido contra los ~16.600 canales de las listas por país de iptv-org, el índice resuelve **~73%** de los logos (98% en la lista de Guatemala). Nunca falla de forma visible: si una imagen no carga, la tarjeta cae al monograma sin mostrar el ícono de imagen rota.
+
+El índice se importa solo desde el servidor, así que **no se descarga al navegador**.
+
+### Regenerar el índice
+
+```bash
+node scripts/build-logo-index.mjs
+```
+
+---
+
+## ⚡ Acceso rápido
+
+`FEATURED_CHANNEL_PATTERNS` en `src/lib/categories.ts` define los canales que aparecen fijos arriba (Canal 3, Canal 7, Guatevisión, TN23, Canal 11, Canal 13, Tigo Sports…). Se emparejan por nombre contra la lista cargada: los que no estén, simplemente no se muestran. Para cambiarlos, edita esa lista.
 
 ---
 
