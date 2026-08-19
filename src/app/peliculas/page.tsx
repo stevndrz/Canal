@@ -1,28 +1,50 @@
 import Link from "next/link";
-import { Clapperboard, Info, SearchX, Tv } from "lucide-react";
+import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
+import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
+import { AppBar } from "@/components/app-bar";
 import { getCatalogSections } from "@/lib/catalog/catalog";
-import { searchCatalog } from "@/lib/catalog/discover";
-import { isTmdbConfigured } from "@/lib/catalog/tmdb";
+import { fetchFiltered, searchCatalog } from "@/lib/catalog/discover";
+import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 export const dynamic = "force-dynamic";
 
 export default async function MoviesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; tipo?: string; genero?: string }>;
 }) {
-  const { q } = await searchParams;
+  const { q, tipo: tipoParam, genero: generoParam } = await searchParams;
   const query = q?.trim() ?? "";
   const searching = query.length > 0;
 
-  // Solo se pide lo que se va a pintar: buscando no hace falta traer las diez
-  // filas del catálogo, que son diez peticiones a TMDB.
-  const [rows, results] = await Promise.all([
-    searching ? Promise.resolve([]) : getCatalogSections(),
+  const tipo: MediaFilter =
+    tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
+  const generoId = Number(generoParam);
+  const genero = Number.isInteger(generoId) && generoId > 0 ? generoId : null;
+  const filtrando = !searching && (tipo !== "todo" || genero !== null);
+
+  // Solo se pide lo que se va a pintar: buscando o filtrando no hacen falta las
+  // diez filas del catálogo, que son diez peticiones a TMDB.
+  // Las dos listas de géneros, porque no coinciden: series no tiene Terror y su
+  // Acción es otro id. Se necesitan ambas para saber a qué tipo aplica el
+  // género elegido y para pintar los botones correctos.
+  const [rows, results, generosPeli, generosSerie] = await Promise.all([
+    searching || filtrando ? Promise.resolve([]) : getCatalogSections(),
     searching ? searchCatalog(query) : Promise.resolve([]),
+    fetchGenres("movie"),
+    fetchGenres("tv"),
   ]);
+
+  const validos = {
+    movie: new Set(generosPeli.map((g) => g.id)),
+    tv: new Set(generosSerie.map((g) => g.id)),
+  };
+  // Con "todo" se ofrecen los de películas, que es el conjunto más completo y
+  // el que la gente reconoce; al pasar a Series se cambian por los suyos.
+  const generos = tipo === "tv" ? generosSerie : generosPeli;
+  const filtrados = filtrando ? await fetchFiltered(tipo, genero, validos) : [];
   const tmdbReady = isTmdbConfigured();
 
   return (
@@ -30,29 +52,12 @@ export default async function MoviesPage({
     // además reduce el brillo en una TV grande de noche.
     <div className="min-h-screen bg-[#0b0f14] text-white">
       <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-6 md:px-8 md:py-6">
-        <header className="mb-5 flex items-center gap-3">
-          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg shadow-purple-900/40">
-            <Clapperboard aria-hidden="true" className="h-6 w-6" />
-          </span>
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Películas y Series</h1>
-        </header>
-
-        <nav aria-label="Secciones" className="mb-6 flex gap-2">
-          <Link
-            href="/"
-            className="flex items-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-4 py-2.5 text-sm font-bold text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400 sm:text-base"
-          >
-            <Tv aria-hidden="true" className="h-5 w-5" />
-            Canales
-          </Link>
-          <span
-            aria-current="page"
-            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-600 px-4 py-2.5 text-sm font-bold shadow-md sm:text-base"
-          >
-            <Clapperboard aria-hidden="true" className="h-5 w-5" />
-            Películas y Series
-          </span>
-        </nav>
+        {/* La misma barra que en Canales: antes esta sección repintaba su
+            propio encabezado con mosaico degradado y título enorme, y cambiar
+            de sección se sentía como saltar a otro sitio. */}
+        <AppBar tone="dark">
+          <CatalogSearch query={query} />
+        </AppBar>
 
         {!tmdbReady && (
           <div className="mb-6 flex gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
@@ -70,9 +75,21 @@ export default async function MoviesPage({
           </div>
         )}
 
-        <CatalogSearch query={query} />
+        {!searching && (
+          <CatalogFilters tipo={tipo} genero={genero} generos={generos} generosValidos={validos} />
+        )}
 
-        {searching ? (
+        {filtrando ? (
+          filtrados.length > 0 ? (
+            <CatalogGrid items={filtrados} />
+          ) : (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
+              <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-white/40" />
+              <p className="font-medium text-white/80">Nada con esos filtros</p>
+              <p className="mt-1 text-sm text-white/50">Prueba con otro género o cambia el tipo.</p>
+            </div>
+          )
+        ) : searching ? (
           results.length > 0 ? (
             <>
               <h2 className="mb-3 text-lg font-bold tracking-tight text-white sm:text-xl">

@@ -252,6 +252,24 @@ export async function searchTitles(query: string): Promise<TmdbListEntry[]> {
     .filter((entry): entry is TmdbListEntry => entry !== null);
 }
 
+export interface TmdbGenre {
+  id: number;
+  name: string;
+}
+
+/**
+ * Géneros disponibles para un tipo, ya en español (`tmdbFetch` manda `es-MX`).
+ *
+ * Hay que pedirlos por separado porque las dos listas NO son la misma, aunque
+ * lo parezca: en series no existe Terror, y Acción es 10759 ("Action &
+ * Adventure") en vez del 28 de películas. Usar la lista de películas para
+ * series devuelve resultados vacíos sin decir por qué.
+ */
+export async function fetchGenres(mediaType: MediaType): Promise<TmdbGenre[]> {
+  const data = await tmdbFetch<{ genres?: TmdbGenre[] }>(`/genre/${mediaType}/list`);
+  return data?.genres ?? [];
+}
+
 export function isTmdbConfigured(): boolean {
   // Mismo criterio que tmdbFetch(), incluida la clave de reserva: si no
   // coincidieran, saldría el aviso de "falta la clave" con el catálogo lleno.

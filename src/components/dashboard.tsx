@@ -22,7 +22,7 @@ import { ChannelTile } from "./channel-tile";
 import { ChannelRow } from "./channel-row";
 import { QuickAccess } from "./quick-access";
 import { ShortcutsPanel } from "./shortcuts-panel";
-import { SiteNav } from "./site-nav";
+import { AppBar } from "./app-bar";
 import { StickyPlayerFrame } from "./sticky-player-frame";
 import { useAppStore } from "@/store/use-app-store";
 import { FEATURED_CHANNEL_PATTERNS, getCategoryStyle } from "@/lib/categories";
@@ -286,39 +286,8 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             En una televisión, el encabezado grande con su logo, su título y la
             navegación debajo ocupaba media pantalla y empujaba el vídeo hasta
             la mitad: había que bajar para ver lo único que importa. */}
-        {/* Dos alturas en el teléfono, una sola desde tablet.
-            Antes iba todo en una fila y en 360 px de ancho no cabía: la marca,
-            el buscador, los dos botones de navegación y los ajustes se peleaban
-            por el mismo espacio y acababan solapados. `flex-wrap` con el
-            buscador ocupando toda la fila de abajo (`basis-full`) evita que
-            nada se comprima por debajo de su tamaño legible. */}
-        <header className="mb-3 flex flex-wrap items-center gap-2">
-          <span className="flex shrink-0 items-center gap-2 text-slate-900">
-            <Tv aria-hidden="true" className="h-5 w-5 text-emerald-600" />
-            <h1 className="text-base font-bold tracking-tight">CanalCasa</h1>
-          </span>
-
-          <div className="order-last basis-full sm:order-none sm:basis-auto relative min-w-0 flex-1">
-            <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              ref={searchRef}
-              type="search"
-              placeholder="Buscar canal o número..."
-              value={searchQuery}
-              onChange={(event) => setSearchQuery(event.target.value)}
-              aria-label="Buscar canales"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-950 shadow-sm placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-            {isSearchStale && (
-              <span
-                aria-hidden="true"
-                className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-emerald-500/40 border-t-emerald-400"
-              />
-            )}
-          </div>
-
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <SiteNav />
+        <AppBar
+          actions={
             <button
               type="button"
               onClick={() => setShowShortcuts((visible) => !visible)}
@@ -327,8 +296,25 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             >
               <Info aria-hidden="true" className="h-5 w-5" />
             </button>
-          </div>
-        </header>
+          }
+        >
+          <Search aria-hidden="true" className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            ref={searchRef}
+            type="search"
+            placeholder="Buscar canal o número..."
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            aria-label="Buscar canales"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-950 shadow-sm placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          />
+          {isSearchStale && (
+            <span
+              aria-hidden="true"
+              className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-emerald-500/40 border-t-emerald-400"
+            />
+          )}
+        </AppBar>
 
         {showShortcuts && <ShortcutsPanel onClose={() => setShowShortcuts(false)} />}
 

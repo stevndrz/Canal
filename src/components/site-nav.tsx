@@ -14,8 +14,9 @@ const SECTIONS = [
   { href: "/peliculas", label: "Películas y Series", icon: Clapperboard },
 ] as const;
 
-export function SiteNav() {
+export function SiteNav({ tone = "light" }: { tone?: "light" | "dark" }) {
   const pathname = usePathname();
+  const dark = tone === "dark";
 
   return (
     <nav aria-label="Secciones" className="flex gap-2">
@@ -29,8 +30,12 @@ export function SiteNav() {
             title={label}
             className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-bold shadow-sm transition focus:outline-none focus-visible:ring-4 focus-visible:ring-emerald-400 sm:px-4 sm:py-2.5 ${
               active
-                ? "bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md"
-                : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
+                ? dark
+                  ? "bg-violet-600 text-white shadow-md"
+                  : "bg-emerald-600 text-white shadow-md"
+                : dark
+                  ? "border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
             }`}
           >
             <Icon aria-hidden="true" className="h-5 w-5 shrink-0" />

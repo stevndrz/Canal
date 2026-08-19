@@ -131,6 +131,54 @@ export async function fetchCatalogRows(): Promise<DiscoverSection[]> {
   return rows.filter((row) => row.items.length > 0);
 }
 
+/**
+ * Catálogo filtrado por tipo y/o género.
+ *
+ * Con "todo" se piden películas y series a la vez y se intercalan por orden de
+ * popularidad, para que la rejilla no salga con todas las películas primero y
+ * las series enterradas al final.
+ */
+export async function fetchFiltered(
+  tipo: "todo" | "movie" | "tv",
+  generoId: number | null,
+  /** Ids válidos en cada tipo; los conjuntos de TMDB no coinciden. */
+  generosValidos?: { movie: Set<number>; tv: Set<number> }
+): Promise<ResolvedCatalogItem[]> {
+  /**
+   * El género solo se manda al tipo donde existe. Sin esto, pedir "Terror" en
+   * series devuelve cero: TMDB acepta la consulta pero ese id no pertenece a su
+   * lista de series, así que no encaja con nada y el resultado sale vacío sin
+   * ninguna pista de por qué.
+   */
+  const generoPara = (mediaType: MediaType) => {
+    if (!generoId) return "";
+    if (generosValidos && !generosValidos[mediaType].has(generoId)) return null;
+    return `&with_genres=${generoId}`;
+  };
+
+  const pedir = async (mediaType: MediaType, base: string) => {
+    const genero = generoPara(mediaType);
+    if (genero === null) return [];
+    return fetchList(`/discover/${mediaType}?${base}${genero}`, mediaType);
+  };
+
+  if (tipo === "movie") return (await pedir("movie", MOVIE_BASE)).map(toCatalogItem);
+  if (tipo === "tv") return (await pedir("tv", TV_BASE)).map(toCatalogItem);
+
+  const [pelis, series] = await Promise.all([
+    pedir("movie", MOVIE_BASE),
+    pedir("tv", TV_BASE),
+  ]);
+
+  // Intercalado uno a uno: ambas listas ya vienen ordenadas por popularidad.
+  const mezclado: ResolvedCatalogItem[] = [];
+  for (let i = 0; i < Math.max(pelis.length, series.length); i++) {
+    if (pelis[i]) mezclado.push(toCatalogItem(pelis[i]));
+    if (series[i]) mezclado.push(toCatalogItem(series[i]));
+  }
+  return mezclado;
+}
+
 /** Resultados de búsqueda, ya listos para pintar como cualquier otra ficha. */
 export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[]> {
   return (await searchTitles(query)).map(toCatalogItem);
