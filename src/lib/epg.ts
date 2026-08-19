@@ -34,6 +34,18 @@ const MAX_CHANNELS = 50_000;
 const EPG_CACHE_MS = 10 * 60 * 1000;
 
 /**
+ * Tope de espera de la guía, deliberadamente corto.
+ *
+ * Los horarios son un adorno: la guía de canales tiene que salir aunque el
+ * servidor del EPG no conteste. Muchas listas apuntan a servicios en planes
+ * gratuitos que se duermen y tardan medio minuto en despertar; sin este tope,
+ * esa espera se comía el tiempo de la función y la página no llegaba a
+ * pintarse. Un fallo aquí se cachea igual que un acierto, así que solo la
+ * primera visita paga la espera.
+ */
+const EPG_TIMEOUT_MS = 5000;
+
+/**
  * Interpretar un XMLTV de miles de canales cuesta bastante y el resultado
  * cambia como mucho cada pocos minutos, así que se guarda en memoria del
  * proceso en vez de repetirlo en cada visita.
@@ -50,9 +62,12 @@ export async function fetchEpg(url: string): Promise<EpgGuide | null> {
 
 async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
   try {
-    const res = await fetch(url, { next: { revalidate: 600 } });
+    const res = await fetch(url, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(EPG_TIMEOUT_MS),
+    });
     if (!res.ok) {
-      console.error(`❌ La guía EPG respondió HTTP ${res.status}`);
+      console.error(`❌ La guía EPG respondió HTTP ${res.status} — ${url}`);
       return null;
     }
 
@@ -77,7 +92,11 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
 
     return parseXmltv(xml);
   } catch (error) {
-    console.error("❌ Error descargando/leyendo EPG:", error);
+    const reason =
+      error instanceof Error && error.name === "TimeoutError"
+        ? `no respondió en ${EPG_TIMEOUT_MS / 1000}s (¿servidor dormido?)`
+        : String(error);
+    console.error(`❌ Guía EPG descartada: ${reason} — ${url}`);
     return null;
   }
 }

@@ -30,14 +30,37 @@ type RawM3uChannel = {
 
 const ADULT_CONTENT = /\b(xxx|adult|porn|erotic|erotico|hentai|playboy)\b/i;
 
+/**
+ * Tope de espera al descargar la lista. Sin él, un origen que no responde deja
+ * la petición colgada hasta que la plataforma corta la función entera y la
+ * página no llega a pintarse.
+ */
+const M3U_TIMEOUT_MS = 8000;
+
+/** Cuánto se reutiliza la lista ya interpretada antes de volver a descargarla. */
+const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
+
+export function getM3uSourceUrl(): string {
+  return process.env.M3U_URL || DEFAULT_M3U_URL;
+}
+
 export async function fetchM3uText(): Promise<string | null> {
-  const source = process.env.M3U_URL || DEFAULT_M3U_URL;
+  const source = getM3uSourceUrl();
   try {
-    const response = await fetch(source, { next: { revalidate: 300 } });
+    // `no-store` a propósito: la caché de datos de Next descarta respuestas de
+    // más de 2 MB, y estas listas las superan de largo. El almacenamiento lo
+    // hace loadM3uPlaylist(), que además evita volver a descargar.
+    const response = await fetch(source, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(M3U_TIMEOUT_MS),
+    });
     if (response.ok) return await response.text();
-    console.error(`❌ La lista M3U respondió HTTP ${response.status}`);
+    console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
   } catch (error) {
-    console.error("❌ Error descargando la lista M3U:", error);
+    const reason = error instanceof Error && error.name === "TimeoutError"
+      ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
+      : String(error);
+    console.error(`❌ Error descargando la lista M3U (${reason}) — ${source}`);
   }
   return null;
 }
@@ -170,22 +193,35 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
 }
 
 /**
- * Interpretar una lista de más de 10.000 canales cuesta cientos de ms, y el
- * resultado solo cambia cuando cambia la lista. Se guarda en memoria del
- * proceso y se reutiliza mientras el texto descargado sea el mismo, así solo
- * la primera visita tras un cambio paga el costo.
+ * Lista ya descargada e interpretada, guardada en memoria del proceso.
+ *
+ * La caducidad es por tiempo y no por contenido: comparar el texto obligaba a
+ * descargar los 3 MB en cada visita solo para descubrir que no había cambiado.
+ * Así, dentro de la ventana no se toca la red siquiera.
  */
-let cachedPlaylist: { source: string; playlist: M3uPlaylist } | null = null;
+let cachedPlaylist: { source: string; playlist: M3uPlaylist; expiresAt: number } | null = null;
 
 export async function loadM3uPlaylist(): Promise<M3uPlaylist> {
+  const source = getM3uSourceUrl();
+  const fresh = cachedPlaylist?.source === source && cachedPlaylist.expiresAt > Date.now();
+  if (fresh && cachedPlaylist) return cachedPlaylist.playlist;
+
   const m3uText = await fetchM3uText();
-  if (!m3uText) return { channels: [], epgUrl: null };
-  if (cachedPlaylist?.source === m3uText) return cachedPlaylist.playlist;
+
+  if (!m3uText) {
+    // Antes que dejar la guía vacía, se sirve la última lista buena aunque
+    // haya caducado: que GitHub tenga un mal momento no debe apagar la TV.
+    if (cachedPlaylist?.source === source) {
+      console.warn("⚠️ Fallo al refrescar la lista M3U; se sirve la última copia buena.");
+      return cachedPlaylist.playlist;
+    }
+    return { channels: [], epgUrl: null };
+  }
 
   const playlist: M3uPlaylist = {
     channels: parseM3uChannels(m3uText),
     epgUrl: extractEpgUrl(m3uText),
   };
-  cachedPlaylist = { source: m3uText, playlist };
+  cachedPlaylist = { source, playlist, expiresAt: Date.now() + PLAYLIST_CACHE_MS };
   return playlist;
 }
