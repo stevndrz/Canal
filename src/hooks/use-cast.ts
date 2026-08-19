@@ -27,7 +27,7 @@ interface CastGlobals {
     framework?: {
       CastContext: { getInstance(): CastContext };
       CastContextEventType: { CAST_STATE_CHANGED: string };
-      CastState: { NO_DEVICES_AVAILABLE: string };
+      CastState: { NO_DEVICES_AVAILABLE: string; CONNECTED: string };
     };
   };
   chrome?: {
@@ -53,6 +53,8 @@ interface LoadRequest {
 }
 interface CastSession {
   loadMedia(request: LoadRequest): Promise<void>;
+  /** `true` detiene también la reproducción en el receptor. */
+  endSession(stopCasting: boolean): void;
 }
 interface CastContext {
   setOptions(options: { receiverApplicationId: string; autoJoinPolicy: string }): void;
@@ -104,10 +106,49 @@ function loadCastSdk(): Promise<boolean> {
   return castSdkPromise;
 }
 
+/**
+ * Cierra la sesión y la olvida.
+ *
+ * Es la pieza que faltaba: el SDK deja la sesión viva aunque la carga del medio
+ * haya fallado, y mientras exista, `requestSession()` no vuelve a abrir el
+ * selector de pantallas. Sin esto, un solo fallo dejaba el botón muerto hasta
+ * recargar la página.
+ */
+function discardSession(context: CastContext): void {
+  try {
+    context.getCurrentSession()?.endSession(true);
+  } catch {
+    // Ya estaba cerrada; da igual, el objetivo es que no quede ninguna viva.
+  }
+}
+
+/** Cerrar el selector de pantallas no es un error que merezca avisar. */
+function isCancellation(error: unknown): boolean {
+  const code = (error as { code?: string })?.code ?? String(error ?? "");
+  return /cancel/i.test(code);
+}
+
+/**
+ * Tipo de contenido para el receptor. Casi toda la lista es HLS, pero mandar
+ * `x-mpegurl` para un MPD hace que el receptor lo rechace, y ese rechazo es
+ * justo lo que dejaba la sesión colgada.
+ */
+function contentTypeFor(url: string): string {
+  const path = url.split("?")[0].toLowerCase();
+  if (path.endsWith(".mpd")) return "application/dash+xml";
+  if (path.endsWith(".mp4")) return "video/mp4";
+  if (path.endsWith(".webm")) return "video/webm";
+  return "application/x-mpegurl";
+}
+
 export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, streamUrl: string, channelName: string) {
   const [method, setMethod] = useState<CastMethod | null>(null);
   const [isCasting, setIsCasting] = useState(false);
+  /** Último fallo, en texto para la persona que está delante de la tele. */
+  const [error, setError] = useState<string | null>(null);
   const contextRef = useRef<CastContext | null>(null);
+  /** Si el vídeo ya estaba silenciado antes de transmitir, se respeta al volver. */
+  const wasMutedRef = useRef(false);
 
   // AirPlay: Safari avisa por evento cuándo hay un dispositivo al alcance.
   useEffect(() => {
@@ -151,7 +192,7 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
           setMethod((current) =>
             state === framework.CastState.NO_DEVICES_AVAILABLE ? (current === "gcast" ? null : current) : "gcast"
           );
-          setIsCasting(state === "CONNECTED");
+          setIsCasting(state === framework.CastState.CONNECTED);
         };
         syncState();
         context.addEventListener(framework.CastContextEventType.CAST_STATE_CHANGED, syncState);
@@ -187,27 +228,68 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
     };
   }, [videoRef, streamUrl]);
 
+  /**
+   * Devuelve el sonido al teléfono al dejar de transmitir.
+   *
+   * Antes no se hacía: tras un intento fallido el vídeo quedaba silenciado para
+   * siempre, así que además de no verse en la tele, tampoco se oía en el
+   * teléfono. Se respeta el estado previo por si estaba silenciado a propósito.
+   */
+  const restoreLocalAudio = useCallback(
+    (video: HTMLVideoElement | null) => {
+      if (video) video.muted = wasMutedRef.current;
+    },
+    []
+  );
+
   const startCasting = useCallback(async () => {
     const video = videoRef.current as VideoWithAirplay | null;
+    setError(null);
 
     if (method === "gcast" && contextRef.current) {
       const globals = window as unknown as CastGlobals;
       const media = globals.chrome?.cast?.media;
       if (!media) return;
-      try {
-        const context = contextRef.current;
-        if (!context.getCurrentSession()) await context.requestSession();
-        const session = context.getCurrentSession();
-        if (!session) return;
 
-        const mediaInfo = new media.MediaInfo(streamUrl, "application/x-mpegurl");
+      const context = contextRef.current;
+      let session: CastSession | null = null;
+
+      try {
+        // Se pide sesión solo si no hay ninguna; si la hay se reutiliza para no
+        // volver a preguntar la pantalla en cada canal.
+        if (!context.getCurrentSession()) await context.requestSession();
+        session = context.getCurrentSession();
+        if (!session) return;
+      } catch (error) {
+        // Cerrar el selector no es un fallo: no hay nada que avisar.
+        if (isCancellation(error)) return;
+        // Una sesión a medias impediría volver a abrir el selector.
+        discardSession(context);
+        setError("No se pudo conectar con la pantalla. Revisa que esté encendida y en la misma red.");
+        return;
+      }
+
+      try {
+        const mediaInfo = new media.MediaInfo(streamUrl, contentTypeFor(streamUrl));
         mediaInfo.streamType = media.StreamType.LIVE;
         mediaInfo.metadata = { title: channelName };
         await session.loadMedia(new media.LoadRequest(mediaInfo));
         // El receptor toma el audio: silenciamos el local para no oír doble.
-        if (video) video.muted = true;
+        if (video) {
+          wasMutedRef.current = video.muted;
+          video.muted = true;
+        }
       } catch (error) {
+        // ESTE es el punto que dejaba la app inservible: si loadMedia falla, la
+        // sesión se queda ABIERTA. Como el intento siguiente ve que ya hay
+        // sesión, nunca vuelve a llamar a requestSession() y el selector de
+        // pantallas no aparece nunca más — parece que la app se colgó. Cerrarla
+        // devuelve todo al estado inicial y el siguiente toque vuelve a
+        // preguntar a qué TV enviar.
+        discardSession(context);
+        restoreLocalAudio(video);
         console.warn("No se pudo transmitir con Google Cast:", error);
+        setError("Esa pantalla no pudo abrir este canal. Prueba otra vez o elige otra pantalla.");
       }
       return;
     }
@@ -224,7 +306,28 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
         // El usuario cerró el selector: no hay nada que reportar.
       }
     }
-  }, [method, streamUrl, channelName, videoRef]);
+  }, [method, streamUrl, channelName, videoRef, restoreLocalAudio]);
 
-  return { canCast: method !== null, isCasting, startCasting };
+  /** Cortar la transmisión y recuperar el vídeo en el teléfono. */
+  const stopCasting = useCallback(() => {
+    setError(null);
+    if (contextRef.current) discardSession(contextRef.current);
+    restoreLocalAudio(videoRef.current);
+    setIsCasting(false);
+  }, [restoreLocalAudio, videoRef]);
+
+  // Si la transmisión termina por fuera (se apaga la TV, alguien la corta desde
+  // otro móvil), hay que devolver el sonido igualmente.
+  useEffect(() => {
+    if (!isCasting) restoreLocalAudio(videoRef.current);
+  }, [isCasting, restoreLocalAudio, videoRef]);
+
+  return {
+    canCast: method !== null,
+    isCasting,
+    startCasting,
+    stopCasting,
+    castError: error,
+    dismissCastError: useCallback(() => setError(null), []),
+  };
 }

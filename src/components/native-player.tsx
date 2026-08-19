@@ -86,7 +86,8 @@ export const NativePlayer = memo(function NativePlayer({
   const stream = streams[streamIndex] ?? streams[0];
   const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
 
-  const { canCast, isCasting, startCasting } = useCast(videoRef, stream?.url ?? "", title);
+  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+    useCast(videoRef, stream?.url ?? "", title);
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
   const watchParty = useWatchParty(videoRef, roomId);
 
@@ -273,6 +274,23 @@ export const NativePlayer = memo(function NativePlayer({
           ))}
         </video>
 
+        {/* Fallo al transmitir. Antes solo se escribía en la consola, así que
+            desde fuera parecía que el botón simplemente no hacía nada. */}
+        {castError && (
+          <div className="absolute inset-x-3 top-3 z-20 flex items-start gap-2 rounded-xl bg-red-950/90 p-3 text-sm text-red-50 shadow-lg backdrop-blur-md">
+            <Cast aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+            <p className="flex-1">{castError}</p>
+            <button
+              type="button"
+              onClick={dismissCastError}
+              aria-label="Cerrar aviso"
+              className="shrink-0 rounded-lg px-2 py-0.5 font-bold text-red-200 transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {isLoading && !hasError && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center" role="status">
             <Loader2 aria-hidden="true" className="h-10 w-10 animate-spin text-white/70" />
@@ -416,8 +434,8 @@ export const NativePlayer = memo(function NativePlayer({
           {canCast && (
             <button
               type="button"
-              onClick={startCasting}
-              aria-label="Transmitir a la TV"
+              onClick={isCasting ? stopCasting : startCasting}
+              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
               className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
                 isCasting ? "bg-sky-500/40" : "bg-white/10"
               }`}

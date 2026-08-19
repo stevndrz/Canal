@@ -71,7 +71,8 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
   const [retryCount, setRetryCount] = useState(0);
 
   const { streamUrl, name } = channel;
-  const { canCast, isCasting, startCasting } = useCast(videoRef, streamUrl, name);
+  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+    useCast(videoRef, streamUrl, name);
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
@@ -317,6 +318,23 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
         )}
       </div>
 
+      {/* Aviso de fallo al transmitir. Antes esto solo se escribía en la consola
+          del navegador, así que desde fuera parecía que el botón no hacía nada. */}
+      {castError && (
+        <div className="absolute inset-x-3 top-14 z-10 flex items-start gap-2 rounded-xl bg-red-950/90 p-3 text-sm text-red-50 shadow-lg backdrop-blur-md sm:inset-x-4">
+          <Cast aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+          <p className="flex-1">{castError}</p>
+          <button
+            type="button"
+            onClick={dismissCastError}
+            aria-label="Cerrar aviso"
+            className="shrink-0 rounded-lg px-2 py-0.5 font-bold text-red-200 transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-red-300"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Controles */}
       <div
         className={`absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-gradient-to-t from-black/90 via-black/40 to-transparent p-3 transition-opacity duration-300 sm:p-4 ${
@@ -347,8 +365,8 @@ const StreamPlayer = memo(function StreamPlayer({ channel }: { channel: Channel 
           {canCast && (
             <button
               type="button"
-              onClick={startCasting}
-              aria-label="Transmitir a la TV"
+              onClick={isCasting ? stopCasting : startCasting}
+              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
               className={`rounded-xl p-3 text-white backdrop-blur-md transition hover:bg-white/25 focus:outline-none focus:ring-2 focus:ring-emerald-400 ${
                 isCasting ? "bg-sky-500/40" : "bg-white/15"
               }`}
