@@ -74,6 +74,9 @@ export function FullscreenPlayer({
   );
 
   useEffect(() => {
+    // Reinicia la visibilidad de controles y su temporizador cada vez que
+    // cambia el canal sintonizado.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     wake();
     return () => {
       if (controlsTimer.current) clearTimeout(controlsTimer.current);

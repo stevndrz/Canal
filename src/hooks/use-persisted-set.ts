@@ -12,6 +12,9 @@ export function usePersistedSet(key: string) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(key);
+      // localStorage no existe en el render de servidor, así que la
+      // hidratación inicial solo puede ocurrir después del montaje.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setIds(new Set(JSON.parse(raw) as number[]));
     } catch {
       /* almacenamiento bloqueado (modo privado en webOS) */
@@ -57,6 +60,7 @@ export function usePersistedRecents(key: string, limit = 12) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(key);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setIds(JSON.parse(raw) as number[]);
     } catch {}
   }, [key]);

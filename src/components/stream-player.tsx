@@ -190,7 +190,7 @@ const StreamPlayer = memo(
         video.removeAttribute("src");
         video.load();
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+       
     }, [
       channel.id,
       streamUrl,

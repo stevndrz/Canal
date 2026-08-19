@@ -15,7 +15,14 @@ out/
 # Archivos del sistema
 .DS_Store
 Thumbs.db
-*.Zone.Identifier
+*:Zone.Identifier
+
+# Configuración npm local (rutas específicas de esta máquina)
+.npmrc
+
+# Paquetes de diseño / handoff (no son parte de la app)
+*.zip
+design_handoff_canalcasa_native_shell/
 
 # TypeScript
 *.tsbuildinfo

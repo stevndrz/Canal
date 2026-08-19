@@ -28,7 +28,7 @@ function collect(root: HTMLElement): Candidate[] {
  * pulsada, no el siguiente en el orden del DOM. Es lo que hace que el
  * mando se sienta como una app de TV y no como tabular en una web.
  */
-function pick(from: DOMRect, candidates: Candidate[], dir: Dir) {
+function pick(from: DOMRect, candidates: Candidate[], dir: Dir): HTMLElement | null {
   const cx = from.left + from.width / 2;
   const cy = from.top + from.height / 2;
   let best: HTMLElement | null = null;
