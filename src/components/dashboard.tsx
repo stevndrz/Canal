@@ -31,6 +31,29 @@ interface DashboardProps {
   initialChannels: Channel[];
 }
 
+// Colores por categoría: ayudan a distinguir la guía de un vistazo (deportes
+// vs. noticias vs. películas...) sin depender solo del texto. Las clases van
+// completas (no interpoladas) para que Tailwind las detecte al compilar.
+const CATEGORY_STYLES: Record<
+  string,
+  { chip: string; dot: string; ring: string; tint: string; text: string }
+> = {
+  Guatemala: { chip: "bg-gradient-to-r from-teal-600 to-emerald-600", dot: "bg-teal-500", ring: "ring-teal-400", tint: "bg-teal-50", text: "text-teal-600" },
+  Deportes: { chip: "bg-gradient-to-r from-orange-500 to-amber-500", dot: "bg-orange-500", ring: "ring-orange-400", tint: "bg-orange-50", text: "text-orange-600" },
+  Noticias: { chip: "bg-gradient-to-r from-sky-600 to-blue-600", dot: "bg-sky-500", ring: "ring-sky-400", tint: "bg-sky-50", text: "text-sky-600" },
+  "Películas y series": { chip: "bg-gradient-to-r from-violet-600 to-purple-600", dot: "bg-violet-500", ring: "ring-violet-400", tint: "bg-violet-50", text: "text-violet-600" },
+  Documentales: { chip: "bg-gradient-to-r from-amber-600 to-yellow-600", dot: "bg-amber-500", ring: "ring-amber-400", tint: "bg-amber-50", text: "text-amber-600" },
+  Infantil: { chip: "bg-gradient-to-r from-pink-500 to-rose-500", dot: "bg-pink-500", ring: "ring-pink-400", tint: "bg-pink-50", text: "text-pink-600" },
+  Música: { chip: "bg-gradient-to-r from-fuchsia-600 to-pink-600", dot: "bg-fuchsia-500", ring: "ring-fuchsia-400", tint: "bg-fuchsia-50", text: "text-fuchsia-600" },
+  Religión: { chip: "bg-gradient-to-r from-indigo-600 to-blue-600", dot: "bg-indigo-500", ring: "ring-indigo-400", tint: "bg-indigo-50", text: "text-indigo-600" },
+  Entretenimiento: { chip: "bg-gradient-to-r from-rose-500 to-red-500", dot: "bg-rose-500", ring: "ring-rose-400", tint: "bg-rose-50", text: "text-rose-600" },
+};
+const DEFAULT_CATEGORY_STYLE = { chip: "bg-gradient-to-r from-slate-600 to-slate-700", dot: "bg-slate-400", ring: "ring-slate-400", tint: "bg-slate-100", text: "text-slate-600" };
+
+function getCategoryStyle(category: string) {
+  return CATEGORY_STYLES[category] ?? DEFAULT_CATEGORY_STYLE;
+}
+
 const FAVORITES_STORAGE_KEY = "canalcasa:favorites";
 
 function loadFavoriteUrls(): Set<string> {
@@ -65,14 +88,15 @@ const ChannelTile = memo(function ChannelTile({
 }) {
   const [logoFailed, setLogoFailed] = useState(false);
   const showLogo = Boolean(channel.logoUrl) && !logoFailed;
+  const style = getCategoryStyle(channel.category);
 
   return (
     <div
       data-channel-id={channel.id}
-      className={`channel-tile group relative flex flex-col items-center rounded-2xl border p-3 text-center transition focus-within:ring-4 focus-within:ring-emerald-400 ${
+      className={`channel-tile group relative flex flex-col items-center rounded-2xl border p-3 text-center shadow-sm transition duration-200 focus-within:ring-4 focus-within:ring-emerald-400 ${
         selected
-          ? "border-emerald-400 bg-emerald-50 shadow-lg shadow-emerald-900/10"
-          : "border-slate-200 bg-white hover:border-emerald-200 hover:bg-emerald-50/50"
+          ? `scale-[1.03] border-transparent bg-white shadow-xl ring-2 ${style.ring}`
+          : "border-slate-200/80 bg-white hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
       }`}
     >
       <button
@@ -81,7 +105,7 @@ const ChannelTile = memo(function ChannelTile({
         aria-pressed={selected}
         className="flex w-full flex-col items-center gap-2 focus:outline-none"
       >
-        <span className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 text-lg font-black text-teal-700 sm:h-20 sm:w-20">
+        <span className={`flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl text-lg font-black shadow-inner sm:h-20 sm:w-20 ${style.tint} ${style.text}`}>
           {showLogo ? (
             // eslint-disable-next-line @next/next/no-img-element -- logos vienen de dominios arbitrarios del M3U, no se pueden precargar con next/image
             <img
@@ -98,7 +122,10 @@ const ChannelTile = memo(function ChannelTile({
         <span className="w-full truncate text-sm font-semibold text-slate-900 sm:text-[15px]">
           {channel.name}
         </span>
-        <span className="text-[11px] font-medium text-slate-400">{channel.number}</span>
+        <span className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400">
+          <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${style.dot}`} />
+          {channel.number}
+        </span>
       </button>
 
       <button
@@ -106,7 +133,7 @@ const ChannelTile = memo(function ChannelTile({
         onClick={() => onToggleFavorite(channel)}
         aria-label={channel.isFavorite ? `Quitar ${channel.name} de favoritos` : `Agregar ${channel.name} a favoritos`}
         aria-pressed={channel.isFavorite}
-        className={`absolute right-1.5 top-1.5 rounded-full p-1.5 transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+        className={`absolute right-1.5 top-1.5 rounded-full bg-white/80 p-1.5 shadow-sm backdrop-blur-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
           channel.isFavorite ? "text-amber-400" : "text-slate-300 hover:text-amber-400"
         }`}
       >
@@ -285,11 +312,15 @@ export function Dashboard({ initialChannels }: DashboardProps) {
   }, [filteredChannels]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
+    <div className="relative min-h-screen overflow-x-hidden bg-slate-50 text-slate-900">
+      {/* Resplandor decorativo de fondo */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[32rem] bg-[radial-gradient(ellipse_80%_60%_at_50%_-10%,rgba(20,184,166,0.16),transparent)]" />
+      <div aria-hidden="true" className="pointer-events-none fixed -right-32 top-24 -z-10 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+
       <div className="mx-auto max-w-[1400px] px-4 py-4 sm:px-6 md:px-8 md:py-6">
-        <header className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <header className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-teal-600 text-white">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-600/25">
               <Tv aria-hidden="true" className="h-6 w-6" />
             </span>
             <h1 className="text-2xl font-black tracking-tight text-slate-950 sm:text-3xl">
@@ -299,7 +330,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               type="button"
               onClick={() => setShowShortcuts((s) => !s)}
               aria-label="Ver atajos de control remoto"
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:text-slate-950 hover:border-slate-300 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 shadow-sm hover:text-slate-950 hover:border-slate-300 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
               <Info aria-hidden="true" className="h-5 w-5" />
             </button>
@@ -314,7 +345,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Buscar canales"
-              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-950 placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm text-slate-950 shadow-sm placeholder-slate-400 transition focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
             {isSearchStale && (
               <span aria-hidden="true" className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-emerald-500/40 border-t-emerald-400" />
@@ -361,11 +392,14 @@ export function Dashboard({ initialChannels }: DashboardProps) {
         <section className="mb-6">
           {selectedChannel ? (
             <>
-              <StreamPlayer channel={selectedChannel} />
+              <div className="overflow-hidden rounded-3xl shadow-2xl shadow-slate-900/10 ring-1 ring-slate-200">
+                <StreamPlayer channel={selectedChannel} />
+              </div>
 
-              <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-teal-600">
+              <div className="relative mt-4 flex flex-col gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${getCategoryStyle(selectedChannel.category).chip}`} />
+                <div className="min-w-0 pl-2">
+                  <div className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest ${getCategoryStyle(selectedChannel.category).text}`}>
                     <span>{selectedChannel.category || "General"}</span>
                     {selectedChannel.isFavorite && (
                       <Star aria-hidden="true" className="h-3.5 w-3.5 fill-current text-amber-400" />
@@ -396,7 +430,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                     type="button"
                     onClick={goToPrevChannel}
                     aria-label="Canal anterior"
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     <SkipBack aria-hidden="true" className="h-4 w-4" />
                     Anterior
@@ -408,7 +442,7 @@ export function Dashboard({ initialChannels }: DashboardProps) {
                     type="button"
                     onClick={goToNextChannel}
                     aria-label="Canal siguiente"
-                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   >
                     Siguiente
                     <SkipForward aria-hidden="true" className="h-4 w-4" />
@@ -428,29 +462,33 @@ export function Dashboard({ initialChannels }: DashboardProps) {
         {/* Guía de canales */}
         <section>
           <div className="mb-3 flex gap-2 overflow-x-auto pb-2 scrollbar-none" role="tablist" aria-label="Categorías">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                role="tab"
-                aria-selected={selectedCategory === category}
-                onClick={() => setSelectedCategory(category)}
-                className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                  selectedCategory === category
-                    ? "bg-teal-600 text-white shadow-lg shadow-teal-600/20"
-                    : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
-                }`}
-              >
-                {category}
-              </button>
-            ))}
+            {categories.map((category) => {
+              const active = selectedCategory === category;
+              const style = category === "Todas" ? null : getCategoryStyle(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                    active
+                      ? `${style?.chip ?? "bg-gradient-to-r from-teal-600 to-emerald-600"} text-white shadow-md`
+                      : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
+                  }`}
+                >
+                  {category}
+                </button>
+              );
+            })}
             <button
               type="button"
               onClick={() => setShowFavoritesOnly((s) => !s)}
               aria-pressed={showFavoritesOnly}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-amber-500 ${
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition focus:outline-none focus:ring-2 focus:ring-amber-500 ${
                 showFavoritesOnly
-                  ? "border border-amber-400/60 bg-amber-50 text-amber-600"
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-md"
                   : "border border-slate-200 bg-white text-slate-500 hover:bg-slate-100"
               }`}
             >

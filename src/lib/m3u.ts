@@ -1,4 +1,5 @@
 import * as iptvParser from "iptv-playlist-parser";
+import gtLogosData from "./gt-logos.json";
 
 export interface ParsedM3uChannel {
   name: string;
@@ -83,6 +84,22 @@ function normalize(value: string) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
 }
+
+// Respaldo de logos para canales de Guatemala: esta lista no trae tvg-logo
+// (ni tvg-id), pero sus nombres coinciden con la lista oficial de
+// iptv-org/iptv, así que emparejamos por nombre normalizado contra un índice
+// local (src/lib/gt-logos.json, generado desde iptv-org/database) en vez de
+// depender de una descarga externa en cada request.
+function normalizeForLogoMatch(value: string) {
+  return normalize(value).replace(/[^a-z0-9]+/g, "");
+}
+
+const GT_LOGO_BY_NAME = new Map(
+  (gtLogosData as { name: string; tvgId: string; logoUrl: string }[]).map((entry) => [
+    normalizeForLogoMatch(entry.name),
+    entry,
+  ])
+);
 
 function getGroupTitle(item: RawM3uChannel) {
   if (typeof item.group === "string") return item.group;
@@ -173,16 +190,18 @@ export function parseM3uChannels(m3uText: string): ParsedM3uChannel[] {
 
   return sortM3uChannels(Array.from(uniqueChannels.values()).map((item, index) => {
     const name = stripQualityTags(item.name || item.title || `Canal ${index + 1}`);
+    const tvgId = item.tvg?.id?.trim() ?? "";
     const logoUrl = item.tvg?.logo || item.logo || "";
+    const gtLogoMatch = logoUrl ? undefined : GT_LOGO_BY_NAME.get(normalizeForLogoMatch(name));
 
     return {
       name,
       number: String(index + 1),
       category: normalizeM3uCategory(item),
       logoText: name.substring(0, 2).toUpperCase(),
-      logoUrl,
+      logoUrl: logoUrl || gtLogoMatch?.logoUrl || "",
       streamUrl: item.url ?? "",
-      tvgId: item.tvg?.id?.trim() ?? "",
+      tvgId: tvgId || gtLogoMatch?.tvgId || "",
       isFavorite: false,
       isLive: true,
     };

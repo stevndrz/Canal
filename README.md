@@ -38,6 +38,12 @@ No hace falta redesplegar ni tocar el código:
 
 La importación elimina duplicados por URL de stream, quita sufijos de calidad del nombre (ej. "Canal 3 (720p)" → "Canal 3"), filtra contenido para adultos, y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, documentales, infantil, música, religión, entretenimiento e idioma.
 
+### Logos de canales de Guatemala
+
+El Gist actual no trae `tvg-logo`. Para los canales nacionales, `src/lib/gt-logos.json` es un índice local (generado desde [iptv-org/database](https://github.com/iptv-org/database)) que empareja por nombre normalizado y da un logo real, sin depender de una descarga externa en cada request. Los canales que no estén en ese índice (la mayoría de la lista, que es internacional) muestran un monograma con el color de su categoría en vez de un logo.
+
+Para regenerar `gt-logos.json` (por ejemplo si aparecen canales de Guatemala nuevos): cruza `streams/gt.m3u` de `iptv-org/iptv` (tvg-id + nombre) contra `data/logos.csv` de `iptv-org/database` (tvg-id → url, prefiriendo `in_use=TRUE`) y guarda el resultado como `[{ name, tvgId, logoUrl }]`.
+
 ---
 
 ## 🛠️ Scripts disponibles
@@ -67,6 +73,7 @@ Canal/
 │   └── lib/
 │       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
 │       ├── epg.ts             # Parser XMLTV opcional para horarios reales
+│       ├── gt-logos.json      # Índice local de logos de canales de Guatemala
 │       └── types.ts           # Tipo `Channel` compartido
 ├── next.config.ts
 ├── package.json
