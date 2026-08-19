@@ -1,9 +1,43 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { Star } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
+
+/**
+ * Logo con respaldo al monograma si la imagen falla a medio cargar.
+ *
+ * `key={channel.logoUrl}` en el punto de uso, no aquí dentro, es lo que
+ * importa: fuerza a React a montar un nodo NUEVO cada vez que cambia la URL,
+ * en vez de reutilizar el mismo `<img>` con su `failed` ya en `true` de un
+ * logo distinto. Sin eso, un fallo con un canal contaminaría al siguiente
+ * que ocupara su lugar en la lista.
+ */
+function ChannelLogo({ channel }: { channel: Channel }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!channel.logoUrl || failed) {
+    return (
+      <span className="absolute inset-0 grid place-items-center text-[28px] font-bold tracking-tight text-zinc-100/35">
+        {channelMark(channel)}
+      </span>
+    );
+  }
+
+  return (
+    <Image
+      src={channel.logoUrl}
+      alt=""
+      fill
+      unoptimized
+      sizes="240px"
+      className="object-contain p-5"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 interface ChannelTileProps {
   channel: Channel;
@@ -26,20 +60,7 @@ export function ChannelTile({ channel, isFavorite, isTuned, onSelect, width }: C
       aria-label={`${channel.name}, canal ${channel.number}`}
     >
       <div className="relative aspect-video overflow-hidden rounded-[13px] border border-hairline bg-surface-2">
-        {channel.logoUrl ? (
-          <Image
-            src={channel.logoUrl}
-            alt=""
-            fill
-            unoptimized
-            sizes="240px"
-            className="object-contain p-5"
-          />
-        ) : (
-          <span className="absolute inset-0 grid place-items-center text-[28px] font-bold tracking-tight text-zinc-100/35">
-            {channelMark(channel)}
-          </span>
-        )}
+        <ChannelLogo key={channel.logoUrl} channel={channel} />
 
         <span className="absolute left-2.5 top-2 font-mono text-[11px] text-zinc-100/45">
           {channel.number}
