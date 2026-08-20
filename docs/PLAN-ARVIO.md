@@ -515,18 +515,37 @@ pasar a Canales React lo desmontaba y la emisión se cortaba.
 
 ---
 
-## Fase 6 (nueva) — Fuente propia y Watch Party
+## Fase 6 — Fuente propia y Watch Party ✅ (primera versión)
 
-Trabajo que el autor hará en su propia rama. **Las bases están puestas**, no la
-funcionalidad: ver [`docs/FUENTE-PROPIA.md`](FUENTE-PROPIA.md) y
-`src/lib/fuente-propia/`.
+La pantalla «Mi enlace» ya funciona: pegar un enlace, guardarlo en el
+dispositivo, reproducirlo y abrir una sala sincronizada.
+Ver [`docs/FUENTE-PROPIA.md`](FUENTE-PROPIA.md) para el contrato y lo que falta.
 
-Decisión de producto que queda fijada ahí: el Watch Party **solo** tiene sentido
-sobre una fuente propia. En Canales no hace falta —una emisión en vivo ya va
-igual para todos y no se puede pausar— y en Películas es imposible, porque el
-`<video>` vive dentro del iframe de otro dominio. Cuando esa pantalla exista,
-el botón debe **retirarse** de los otros dos sitios en lugar de quedarse sin
-poder cumplir.
+Decisión de producto, ya aplicada: el Watch Party **solo** tiene sentido sobre
+una fuente propia. En Canales no hace falta —una emisión en vivo ya va igual
+para todos y no se puede pausar ni buscar— y en Películas por iframe es
+imposible, porque el `<video>` vive en otro dominio. **Retirado del reproductor
+de canales**, donde ocupaba un botón sin poder cumplir.
+
+---
+
+## Fase 6.1 — La ficha de un título, y el encaje que faltaba ✅
+
+- [x] **La portada de la ficha ya no se mete debajo de la barra.** Iba en un
+  `absolute inset-0` desde y=0, así que el título y el botón de volver se leían
+  encima de la navegación. Ahora es una sección con su propio hueco superior
+- [x] **`--topbar-h` mentía.** ARVIO declara la altura de `.sidebar` **tres
+  veces** y por encima de 680px gana `clamp(96px, 13vh, 154px)`, no la primera:
+  la variable decía 93px cuando la barra medía 140, y el reproductor de Inicio
+  quedaba 12px *por debajo* del borde de la barra en vez de separado
+- [x] **La ficha tiene contenido debajo del vídeo**: sinopsis, dirección o
+  creación, reparto con foto en carril, géneros, duración y nota. Todo llega en
+  **una sola petición** a TMDB con `append_to_response=credits`
+- [x] **Ajustes centrado**, con el mismo `.section-heading` que el resto: su
+  `<h1>` suelto era el único encabezado de la app que no reservaba el hueco de
+  la barra
+- [x] **El reproductor de Inicio se dimensiona por la altura libre**, no por una
+  anchura fija: la barra y el vídeo entran juntos y asoma el primer riel
 
 ---
 

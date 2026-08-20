@@ -15,6 +15,7 @@ import { HomeView } from "@/components/views/home-view";
 import { LiveTvView } from "@/components/livetv/live-tv-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
 import { BuscarView } from "@/components/views/buscar-view";
+import { FuenteView } from "@/components/views/fuente-view";
 import { CategoriasView } from "@/components/views/categorias-view";
 import { AjustesView } from "@/components/views/ajustes-view";
 
@@ -342,6 +343,8 @@ export function Dashboard({
               onTune={tune}
             />
         )}
+
+        {view === "fuente" && <FuenteView />}
 
         {view === "categorias" && (
           <CategoriasView channels={channels} onPick={pickCategory} />

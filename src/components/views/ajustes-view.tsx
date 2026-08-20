@@ -87,13 +87,18 @@ export function AjustesView({
   const engines: PlaybackSettings["engine"][] = ["auto", "hls", "mpegts"];
 
   return (
-    <>
-      <h1 className="text-[26px] font-semibold tracking-[-0.03em] xl:text-[34px]">Ajustes</h1>
-      <p className="mt-2.5 mb-7 text-[15px] text-zinc-500">
-        Sin cuenta ni base de datos: todo vive en este dispositivo
-      </p>
+    /* Encabezado y contenido con el mismo lenguaje que el resto de secciones, y
+       centrados: a 1920px la columna quedaba pegada a la izquierda con medio
+       televisor vacío al lado. */
+    <div className="ajustes">
+      <section className="section-heading library-heading">
+        <div className="library-title-block">
+          <p className="eyebrow">Sin cuenta ni base de datos: todo vive en este dispositivo</p>
+          <h2>Ajustes</h2>
+        </div>
+      </section>
 
-      <div className="flex max-w-[760px] flex-col gap-8">
+      <div className="ajustes-columna">
         <section>
           <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-zinc-600">Fuente</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">
@@ -192,6 +197,6 @@ export function AjustesView({
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }

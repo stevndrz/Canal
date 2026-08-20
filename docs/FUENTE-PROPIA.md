@@ -4,9 +4,9 @@ Documento de base para construir la tercera vía de reproducción de CanalCasa:
 **un enlace que aporta la persona** (`.mp4`, `.mkv`, `.m3u8`, o cualquier
 archivo alojado), y el **Watch Party exclusivamente ahí**.
 
-No es una funcionalidad a medias: es el contrato, las piezas que ya existen y
-las decisiones ya tomadas, para que quien la escriba no tenga que resolverlas
-otra vez. El código de arranque está en `src/lib/fuente-propia/`.
+**Estado: la primera versión ya funciona.** La pantalla vive en
+`src/components/views/fuente-view.tsx` y se llega a ella por «Mi enlace» en la
+barra. Este documento sigue siendo el contrato y la lista de lo que falta.
 
 ---
 
@@ -43,22 +43,32 @@ No reimplementar nada de esto:
 
 ---
 
-## Lo que falta por construir
+## Lo que ya está construido
 
-1. **Pantalla** — una vista más del App Shell, con su entrada en `NAV_ITEMS`
-   (`src/components/app-nav.tsx`) y su caso en `dashboard.tsx`. Envolverla en
-   `.screen tv-safe` como el resto.
-2. **Alta de un enlace** — campo + validación con `urlUtilizable()`, clase con
-   `claseDeUrl()`, aviso con `avisoDeClase()` y nombre por defecto con
-   `tituloDesdeUrl()`.
-3. **Lista de fuentes guardadas** — en `localStorage`, con el patrón de
-   `use-persisted-set.ts`. Reutilizar `MediaCard` y `MediaRail` para pintarlas.
-4. **Reproducción** — `NativePlayer`, no `StreamPlayer`: el primero ya trae
-   pistas de audio, subtítulos y el enganche del Watch Party.
-5. **Sala** — crear o unirse con `normalizeRoomId()`, y pasar la sala a
-   `useWatchParty`.
-6. **Retirar el Watch Party** de Películas (`title-detail.tsx`) y del
-   reproductor de canales (`fullscreen-player.tsx`), donde no puede funcionar.
+- [x] **Pantalla** `fuente-view.tsx`, con su entrada en `NAV_ITEMS` y su caso en
+  `dashboard.tsx`
+- [x] **Alta de un enlace** con validación de protocolo, detección de clase,
+  aviso honesto para `.mkv` y nombre derivado del archivo
+- [x] **Lista guardada** en `localStorage` (`src/hooks/use-fuentes.ts`)
+- [x] **Reproducción** con `NativePlayer`
+- [x] **Sala** encima del reproductor: hay que entrar antes de darle a
+  reproducir, o cada casa arranca por su lado
+- [x] **Retirado el Watch Party del reproductor de canales**, donde no podía
+  sincronizar nada
+
+## Lo que falta
+
+1. **Continuar donde se quedó** — `FuentePropia.progreso` está en el tipo pero
+   nadie lo escribe todavía.
+2. **Pistas de subtítulos** — `ManualStream.subtitles` ya existe; falta poder
+   añadir un `.vtt` junto al enlace.
+3. **Varias calidades por título** — `NativePlayer` acepta un array de
+   `ManualStream`; la pantalla solo pasa uno.
+4. **Estado de la sala a la vista** — `useWatchParty` expone `status`
+   (`connecting`, `connected`, `error`) y la pantalla aún no lo enseña.
+5. **Watch Party en la ruta `manual` de Películas** — sigue ahí porque es
+   también un enlace propio y quitarlo rompería las fichas de `catalog.json`
+   que lo usan. Decidir si se unifica con esta pantalla.
 
 ---
 

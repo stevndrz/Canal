@@ -108,6 +108,14 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
     // Las temporadas solo hacen falta en la ficha, y allí se piden aparte con
     // fetchTitle(). Pedirlas aquí costaría una petición por serie.
     seasons: [],
+    // Una fila del catálogo trae lo justo para pintar una tarjeta. El reparto,
+    // los géneros y la duración solo se piden al abrir la ficha: hacerlo aquí
+    // serían veinte peticiones más por cada fila que se enseña.
+    tagline: "",
+    duracion: null,
+    generos: [],
+    reparto: [],
+    autoria: [],
   };
 }
 

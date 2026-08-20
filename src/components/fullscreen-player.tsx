@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Cast } from "lucide-react";
 import {
   ICONO_CAST,
-  ICONO_FAMILIA,
   ICONO_GUIA,
   PlayerControls,
 } from "@/components/player/player-controls";
@@ -16,12 +15,19 @@ import StreamPlayer, {
 import { channelMark, stepChannel } from "@/lib/channels";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useCast } from "@/hooks/use-cast";
-import { useWatchParty } from "@/hooks/use-watch-party";
-import { normalizeRoomId } from "@/lib/watch-party/sign";
 
 interface FullscreenPlayerProps {
   channel: Channel;
-  /** Lista visible: define qué zapea ↑↓ y qué muestra la guía. */
+  /**
+ * Aquí no hay "Ver en familia", y es a propósito.
+ *
+ * Sincronizar tiene sentido cuando hay algo que igualar: un tiempo, una pausa,
+ * un salto. Una emisión en directo no tiene nada de eso —no se pausa ni se
+ * busca— así que dos personas en el mismo canal ya van iguales por definición.
+ * La sala vive donde sí puede cumplir: en "Mi enlace"
+ * (`src/components/views/fuente-view.tsx`), sobre un `<video>` propio.
+ */
+/** Lista visible: define qué zapea ↑↓ y qué muestra la guía. */
   playlist: Channel[];
   favorites: Set<number>;
   settings: PlaybackSettings;
@@ -83,10 +89,6 @@ export function FullscreenPlayer({
   const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoElRef, channel.streamUrl, channel.name);
 
-  const [showParty, setShowParty] = useState(false);
-  const [roomInput, setRoomInput] = useState("");
-  const [activeRoom, setActiveRoom] = useState("");
-  const watchParty = useWatchParty(videoElRef, activeRoom || undefined);
 
   const [showControls, setShowControls] = useState(true);
   const [showGuide, setShowGuide] = useState(false);
@@ -263,13 +265,6 @@ export function FullscreenPlayer({
               expanded: showGuide,
               onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
             },
-            {
-              id: "familia",
-              label: "Ver en familia",
-              icon: ICONO_FAMILIA,
-              expanded: showParty,
-              onClick: () => setShowParty((value) => !value),
-            },
             ...(canCast
               ? [
                   {
@@ -353,49 +348,6 @@ export function FullscreenPlayer({
         </div>
       )}
 
-      {/* Ver en familia: sala de Pusher, sincroniza play/pause/seek entre
-          quien la abra con el mismo nombre. */}
-      {showParty && (
-        <div className="tv-safe absolute inset-x-0 top-24 z-30 w-full max-w-sm rounded-2xl border border-white/12 bg-app/92 p-4 backdrop-blur-xl sm:right-6 sm:left-auto">
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              setActiveRoom(normalizeRoomId(roomInput));
-            }}
-            className="flex flex-col gap-3"
-          >
-            <label htmlFor="watch-party-room" className="text-sm font-semibold">
-              Ver en familia
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="watch-party-room"
-                data-nav="input"
-                value={roomInput}
-                onChange={(event) => setRoomInput(event.target.value)}
-                placeholder="nombre de la sala"
-                className="min-w-0 flex-1 rounded-xl border border-white/12 bg-surface-2 px-3.5 py-2.5 text-sm placeholder-zinc-100/35 outline-none focus:border-accent"
-              />
-              <button
-                type="submit"
-                data-nav="button"
-                className="shrink-0 rounded-xl bg-accent px-4 py-2.5 text-sm font-medium text-accent-on"
-              >
-                {activeRoom ? "Cambiar" : "Entrar"}
-              </button>
-            </div>
-            <p className="text-[13px] text-zinc-100/50">
-              {watchParty.status === "connected"
-                ? "Conectado: quien abra la misma sala verá esto sincronizado."
-                : watchParty.status === "connecting"
-                  ? "Conectando…"
-                  : watchParty.status === "error"
-                    ? "No se pudo conectar la sala."
-                    : "Quien abra esta misma sala verá el canal sincronizado."}
-            </p>
-          </form>
-        </div>
-      )}
     </div>
   );
 }

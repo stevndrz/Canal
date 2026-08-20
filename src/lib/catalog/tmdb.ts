@@ -32,6 +32,19 @@ interface TmdbTitle {
   first_air_date?: string;
   vote_average?: number;
   seasons?: { season_number: number; episode_count: number }[];
+  tagline?: string;
+  /** Películas. */
+  runtime?: number | null;
+  /** Series: duración típica de un episodio, en minutos. */
+  episode_run_time?: number[];
+  genres?: { id: number; name: string }[];
+  /** Series. La dirección de una película va en `credits.crew`. */
+  created_by?: { name: string }[];
+  /** Llega solo con `append_to_response=credits`. */
+  credits?: {
+    cast?: { name: string; character?: string; profile_path?: string | null }[];
+    crew?: { name: string; job?: string }[];
+  };
 }
 
 interface TmdbSeason {
@@ -109,6 +122,13 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
   }
 }
 
+/** Una persona del reparto, ya lista para pintar. */
+export interface TmdbPersona {
+  nombre: string;
+  personaje: string;
+  foto: string | null;
+}
+
 export interface TmdbTitleData {
   title: string | null;
   /** Idioma en que se rodó (`es`, `en`…). Ver ResolvedCatalogItem. */
@@ -119,13 +139,38 @@ export interface TmdbTitleData {
   year: string | null;
   rating: number | null;
   seasons: number[];
+  /** Frase de cartel. Vacía en la mayoría de títulos, y eso está bien. */
+  tagline: string;
+  /** Minutos. En una serie, la duración típica de un episodio. */
+  duracion: number | null;
+  generos: string[];
+  reparto: TmdbPersona[];
+  /** Dirección en películas; creación en series. */
+  autoria: string[];
 }
 
+/**
+ * Ficha completa en **una sola petición**.
+ *
+ * `append_to_response=credits` trae el reparto en la misma llamada en lugar de
+ * en otra: TMDB lo cuenta como una, y una ficha que ya tarda no debería tardar
+ * el doble por enseñar quién sale.
+ */
 export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<TmdbTitleData | null> {
-  const data = await tmdbFetch<TmdbTitle>(`/${mediaType}/${tmdbId}`);
+  const data = await tmdbFetch<TmdbTitle>(`/${mediaType}/${tmdbId}?append_to_response=credits`);
   if (!data) return null;
 
   const date = data.release_date || data.first_air_date || "";
+
+  // En películas la autoría es la dirección; en series, la creación. TMDB las
+  // guarda en sitios distintos, así que se mira en los dos.
+  const autoria = [
+    ...(data.created_by ?? []).map((persona) => persona.name),
+    ...(data.credits?.crew ?? [])
+      .filter((persona) => persona.job === "Director")
+      .map((persona) => persona.name),
+  ].filter((nombre, indice, lista) => nombre && lista.indexOf(nombre) === indice);
+
   return {
     title: data.title ?? data.name ?? null,
     originalLanguage: data.original_language ?? null,
@@ -138,6 +183,17 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
     seasons: (data.seasons ?? [])
       .filter((season) => season.season_number > 0 && season.episode_count > 0)
       .map((season) => season.season_number),
+    tagline: data.tagline ?? "",
+    duracion: data.runtime ?? data.episode_run_time?.[0] ?? null,
+    generos: (data.genres ?? []).map((genero) => genero.name),
+    // Doce caben en un carril sin que haya que recorrerlo entero; más allá del
+    // duodécimo nombre ya nadie está buscando a nadie.
+    reparto: (data.credits?.cast ?? []).slice(0, 12).map((persona) => ({
+      nombre: persona.name,
+      personaje: persona.character ?? "",
+      foto: tmdbImage(persona.profile_path, POSTER_SIZE),
+    })),
+    autoria: autoria.slice(0, 3),
   };
 }
 

@@ -33,6 +33,7 @@ export type ViewId =
   | "canales"
   | "favoritos"
   | "buscar"
+  | "fuente"
   | "categorias"
   | "ajustes"
   | "player";

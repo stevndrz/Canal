@@ -50,6 +50,11 @@ export async function resolveItem(item: CatalogItem): Promise<ResolvedCatalogIte
     rating: tmdb?.rating ?? null,
     originalLanguage: tmdb?.originalLanguage ?? null,
     seasons: tmdb?.seasons ?? seasonsFromOverrides(item),
+    tagline: tmdb?.tagline ?? "",
+    duracion: tmdb?.duracion ?? null,
+    generos: tmdb?.generos ?? [],
+    reparto: tmdb?.reparto ?? [],
+    autoria: tmdb?.autoria ?? [],
   };
 }
 

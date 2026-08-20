@@ -146,10 +146,16 @@ html[data-player="on"] body {
    conflictos. Lo que es de CanalCasa vive de este lado. */
 
 :root {
-  /* Altura de la barra superior fija, la misma que declara `.sidebar`.
+  /* Altura de la barra superior fija, la misma que acaba usando `.sidebar`.
      Aquí como variable para que el contenido pueda apartarse de ella sin
-     repetir el clamp en cada vista. */
-  --topbar-h: clamp(76px, 8.6vh, 96px);
+     repetir el clamp en cada vista.
+
+     Ojo: ARVIO declara la altura de `.sidebar` **tres veces** en su hoja, y la
+     que gana por encima de 680px es `clamp(96px, 13vh, 154px)`, no la primera.
+     Esta variable copiaba la primera, así que decía 93px cuando la barra medía
+     140: el reproductor de Inicio quedaba 12px por debajo del borde de la
+     barra en lugar de separado de ella. */
+  --topbar-h: clamp(96px, 13vh, 154px);
 }
 
 .top-clock {
@@ -160,10 +166,17 @@ html[data-player="on"] body {
   white-space: nowrap;
 }
 
-/* ARVIO reparte 4 destinos en la barra; CanalCasa lleva 6. Cuando dejan de
+/* ARVIO reparte 4 destinos en la barra; CanalCasa lleva 7. Cuando dejan de
    caber con etiqueta se quedan solo los iconos, que es lo que ya hacía el
-   sidebar anterior por debajo de 1200px. El `title` sigue nombrándolos. */
-@media (max-width: 1400px) {
+   sidebar anterior por debajo de 1200px. El `title` sigue nombrándolos.
+
+   El umbral subió de 1400 a 1660px al añadir "Mi enlace": con siete etiquetas,
+   a 1920px la barra ya iba tan apretada que la marca se truncaba. */
+.nav-item span {
+  white-space: nowrap;
+}
+
+@media (max-width: 1660px) {
   .sidebar nav .nav-item span { display: none; }
   .sidebar nav .nav-item { padding: 0 clamp(11px, 0.9vw, 16px); }
 }
@@ -877,14 +890,378 @@ html[data-player="on"] body {
   cursor: pointer;
 }
 
-/* La ficha de un título: vídeo y botonera de servidores, centrados y acotados.
-   El contenedor de la página mide 1400px, y a esa anchura el vídeo se comía
-   la pantalla de un televisor mientras los botones de servidor quedaban
-   colgando en la esquina izquierda, muy lejos de la imagen a la que se
-   refieren. */
+/* ── La ficha de un título ───────────────────────────────────────────
+   Antes el fondo iba en un `absolute inset-0` desde y=0, así que se metía
+   detrás de la barra fija y el título y el botón de volver se leían encima de
+   la navegación. Ahora la portada es una sección con su propio hueco superior.
+
+   Y debajo del vídeo había… nada. Había sitio de sobra para la sinopsis, el
+   reparto y la ficha técnica, que es lo que se mira justo después de darle a
+   reproducir. */
+.ficha-portada {
+  position: relative;
+  background-size: cover;
+  background-position: center 22%;
+  padding-top: calc(var(--topbar-h) + clamp(20px, 3vh, 40px));
+  padding-bottom: clamp(20px, 3vh, 40px);
+}
+
+/* El velo va sobre el fondo, no sobre el contenido. */
+.ficha-portada::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 7, 9, 0.82) 0%, rgba(6, 7, 9, 0.9) 55%, var(--color-app, #09090b) 100%);
+}
+
+.ficha-cabecera {
+  position: relative;
+  width: min(1200px, 100%);
+  margin-inline: auto;
+  padding-inline: 3.35vw;
+}
+
+.ficha-volver {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  margin-bottom: clamp(16px, 2.4vh, 28px);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 600;
+}
+
+.ficha-volver:hover,
+.ficha-volver:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
+  color: #fff;
+}
+
+.ficha-volver svg {
+  width: 18px;
+  height: 18px;
+}
+
+.ficha-titular {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2vw, 30px);
+}
+
+@media (min-width: 681px) {
+  .ficha-titular {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}
+
+.ficha-poster {
+  width: clamp(110px, 12vw, 190px);
+  height: auto;
+  flex-shrink: 0;
+  border-radius: clamp(10px, 0.8vw, 16px);
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ficha-datos { min-width: 0; }
+
+.ficha-datos h1 {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 54px);
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.ficha-tagline {
+  margin: 10px 0 0;
+  font-size: clamp(14px, 1.05vw, 19px);
+  font-style: italic;
+  color: var(--muted, rgba(255, 255, 255, 0.7));
+}
+
+.ficha-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  font-size: clamp(13px, 0.95vw, 17px);
+  color: var(--muted, rgba(255, 255, 255, 0.7));
+}
+
+.ficha-nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gold, #ffcd3c);
+  font-weight: 700;
+}
+
+.ficha-nota svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.ficha-tipo {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.12));
+  font-size: 0.82em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ficha-generos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.ficha-generos span {
+  padding: 5px 12px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  font-size: clamp(12px, 0.85vw, 15px);
+  color: var(--muted, rgba(255, 255, 255, 0.7));
+}
+
+.ficha-cuerpo {
+  width: min(1200px, 100%);
+  margin-inline: auto;
+  padding: clamp(20px, 3vh, 36px) 3.35vw clamp(40px, 6vh, 80px);
+}
+
 .ficha-reproductor {
   width: min(100%, 116vh);
   margin-inline: auto;
+  margin-bottom: clamp(24px, 4vh, 48px);
+}
+
+.ficha-marco {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
+  border-radius: clamp(12px, 1vw, 20px);
+  background: #000;
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+}
+
+.ficha-marco iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.ficha-idioma {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  font-size: clamp(11px, 0.8vw, 14px);
+  color: var(--soft, rgba(255, 255, 255, 0.45));
+}
+
+.ficha-marca {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.ficha-marca.is-si {
+  background: rgba(0, 213, 136, 0.16);
+  color: var(--green, #00d588);
+}
+
+.ficha-marca.is-quiza {
+  background: rgba(59, 130, 246, 0.16);
+  color: #7dabff;
+}
+
+.ficha-sin-fuente {
+  display: grid;
+  place-items: center;
+  gap: 12px;
+  aspect-ratio: 16 / 9;
+  padding: 24px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: clamp(12px, 1vw, 20px);
+  background: var(--chip, rgba(255, 255, 255, 0.05));
+  text-align: center;
+}
+
+.ficha-sin-fuente svg { width: 32px; height: 32px; opacity: 0.5; }
+.ficha-sin-fuente p { margin: 0; font-weight: 650; }
+.ficha-sin-fuente span { max-width: 44ch; font-size: 0.9em; color: var(--soft, rgba(255,255,255,0.5)); }
+
+.ficha-seccion {
+  margin-bottom: clamp(28px, 4.5vh, 56px);
+}
+
+.ficha-seccion h2 {
+  margin: 0 0 clamp(12px, 1.6vh, 20px);
+  font-size: clamp(20px, 1.6vw, 30px);
+  font-weight: 650;
+}
+
+.ficha-sinopsis {
+  margin: 0;
+  max-width: 78ch;
+  font-size: clamp(15px, 1.05vw, 18px);
+  line-height: 1.62;
+  color: var(--muted, rgba(255, 255, 255, 0.74));
+}
+
+.ficha-autoria {
+  margin: 14px 0 0;
+  font-size: clamp(13px, 0.95vw, 16px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.ficha-autoria strong { color: var(--text, #ededed); font-weight: 650; }
+
+/* El reparto scrollea en horizontal: doce caras no caben en ninguna pantalla
+   sin encoger tanto que dejen de reconocerse. */
+.ficha-reparto {
+  display: flex;
+  gap: clamp(12px, 1.2vw, 22px);
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+}
+
+.ficha-reparto::-webkit-scrollbar { display: none; }
+
+.ficha-persona {
+  flex-shrink: 0;
+  width: clamp(108px, 9vw, 156px);
+  margin: 0;
+}
+
+.ficha-persona img,
+.ficha-persona-inicial {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: clamp(10px, 0.8vw, 14px);
+  background: linear-gradient(135deg, #242735, #0b0b10);
+}
+
+.ficha-persona-inicial {
+  display: grid;
+  place-items: center;
+  font-size: clamp(28px, 2.6vw, 44px);
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.ficha-persona figcaption {
+  margin-top: 10px;
+  display: grid;
+  gap: 3px;
+}
+
+.ficha-persona strong {
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 620;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ficha-persona span {
+  font-size: clamp(11px, 0.82vw, 14px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ficha-episodios-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: clamp(12px, 1.6vh, 20px);
+}
+
+.ficha-episodios-cabecera h2 { margin: 0; }
+.ficha-episodios-cabecera .catalogo-filtros { padding: 0; margin: 0; }
+
+.ficha-episodios {
+  display: grid;
+  gap: 8px;
+}
+
+.ficha-episodio {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 72px;
+  padding: 10px 14px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border-radius: 14px;
+  background: var(--chip, rgba(255, 255, 255, 0.05));
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, border-color 150ms ease;
+}
+
+.ficha-episodio:hover,
+.ficha-episodio:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.14));
+}
+
+.ficha-episodio.is-active {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.ficha-episodio-arte {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 92px;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.ficha-episodio-arte img { width: 100%; height: 100%; object-fit: cover; }
+
+.ficha-episodio-texto { min-width: 0; display: grid; gap: 4px; }
+.ficha-episodio-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ficha-episodio-texto span {
+  font-size: clamp(11px, 0.82vw, 14px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ficha-vacio {
+  padding: 24px;
+  border: 1px dashed var(--line, rgba(255, 255, 255, 0.18));
+  border-radius: 14px;
+  text-align: center;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
 }
 
 /* `.screen` es una rejilla de una columna, y sin acotarla esa columna se
@@ -1003,4 +1380,312 @@ body {
   .live-slot {
     padding-top: clamp(14px, 2vh, 24px);
   }
+}
+
+/* ── Ajustes ─────────────────────────────────────────────────────────
+   Su encabezado era un `<h1>` suelto con clases propias: el único de la app
+   que no usaba `.section-heading`, y por eso no reservaba el hueco de la barra
+   fija y quedaba por debajo de ella. Ahora usa el mismo encabezado que
+   Favoritos y Categorías, y la columna va centrada: a 1920px estaba pegada a
+   la izquierda con medio televisor vacío al lado. */
+.ajustes {
+  width: min(880px, 100%);
+  margin-inline: auto;
+}
+
+.ajustes-columna {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(20px, 3vh, 34px);
+}
+
+.ajustes .section-heading {
+  padding-inline: 0;
+}
+
+/* ── La señal en directo en un televisor ─────────────────────────────
+   El tamaño se calcula desde la altura que queda libre, no desde una anchura
+   fija: así la barra y el reproductor entran juntos en la pantalla y sobra un
+   poco para que asome el primer riel, que es lo que dice que hay más abajo.
+
+   Antes iba acotado por `116vh`, que en un televisor dejaba el vídeo pequeño
+   con bandas negras a los lados y, en pantallas bajas, empujaba los rieles
+   fuera de la vista. */
+@media (min-width: 681px) {
+  .live-card-marco {
+    width: min(100%, calc((100vh - var(--topbar-h) - 170px) * 16 / 9));
+  }
+}
+
+/* Y un poco más de aire entre la barra y el vídeo: pegados se leían como una
+   sola pieza. En teléfono el hueco lo pone `.app-shell`, así que aquí basta un
+   respiro; esta excepción va después a propósito, porque la regla general
+   estaba anulándola y dejaba 200px de negro sobre el vídeo. */
+.live-slot {
+  padding-top: calc(var(--topbar-h) + 36px);
+}
+
+@media (max-width: 680px) {
+  .live-slot {
+    padding-top: clamp(14px, 2vh, 24px);
+  }
+}
+
+/* ── Mi enlace ───────────────────────────────────────────────────────
+   La tercera vía de reproducción, y la única con Ver en familia. Comparte el
+   lenguaje del resto: chips redondos, fondo sólido, objetivos de 44px. */
+.fuente {
+  width: min(1100px, 100%);
+  margin-inline: auto;
+}
+
+.fuente .section-heading,
+.fuente .ficha-seccion {
+  padding-inline: 0;
+}
+
+.fuente-alta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.fuente-campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+}
+
+.fuente-campo:focus-within {
+  border-color: rgba(255, 255, 255, 0.34);
+}
+
+.fuente-campo svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.fuente-campo input,
+.fuente-nombre {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: clamp(14px, 1vw, 17px);
+  outline: none;
+}
+
+.fuente-campo input { flex: 1; }
+
+.fuente-nombre {
+  flex: 0 1 220px;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+}
+
+.fuente-anadir {
+  flex-shrink: 0;
+  min-height: 54px;
+  padding: 0 clamp(20px, 1.8vw, 32px);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #0a0a0a;
+  font-size: clamp(14px, 1vw, 17px);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fuente-anadir:hover,
+.fuente-anadir:focus-visible { background: #e6e6e6; }
+
+.fuente-error,
+.fuente-aviso {
+  margin: 0 0 18px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: clamp(13px, 0.92vw, 16px);
+}
+
+.fuente-error {
+  border: 1px solid rgba(255, 69, 58, 0.34);
+  background: rgba(255, 69, 58, 0.1);
+}
+
+.fuente-aviso {
+  border: 1px solid rgba(255, 205, 60, 0.3);
+  background: rgba(255, 205, 60, 0.08);
+  color: var(--gold, #ffcd3c);
+}
+
+.fuente-reproductor {
+  margin-bottom: clamp(28px, 4.5vh, 56px);
+}
+
+.fuente-reproductor h3 {
+  margin: 0 0 14px;
+  font-size: clamp(18px, 1.4vw, 26px);
+  font-weight: 650;
+}
+
+.fuente-marco.is-cargando {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: clamp(12px, 1vw, 20px);
+  background: linear-gradient(135deg, #16181f, #0a0b0f);
+}
+
+/* La sala va encima del reproductor: hay que entrar antes de darle a
+   reproducir, o cada casa arranca por su lado. */
+.fuente-sala {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 16px;
+  background: var(--chip, rgba(255, 255, 255, 0.05));
+}
+
+.fuente-sala svg { width: 20px; height: 20px; color: var(--green, #00d588); }
+.fuente-sala label { font-weight: 650; font-size: clamp(13px, 0.95vw, 16px); }
+
+.fuente-sala input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  outline: none;
+}
+
+.fuente-sala button {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--green, #00d588);
+  color: #04150e;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.fuente-sala p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: clamp(11px, 0.82vw, 14px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.fuente-lista { display: grid; gap: 8px; }
+
+.fuente-fila {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border-radius: 14px;
+  background: var(--chip, rgba(255, 255, 255, 0.05));
+  overflow: hidden;
+}
+
+.fuente-fila.is-active {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fuente-fila-abrir {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+  min-height: 64px;
+  padding: 10px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.fuente-fila-abrir:hover,
+.fuente-fila-abrir:focus-visible { background: rgba(255, 255, 255, 0.08); }
+
+.fuente-fila-icono {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.fuente-fila-icono svg { width: 18px; height: 18px; }
+
+.fuente-fila-texto { min-width: 0; display: grid; gap: 3px; }
+.fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fuente-fila-texto span {
+  font-size: clamp(11px, 0.8vw, 13px);
+  color: var(--soft, rgba(255, 255, 255, 0.45));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fuente-clase {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.55));
+}
+
+.fuente-quitar {
+  flex-shrink: 0;
+  width: 56px;
+  border: 0;
+  border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+  cursor: pointer;
+}
+
+.fuente-quitar:hover,
+.fuente-quitar:focus-visible {
+  background: rgba(255, 69, 58, 0.16);
+  color: var(--red, #e74c3c);
+}
+
+.fuente-quitar svg { width: 18px; height: 18px; }
+
+/* La marca se truncaba a "CanalC…". Su ancho máximo lo fija ARVIO pensando en
+   un nombre de perfil corto; aquí es el nombre del producto y tiene que leerse
+   entero. */
+.profile-name-text {
+  max-width: none;
 }

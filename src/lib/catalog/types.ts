@@ -97,6 +97,14 @@ export interface ResolvedCatalogItem extends Omit<CatalogItem, "title" | "poster
    * inventada.
    */
   originalLanguage: string | null;
+  /** Frase de cartel; vacía en la mayoría de títulos. */
+  tagline: string;
+  /** Minutos: la película entera, o el episodio típico de una serie. */
+  duracion: number | null;
+  generos: string[];
+  reparto: { nombre: string; personaje: string; foto: string | null }[];
+  /** Dirección en películas, creación en series. */
+  autoria: string[];
 }
 
 export interface ResolvedEpisode {
