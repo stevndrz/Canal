@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Settings, Tv } from "lucide-react";
 import type { ViewId } from "@/lib/types";
@@ -36,13 +36,26 @@ import { NAV_ITEMS, MOBILE_KEYS, type NavItem } from "@/components/app-nav";
  */
 
 interface TopNavProps {
-  view: ViewId;
-  onNavigate: (view: ViewId) => void;
-  clock: string;
+  /**
+   * Vista activa del App Shell.
+   *
+   * Opcional porque la barra también se pinta en rutas que viven fuera del
+   * shell —`/peliculas`—, donde no hay ninguna vista: allí la sección activa la
+   * decide la URL. Antes esas rutas no tenían barra y cambiar de sección se
+   * sentía como salir de la aplicación.
+   */
+  view?: ViewId;
+  /**
+   * Cambiar de vista dentro del shell. Sin ella, la barra navega a `/` con la
+   * vista pedida en la URL, que es lo que necesitan las rutas de fuera.
+   */
+  onNavigate?: (view: ViewId) => void;
 }
 
-function isActive(item: NavItem, view: ViewId, pathname: string): boolean {
+function isActive(item: NavItem, view: ViewId | undefined, pathname: string): boolean {
   if (item.kind === "link") return pathname.startsWith(item.href);
+  // En una ruta de fuera del shell ninguna vista está activa: manda el enlace.
+  if (view === undefined) return false;
   return view === item.key || (item.key === "canales" && view === "player");
 }
 
@@ -50,9 +63,28 @@ function isActive(item: NavItem, view: ViewId, pathname: string): boolean {
 const AJUSTES = NAV_ITEMS.find((item) => item.key === "ajustes");
 const DESTINOS = NAV_ITEMS.filter((item) => item.key !== "ajustes");
 
-export function TopNav({ view, onNavigate, clock }: TopNavProps) {
+export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const [clock, setClock] = useState("");
+
+  // El reloj lo lleva la barra y no quien la usa: es parte del chrome, y así
+  // funciona igual dentro y fuera del shell sin que nadie tenga que pasárselo.
+  useEffect(() => {
+    const update = () =>
+      setClock(new Date().toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" }));
+    update();
+    const timer = setInterval(update, 20_000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const irA = (destino: ViewId) => {
+    if (onNavigate) onNavigate(destino);
+    // Fuera del shell no hay estado de vista que cambiar: se vuelve a la
+    // aplicación pidiendo la sección por la URL.
+    else router.push(destino === "home" ? "/" : `/?vista=${destino}`);
+  };
 
   // La barra se opaca al bajar. Mientras el shell siga sin scrollear la
   // ventana esto no se dispara nunca, y no molesta: cuando el modelo de
@@ -95,7 +127,7 @@ export function TopNav({ view, onNavigate, clock }: TopNavProps) {
         data-nav="button"
         title={label}
         aria-current={active ? "page" : undefined}
-        onClick={() => onNavigate(item.key)}
+        onClick={() => irA(item.key)}
         className={`${className} ${active ? "is-active" : ""}`}
       >
         {content}
@@ -126,7 +158,7 @@ export function TopNav({ view, onNavigate, clock }: TopNavProps) {
             title="Ajustes"
             aria-label="Ajustes"
             aria-current={ajustesActivo ? "page" : undefined}
-            onClick={() => onNavigate("ajustes")}
+            onClick={() => irA("ajustes")}
             className={`settings-gear ${ajustesActivo ? "is-active" : ""}`}
           >
             <Settings />

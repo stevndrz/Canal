@@ -22,6 +22,20 @@ const nextConfig: NextConfig = {
   devIndicators: {
     position: "top-right",
   },
+
+  /**
+   * Las fichas de Películas usan `next/image` contra TMDB, y `next/image` se
+   * niega a servir un host que no esté declarado: lanza en tiempo de ejecución
+   * y **tumba la página entera**, no solo la imagen. Es lo que hacía que al
+   * entrar en Películas desapareciera hasta la barra de navegación.
+   *
+   * Solo TMDB. Los logos de canal vienen de cientos de dominios de listas IPTV
+   * y esos se pintan con `<img>` normal justamente para no tener que declarar
+   * un host que no se conoce de antemano.
+   */
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "image.tmdb.org" }],
+  },
 };
 
 export default nextConfig;

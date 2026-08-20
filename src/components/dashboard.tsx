@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
@@ -52,6 +52,7 @@ export function Dashboard({
   catalog: CatalogSection[];
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   const channels = useMemo(() => withChannelNumbers(initialChannels), [initialChannels]);
@@ -62,7 +63,12 @@ export function Dashboard({
   // tarjeta en directo de Inicio ya trae señal al entrar. La pantalla completa
   // pasa a ser una decisión —doble clic, Enter o el botón— en vez de la puerta
   // de entrada, que no dejaba ver el resto de la aplicación sin salir antes.
-  const [view, setView] = useState<ViewId>("home");
+  // `?vista=` deja que una ruta de fuera del shell —`/peliculas`— pida una
+  // sección concreta al volver. Sin esto, su barra solo sabía volver a Inicio.
+  const vistaPedida = searchParams.get("vista") as ViewId | null;
+  const [view, setView] = useState<ViewId>(
+    vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
+  );
   const [lastView, setLastView] = useState<ViewId>("home");
   const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   const [category, setCategory] = useState("Todas");
@@ -250,7 +256,7 @@ export function Dashboard({
       {/* La barra desaparece durante la reproducción. Es `position: fixed` con
           z-index 60 y el reproductor va en z-50, así que sin esto flotaría
           por encima del vídeo. ARVIO hace lo mismo con su `activeStream`. */}
-      {view !== "player" && <TopNav view={view} onNavigate={navigate} clock={clock} />}
+      {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
 
       <section className="content">
         {view === "home" && (

@@ -3,7 +3,7 @@ import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
-import { AppBar } from "@/components/app-bar";
+import { TopNav } from "@/components/shell/top-nav";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, searchCatalog } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
@@ -48,16 +48,17 @@ export default async function MoviesPage({
   const tmdbReady = isTmdbConfigured();
 
   return (
-    // Fondo oscuro a propósito: es lo que se espera de una sección de cine y
-    // además reduce el brillo en una TV grande de noche.
-    <div className="min-h-screen bg-[#0b0f14] text-white">
-      <div className="mx-auto max-w-[1400px] px-3 py-4 sm:px-6 md:px-8 md:py-6">
-        {/* La misma barra que en Canales: antes esta sección repintaba su
-            propio encabezado con mosaico degradado y título enorme, y cambiar
-            de sección se sentía como saltar a otro sitio. */}
-        <AppBar tone="dark">
+    // `.app-shell` y `.screen`, las mismas piezas que usa el resto de la
+    // aplicación. Esta ruta vive fuera del App Shell —conserva sus URLs por
+    // título— pero eso no tiene por qué notarse: antes pintaba su propio fondo
+    // y su propia barra, y al entrar aquí la navegación desaparecía.
+    <div className="app-shell">
+      <TopNav />
+
+      <div className="screen tv-safe">
+        <div className="peliculas-buscador">
           <CatalogSearch query={query} />
-        </AppBar>
+        </div>
 
         {!tmdbReady && (
           <div className="mb-6 flex gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">

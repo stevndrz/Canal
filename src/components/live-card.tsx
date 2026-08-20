@@ -45,28 +45,37 @@ export function LiveCard({ channel, settings, onExpand, onNext }: LiveCardProps)
     needsUserGesture: false,
   });
 
-  const expandir = useCallback(() => onExpand(channel), [onExpand, channel]);
-
-  // Enter y OK del mando abren la pantalla completa. Sin esto, con un mando la
-  // tarjeta se puede enfocar pero no se puede hacer nada con ella.
-  const alPulsarTecla = (evento: React.KeyboardEvent) => {
-    if (evento.key === "Enter" || evento.key === " ") {
-      evento.preventDefault();
-      expandir();
-    }
-  };
+  /**
+   * Pantalla completa de verdad, en un solo gesto.
+   *
+   * Antes esto solo cambiaba de vista: el reproductor ocupaba la ventana pero
+   * el navegador seguía enseñando su barra de direcciones y sus pestañas, así
+   * que había que dar además un doble clic para completarla. Dos pasos para una
+   * sola intención.
+   *
+   * `requestFullscreen` **solo funciona dentro de un gesto de la persona**, así
+   * que se pide aquí mismo y no después de cambiar de vista. Se pide sobre el
+   * documento entero porque el contenedor del reproductor todavía no existe en
+   * este instante: se monta justo después.
+   *
+   * Safari en iPhone no implementa la API sobre elementos que no sean `<video>`
+   * —ahí `requestFullscreen` ni existe—, así que el `catch` y el `?.` no son
+   * decorativos: en iPhone se queda en la vista inmersiva, que es todo lo que
+   * ese sistema permite sin abrir su reproductor nativo.
+   */
+  const expandir = useCallback(() => {
+    document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+    onExpand(channel);
+  }, [onExpand, channel]);
 
   return (
     <section className="live-card" aria-label={`En directo: ${channel.name}`}>
-      <div
-        className="live-card-marco"
-        role="button"
-        tabIndex={0}
-        data-nav="tile"
-        onDoubleClick={expandir}
-        onKeyDown={alPulsarTecla}
-        aria-label={`Ver ${channel.name} en pantalla completa`}
-      >
+      {/* Sin `role="button"` ni `aria-label`: los tenía y repetían palabra por
+          palabra los del botón "Pantalla completa" de abajo, así que un lector
+          de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
+          porque es lo que espera cualquiera que venga de un reproductor de
+          escritorio; con mando y con el dedo está el botón. */}
+      <div className="live-card-marco" onDoubleClick={expandir}>
         <StreamPlayer
           ref={playerRef}
           channel={channel}

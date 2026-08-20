@@ -540,3 +540,11 @@ html[data-player="on"] body {
     display: none;
   }
 }
+
+/* Películas vive en su propia ruta pero se pinta con el shell. El buscador
+   necesita un ancho propio: a 1920px estirado de lado a lado no se lee como un
+   campo, se lee como una franja. */
+.peliculas-buscador {
+  max-width: min(560px, 92vw);
+  margin-bottom: clamp(16px, 2vh, 26px);
+}

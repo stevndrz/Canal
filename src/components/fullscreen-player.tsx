@@ -314,6 +314,9 @@ export function FullscreenPlayer({
                reproductor de escritorio. */
             aria-label="Salir de pantalla completa"
             onClick={() => {
+              // Deshace el estado entero: la pantalla completa del navegador,
+              // si se concedió, y la vista inmersiva. Salir a medias dejaba al
+              // navegador en fullscreen enseñando la navegación por debajo.
               if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
               onExit();
             }}
