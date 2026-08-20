@@ -1,114 +1,154 @@
 "use client";
 
-import { Play, Star } from "lucide-react";
-import type { Channel } from "@/lib/types";
-import { ChannelRail } from "@/components/channel-rail";
-import { channelMark, groupByCategory } from "@/lib/channels";
+import dynamic from "next/dynamic";
+import { useMemo } from "react";
+import type { Channel, PlaybackSettings } from "@/lib/types";
+import type { CatalogSection } from "@/lib/catalog/types";
+import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
+import { groupByCategory } from "@/lib/channels";
+import { MediaRail } from "@/components/media/media-rail";
+import { LiveCardSkeleton } from "@/components/live-card";
+
+/**
+ * El reproductor solo puede existir en el navegador.
+ *
+ * `hls.js` y `mpegts.js` tocan `self` al evaluarse, y en el servidor eso es un
+ * `ReferenceError` que tumba la página entera con un 500. Ya pasó una vez en
+ * producción con este mismo diseño.
+ */
+const LiveCard = dynamic(() => import("@/components/live-card").then((m) => m.LiveCard), {
+  ssr: false,
+  loading: () => <LiveCardSkeleton />,
+});
 
 interface HomeViewProps {
   channels: Channel[];
   tuned: Channel | null;
   favorites: Set<number>;
   recents: Channel[];
-  onTune: (channel: Channel) => void;
-  onToggleFavorite: (id: number) => void;
+  catalog: CatalogSection[];
+  settings: PlaybackSettings;
+  /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta. */
+  onSelect: (channel: Channel) => void;
+  /** Pasar a pantalla completa con ese canal. */
+  onExpand: (channel: Channel) => void;
+  onNext: () => void;
+  onPrev: () => void;
+  onOpenTitle: (mediaType: string, id: string) => void;
 }
 
-/** Inicio lean-back: hero de "seguir viendo" + rieles. Nada de rejilla plana. */
+/** Cuántas categorías de canales se ofrecen antes de mandar a Canales. */
+const MAX_GRUPOS = 6;
+/** Un riel más largo que esto no lo recorre nadie; para eso está Canales. */
+const MAX_POR_RIEL = 20;
+
+/**
+ * Inicio: la señal en directo arriba, y todo lo demás debajo.
+ *
+ * El orden es la decisión de producto de esta pantalla. Antes abría con una
+ * cabecera de película a pantalla completa, que es lo que hace ARVIO porque su
+ * app va de películas. CanalCasa va de televisión en vivo: al entrar tiene que
+ * haber señal, y el catálogo es una sección más, no la portada.
+ *
+ * La pantalla completa deja de ser la puerta de entrada y pasa a ser una
+ * decisión: doble clic en la tarjeta, Enter con el mando, o el botón.
+ */
 export function HomeView({
   channels,
   tuned,
   favorites,
   recents,
-  onTune,
-  onToggleFavorite,
+  catalog,
+  settings,
+  onSelect,
+  onExpand,
+  onNext,
+  onPrev,
+  onOpenTitle,
 }: HomeViewProps) {
-  const favoriteChannels = channels.filter((channel) => favorites.has(channel.id));
-  const groups = groupByCategory(channels).slice(0, 6);
-  const isFavorite = tuned ? favorites.has(tuned.id) : false;
+  const favoriteChannels = useMemo(
+    () => channels.filter((channel) => favorites.has(channel.id)),
+    [channels, favorites],
+  );
+
+  const grupos = useMemo(() => groupByCategory(channels).slice(0, MAX_GRUPOS), [channels]);
+
+  const abrirCanal = (card: CardItem) => {
+    const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+    // Una tarjeta de canal cambia lo que suena en la tarjeta de arriba; no
+    // salta a pantalla completa. Ir a pantalla completa se pide aparte.
+    if (canal) onSelect(canal);
+  };
+
+  const abrirFicha = (card: CardItem) => {
+    const [mediaType, ...resto] = card.key.split("-");
+    onOpenTitle(mediaType, resto.join("-"));
+  };
+
+  const tunedKey = tuned ? `canal-${tuned.id}` : null;
 
   return (
-    <>
+    /* `.screen` a secas, sin `has-section-heading`: esa clase pone el hueco
+       superior a cero porque asume que la primera cosa de la pantalla es un
+       encabezado. Aquí lo primero es la tarjeta en directo, y sin hueco su
+       cabecera se metía debajo de la barra de navegación. */
+    <div className="screen">
       {tuned && (
-        <section className="grid items-center gap-8 pb-2 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-live" />
-              Continuar viendo
-            </span>
-
-            <h1 className="mt-3.5 text-[26px] font-semibold leading-[1.1] tracking-[-0.03em] xl:text-[34px]">
-              {tuned.name}
-            </h1>
-            <p className="mt-2.5 text-base text-zinc-400">
-              {tuned.number} · {tuned.category} · en vivo ahora
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                data-nav="button"
-                autoFocus
-                onClick={() => onTune(tuned)}
-                className="inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl bg-accent px-5.5 text-base font-medium text-accent-on"
-              >
-                <Play aria-hidden="true" strokeWidth={1.5} className="h-[19px] w-[19px]" />
-                Ver ahora
-              </button>
-
-              <button
-                type="button"
-                data-nav="button"
-                aria-pressed={isFavorite}
-                onClick={() => onToggleFavorite(tuned.id)}
-                className="inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-5.5 text-base font-medium hover:bg-white/[0.13]"
-              >
-                <Star
-                  aria-hidden="true"
-                  strokeWidth={1.5}
-                  className={`h-[18px] w-[18px] ${isFavorite ? "fill-accent" : ""}`}
-                />
-                {isFavorite ? "En favoritos" : "Añadir a favoritos"}
-              </button>
-            </div>
-          </div>
-
-          <div className="relative grid aspect-video place-items-center overflow-hidden rounded-card border border-hairline bg-surface">
-            <span className="text-[64px] font-bold tracking-[-0.04em] text-zinc-100/[0.07]">
-              {channelMark(tuned)}
-            </span>
-            <span className="absolute left-4 top-3.5 inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.14em]">
-              <span className="h-1.5 w-1.5 rounded-full bg-live" />
-              EN VIVO
-            </span>
-          </div>
-        </section>
+        <LiveCard
+          channel={tuned}
+          settings={settings}
+          onExpand={onExpand}
+          onNext={onNext}
+          onPrev={onPrev}
+        />
       )}
 
-      <ChannelRail
+      <MediaRail
         title="Seguir viendo"
-        channels={recents}
-        favorites={favorites}
-        tunedId={tuned?.id ?? null}
-        onSelect={onTune}
+        items={recents.map((channel) => channelToCard(channel))}
+        onOpen={abrirCanal}
+        activeKey={tunedKey}
       />
-      <ChannelRail
+
+      <MediaRail
         title="Tus favoritos"
-        channels={favoriteChannels}
-        favorites={favorites}
-        tunedId={tuned?.id ?? null}
-        onSelect={onTune}
+        items={favoriteChannels.map((channel) => channelToCard(channel))}
+        onOpen={abrirCanal}
+        count={favoriteChannels.length > 0 ? `${favoriteChannels.length}` : undefined}
+        activeKey={tunedKey}
       />
-      {groups.map(({ category, items }) => (
-        <ChannelRail
+
+      {grupos.map(({ category, items }) => (
+        <MediaRail
           key={category}
           title={category}
-          channels={items.slice(0, 20)}
-          favorites={favorites}
-          tunedId={tuned?.id ?? null}
-          onSelect={onTune}
+          items={items.slice(0, MAX_POR_RIEL).map((channel) => channelToCard(channel))}
+          onOpen={abrirCanal}
+          count={`${items.length}`}
+          activeKey={tunedKey}
         />
       ))}
-    </>
+
+      {catalog.length > 0 && (
+        <>
+          <section className="section-heading library-heading">
+            <div className="library-title-block">
+              <p className="eyebrow">Además de la televisión en vivo</p>
+              <h2>Películas y series</h2>
+            </div>
+          </section>
+
+          {catalog.map((section) => (
+            <MediaRail
+              key={section.title}
+              title={section.title}
+              items={section.items.map(catalogToCard)}
+              onOpen={abrirFicha}
+              posterMode
+            />
+          ))}
+        </>
+      )}
+    </div>
   );
 }

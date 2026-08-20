@@ -1,4 +1,21 @@
+/* Orden de capas de la cascada. Se declara antes que nada porque el orden lo
+   fija la primera aparición de cada nombre, y hay que colar `arvio` entre las
+   capas de Tailwind en vez de detrás de todas ellas.
+
+   Esto no es cosmético. En CSS, cualquier regla SIN capa gana a cualquier
+   regla EN capa, pase lo que pase con la especificidad. Tailwind v4 emite sus
+   utilidades dentro de `@layer utilities`, así que importar el CSS de ARVIO
+   sin capa hacía que su `button { color: inherit }` —especificidad 0,0,1—
+   derrotase a `text-accent-on` en toda la aplicación: el botón "Ver ahora"
+   salía blanco sobre blanco. Metido en `arvio`, por debajo de `utilities`,
+   las utilidades vuelven a mandar y el diseño del shell sigue intacto. */
+@layer theme, base, arvio, components, utilities;
+
 @import "tailwindcss";
+
+/* Lenguaje visual del shell, derivado de ARVIO (Apache 2.0).
+   Ver NOTICE.md y LICENSES/ARVIO-Apache-2.0.txt. */
+@import "./arvio-shell.css" layer(arvio);
 
 /* ── CanalCasa: tokens de app nativa (Tailwind v4) ───────────────── */
 @theme {
@@ -15,35 +32,56 @@
   --radius-tile: 15px;
   --radius-card: 20px;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
   --ease-native: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-* { box-sizing: border-box; }
+/* Restablecimientos de elemento, en `base` y no sueltos.
+   Sin capa, `button { font: inherit }` ganaba a `.nav-item { font-size: … }`
+   del CSS de ARVIO —que vive en `arvio`— y todos los botones de la aplicación
+   se pintaban a 16px mientras los enlaces salían a 28px: la barra tenía
+   "Películas" al doble de tamaño que el resto. En `base` ceden ante los
+   componentes de ARVIO y siguen mandando sobre el HTML sin estilar. */
+@layer base {
+  * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-app);
+  }
+
+  body {
+    color: var(--color-accent);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  button { cursor: pointer; font: inherit; }
+  button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: #a1a1aa; }
+}
+
+/* La ventana scrollea, salvo durante la reproducción.
+   El shell de ARVIO cuenta con que la página entera scrollee: su barra es
+   `position: fixed` y reacciona a `window.scrollY`, y cada `.screen` crece
+   hasta donde haga falta. Antes aquí había `overflow: hidden` en `body` y el
+   scroll vivía dentro de cada vista; los dos modelos no conviven, así que
+   manda el suyo.
+   El reproductor es la excepción: si la página puede scrollear por debajo, el
+   vídeo se despega del borde superior al arrastrar en un teléfono. Mientras
+   dura, `dashboard.tsx` marca <html> y se vuelve a bloquear. */
+html[data-player="on"],
+html[data-player="on"] body {
   height: 100%;
-  background: var(--color-app);
-}
-
-body {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* App shell: nunca scroll de ventana. El scroll vive en los contenedores. */
   overflow: hidden;
-  overscroll-behavior: none;
 }
-
-button { cursor: pointer; font: inherit; }
-button:disabled { cursor: not-allowed; opacity: 0.45; }
-
-a { color: var(--color-accent); text-decoration: none; }
-a:hover { color: #a1a1aa; }
 
 /* ── Foco D-pad ──────────────────────────────────────────────────────
    Un único lenguaje de foco para toda la app. Usamos :focus-visible en
@@ -100,4 +138,827 @@ a:hover { color: #a1a1aa; }
 @media (prefers-reduced-motion: reduce) {
   *, [data-nav] { transition: none !important; animation: none !important; }
   * { scroll-behavior: auto !important; }
+}
+
+/* ── Ajustes propios sobre el shell de ARVIO ─────────────────────────
+   Van aquí y no en arvio-shell.css a propósito: ese archivo es una copia
+   fiel y debe poder re-sincronizarse contra el repo de origen sin resolver
+   conflictos. Lo que es de CanalCasa vive de este lado. */
+
+:root {
+  /* Altura de la barra superior fija, la misma que declara `.sidebar`.
+     Aquí como variable para que el contenido pueda apartarse de ella sin
+     repetir el clamp en cada vista. */
+  --topbar-h: clamp(76px, 8.6vh, 96px);
+}
+
+.top-clock {
+  font-size: clamp(13px, 0.95vw, 17px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ARVIO reparte 4 destinos en la barra; CanalCasa lleva 6. Cuando dejan de
+   caber con etiqueta se quedan solo los iconos, que es lo que ya hacía el
+   sidebar anterior por debajo de 1200px. El `title` sigue nombrándolos. */
+@media (max-width: 1400px) {
+  .sidebar nav .nav-item span { display: none; }
+  .sidebar nav .nav-item { padding: 0 clamp(11px, 0.9vw, 16px); }
+}
+
+/* El monograma de marca: ARVIO mete una imagen dentro de `.brand`, aquí es
+   un icono, así que necesita su propio tamaño. */
+.brand svg {
+  width: 54%;
+  height: 54%;
+  color: #fff;
+}
+
+/* El foco del mando manda sobre el realce propio de la barra: sin esto el
+   fondo de `.nav-item:hover` tapa el anillo y no se ve dónde está el foco. */
+[data-input="dpad"] .nav-item:focus,
+[data-input="dpad"] .settings-gear:focus,
+[data-input="dpad"] .mobile-nav-item:focus {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* ARVIO oculta `.profile-name-text` por debajo de 980px porque en el teléfono
+   la identidad la lleva su wordmark, un asset que aquí no existe y que además
+   es marca suya. Sin nombre, la cabecera del teléfono queda con un icono
+   anónimo, así que se recupera solo ahí; en la barra de escritorio estrecha se
+   mantiene oculto como en el original. */
+@media (max-width: 980px) {
+  .mobile-header .profile-name-text {
+    display: inline;
+    font-size: 15px;
+    max-width: 50vw;
+  }
+}
+
+/* Monograma de respaldo dentro de una tarjeta. ARVIO siempre tiene arte de
+   TMDB, así que su tarjeta solo prevé un icono genérico; las listas M3U rara
+   vez traen logo y dos letras identifican el canal mucho mejor que un icono
+   repetido cien veces. */
+.poster-mark {
+  font-size: clamp(30px, 3.2vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+/* La cabecera lleva antetítulo, que en ARVIO no existe porque su hero siempre
+   habla de una película; aquí distingue "Destacado" de "Continuar viendo". */
+.hero-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  font-size: clamp(11px, 0.8vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+/* La pantalla de Canales calcula su hueco superior contra la barra de ARVIO.
+   La nuestra mide `--topbar-h` y lleva la marca escrita a la izquierda, justo
+   encima del título de la pantalla, así que el original deja los dos textos
+   pegados. Se separa lo justo para que se lean como dos cosas distintas. */
+.livetv-shell {
+  padding-top: calc(var(--topbar-h) + 30px);
+}
+
+/* ── Piezas propias con el lenguaje del diseño ───────────────────────
+   Pantallas que ARVIO no tiene, o partes suyas que aquí cambian. Reutilizan
+   sus variables (--chip, --line, --soft) para que no canten al lado del resto. */
+
+/* Buscar: teclado a un lado, resultados al otro.
+   ARVIO no tiene teclado en pantalla porque da por hecho un teclado físico.
+   En un televisor hace falta, y ocupa más de 500px de alto: apilado sobre los
+   resultados los empuja fuera de la pantalla y se escribe a ciegas. En columna
+   se ve lo que se va encontrando mientras se teclea. */
+.buscar-cuerpo {
+  display: grid;
+  gap: clamp(20px, 2vw, 40px);
+  padding: 0 3.35vw;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .buscar-cuerpo {
+    grid-template-columns: minmax(0, clamp(380px, 30vw, 520px)) minmax(0, 1fr);
+  }
+}
+
+.buscar-resultados { min-width: 0; }
+
+/* Dentro de la columna el margen lateral ya lo pone `.buscar-cuerpo`. */
+.grid-results.is-embedded { padding-inline: 0; }
+
+.buscar-recuento {
+  margin: 0 0 14px;
+  font-size: clamp(12px, 0.9vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+/* Categorías: rejilla de fichas. */
+.categoria-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(170px, 15vw, 240px), 1fr));
+  gap: clamp(12px, 1vw, 18px);
+  padding: 0 3.35vw;
+}
+
+.categoria-ficha {
+  min-height: 104px;
+  padding: 20px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: var(--panel-radius, 20px);
+  background: var(--chip, rgba(255, 255, 255, 0.06));
+  color: inherit;
+  text-align: left;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.categoria-ficha:hover,
+.categoria-ficha:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.14));
+  transform: scale(1.02);
+}
+
+.categoria-ficha strong {
+  font-size: clamp(16px, 1.15vw, 21px);
+  font-weight: 650;
+}
+
+.categoria-ficha em {
+  font-style: normal;
+  font-size: clamp(12px, 0.85vw, 15px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+/* ── Objetivos táctiles ──────────────────────────────────────────────
+   44 píxeles es el mínimo que recomiendan tanto Apple como las pautas WCAG
+   para algo que se pulsa con el dedo. La auditoría encontró tres sitios por
+   debajo: las categorías de Canales (36px en teléfono), el interruptor de
+   Ajustes (34px) y las flechas de los carriles. En un mando da igual porque se
+   navega por foco, pero en un teléfono se falla el toque y parece que el botón
+   no funciona. */
+.livetv-cats button,
+.livetv-chipbtn,
+.livetv-row-star,
+.mobile-nav-item {
+  min-height: 44px;
+}
+
+.rail-arrow {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Con siete destinos en la barra del teléfono cada casilla se queda en unos
+   55px: cabe, pero la etiqueta necesita ayuda para no partirse. */
+.mobile-nav-item {
+  min-width: 0;
+  padding-inline: 2px;
+}
+
+.mobile-nav-item span {
+  font-size: 10px;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Carruseles: cómo se avanza en cada dispositivo ──────────────────
+   ARVIO oculta las flechas por debajo de 680px porque en una pantalla táctil
+   se montaban encima de las tarjetas. La decisión es buena pero se toma por
+   ancho, y el ancho no dice cómo se maneja el aparato: una ventana estrecha en
+   un ordenador, o un televisor LG con su mando-puntero, se quedaban sin
+   flechas y sin poder arrastrar. Aquí la condición pasa a ser el tipo de
+   entrada, que es lo que de verdad importa.
+
+   Los tres caminos quedan cubiertos: con mando se recorre moviendo el foco de
+   tarjeta en tarjeta y el carril sigue al foco; con ratón, las flechas; con el
+   dedo, el arrastre.
+
+   Ojo con la capa. La regla original es `display: none !important` dentro de
+   `arvio`, y con declaraciones `!important` el orden de las capas se
+   **invierte**: una `!important` sin capa pierde ante una `!important` con
+   capa, justo al revés que las reglas normales. Por eso esta anulación entra
+   en la misma capa y con más especificidad, en vez de ir suelta al final. */
+@layer arvio {
+  @media (max-width: 680px) and (hover: hover) and (pointer: fine) {
+    .rail-scroll-shell .rail-arrow {
+      display: grid !important;
+    }
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rail-strip {
+    scroll-snap-type: x proximity;
+  }
+
+  .rail-strip > .media-card {
+    scroll-snap-align: start;
+  }
+}
+
+/* El desplazamiento del carril tiene que ser suave cuando lo mueve el foco o
+   una flecha, pero instantáneo para quien pidió no ver animaciones. */
+@media (prefers-reduced-motion: reduce) {
+  .rail-strip {
+    scroll-behavior: auto;
+  }
+}
+
+/* ── El canal en directo dentro de Inicio ────────────────────────────
+   Ocupa el sitio que antes tenía la cabecera de películas. El orden dice cuál
+   es la prioridad de esta app: primero la señal en vivo, y las películas
+   después, como una sección más. */
+.live-card {
+  padding: 0 3.35vw;
+  margin-bottom: clamp(24px, 3vh, 40px);
+}
+
+.live-card-marco {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  /* Un reproductor incrustado, no una portada.
+     A pantalla completa de un televisor, 16:9 sobre todo el ancho da más de
+     1000px de alto y no cabe nada más: dejaría de ser "el canal dentro de
+     Inicio" para volver a ser lo que se quitó. Acotado por ancho y no por alto,
+     porque limitar el alto con `aspect-ratio` deja el marco más ancho que el
+     vídeo y aparecen bandas negras a los lados. */
+  max-width: min(100%, 116vh);
+  overflow: hidden;
+  border-radius: clamp(14px, 1.1vw, 22px);
+  background: #000;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.42));
+  cursor: pointer;
+}
+
+.live-card-marco.is-cargando {
+  background: linear-gradient(135deg, #16181f, #0a0b0f);
+}
+
+.live-card-marco video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* La franja superior no intercepta el doble clic: el gesto es sobre el vídeo. */
+.live-card-top {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1vw, 18px);
+  padding: clamp(12px, 1.4vw, 22px) clamp(14px, 1.6vw, 26px);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent);
+  pointer-events: none;
+}
+
+.live-card-vivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  font-size: clamp(10px, 0.72vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.live-card-vivo .live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-live, #ff453a);
+}
+
+.live-card-nombre {
+  min-width: 0;
+  font-size: clamp(15px, 1.35vw, 26px);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-card-meta {
+  flex-shrink: 0;
+  font-size: clamp(11px, 0.85vw, 15px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.live-card-aviso {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.72);
+  text-align: center;
+  padding: 20px;
+}
+
+.live-card-aviso button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.12));
+  color: inherit;
+  cursor: pointer;
+}
+
+.live-card-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.live-card-boton {
+  min-height: 48px;
+  padding: 0 clamp(14px, 1.1vw, 22px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.1));
+  color: inherit;
+  font-size: clamp(13px, 0.95vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.live-card-boton:hover,
+.live-card-boton:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.2));
+  transform: scale(1.03);
+}
+
+.live-card-boton.is-primary {
+  background: #fff;
+  color: #0a0a0a;
+  border-color: transparent;
+}
+
+/* En teléfono las etiquetas no caben junto a los tres iconos. */
+@media (max-width: 560px) {
+  .live-card-boton span {
+    display: none;
+  }
+
+  .live-card-boton {
+    min-width: 48px;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  .live-card-meta {
+    display: none;
+  }
+}
+
+/* ── La barra de controles del reproductor ───────────────────────────
+   Sustituye a los seis círculos de cristal idénticos que había antes.
+
+   Fondo sólido y no translúcido a propósito: el desenfoque se veía bien sobre
+   una escena oscura y desaparecía sobre una clara, así que la legibilidad
+   dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
+
+   Y jerarquía: el control primario es más grande y de color invertido, los
+   secundarios llevan su palabra, y los ocasionales quedan a la derecha en un
+   tamaño menor. Antes todo medía 58px y pausar pesaba lo mismo que "ver en
+   familia". */
+.player-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  /* Centrada. Con `space-between` los dos grupos se iban a los extremos, y al
+     envolverse en una pantalla estrecha quedaban pegados a la izquierda en dos
+     filas desalineadas: es lo que se veía al girar el teléfono. */
+  justify-content: center;
+  gap: clamp(8px, 0.8vw, 16px);
+  padding: clamp(10px, 1vw, 18px) clamp(12px, 1.2vw, 22px);
+  border-radius: clamp(14px, 1.1vw, 20px);
+  background: rgba(12, 13, 16, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-bar.is-fullscreen {
+  border-radius: clamp(16px, 1.3vw, 24px);
+  background: rgba(8, 9, 11, 0.94);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.player-bar-main,
+.player-bar-extras {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 0.6vw, 12px);
+  min-width: 0;
+}
+
+.player-btn {
+  min-height: 52px;
+  min-width: 52px;
+  padding: 0 clamp(10px, 0.9vw, 16px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+
+.player-btn svg {
+  width: clamp(19px, 1.3vw, 24px);
+  height: clamp(19px, 1.3vw, 24px);
+  flex-shrink: 0;
+}
+
+.player-btn:hover,
+.player-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: scale(1.04);
+}
+
+/* El primario: más alto, invertido y separado del resto. Es el único control
+   que alguien busca a ciegas. */
+.player-btn.is-primary {
+  min-height: 60px;
+  padding: 0 clamp(16px, 1.3vw, 26px);
+  margin-right: clamp(4px, 0.5vw, 10px);
+  background: #fff;
+  color: #0a0a0a;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.player-btn.is-primary:hover,
+.player-btn.is-primary:focus-visible {
+  background: #e6e6e6;
+}
+
+/* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
+.player-btn.is-extra {
+  padding: 0;
+  width: 52px;
+  justify-content: center;
+}
+
+.player-btn.is-extra span {
+  display: none;
+}
+
+.player-btn.is-extra.is-active {
+  color: var(--color-live, #ff453a);
+  border-color: rgba(255, 69, 58, 0.4);
+}
+
+/* Controles grandes: todo sube y aparecen todas las palabras. */
+.player-bar.is-big .player-btn {
+  min-height: 62px;
+  font-size: clamp(15px, 1.05vw, 19px);
+}
+
+.player-bar.is-big .player-btn.is-primary {
+  min-height: 70px;
+}
+
+.player-bar.is-big .player-btn svg {
+  width: clamp(22px, 1.5vw, 28px);
+  height: clamp(22px, 1.5vw, 28px);
+}
+
+.player-bar.is-big .player-btn.is-extra {
+  width: auto;
+  padding: 0 clamp(12px, 1vw, 18px);
+}
+
+.player-bar.is-big .player-btn.is-extra span {
+  display: inline;
+}
+
+/* En teléfono la barra se parte en dos filas antes que salirse de la pantalla,
+   y los secundarios pierden la palabra para que quepan los seis. */
+@media (max-width: 720px) {
+  .player-bar {
+    justify-content: center;
+  }
+
+  .player-btn:not(.is-primary) span {
+    display: none;
+  }
+
+  .player-btn:not(.is-primary) {
+    width: 52px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .player-bar.is-big .player-btn:not(.is-primary) {
+    width: 58px;
+  }
+}
+
+/* El botón de pantalla completa conserva su palabra aunque sea "extra": es el
+   único control que cambia el modo entero, y sin texto nadie que no reconozca
+   el icono sabe cómo volver. */
+.player-btn.is-extra.is-mode {
+  width: auto;
+  padding: 0 clamp(12px, 1vw, 18px);
+}
+
+.player-btn.is-extra.is-mode span {
+  display: inline;
+}
+
+@media (max-width: 720px) {
+  .player-btn.is-extra.is-mode {
+    width: auto;
+    padding: 0 14px;
+  }
+
+  .player-btn.is-extra.is-mode span {
+    display: inline;
+  }
+}
+
+/* ── Buscador del catálogo ───────────────────────────────────────────
+   Campo y botón son hermanos en una fila. Antes el botón iba en absolute
+   encima del campo y el campo le reservaba 7rem de padding: en un teléfono
+   quedaba sitio para cuatro letras antes de que el texto se metiera debajo del
+   botón, y en un televisor el campo se estiraba de lado a lado hasta dejar de
+   parecer un campo. */
+.catalogo-buscador {
+  display: flex;
+  gap: 10px;
+  width: min(720px, 100%);
+  margin: 0 auto clamp(18px, 2.4vh, 32px);
+}
+
+.catalogo-buscador-campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+}
+
+.catalogo-buscador-campo:focus-within {
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
+}
+
+.catalogo-buscador-campo svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.catalogo-buscador-campo input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: clamp(15px, 1.05vw, 18px);
+  outline: none;
+}
+
+.catalogo-buscador-campo input::placeholder {
+  color: var(--soft, rgba(255, 255, 255, 0.45));
+}
+
+/* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
+.catalogo-buscador-campo input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.catalogo-buscador-enviar {
+  flex-shrink: 0;
+  min-height: 54px;
+  padding: 0 clamp(18px, 1.6vw, 30px);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #0a0a0a;
+  font-size: clamp(14px, 1vw, 17px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.catalogo-buscador-enviar:hover,
+.catalogo-buscador-enviar:focus-visible {
+  background: #e6e6e6;
+  transform: scale(1.03);
+}
+
+/* ── Teléfono en horizontal ──────────────────────────────────────────
+   No es cuestión de ancho sino de **alto**: girado, un teléfono tiene unos
+   890px de ancho —así que las reglas de `max-width: 720px` no entran— pero
+   solo 430px de alto. Con los tamaños de escritorio, la barra de controles se
+   comía un tercio de la pantalla y se partía en dos filas.
+
+   La condición correcta es la altura, no la anchura. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .player-bar {
+    padding: 7px 10px;
+    gap: 6px;
+    border-radius: 14px;
+  }
+
+  .player-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .player-btn.is-primary {
+    min-height: 46px;
+    padding: 0 16px;
+  }
+
+  /* Solo conservan la palabra el primario y el de pantalla completa: uno es el
+     que se busca a ciegas, el otro el que cambia el modo entero. */
+  .player-btn:not(.is-primary):not(.is-mode) span {
+    display: none;
+  }
+
+  .player-btn:not(.is-primary):not(.is-mode) {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* La cabecera del reproductor también se aprieta: en horizontal el vídeo es
+     lo único que importa. */
+  .live-card-top {
+    padding: 8px 14px;
+  }
+
+  /* El hueco superior de `.screen` está pensado para una pantalla alta: en
+     horizontal se llevaba 120px de los 402 disponibles y empujaba la barra de
+     controles por debajo del pliegue, así que había que scrollear para pausar.
+     Aquí basta con dejar libre la barra fija. */
+  .screen {
+    padding-top: calc(var(--topbar-h) + 10px);
+    padding-bottom: 20px;
+  }
+
+  /* Y la tarjeta se acota por altura para que quepan vídeo y controles a la
+     vez. Más ancha se vería mejor el vídeo, pero los controles se irían fuera,
+     que es exactamente el problema que se está resolviendo. */
+  .live-card-marco {
+    max-width: min(100%, 104vh);
+  }
+
+  .live-card {
+    margin-bottom: 14px;
+  }
+}
+
+/* Aviso de fallo al transmitir, debajo de la tarjeta de Inicio. */
+.live-card-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 69, 58, 0.34);
+  border-radius: 14px;
+  background: rgba(255, 69, 58, 0.1);
+  font-size: clamp(13px, 0.95vw, 16px);
+}
+
+.live-card-error button {
+  margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* La ficha de un título: vídeo y botonera de servidores, centrados y acotados.
+   El contenedor de la página mide 1400px, y a esa anchura el vídeo se comía
+   la pantalla de un televisor mientras los botones de servidor quedaban
+   colgando en la esquina izquierda, muy lejos de la imagen a la que se
+   refieren. */
+.ficha-reproductor {
+  width: min(100%, 116vh);
+  margin-inline: auto;
+}
+
+/* `.screen` es una rejilla de una columna, y sin acotarla esa columna se
+   ensancha hasta el contenido más ancho que haya dentro. En Películas la
+   rejilla de pósters medía más que la ventana y arrastraba con ella al
+   buscador: en un teléfono de 390px el campo salía de 626px, fuera de la
+   pantalla, y dejaba de estar centrado.
+
+   `minmax(0, 1fr)` es la forma de decir "esta columna vale lo que el
+   contenedor, no lo que pida el contenido". Los carriles no se ven afectados:
+   ya scrollean por dentro. */
+.screen {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ── Filtros del catálogo ────────────────────────────────────────────
+   Los chips eran morados: lo único morado de toda la aplicación, herencia del
+   diseño anterior de esta sección. Cambiar de Canales a Películas se notaba
+   como saltar a otro producto.
+
+   Y las dos filas se salían por la derecha. Los géneros de TMDB son veinte y
+   pico; en cualquier pantalla sobran, así que la fila scrollea en horizontal
+   en vez de recortarse. */
+.catalogo-filtros {
+  display: flex;
+  gap: 8px;
+  padding: 2px 3.35vw 10px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+}
+
+.catalogo-filtros::-webkit-scrollbar {
+  display: none;
+}
+
+.catalogo-chip {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 clamp(13px, 1vw, 20px);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.07));
+  color: var(--muted, rgba(255, 255, 255, 0.7));
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.catalogo-chip:hover,
+.catalogo-chip:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
+  color: #fff;
+  transform: scale(1.03);
+}
+
+.catalogo-chip.is-active {
+  background: #fff;
+  border-color: transparent;
+  color: #0a0a0a;
+}
+
+/* En teléfono el hueco superior de `.screen` está calculado para la barra fija
+   de escritorio, que mide el doble que la cabecera del móvil: sobraban unos
+   70px de negro antes del primer contenido. La cabecera del teléfono mide 56px
+   y `.app-shell` ya la descuenta, así que aquí basta un respiro. */
+@media (max-width: 680px) {
+  .screen {
+    padding-top: clamp(14px, 2vh, 24px);
+  }
 }

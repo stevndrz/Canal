@@ -1,60 +1,63 @@
 "use client";
 
-import { useRef } from "react";
-import { PosterCard } from "./poster-card";
-import { useGridNavigation } from "@/hooks/use-grid-navigation";
-import type { ResolvedCatalogItem } from "@/lib/catalog/types";
+import { useRouter } from "next/navigation";
+import type { ResolvedCatalogItem, CatalogSection } from "@/lib/catalog/types";
+import { catalogToCard, type CardItem } from "@/lib/media-item";
+import { MediaCard } from "@/components/media/media-card";
+import { MediaRail } from "@/components/media/media-rail";
 
-export interface CatalogSection {
-  title: string;
-  items: ResolvedCatalogItem[];
+/**
+ * El catálogo, con las mismas piezas que Inicio.
+ *
+ * Antes tenía su propia rejilla de pósters de ancho fijo (132px en teléfono,
+ * 180px arriba). En un televisor de 1920 eso dejaba dos carátulas diminutas
+ * arriba a la izquierda y el resto de la pantalla en negro, mientras Inicio —a
+ * cuatro pulsaciones de distancia— pintaba las suyas del tamaño correcto.
+ *
+ * Reutilizar `MediaRail` y `MediaCard` no es solo coherencia visual: trae
+ * gratis lo que ya estaba resuelto ahí —tamaños fluidos, flechas de carril,
+ * navegación con mando, arrastre con anclaje en táctil y el recorte de pintado
+ * de los carriles lejanos— en lugar de volver a resolverlo aquí peor.
+ */
+function abrir(router: ReturnType<typeof useRouter>, card: CardItem) {
+  const [mediaType, ...resto] = card.key.split("-");
+  router.push(`/peliculas/${mediaType}/${resto.join("-")}`);
 }
 
 /**
- * Filas horizontales de pósters, al estilo de las plataformas de streaming.
+ * Resultados de búsqueda o de un filtro.
  *
- * Todas las filas comparten **un solo contenedor de navegación** a propósito:
- * así las flechas izquierda/derecha recorren la fila actual y arriba/abajo
- * saltan a la fila vecina. Si cada fila gestionara sus propias teclas, con el
- * control remoto se quedaría uno atrapado en la primera.
- */
-/**
- * Rejilla de resultados de búsqueda.
- *
- * A diferencia de las filas, aquí las tarjetas envuelven en varias líneas: una
- * búsqueda devuelve una lista sin orden temático, y obligar a recorrerla en
- * horizontal con el control remoto sería peor. Comparte el mismo contenedor de
- * navegación, así que las cuatro flechas funcionan igual.
+ * Aquí sí es una rejilla que envuelve, no un carril: una búsqueda devuelve una
+ * lista sin orden temático, y obligar a recorrerla en horizontal con un mando
+ * sería peor que dejarla fluir en varias líneas.
  */
 export function CatalogGrid({ items }: { items: ResolvedCatalogItem[] }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  useGridNavigation(containerRef, "[data-poster-card]");
-
+  const router = useRouter();
   return (
-    <div ref={containerRef} className="flex flex-wrap gap-3 sm:gap-4">
-      {items.map((item) => (
-        <PosterCard key={`${item.mediaType}-${item.id}`} item={item} />
-      ))}
+    <div className="grid-results">
+      {items.map((item) => {
+        const card = catalogToCard(item);
+        return (
+          <MediaCard key={card.key} item={card} onOpen={(c) => abrir(router, c)} posterMode />
+        );
+      })}
     </div>
   );
 }
 
 export function CatalogRows({ sections }: { sections: CatalogSection[] }) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  useGridNavigation(containerRef, "[data-poster-card]");
-
+  const router = useRouter();
   return (
-    <div ref={containerRef}>
+    <>
       {sections.map((section) => (
-        <section key={section.title} className="mb-8">
-          <h2 className="mb-3 text-lg font-bold tracking-tight text-white sm:text-xl">{section.title}</h2>
-          <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-none sm:gap-4">
-            {section.items.map((item) => (
-              <PosterCard key={`${item.mediaType}-${item.id}`} item={item} />
-            ))}
-          </div>
-        </section>
+        <MediaRail
+          key={section.title}
+          title={section.title}
+          items={section.items.map(catalogToCard)}
+          onOpen={(c) => abrir(router, c)}
+          posterMode
+        />
       ))}
-    </div>
+    </>
   );
 }

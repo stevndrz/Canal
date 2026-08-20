@@ -28,12 +28,16 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-[76px] items-center gap-5 border-b border-white/[0.06] px-5 py-4.5 last:border-b-0">
+    /* En teléfono la fila se apila. En una sola línea, la etiqueta, la pista y
+       el control no caben en 390px: el control quedaba aplastado contra el
+       borde y la pista se cortaba a media palabra. La pista además deja de
+       truncarse al apilarse, porque ahí sí hay sitio para leerla entera. */
+    <div className="flex min-h-[76px] flex-col items-start gap-3 border-b border-white/[0.06] px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4.5">
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium">{label}</p>
-        <p className="mt-1 truncate text-[13px] text-zinc-500">{hint}</p>
+        <p className="mt-1 text-[13px] text-zinc-500 sm:truncate">{hint}</p>
       </div>
-      {children}
+      <div className="flex w-full shrink-0 justify-start sm:w-auto sm:justify-end">{children}</div>
     </div>
   );
 }
@@ -55,7 +59,7 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`relative h-[34px] w-[58px] shrink-0 rounded-full border border-white/12 ${
+      className={`relative h-11 w-[58px] shrink-0 rounded-full border border-white/12 ${
         checked ? "bg-accent" : "bg-white/[0.08]"
       }`}
     >
@@ -146,6 +150,17 @@ export function AjustesView({
                 }
               />
             </Row>
+            <Row
+              label="Controles grandes"
+              hint="Botones más altos y con todas las palabras a la vista"
+            >
+              <Toggle
+                checked={settings.bigControls}
+                label="Controles grandes"
+                onChange={() => onChange({ bigControls: !settings.bigControls })}
+              />
+            </Row>
+
             <Row label="Arrancar con sonido" hint="Si el navegador lo bloquea, pide un OK">
               <Toggle
                 checked={settings.startUnmuted}

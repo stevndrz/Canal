@@ -1,16 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
+import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
-import { CATEGORY_ORDER, filterChannels, withChannelNumbers } from "@/lib/channels";
+import { CATEGORY_ORDER, canalDeArranque, filterChannels, withChannelNumbers } from "@/lib/channels";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
-import { AppBottomNav, AppSidebar } from "@/components/app-nav";
+import { TopNav } from "@/components/shell/top-nav";
 import { HomeView } from "@/components/views/home-view";
-import { CanalesView } from "@/components/views/canales-view";
+import { LiveTvView } from "@/components/livetv/live-tv-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
 import { BuscarView } from "@/components/views/buscar-view";
 import { CategoriasView } from "@/components/views/categorias-view";
@@ -43,19 +44,33 @@ const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
  * - El mando se maneja en un solo sitio: useSpatialNav para mover el foco,
  *   este componente para Atrás y los dígitos de canal directo.
  */
-export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
+export function Dashboard({
+  initialChannels,
+  catalog,
+}: {
+  initialChannels: Channel[];
+  catalog: CatalogSection[];
+}) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   const channels = useMemo(() => withChannelNumbers(initialChannels), [initialChannels]);
 
-  // Arranca directo en el reproductor, con el canal más importante ya
-  // sintonizado (channels[0], tras la clasificación y el orden por
-  // importancia de m3u.ts): es lo que se pidió — el vídeo como protagonista
-  // al abrir, y navegar entre pestañas después para ir viendo cada canal.
-  const [view, setView] = useState<ViewId>("player");
+  // Arranca en Inicio, no en pantalla completa.
+  //
+  // El vídeo sigue siendo lo primero que se ve, pero dentro de la página: la
+  // tarjeta en directo de Inicio ya trae señal al entrar. La pantalla completa
+  // pasa a ser una decisión —doble clic, Enter o el botón— en vez de la puerta
+  // de entrada, que no dejaba ver el resto de la aplicación sin salir antes.
+  // `?vista=` deja que una ruta de fuera del shell —`/peliculas`— pida una
+  // sección concreta al volver. Sin esto, su barra solo sabía volver a Inicio.
+  const vistaPedida = searchParams.get("vista") as ViewId | null;
+  const [view, setView] = useState<ViewId>(
+    vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
+  );
   const [lastView, setLastView] = useState<ViewId>("home");
-  const [tunedId, setTunedId] = useState<number | null>(channels[0]?.id ?? null);
+  const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   const [category, setCategory] = useState("Todas");
   const [search, setSearch] = useState("");
   const [settings, setSettings] = useState<PlaybackSettings>(DEFAULT_PLAYBACK);
@@ -109,19 +124,55 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     if (next !== "player") setLastView(next);
   }, []);
 
-  /** Sintonizar = pantalla completa. Es lo que se espera desde el sofá. */
-  const tune = useCallback(
+  /**
+   * Cambiar de canal sin salir de donde estás.
+   *
+   * Es lo que hacen los rieles de Inicio: ya se está viendo la tele en la
+   * tarjeta de arriba, así que elegir otro canal cambia lo que suena ahí. Saltar
+   * a pantalla completa por tocar una tarjeta sería quitarle a la persona la
+   * pantalla que estaba mirando.
+   */
+  const select = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
       recents.push(channel.id);
-      setView("player");
     },
     [recents],
   );
 
+  /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */
+  const tune = useCallback(
+    (channel: Channel) => {
+      select(channel);
+      setView("player");
+    },
+    [select],
+  );
+
+  /** Zapear dentro de lo que se está mirando, en un sentido u otro. */
+  const zap = useCallback(
+    (delta: number) => {
+      if (!tunedId) return;
+      const lista = visible.length > 0 ? visible : channels;
+      const actual = lista.findIndex((channel) => channel.id === tunedId);
+      const destino = lista[(actual + delta + lista.length) % lista.length];
+      if (destino) select(destino);
+    },
+    [tunedId, visible, channels, select],
+  );
+
   const handleBack = useCallback(() => {
-    if (view === "player") navigate(lastView);
-    else if (view !== "home") navigate("home");
+    if (view === "player") {
+      // Igual que el botón "Volver a la guía": si se pidió pantalla completa
+      // real hay que cerrarla antes, o el navegador se queda en fullscreen
+      // mostrando la navegación por debajo.
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      navigate(lastView === "player" ? "canales" : lastView);
+    } else if (view !== "home") {
+      navigate("home");
+    }
   }, [view, lastView, navigate]);
 
   /** 0-9 del mando: salta a la centena de esa categoría (101, 201, …). */
@@ -133,12 +184,33 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     [channels, tune],
   );
 
-  useSpatialNav({
+  // El shell scrollea la ventana, pero el reproductor a pantalla completa no
+  // puede: si la página scrollea por debajo, el vídeo se despega del borde
+  // superior al arrastrar. La marca en <html> es lo que globals.css consulta
+  // para volver a bloquear el scroll mientras dura la reproducción.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (view === "player") root.setAttribute("data-player", "on");
+    else root.removeAttribute("data-player");
+    return () => root.removeAttribute("data-player");
+  }, [view]);
+
+  const { focusFirst } = useSpatialNav({
     rootRef: shellRef,
     onBack: handleBack,
     onDigit: handleDigit,
     enabled: view !== "player",
   });
+
+  // Al cambiar de pantalla hay que dejar el foco en algún sitio. Un mando de
+  // televisor no tiene Tab: sin nada enfocado, las flechas no tienen desde
+  // dónde partir y parece que el mando no responde. Se espera un fotograma a
+  // que la vista nueva esté montada.
+  useEffect(() => {
+    if (view === "player") return undefined;
+    const id = window.setTimeout(focusFirst, 60);
+    return () => window.clearTimeout(id);
+  }, [view, focusFirst]);
 
   const pickCategory = useCallback(
     (next: string) => {
@@ -176,80 +248,76 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     );
   }
 
-  /** Vistas con scroll simple comparten el mismo contenedor con padding de TV. */
-  const scrollShell = "scroll-thin tv-safe flex-1 overflow-y-auto pt-7 pb-28 md:pb-7 xl:pt-10";
+  /* Contenedor de las vistas que todavía no están portadas al diseño.
+     `.screen` pone el hueco superior que deja libre la barra fija; `tv-safe`,
+     el margen lateral de televisor. Inicio no lo usa porque ya es un `.screen`
+     por sí mismo. */
+  const pantalla = "screen tv-safe";
 
   return (
-    <div ref={shellRef} className="relative flex h-dvh overflow-hidden bg-app text-accent">
-      <AppSidebar
-        view={view}
-        onNavigate={navigate}
-        channelCount={channels.length}
-        categoryCount={categories.length - 1}
-        clock={clock}
-      />
+    <div ref={shellRef} className="app-shell">
+      {/* La barra desaparece durante la reproducción. Es `position: fixed` con
+          z-index 60 y el reproductor va en z-50, así que sin esto flotaría
+          por encima del vídeo. ARVIO hace lo mismo con su `activeStream`. */}
+      {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
 
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="content">
         {view === "home" && (
-          <div className={scrollShell}>
-            <HomeView
-              channels={channels}
-              tuned={tuned}
-              favorites={favorites.ids}
-              recents={recentChannels}
-              onTune={tune}
-              onToggleFavorite={favorites.toggle}
-            />
-          </div>
+          <HomeView
+            channels={channels}
+            tuned={tuned}
+            favorites={favorites.ids}
+            recents={recentChannels}
+            catalog={catalog}
+            settings={settings}
+            onSelect={select}
+            onExpand={tune}
+            onNext={() => zap(1)}
+            onPrev={() => zap(-1)}
+            onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
+          />
         )}
 
         {view === "canales" && (
-          <div className="tv-safe flex min-h-0 flex-1 flex-col pt-7 pb-28 md:pb-7 xl:pt-10">
-            <CanalesView
-              channels={visible}
-              tuned={tuned}
-              favorites={favorites.ids}
-              categories={categories}
-              category={category}
-              search={search}
-              onCategoryChange={setCategory}
-              onTune={tune}
-              onToggleFavorite={favorites.toggle}
-              onOpenSearch={() => navigate("buscar")}
-            />
-          </div>
+          <LiveTvView
+            channels={channels}
+            visible={visible}
+            tuned={tuned}
+            favorites={favorites.ids}
+            categories={categories}
+            category={category}
+            search={search}
+            onCategoryChange={setCategory}
+            onSearchChange={setSearch}
+            onTune={tune}
+            onToggleFavorite={favorites.toggle}
+          />
         )}
 
         {view === "favoritos" && (
-          <div className={scrollShell}>
-            <FavoritosView
+          <FavoritosView
               channels={channels}
               favorites={favorites.ids}
               tunedId={tuned?.id ?? null}
               onTune={tune}
             />
-          </div>
         )}
 
         {view === "buscar" && (
-          <div className="tv-safe flex min-h-0 flex-1 flex-col pt-7 pb-28 md:pb-7 xl:pt-10">
-            <BuscarView
+          <BuscarView
               results={search ? visible : channels.slice(0, 24)}
               search={search}
               onSearchChange={setSearch}
               onTune={tune}
             />
-          </div>
         )}
 
         {view === "categorias" && (
-          <div className={scrollShell}>
-            <CategoriasView channels={channels} onPick={pickCategory} />
-          </div>
+          <CategoriasView channels={channels} onPick={pickCategory} />
         )}
 
         {view === "ajustes" && (
-          <div className={scrollShell}>
+          <div className={pantalla}>
             <AjustesView
               settings={settings}
               onChange={patchSettings}
@@ -262,8 +330,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
           </div>
         )}
 
-        <AppBottomNav view={view} onNavigate={navigate} />
-      </main>
+      </section>
 
       {view === "player" && tuned && (
         <FullscreenPlayer
@@ -276,8 +343,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
             setTunedId(next.id);
             recents.push(next.id);
           }}
-          onToggleFavorite={favorites.toggle}
-          onExit={() => navigate(lastView === "player" ? "canales" : lastView)}
+          onExit={() => navigate(lastView === "player" ? "home" : lastView)}
         />
       )}
     </div>

@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Cast, List, Maximize, Minimize, Pause, Play, Star, Users, Volume2, VolumeX } from "lucide-react";
+import { Cast } from "lucide-react";
+import {
+  ICONO_CAST,
+  ICONO_FAMILIA,
+  ICONO_GUIA,
+  PlayerControls,
+} from "@/components/player/player-controls";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -20,12 +26,16 @@ interface FullscreenPlayerProps {
   favorites: Set<number>;
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
-  onToggleFavorite: (id: number) => void;
   onExit: () => void;
   clock: string;
 }
 
-const CONTROLS_TIMEOUT = 4000;
+/* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
+   iconos en decidir cuál pulsar es más largo que el de quien ya los reconoce, y
+   que la barra se vaya mientras dudas es justo lo que la hace sentir hostil.
+   Solo aplica en pantalla completa: el reproductor de Inicio lleva sus
+   controles debajo del vídeo, donde no tapan nada, y no los oculta nunca. */
+const CONTROLS_TIMEOUT = 5000;
 const GUIDE_TIMEOUT = 5000;
 
 export function FullscreenPlayer({
@@ -34,7 +44,6 @@ export function FullscreenPlayer({
   favorites,
   settings,
   onTune,
-  onToggleFavorite,
   onExit,
   clock,
 }: FullscreenPlayerProps) {
@@ -88,7 +97,6 @@ export function FullscreenPlayer({
     needsUserGesture: false,
   });
 
-  const isFavorite = favorites.has(channel.id);
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -176,8 +184,6 @@ export function FullscreenPlayer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [zap, showGuide, openGuide, wake]);
 
-  const controlClass =
-    "grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl border border-white/12 bg-white/12 text-accent backdrop-blur-md";
 
   return (
     <div
@@ -216,128 +222,70 @@ export function FullscreenPlayer({
 
       {/* Controles */}
       <div
-        className={`tv-safe absolute inset-x-0 bottom-0 z-30 flex items-center justify-between gap-6 bg-gradient-to-t from-black/85 to-transparent py-7 transition-opacity duration-300 ${
+        /* `justify-center`: la barra va centrada. Con `justify-between` se
+           quedaba pegada a la izquierda y las ayudas de teclado a la derecha,
+           que en un teléfono girado se veía descolocado. Las ayudas pasan a
+           estar posicionadas y no compiten por el espacio. */
+        className={`tv-safe absolute inset-x-0 bottom-0 z-30 flex items-center justify-center gap-6 bg-gradient-to-t from-black/85 to-transparent py-7 transition-opacity duration-300 ${
           showControls ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="scroll-none flex min-w-0 items-center gap-2.5 overflow-x-auto">
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={state.isPlaying ? "Pausar" : "Reproducir"}
-            onClick={() => {
-              playerRef.current?.togglePlay();
-              wake();
-            }}
-            className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl bg-accent text-accent-on"
-          >
-            {state.isPlaying ? (
-              <Pause aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            ) : (
-              <Play aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={state.isMuted ? "Activar sonido" : "Silenciar"}
-            aria-pressed={state.isMuted}
-            onClick={() => {
-              playerRef.current?.toggleMute();
-              wake();
-            }}
-            className={controlClass}
-          >
-            {state.isMuted ? (
-              <VolumeX aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            ) : (
-              <Volume2 aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
-            aria-pressed={isFavorite}
-            onClick={() => {
-              onToggleFavorite(channel.id);
-              wake();
-            }}
-            className={controlClass}
-          >
-            <Star
-              aria-hidden="true"
-              strokeWidth={1.5}
-              className={`h-5 w-5 ${isFavorite ? "fill-accent" : ""}`}
-            />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Guía de canales"
-            aria-expanded={showGuide}
-            onClick={() => (showGuide ? setShowGuide(false) : openGuide())}
-            className={controlClass}
-          >
-            <List aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Ver en familia"
-            aria-expanded={showParty}
-            onClick={() => setShowParty((value) => !value)}
-            className={controlClass}
-          >
-            <Users aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          {canCast && (
-            <button
-              type="button"
-              data-nav="button"
-              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
-              aria-pressed={isCasting}
-              onClick={isCasting ? stopCasting : startCasting}
-              className={`${controlClass} ${isCasting ? "text-live" : ""}`}
-            >
-              <Cast aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-            </button>
-          )}
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-            aria-pressed={isFullscreen}
-            onClick={toggleFullscreen}
-            className={controlClass}
-          >
-            <Maximize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Volver a la guía"
-            onClick={() => {
-              // Si se había pedido pantalla completa real, se cierra antes de
-              // volver: si no, el navegador se queda "atascado" en modo
-              // fullscreen mostrando la vista de navegación por debajo.
+        <PlayerControls
+          variant="fullscreen"
+          isPlaying={state.isPlaying}
+          isMuted={state.isMuted}
+          big={settings.bigControls}
+          onTogglePlay={() => {
+            playerRef.current?.togglePlay();
+            wake();
+          }}
+          onToggleMute={() => {
+            playerRef.current?.toggleMute();
+            wake();
+          }}
+          onPrev={() => zap(-1)}
+          onNext={() => zap(1)}
+          fullscreen={{
+            active: true,
+            onToggle: () => {
+              // Deshace el estado entero: la pantalla completa del navegador,
+              // si se concedió, y la vista inmersiva. Salir a medias dejaba al
+              // navegador en fullscreen enseñando la navegación por debajo.
               if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
               onExit();
-            }}
-            className={controlClass}
-          >
-            <Minimize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-        </div>
+            },
+          }}
+          extras={[
+            {
+              id: "guia",
+              label: "Guía",
+              icon: ICONO_GUIA,
+              expanded: showGuide,
+              onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
+            },
+            {
+              id: "familia",
+              label: "Ver en familia",
+              icon: ICONO_FAMILIA,
+              expanded: showParty,
+              onClick: () => setShowParty((value) => !value),
+            },
+            ...(canCast
+              ? [
+                  {
+                    id: "cast",
+                    label: isCasting ? "Dejar de transmitir" : "Transmitir a la TV",
+                    icon: ICONO_CAST,
+                    active: isCasting,
+                    pressed: isCasting,
+                    onClick: isCasting ? stopCasting : startCasting,
+                  },
+                ]
+              : []),
+          ]}
+        />
 
-        <div className="hidden items-center gap-5 text-[13px] text-zinc-100/50 lg:flex">
+        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-zinc-100/50 xl:flex">
           <span>↑↓ cambiar canal</span>
           <span>OK guía</span>
           <span>Atrás salir</span>
