@@ -27,7 +27,7 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 
 | Archivo en CanalCasa | Origen en ARVIO | Modificaciones |
 |----------------------|-----------------|----------------|
-| _(pendiente)_ | | |
+| `src/app/arvio-shell.css` | `web/app/globals.css` | Renombrado; cabecera de atribución añadida. Sin cambios en las reglas. |
 
 Cada archivo derivado lleva además una cabecera con su ruta de origen y una
 nota de modificación, de modo que la procedencia sea evidente al abrirlo sin

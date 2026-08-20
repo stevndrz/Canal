@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Lenguaje visual del shell, derivado de ARVIO (Apache 2.0). Va aquí arriba a
+   propósito: lo que CanalCasa declara debajo debe poder ganarle, no al revés.
+   Ver NOTICE.md y LICENSES/ARVIO-Apache-2.0.txt. */
+@import "./arvio-shell.css";
+
 /* ── CanalCasa: tokens de app nativa (Tailwind v4) ───────────────── */
 @theme {
   --color-app: #09090b;
@@ -15,8 +20,8 @@
   --radius-tile: 15px;
   --radius-card: 20px;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
-    ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
+    system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
   --ease-native: cubic-bezier(0.22, 0.61, 0.36, 1);
 }

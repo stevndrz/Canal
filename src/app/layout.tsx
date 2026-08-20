@@ -1,5 +1,24 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+/**
+ * Inter es la tipografía del lenguaje visual que adoptamos de ARVIO.
+ *
+ * Detalle heredado: su CSS la declara en `font-family` pero nunca la carga
+ * —no hay `@font-face` ni enlace a Google Fonts en todo el archivo—, así que
+ * en su web solo se ve en equipos que ya la tengan instalada. Aquí se carga de
+ * verdad y se autoaloja, que además evita la petición a un tercero.
+ *
+ * Se expone como variable CSS en vez de como clase para que `--font-sans`
+ * pueda encadenarla con los respaldos del sistema: si la fuente tarda o falla,
+ * el texto sigue leyéndose con la del dispositivo.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "CanalCasa",
@@ -18,7 +37,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" data-input="pointer">
+    <html lang="es" data-input="pointer" className={inter.variable}>
       <body>{children}</body>
     </html>
   );

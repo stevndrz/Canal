@@ -74,12 +74,19 @@ Coste: mínimo. **Hacer esto primero, antes que cualquier código**, para que el
 - MOD `src/app/layout.tsx` — cargar Inter
 
 **Tareas:**
-- [ ] Copiar el CSS con cabecera de atribución
-- [ ] Cargar Inter con `next/font/google`. *ARVIO declara `font-family: Inter` pero nunca la carga* (verificado: cero `@import`, `@font-face` o `fonts.googleapis` en su CSS), así que en su web cae al font del sistema. Cargarla de verdad es una mejora gratuita sobre el original.
-- [ ] Resolver el conflicto de scroll (abajo)
-- [ ] Verificar que la app arranca sin cambios visuales todavía: el CSS entra pero ningún componente usa aún sus clases
+- [x] Copiar el CSS con cabecera de atribución
+- [x] Cargar Inter con `next/font/google`. *ARVIO declara `font-family: Inter` pero nunca la carga* (verificado: cero `@import`, `@font-face` o `fonts.googleapis` en su CSS), así que en su web cae al font del sistema. Cargarla de verdad es una mejora gratuita sobre el original.
+- [~] Resolver el conflicto de scroll — **movido a la Fase 2** (ver nota abajo)
+- [x] Verificar que la app arranca sin cambios visuales todavía: el CSS entra pero ningún componente usa aún sus clases
 
-**Conflicto de scroll — el punto delicado de toda la fase.**
+**Conflicto de scroll — el punto delicado, y por qué se hace en la Fase 2.**
+
+> Corrección de secuencia hecha durante la ejecución. Cambiar el modelo de
+> scroll ahora rompería la interfaz *actual* antes de que exista la nueva:
+> `html, body { height: 100% }` es lo que hace que los `h-full` de las vistas
+> de hoy resuelvan, y al quitar `overflow: hidden` sin el shell de ARVIO
+> montado aparecen dos barras de scroll (la de la ventana y la del contenedor
+> interno). El cambio va junto al shell que lo necesita, no antes.
 
 Tu `globals.css:38` pone `body { overflow: hidden }` porque el shell nunca scrollea la ventana; el scroll vive en cada contenedor. ARVIO hace lo contrario: la ventana scrollea, `.sidebar` es `position: fixed`, y `TopNav` escucha `window.scrollY > 24` para condensarse. Los dos modelos no conviven.
 
@@ -112,7 +119,8 @@ ARVIO renderiza tres barras del mismo array y las conmuta por CSS: `.sidebar` (e
 - [ ] Alimentarlo con `NAV_ITEMS` de `app-nav.tsx` — **conservar los 7 destinos actuales**, incluido el `kind: "link"` de `/peliculas`, que ARVIO no tiene. El comentario en `app-nav.tsx:12-19` explica por qué Películas es ruta propia y no una `view`: esa decisión se mantiene.
 - [ ] Sustituir el avatar de perfil (ARVIO tiene perfiles, tú no) por el reloj que ya calcula `dashboard.tsx:70-78`, y la marca por el monograma de `src/lib/logos.ts`
 - [ ] Añadir `data-nav="button"` a cada botón para que `use-spatial-nav.ts` lo siga viendo
-- [ ] Cablear `data-player` en `<html>` desde `dashboard.tsx`
+- [ ] **Cambiar el modelo de scroll** (venía de la Fase 1): quitar `overflow: hidden` de `body` en `globals.css`, pasar `html, body` de `height: 100%` a `min-height: 100%`, y añadir `html[data-player="on"] body { overflow: hidden }`. Se hace en el mismo commit que monta el shell nuevo, nunca antes
+- [ ] Cablear `data-player` en `<html>` desde `dashboard.tsx` según `view === "player"`
 
 **No portar:** `lib/tvNav.ts` y `lib/gamepadNav.ts` de ARVIO. Tu `src/hooks/use-spatial-nav.ts` (195 líneas) ya cubre navegación D-pad y `useRemoteInput`, y está integrado con `[data-input="dpad"]` en tu CSS. Duplicarlo daría dos motores de foco peleándose.
 
