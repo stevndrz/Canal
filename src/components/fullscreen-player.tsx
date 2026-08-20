@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Cast, List, Maximize, Minimize, Pause, Play, Star, Users, Volume2, VolumeX } from "lucide-react";
+import { Cast, List, Minimize, Pause, Play, SkipForward, Users, Volume2, VolumeX } from "lucide-react";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -20,7 +20,6 @@ interface FullscreenPlayerProps {
   favorites: Set<number>;
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
-  onToggleFavorite: (id: number) => void;
   onExit: () => void;
   clock: string;
 }
@@ -34,7 +33,6 @@ export function FullscreenPlayer({
   favorites,
   settings,
   onTune,
-  onToggleFavorite,
   onExit,
   clock,
 }: FullscreenPlayerProps) {
@@ -88,7 +86,6 @@ export function FullscreenPlayer({
     needsUserGesture: false,
   });
 
-  const isFavorite = favorites.has(channel.id);
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -256,22 +253,17 @@ export function FullscreenPlayer({
             )}
           </button>
 
+          {/* Cambiar de canal es lo que más se hace viendo la tele, así que
+              tiene botón propio. Marcar un favorito no: eso se hace desde la
+              lista, con la parrilla delante y sin tapar el vídeo. */}
           <button
             type="button"
             data-nav="button"
-            aria-label={isFavorite ? "Quitar de favoritos" : "Agregar a favoritos"}
-            aria-pressed={isFavorite}
-            onClick={() => {
-              onToggleFavorite(channel.id);
-              wake();
-            }}
+            aria-label="Canal siguiente"
+            onClick={() => zap(1)}
             className={controlClass}
           >
-            <Star
-              aria-hidden="true"
-              strokeWidth={1.5}
-              className={`h-5 w-5 ${isFavorite ? "fill-accent" : ""}`}
-            />
+            <SkipForward aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
           </button>
 
           <button
@@ -312,22 +304,16 @@ export function FullscreenPlayer({
           <button
             type="button"
             data-nav="button"
-            aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-            aria-pressed={isFullscreen}
-            onClick={toggleFullscreen}
-            className={controlClass}
-          >
-            <Maximize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Volver a la guía"
+            /* Un único botón para salir.
+               Antes había dos y se confundían: uno pedía pantalla completa real
+               al navegador y el otro devolvía a la navegación. Como ahora se
+               entra aquí desde el reproductor pequeño de Inicio, "pantalla
+               completa" es un solo estado y este botón lo deshace entero: cierra
+               la pantalla completa del navegador si estaba activa y vuelve. El
+               doble clic sigue alternando la del navegador, como en cualquier
+               reproductor de escritorio. */
+            aria-label="Salir de pantalla completa"
             onClick={() => {
-              // Si se había pedido pantalla completa real, se cierra antes de
-              // volver: si no, el navegador se queda "atascado" en modo
-              // fullscreen mostrando la vista de navegación por debajo.
               if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
               onExit();
             }}

@@ -14,6 +14,8 @@ type Dir = "up" | "down" | "left" | "right";
 interface Candidate {
   el: HTMLElement;
   rect: DOMRect;
+  /** Vive en una barra fija (navegación), no en el contenido que scrollea. */
+  chrome: boolean;
 }
 
 /**
@@ -38,22 +40,42 @@ function esEnfocable(el: HTMLElement): boolean {
 function collect(root: HTMLElement): Candidate[] {
   return [...root.querySelectorAll<HTMLElement>("[data-nav]")]
     .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null && esEnfocable(el))
-    .map((el) => ({ el, rect: el.getBoundingClientRect() }))
+    .map((el) => ({
+      el,
+      rect: el.getBoundingClientRect(),
+      chrome: el.closest("[data-nav-chrome]") !== null,
+    }))
     .filter(({ rect }) => rect.width > 0 && rect.height > 0);
 }
+
+/**
+ * Lo que cuesta salir del contenido para ir a una barra fija.
+ *
+ * Las barras de navegación no se mueven con el scroll, así que geométricamente
+ * están siempre pegadas al borde: al pulsar arriba desde cualquier riel, la
+ * barra superior ganaba siempre y no se podía volver al riel de encima. Con
+ * esta penalización solo gana cuando de verdad no hay nada de contenido en esa
+ * dirección, que es cuando se quiere ir a ella.
+ */
+const COSTE_CHROME = 4000;
 
 /**
  * Navegación espacial geométrica: elige el vecino real en la dirección
  * pulsada, no el siguiente en el orden del DOM. Es lo que hace que el
  * mando se sienta como una app de TV y no como tabular en una web.
  */
-function pick(from: DOMRect, candidates: Candidate[], dir: Dir): HTMLElement | null {
+function pick(
+  from: DOMRect,
+  candidates: Candidate[],
+  dir: Dir,
+  desdeChrome: boolean,
+): HTMLElement | null {
   const cx = from.left + from.width / 2;
   const cy = from.top + from.height / 2;
   let best: HTMLElement | null = null;
   let bestScore = Number.POSITIVE_INFINITY;
 
-  candidates.forEach(({ el, rect }) => {
+  candidates.forEach(({ el, rect, chrome }) => {
     const x = rect.left + rect.width / 2;
     const y = rect.top + rect.height / 2;
     const dx = x - cx;
@@ -83,8 +105,10 @@ function pick(from: DOMRect, candidates: Candidate[], dir: Dir): HTMLElement | n
 
     const secondary = vertical ? Math.abs(dx) : Math.abs(dy);
 
-    // Penaliza la desviación lateral: preferimos la misma columna/fila.
-    const score = primary + secondary * 2.2;
+    // Penaliza la desviación lateral: preferimos la misma columna/fila. Y
+    // salir del contenido hacia una barra fija cuesta, salvo que ya se venga
+    // de una: moverse dentro de la propia barra tiene que seguir siendo libre.
+    const score = primary + secondary * 2.2 + (chrome && !desdeChrome ? COSTE_CHROME : 0);
     if (score < bestScore) {
       bestScore = score;
       best = el;
@@ -178,6 +202,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       from,
       candidates.filter(({ el }) => el !== current),
       dir,
+      current.closest("[data-nav-chrome]") !== null,
     );
     if (next) {
       next.focus();

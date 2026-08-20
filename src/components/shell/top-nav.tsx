@@ -22,7 +22,10 @@ import { NAV_ITEMS, MOBILE_KEYS, type NavItem } from "@/components/app-nav";
  *     (§6). Aquí va el monograma propio.
  *   - Los destinos salen de NAV_ITEMS, que admite tanto vistas del shell como
  *     rutas de Next; ARVIO solo tiene lo primero.
- *   - Añadido `data-nav` para que use-spatial-nav siga viendo estos botones.
+ *   - Añadido `data-nav` para que use-spatial-nav siga viendo estos botones, y
+ *     `data-nav-chrome` en las tres barras: al ser fijas están siempre pegadas
+ *     al borde, así que sin marcarlas ganaban cualquier movimiento vertical y
+ *     el foco no podía volver al riel de encima.
  *
  * Se conservan intactos sus nombres de clase (.sidebar, .nav-item,
  * .mobile-header, .mobile-bottom-nav…) porque son el contrato con
@@ -105,7 +108,7 @@ export function TopNav({ view, onNavigate, clock }: TopNavProps) {
   return (
     <>
       {/* Escritorio y TV */}
-      <aside className={`sidebar ${scrolled ? "is-scrolled" : ""}`} aria-label="Secciones">
+      <aside className={`sidebar ${scrolled ? "is-scrolled" : ""}`} aria-label="Secciones" data-nav-chrome>
         <div className="profile-cluster">
           <span className="brand" aria-hidden="true">
             <Tv strokeWidth={1.5} />
@@ -132,7 +135,7 @@ export function TopNav({ view, onNavigate, clock }: TopNavProps) {
       </aside>
 
       {/* Teléfono: cabecera arriba… */}
-      <header className={`mobile-header ${scrolled ? "is-scrolled" : ""}`}>
+      <header className={`mobile-header ${scrolled ? "is-scrolled" : ""}`} data-nav-chrome>
         <div className="mobile-brand">
           <span className="brand" aria-hidden="true">
             <Tv strokeWidth={1.5} />
@@ -143,7 +146,7 @@ export function TopNav({ view, onNavigate, clock }: TopNavProps) {
       </header>
 
       {/* …y destinos abajo, donde llega el pulgar. */}
-      <nav className="mobile-bottom-nav" aria-label="Secciones">
+      <nav className="mobile-bottom-nav" aria-label="Secciones" data-nav-chrome>
         {NAV_ITEMS.filter((item) => MOBILE_KEYS.includes(item.key)).map((item) =>
           renderItem(item, "mobile-nav-item"),
         )}

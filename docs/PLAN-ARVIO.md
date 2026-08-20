@@ -316,11 +316,55 @@ la sesión; si hace falta, se reescriben desde este resumen):
 
 ---
 
+## Fase 5.6 — La televisión primero: reproductor incrustado en Inicio ✅
+
+Cambio de jerarquía pedido tras ver el resultado. La app abría **en pantalla
+completa**, que es la puerta de entrada de ARVIO porque su producto va de
+películas. CanalCasa va de televisión en vivo, pero abrir en pantalla completa
+obligaba a salir antes de poder ver nada más.
+
+- [x] **Arranca en Inicio**, no en el reproductor
+- [x] **Tarjeta en directo dentro de Inicio** (`src/components/live-card.tsx`):
+  el canal ya suena al entrar, con `EN VIVO`, nombre, número y categoría encima
+- [x] **La pantalla completa pasa a ser una decisión**: doble clic en la
+  tarjeta, Enter con el mando, o el botón «Pantalla completa»
+- [x] **Los canales mandan en Inicio.** Fuera la cabecera de película a toda
+  pantalla; el catálogo baja a una sección propia, «Películas y series», detrás
+  de los rieles de canales
+- [x] **Un solo botón de pantalla completa** en el reproductor grande. Había
+  dos —uno pedía la pantalla completa del navegador y otro devolvía a la
+  navegación— y se confundían. Ahora «pantalla completa» es un estado y un solo
+  botón lo deshace entero
+- [x] **Fuera el botón de favoritos del reproductor, entra «Siguiente canal».**
+  Cambiar de canal es lo que más se hace viendo la tele; marcar un favorito se
+  hace desde la lista, con la parrilla delante y sin tapar el vídeo
+- [x] Canal de arranque configurable con `NEXT_PUBLIC_CANAL_INICIAL`
+  (por defecto «Canal 7»); si no está en la lista de hoy, cae al primero
+
+**Reglas de interacción que quedan fijadas:**
+
+- Una tarjeta de canal **en Inicio** cambia lo que suena en la tarjeta de
+  arriba. No salta a pantalla completa: ya estás viendo, y quitarte la pantalla
+  que mirabas sería un castigo por explorar.
+- Una fila de canal **en Canales** sí abre a pantalla completa: ahí estás
+  eligiendo qué ver, no viendo.
+
+**Lo que volvió a aparecer en la auditoría, y su arreglo:**
+
+- [x] Al pulsar arriba desde un riel, el foco saltaba a la barra de navegación
+  en vez de al riel de encima. Las barras son fijas, así que geométricamente
+  están siempre pegadas al borde y ganaban cualquier movimiento vertical: no se
+  podía volver hacia arriba. Ahora van marcadas con `data-nav-chrome` y salir
+  del contenido hacia ellas tiene un coste, de modo que solo ganan cuando no
+  hay contenido en esa dirección.
+
+---
+
 ## Fase 6 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.
 
-- [ ] `peliculas-view.tsx` dentro del shell, con hero + rieles ya construidos en la Fase 3
+- [ ] `peliculas-view.tsx` dentro del shell, con hero + rieles ya construidos en la Fase 3. `src/components/media/hero.tsx` está escrito y sin usar desde que Inicio pasó a abrir con la señal en vivo: esta pantalla es su sitio natural
 - [ ] Ficha de título con el diseño de `DetailsDrawer.tsx` (1.030 líneas): temporadas, episodios, reparto y selector de fuentes
 - [ ] `NAV_ITEMS` pasa su entrada de `kind: "link"` a `kind: "view"`
 - [ ] `/peliculas` y `/peliculas/[mediaType]/[id]` se conservan como redirecciones para no romper enlaces guardados

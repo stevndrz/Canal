@@ -382,3 +382,161 @@ html[data-player="on"] body {
     scroll-behavior: auto;
   }
 }
+
+/* ── El canal en directo dentro de Inicio ────────────────────────────
+   Ocupa el sitio que antes tenía la cabecera de películas. El orden dice cuál
+   es la prioridad de esta app: primero la señal en vivo, y las películas
+   después, como una sección más. */
+.live-card {
+  padding: 0 3.35vw;
+  margin-bottom: clamp(24px, 3vh, 40px);
+}
+
+.live-card-marco {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  /* Un reproductor incrustado, no una portada.
+     A pantalla completa de un televisor, 16:9 sobre todo el ancho da más de
+     1000px de alto y no cabe nada más: dejaría de ser "el canal dentro de
+     Inicio" para volver a ser lo que se quitó. Acotado por ancho y no por alto,
+     porque limitar el alto con `aspect-ratio` deja el marco más ancho que el
+     vídeo y aparecen bandas negras a los lados. */
+  max-width: min(100%, 116vh);
+  overflow: hidden;
+  border-radius: clamp(14px, 1.1vw, 22px);
+  background: #000;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.42));
+  cursor: pointer;
+}
+
+.live-card-marco.is-cargando {
+  background: linear-gradient(135deg, #16181f, #0a0b0f);
+}
+
+.live-card-marco video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+}
+
+/* La franja superior no intercepta el doble clic: el gesto es sobre el vídeo. */
+.live-card-top {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1vw, 18px);
+  padding: clamp(12px, 1.4vw, 22px) clamp(14px, 1.6vw, 26px);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent);
+  pointer-events: none;
+}
+
+.live-card-vivo {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  font-size: clamp(10px, 0.72vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.live-card-vivo .live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--color-live, #ff453a);
+}
+
+.live-card-nombre {
+  min-width: 0;
+  font-size: clamp(15px, 1.35vw, 26px);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.live-card-meta {
+  flex-shrink: 0;
+  font-size: clamp(11px, 0.85vw, 15px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.live-card-aviso {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: rgba(0, 0, 0, 0.72);
+  text-align: center;
+  padding: 20px;
+}
+
+.live-card-aviso button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.12));
+  color: inherit;
+  cursor: pointer;
+}
+
+.live-card-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.live-card-boton {
+  min-height: 48px;
+  padding: 0 clamp(14px, 1.1vw, 22px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.1));
+  color: inherit;
+  font-size: clamp(13px, 0.95vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.live-card-boton:hover,
+.live-card-boton:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.2));
+  transform: scale(1.03);
+}
+
+.live-card-boton.is-primary {
+  background: #fff;
+  color: #0a0a0a;
+  border-color: transparent;
+}
+
+/* En teléfono las etiquetas no caben junto a los tres iconos. */
+@media (max-width: 560px) {
+  .live-card-boton span {
+    display: none;
+  }
+
+  .live-card-boton {
+    min-width: 48px;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  .live-card-meta {
+    display: none;
+  }
+}

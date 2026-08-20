@@ -37,6 +37,7 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 | `src/components/livetv/channel-row.tsx` | `web/components/livetv/LiveTvScreen.tsx` (su `ChannelRow`) | Extraído a archivo propio; sin la carga perezosa de guía por fila; añadidos número de canal y monograma de respaldo. |
 | `src/components/views/buscar-view.tsx` | `web/components/search/SearchScreen.tsx` | Conserva el teclado en pantalla de CanalCasa, que el original no tiene, en columna junto a los resultados. |
 | `src/components/views/favoritos-view.tsx` | `web/components/watchlist/WatchlistScreen.tsx` | Solo el encabezado y la rejilla; fuera el selector de origen (Trakt, Jellyfin, Plex, Emby) y sus bibliotecas. |
+| `src/components/live-card.tsx` | — | Obra propia. Reutiliza el lenguaje visual (`.live-dot`, variables de color) pero no deriva de ningún componente de ARVIO: su app no tiene un reproductor incrustado en la portada. |
 
 Cada archivo derivado lleva además una cabecera con su ruta de origen y una
 nota de modificación, de modo que la procedencia sea evidente al abrirlo sin

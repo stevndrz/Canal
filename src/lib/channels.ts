@@ -1,5 +1,6 @@
 import type { Channel } from "@/lib/types";
 import { CATEGORY_ORDER } from "@/lib/categories";
+import { normalizeChannelName } from "@/lib/text";
 
 // CATEGORY_ORDER vive en categories.ts: es también quien clasifica cada canal
 // en m3u.ts, así que una sola lista evita que las dos rutinas se desincronicen
@@ -80,4 +81,22 @@ export function stepChannel(list: Channel[], currentId: number, delta: number) {
 /** Marcador de 2 letras cuando la lista no trae logo. */
 export function channelMark(channel: Channel) {
   return channel.logoText || channel.name.substring(0, 2).toUpperCase();
+}
+
+/**
+ * Nombre del canal con el que abre la aplicación.
+ *
+ * Se puede cambiar sin tocar código con la variable `NEXT_PUBLIC_CANAL_INICIAL`.
+ * Es una preferencia, no una garantía: si ese canal no está en la lista de hoy
+ * se cae al primero, que tras el orden por importancia de `m3u.ts` ya es el más
+ * relevante.
+ */
+const CANAL_INICIAL = process.env.NEXT_PUBLIC_CANAL_INICIAL || "Canal 7";
+
+/** El canal sintonizado al arrancar: el preferido si está, si no el primero. */
+export function canalDeArranque(channels: Channel[]): number | null {
+  if (channels.length === 0) return null;
+  const buscado = normalizeChannelName(CANAL_INICIAL);
+  const preferido = channels.find((channel) => normalizeChannelName(channel.name) === buscado);
+  return (preferido ?? channels[0]).id;
 }

@@ -6,7 +6,7 @@ import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
-import { CATEGORY_ORDER, filterChannels, withChannelNumbers } from "@/lib/channels";
+import { CATEGORY_ORDER, canalDeArranque, filterChannels, withChannelNumbers } from "@/lib/channels";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
@@ -56,13 +56,15 @@ export function Dashboard({
 
   const channels = useMemo(() => withChannelNumbers(initialChannels), [initialChannels]);
 
-  // Arranca directo en el reproductor, con el canal más importante ya
-  // sintonizado (channels[0], tras la clasificación y el orden por
-  // importancia de m3u.ts): es lo que se pidió — el vídeo como protagonista
-  // al abrir, y navegar entre pestañas después para ir viendo cada canal.
-  const [view, setView] = useState<ViewId>("player");
+  // Arranca en Inicio, no en pantalla completa.
+  //
+  // El vídeo sigue siendo lo primero que se ve, pero dentro de la página: la
+  // tarjeta en directo de Inicio ya trae señal al entrar. La pantalla completa
+  // pasa a ser una decisión —doble clic, Enter o el botón— en vez de la puerta
+  // de entrada, que no dejaba ver el resto de la aplicación sin salir antes.
+  const [view, setView] = useState<ViewId>("home");
   const [lastView, setLastView] = useState<ViewId>("home");
-  const [tunedId, setTunedId] = useState<number | null>(channels[0]?.id ?? null);
+  const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   const [category, setCategory] = useState("Todas");
   const [search, setSearch] = useState("");
   const [settings, setSettings] = useState<PlaybackSettings>(DEFAULT_PLAYBACK);
@@ -116,15 +118,39 @@ export function Dashboard({
     if (next !== "player") setLastView(next);
   }, []);
 
-  /** Sintonizar = pantalla completa. Es lo que se espera desde el sofá. */
-  const tune = useCallback(
+  /**
+   * Cambiar de canal sin salir de donde estás.
+   *
+   * Es lo que hacen los rieles de Inicio: ya se está viendo la tele en la
+   * tarjeta de arriba, así que elegir otro canal cambia lo que suena ahí. Saltar
+   * a pantalla completa por tocar una tarjeta sería quitarle a la persona la
+   * pantalla que estaba mirando.
+   */
+  const select = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
       recents.push(channel.id);
-      setView("player");
     },
     [recents],
   );
+
+  /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */
+  const tune = useCallback(
+    (channel: Channel) => {
+      select(channel);
+      setView("player");
+    },
+    [select],
+  );
+
+  /** Canal siguiente dentro de lo que se está mirando. */
+  const nextChannel = useCallback(() => {
+    if (!tunedId) return;
+    const lista = visible.length > 0 ? visible : channels;
+    const actual = lista.findIndex((channel) => channel.id === tunedId);
+    const siguiente = lista[(actual + 1 + lista.length) % lista.length];
+    if (siguiente) select(siguiente);
+  }, [tunedId, visible, channels, select]);
 
   const handleBack = useCallback(() => {
     if (view === "player") {
@@ -234,7 +260,10 @@ export function Dashboard({
             favorites={favorites.ids}
             recents={recentChannels}
             catalog={catalog}
-            onTune={tune}
+            settings={settings}
+            onSelect={select}
+            onExpand={tune}
+            onNext={nextChannel}
             onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
           />
         )}
@@ -304,8 +333,7 @@ export function Dashboard({
             setTunedId(next.id);
             recents.push(next.id);
           }}
-          onToggleFavorite={favorites.toggle}
-          onExit={() => navigate(lastView === "player" ? "canales" : lastView)}
+          onExit={() => navigate(lastView === "player" ? "home" : lastView)}
         />
       )}
     </div>
