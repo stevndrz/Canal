@@ -1,17 +1,33 @@
+/**
+ * Un canal de la lista.
+ *
+ * **Cada campo que se añada aquí viaja 7.822 veces al navegador.** La lista se
+ * serializa entera dentro del HTML de la portada, así que un campo de treinta
+ * caracteres son 230 KB más que hay que descargar y, sobre todo, interpretar
+ * — que en un televisor barato es lo que se nota.
+ *
+ * Por eso ya no están: `description` (un "Señal en vivo de X" generado que no
+ * leía nadie), `logoText` (`channelMark()` lo deriva del nombre), `isFavorite`
+ * (el estado real vive en el store, indexado por `streamUrl`) e `isLive`
+ * (valía `true` en los 7.822). Entre los cuatro sumaban 1,4 MB.
+ *
+ * Regla: si un valor se puede calcular en el cliente, se calcula en el
+ * cliente; si es constante, no se manda.
+ */
 export interface Channel {
   id: number;
   name: string;
   number: string;
   category: string;
-  description: string;
-  logoText: string;
   logoUrl: string;
   streamUrl: string;
-  isFavorite: boolean;
-  isLive: boolean;
-  /** Vacíos cuando no hay guía EPG real: nunca se rellenan con texto inventado. */
-  currentProgram: string;
-  nextProgram: string;
+  /**
+   * Ausentes —no vacíos— cuando no hay guía EPG. Se omiten en vez de mandarse
+   * como cadena vacía justo por lo de arriba: una clave presente con valor
+   * vacío cuesta lo mismo que una con contenido.
+   */
+  currentProgram?: string;
+  nextProgram?: string;
   /**
    * Inicio y fin del programa actual, en milisegundos.
    *

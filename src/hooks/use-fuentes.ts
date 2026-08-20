@@ -48,14 +48,24 @@ export function useFuentes() {
     }
   }, []);
 
+  /**
+   * Añade una fuente ya resuelta.
+   *
+   * Recibe la URL reproducible, no lo que se escribió: con un magnet las dos
+   * cosas son distintas y quien resuelve esa diferencia es `resolverFuente`,
+   * en un solo sitio. Aquí solo se guarda.
+   */
   const anadir = useCallback(
-    (url: string, titulo?: string) => {
+    (url: string, titulo?: string, magnet?: string) => {
       const limpia = url.trim();
       const nueva: FuentePropia = {
         id: `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
-        titulo: titulo?.trim() || tituloDesdeUrl(limpia),
+        // Con un magnet el nombre bueno está en el magnet (`dn=`), no en la
+        // URL de la réplica, que suele ser un hash.
+        titulo: titulo?.trim() || tituloDesdeUrl(magnet ?? limpia),
         url: limpia,
-        clase: claseDeUrl(limpia),
+        clase: magnet ? "magnet" : claseDeUrl(limpia),
+        ...(magnet ? { magnet } : {}),
         creadaEn: Date.now(),
       };
       // La última añadida va primero: es la que se acaba de pegar y la que se

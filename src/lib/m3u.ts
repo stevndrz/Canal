@@ -3,6 +3,7 @@ import { classifyChannel, compareByCategory, priorityRank } from "./categories";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
+import { serverConfig } from "@/lib/config";
 
 /**
  * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
@@ -15,9 +16,6 @@ export interface M3uPlaylist {
   channels: ParsedChannel[];
   epgUrl: string | null;
 }
-
-const DEFAULT_M3U_URL =
-  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
 
 /** Forma laxa: cada lista M3U trae un subconjunto distinto de atributos. */
 type RawM3uChannel = {
@@ -48,7 +46,7 @@ const M3U_TIMEOUT_MS = 8000;
 const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
 
 export function getM3uSourceUrl(): string {
-  return process.env.M3U_URL || DEFAULT_M3U_URL;
+  return serverConfig().m3uUrl;
 }
 
 async function fetchM3uText(): Promise<string | null> {
@@ -225,12 +223,8 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
         country: item.tvg?.country || countryFromTvgId(tvgId),
         language: item.tvg?.language ?? "",
       }),
-      description: `Señal en vivo de ${name}`,
-      logoText: name.slice(0, 2).toUpperCase(),
       logoUrl,
       streamUrl: item.url ?? "",
-      isFavorite: false,
-      isLive: true,
     };
   });
 

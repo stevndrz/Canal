@@ -1,4 +1,5 @@
 import { PUSHER_SOCKET_ID, WATCH_PARTY_CHANNEL, signChannel } from "@/lib/watch-party/sign";
+import { publicConfig, serverConfig } from "@/lib/config";
 
 /**
  * Autenticación de canales privados de Pusher.
@@ -11,8 +12,8 @@ import { PUSHER_SOCKET_ID, WATCH_PARTY_CHANNEL, signChannel } from "@/lib/watch-
  * El `secret` se usa solo aquí: nunca llega al navegador.
  */
 export async function POST(request: Request) {
-  const appKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
-  const secret = process.env.PUSHER_SECRET;
+  const appKey = publicConfig.pusherKey;
+  const secret = serverConfig().pusherSecret;
 
   if (!appKey || !secret) {
     return Response.json(

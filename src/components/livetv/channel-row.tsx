@@ -67,7 +67,7 @@ function ChannelRowBase({
             // declarar cada uno en `remotePatterns`.
             // eslint-disable-next-line @next/next/no-img-element
             <img src={channel.logoUrl} alt="" loading="lazy" onError={() => setLogoFalla(true)} />
-          ) : channel.logoText || channel.name ? (
+          ) : channel.name ? (
             <b className="livetv-row-mark">{channelMark(channel)}</b>
           ) : (
             <Tv size={20} />

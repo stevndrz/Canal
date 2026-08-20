@@ -27,6 +27,11 @@ export type ClaseFuente =
   | "hls"
   /** Transporte MPEG-TS o FLV. Se reproduce con mpegts.js. */
   | "mpegts"
+  /**
+   * Enlace magnet. Solo llega a guardarse si traía una réplica HTTP dentro;
+   * ver `magnet.ts`, que explica por qué los demás no pueden reproducirse.
+   */
+  | "magnet"
   /** No se reconoce por la extensión; se intentará como HLS, que es lo común. */
   | "desconocida";
 
@@ -35,8 +40,11 @@ export interface FuentePropia {
   id: string;
   /** Lo que se lee en la interfaz. Si no se escribe, se deriva del enlace. */
   titulo: string;
+  /** El enlace que se reproduce. Con un magnet, su réplica HTTP ya resuelta. */
   url: string;
   clase: ClaseFuente;
+  /** El magnet original, cuando la fuente vino de uno. Solo para mostrarlo. */
+  magnet?: string;
   /** Marca de tiempo de alta, para ordenar «lo último que añadí». */
   creadaEn: number;
   /** Segundo por el que iba, para poder continuar. */

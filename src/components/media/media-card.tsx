@@ -71,7 +71,11 @@ function MediaCardBase({ item, onOpen, onFocus, posterMode, active }: MediaCardP
       onFocus={() => onFocus?.(item)}
       title={item.title}
     >
-      <div className={`poster ${!loaded ? "is-loading" : ""}`}>
+      {/* El destello de espera solo mientras se espera una imagen de verdad.
+          Antes bastaba con `!loaded`, y `loaded` solo se pone al cargar un
+          `<img>`: una tarjeta sin arte —o con el arte caído— se quedaba
+          destellando para siempre, animando en bucle una lista de 7.800. */}
+      <div className={`poster ${showArt && !loaded ? "is-loading" : ""}`}>
         {showArt ? (
           // `<img>` a propósito, como en el original: las URLs de logo vienen de
           // cientos de dominios distintos de listas IPTV, y `next/image` exige

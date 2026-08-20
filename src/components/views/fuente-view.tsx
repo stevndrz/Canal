@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Link2, Play, Trash2, Users } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
-import { avisoDeClase, claseDeUrl, esEnlaceFirmado, urlUtilizable } from "@/lib/fuente-propia/url";
+import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
 
@@ -41,20 +41,29 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [sala, setSala] = useState("");
   const [salaActiva, setSalaActiva] = useState("");
 
+  // Se resuelve mientras se escribe para poder avisar antes de guardar: con un
+  // magnet sin réplica HTTP el motivo se lee ya, no después de dar a Añadir.
   const limpiaAhora = url.trim();
-  const aviso = limpiaAhora ? avisoDeClase(claseDeUrl(limpiaAhora)) : "";
-  const firmado = limpiaAhora ? esEnlaceFirmado(limpiaAhora) : false;
+  const resuelta = limpiaAhora ? resolverFuente(limpiaAhora) : null;
+  // El motivo de un enlace que no sirve se enseña mientras se escribe, igual
+  // que el aviso de uno que sí: es cuando todavía se puede hacer algo con esa
+  // información. Se calla mientras el texto va por la mitad y todavía no puede
+  // ser válido —si no, "https:/" ya acusaría de error a media palabra.
+  const escribiendoAun = !/^(magnet:\?|https?:\/\/\S)/i.test(limpiaAhora);
+  const aviso = resuelta?.ok ? resuelta.aviso : escribiendoAun ? "" : (resuelta?.motivo ?? "");
+  const firmado = resuelta?.ok ? esEnlaceFirmado(resuelta.url) : false;
 
   const enviar = (evento: React.FormEvent) => {
     evento.preventDefault();
-    const limpia = url.trim();
-    if (!urlUtilizable(limpia)) {
-      // El protocolo se valida antes de que el enlace llegue a un `src`.
-      setError("Tiene que ser un enlace http:// o https://");
+    const decision = resolverFuente(url);
+    if (!decision.ok) {
+      // Un enlace que no se puede reproducir no entra en la lista: dejarlo
+      // guardado solo aplaza el mismo fallo a mañana, ya sin la explicación.
+      setError(decision.motivo);
       return;
     }
     setError("");
-    setActiva(anadir(limpia, titulo));
+    setActiva(anadir(decision.url, titulo, decision.magnet));
     setUrl("");
     setTitulo("");
   };
@@ -71,12 +80,16 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       <form className="fuente-alta" onSubmit={enviar}>
         <div className="fuente-campo">
           <Link2 aria-hidden="true" />
+          {/* `type="text"` y no `type="url"`: la validación nativa de `url`
+              rechaza `magnet:` en varios navegadores, y el protocolo ya lo
+              comprueba `resolverFuente` antes de que nada llegue a un `src`. */}
           <input
-            type="url"
+            type="text"
+            inputMode="url"
             data-nav="input"
             value={url}
             onChange={(evento) => setUrl(evento.target.value)}
-            placeholder="https://…  (.mp4, .m3u8, .mkv, o un enlace directo)"
+            placeholder="https://…  (.mp4, .m3u8, .mkv) o magnet:?…"
             aria-label="Enlace del vídeo"
             required
           />

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
+import { publicConfig } from "@/lib/config";
 
 /**
  * Watch Party: sincroniza play, pausa y posición entre varios navegadores.
@@ -45,8 +46,7 @@ interface PusherLike {
   connection: { bind(event: string, callback: () => void): void };
 }
 
-const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY;
-const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
+const { pusherKey: PUSHER_KEY, pusherCluster: PUSHER_CLUSTER } = publicConfig;
 
 export function useWatchParty(videoRef: RefObject<HTMLVideoElement | null>, roomId?: string) {
   /**

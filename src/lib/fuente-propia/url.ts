@@ -1,3 +1,4 @@
+import { avisoDeMagnet, esMagnet, fuenteReproducible, leerMagnet } from "./magnet";
 import type { ClaseFuente } from "./types";
 
 /**
@@ -12,6 +13,7 @@ import type { ClaseFuente } from "./types";
  * día cambia una, tiene que cambiar la otra.
  */
 export function claseDeUrl(url: string): ClaseFuente {
+  if (esMagnet(url)) return "magnet";
   const limpia = url.toLowerCase().split("?")[0].split("#")[0];
   if (/\.m3u8$/.test(limpia)) return "hls";
   if (/\.(ts|flv)$/.test(limpia)) return "mpegts";
@@ -58,6 +60,12 @@ function pareceHash(texto: string): boolean {
  * lado.
  */
 export function tituloDesdeUrl(url: string): string {
+  // Un magnet lleva su propio nombre en `dn=`, y suele ser el mejor que hay.
+  const magnet = leerMagnet(url);
+  if (magnet) {
+    return magnet.nombre.replace(/[._]+/g, " ").trim() || `Torrent ${magnet.infohash.slice(0, 8)}`;
+  }
+
   try {
     const { pathname, hostname } = new URL(url);
     const archivo = decodeURIComponent(pathname.split("/").filter(Boolean).pop() ?? "");
@@ -104,4 +112,38 @@ export function urlUtilizable(url: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Lo que se puede hacer con lo que la persona acaba de pegar. */
+export type FuenteResuelta =
+  | { ok: true; url: string; magnet?: string; aviso: string }
+  | { ok: false; motivo: string };
+
+/**
+ * Convierte lo pegado en algo reproducible, o explica por qué no lo es.
+ *
+ * Un solo sitio decide esto para que la pantalla no tenga que encadenar
+ * comprobaciones ni repetirlas al guardar. Los tres desenlaces son: enlace
+ * normal, magnet con réplica HTTP —que se reproduce como cualquier otro— y
+ * magnet sin ella, que se rechaza con el motivo escrito.
+ */
+export function resolverFuente(entrada: string): FuenteResuelta {
+  const limpia = entrada.trim();
+
+  const magnet = leerMagnet(limpia);
+  if (magnet) {
+    const replica = fuenteReproducible(magnet);
+    if (!replica) return { ok: false, motivo: avisoDeMagnet(magnet) };
+    return { ok: true, url: replica, magnet: limpia, aviso: avisoDeMagnet(magnet) };
+  }
+
+  if (esMagnet(limpia)) {
+    return { ok: false, motivo: "Ese magnet está incompleto: no se le encuentra el identificador." };
+  }
+
+  if (!urlUtilizable(limpia)) {
+    return { ok: false, motivo: "Tiene que ser un enlace http://, https:// o magnet:" };
+  }
+
+  return { ok: true, url: limpia, aviso: avisoDeClase(claseDeUrl(limpia)) };
 }

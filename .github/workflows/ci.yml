@@ -1,0 +1,56 @@
+name: CI
+
+# Se comprueba en cada empujón a las ramas de trabajo y en cada propuesta de
+# cambio. `npm run verify` es el mismo comando que se usa en local: si pasa
+# aquí y no allí (o al revés) es que algo depende del entorno, y eso es un
+# fallo en sí mismo.
+on:
+  push:
+    branches: [main, "claude/**"]
+  pull_request:
+
+# Un empujón nuevo cancela la comprobación anterior de la misma rama: no tiene
+# sentido gastar minutos verificando un commit que ya quedó atrás.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` y no `npm install`: instala exactamente lo que dice
+      # package-lock.json y falla si los dos archivos no concuerdan.
+      - run: npm ci
+
+      - name: Tipos
+        run: npm run typecheck
+
+      - name: Estilo
+        run: npm run lint
+
+      - name: Pruebas
+        run: npm run test
+
+      # El que de verdad atrapa los fallos: este proyecto ya se cayó en
+      # producción con un 500 porque hls.js y mpegts.js llegaron al paquete del
+      # servidor. Solo `next build` lo detecta.
+      #
+      # Se compila **sin secretos** a propósito: la app tiene que salir
+      # adelante recién clonada, cayendo a la lista M3U por defecto y al
+      # catálogo local. Si algún día deja de ser así, se entera aquí y no un
+      # vecino con la pantalla en negro.
+      - name: Compilación
+        run: npm run build
+        env:
+          M3U_URL: ""
+          TMDB_API_KEY: ""

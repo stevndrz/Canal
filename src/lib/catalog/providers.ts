@@ -1,4 +1,5 @@
 import type { MediaType } from "./types";
+import { publicConfig } from "@/lib/config";
 
 /**
  * Proveedores de reproducción por iframe.
@@ -82,8 +83,8 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
  * rápido si todos los de arriba caen a la vez.
  */
 function providerFromEnv(): Omit<EmbedProvider, "label"> | null {
-  const movie = process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE?.trim();
-  const tv = process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV?.trim();
+  const movie = publicConfig.embedPropioPelicula;
+  const tv = publicConfig.embedPropioSerie;
   if (!movie && !tv) return null;
   return {
     id: "propio",

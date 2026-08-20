@@ -1,49 +1,53 @@
-/* Orden de capas de la cascada. Se declara antes que nada porque el orden lo
-   fija la primera aparición de cada nombre, y hay que colar `arvio` entre las
-   capas de Tailwind en vez de detrás de todas ellas.
+/* ═══════════════════════════════════════════════════════════════════════════
+   CanalCasa — tokens, restablecimientos y componentes propios
+   ═══════════════════════════════════════════════════════════════════════════
 
-   Esto no es cosmético. En CSS, cualquier regla SIN capa gana a cualquier
-   regla EN capa, pase lo que pase con la especificidad. Tailwind v4 emite sus
-   utilidades dentro de `@layer utilities`, así que importar el CSS de ARVIO
-   sin capa hacía que su `button { color: inherit }` —especificidad 0,0,1—
-   derrotase a `text-accent-on` en toda la aplicación: el botón "Ver ahora"
-   salía blanco sobre blanco. Metido en `arvio`, por debajo de `utilities`,
-   las utilidades vuelven a mandar y el diseño del shell sigue intacto. */
-@layer theme, base, arvio, components, utilities;
+   Reparto entre las dos hojas de la app:
+
+   - `shell.css` — el armazón: barra, rieles, tarjetas, encabezados, canales.
+     Lo que se repite en todas las pantallas.
+   - este archivo — los tokens de Tailwind, los restablecimientos de elemento,
+     el sistema de foco y las pantallas propias (ficha, Mi enlace, ajustes,
+     reproductor, buscador, categorías).
+
+   **Orden de capas.** En CSS una regla sin capa gana a cualquier regla en
+   capa, pase lo que pase con la especificidad. Tailwind emite sus utilidades
+   en `@layer utilities`, así que el armazón va en `components`, por debajo:
+   de lo contrario un `button { color: inherit }` del armazón derrotaría a una
+   utilidad de Tailwind y el botón «Ver ahora» saldría blanco sobre blanco,
+   que es exactamente lo que pasó cuando esta hoja se importaba sin capa. */
+@layer theme, base, components, utilities;
 
 @import "tailwindcss";
 
-/* Lenguaje visual del shell, derivado de ARVIO (Apache 2.0).
-   Ver NOTICE.md y LICENSES/ARVIO-Apache-2.0.txt. */
-@import "./arvio-shell.css" layer(arvio);
+@import "./shell.css" layer(components);
 
-/* ── CanalCasa: tokens de app nativa (Tailwind v4) ───────────────── */
+/* ── Tokens de Tailwind ───────────────────────────────────────────────── */
 @theme {
-  --color-app: #09090b;
-  --color-surface: #111113;
-  --color-surface-2: #18181b;
+  --color-app: #000;
+  --color-surface: #101012;
+  --color-surface-2: #1c1c1f;
   --color-mark: #1c1c1f;
   --color-hairline: rgba(255, 255, 255, 0.08);
   --color-live: #ff453a;
 
-  --color-accent: #fafafa;
-  --color-accent-on: #09090b;
+  --color-accent: #f5f5f7;
+  --color-accent-on: #000;
 
-  --radius-tile: 15px;
+  --radius-tile: 14px;
   --radius-card: 20px;
 
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI",
-    system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
-  --ease-native: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-native: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-/* Restablecimientos de elemento, en `base` y no sueltos.
-   Sin capa, `button { font: inherit }` ganaba a `.nav-item { font-size: … }`
-   del CSS de ARVIO —que vive en `arvio`— y todos los botones de la aplicación
-   se pintaban a 16px mientras los enlaces salían a 28px: la barra tenía
-   "Películas" al doble de tamaño que el resto. En `base` ceden ante los
-   componentes de ARVIO y siguen mandando sobre el HTML sin estilar. */
+/* ── Restablecimientos, en `base` y no sueltos ────────────────────────────
+   Sin capa, `button { font: inherit }` ganaría a `.nav-item { font-size: … }`
+   del armazón y todos los botones se pintarían a 16px mientras los enlaces
+   salen a 28px. En `base` ceden ante los componentes y siguen mandando sobre
+   el HTML sin estilar. */
 @layer base {
   * { box-sizing: border-box; }
 
@@ -65,38 +69,31 @@
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
   a { color: var(--color-accent); text-decoration: none; }
-  a:hover { color: #a1a1aa; }
+  a:hover { color: var(--muted); }
 }
 
-/* La ventana scrollea, salvo durante la reproducción.
-   El shell de ARVIO cuenta con que la página entera scrollee: su barra es
-   `position: fixed` y reacciona a `window.scrollY`, y cada `.screen` crece
-   hasta donde haga falta. Antes aquí había `overflow: hidden` en `body` y el
-   scroll vivía dentro de cada vista; los dos modelos no conviven, así que
-   manda el suyo.
-   El reproductor es la excepción: si la página puede scrollear por debajo, el
-   vídeo se despega del borde superior al arrastrar en un teléfono. Mientras
-   dura, `dashboard.tsx` marca <html> y se vuelve a bloquear. */
+/* La ventana scrollea, salvo durante la reproducción: si la página puede
+   moverse por debajo del vídeo, este se despega del borde al arrastrar en un
+   teléfono. Mientras dura, `dashboard.tsx` marca <html>. */
 html[data-player="on"],
 html[data-player="on"] body {
   height: 100%;
   overflow: hidden;
 }
 
-/* ── Foco D-pad ──────────────────────────────────────────────────────
-   Un único lenguaje de foco para toda la app. Usamos :focus-visible en
-   punteros y :focus a secas cuando la entrada es un control remoto
-   (data-input="dpad" lo pone useRemoteInput). */
+/* ── Foco ─────────────────────────────────────────────────────────────────
+   Un solo lenguaje en toda la app: `:focus-visible` con puntero y `:focus` a
+   secas cuando la entrada es un mando (`data-input="dpad"`, que lo pone
+   `useRemoteInput`). Un mando no tiene Tab, así que ahí el foco siempre se ve.
+
+   Las tarjetas se excluyen: tienen su propio realce en `shell.css`, que crece
+   la carátula y le pone el borde encima en lugar de rodear el botón entero. */
 :focus { outline: none; }
 
-[data-nav]:focus-visible {
+[data-nav]:not(.media-card):focus-visible,
+[data-input="dpad"] [data-nav]:not(.media-card):focus {
   outline: 3px solid var(--color-accent);
-  outline-offset: 4px;
-}
-
-[data-input="dpad"] [data-nav]:focus {
-  outline: 3px solid var(--color-accent);
-  outline-offset: 4px;
+  outline-offset: 3px;
 }
 
 [data-nav] {
@@ -106,139 +103,20 @@ html[data-player="on"] body {
   scroll-margin: 28px;
 }
 
-[data-nav="tile"]:focus-visible,
-[data-input="dpad"] [data-nav="tile"]:focus {
-  transform: scale(1.045);
-}
-
-::selection { background: rgba(250, 250, 250, 0.18); }
-
-/* ── Utilidades de scroll ────────────────────────────────────────── */
-.scroll-none { scrollbar-width: none; }
-.scroll-none::-webkit-scrollbar { display: none; }
-
-
-/* Listas de 500+ canales: no pintes lo que no se ve. */
-.row-virtual { content-visibility: auto; contain-intrinsic-size: 68px; }
-
-/* ── Margen seguro de TV (overscan) ─────────────────────────────── */
-.tv-safe {
-  padding-left: max(40px, env(safe-area-inset-left));
-  padding-right: max(40px, env(safe-area-inset-right));
-}
-
-/* ── En vivo ─────────────────────────────────────────────────────── */
-@keyframes cc-live { 0%, 100% { opacity: 1 } 50% { opacity: 0.25 } }
-.live-dot { animation: cc-live 2.4s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  *, [data-nav] { transition: none !important; animation: none !important; }
-  * { scroll-behavior: auto !important; }
-}
-
-/* ── Ajustes propios sobre el shell de ARVIO ─────────────────────────
-   Van aquí y no en arvio-shell.css a propósito: ese archivo es una copia
-   fiel y debe poder re-sincronizarse contra el repo de origen sin resolver
-   conflictos. Lo que es de CanalCasa vive de este lado. */
-
-:root {
-  /* Altura de la barra superior fija, la misma que acaba usando `.sidebar`.
-     Aquí como variable para que el contenido pueda apartarse de ella sin
-     repetir el clamp en cada vista.
-
-     Ojo: ARVIO declara la altura de `.sidebar` **tres veces** en su hoja, y la
-     que gana por encima de 680px es `clamp(96px, 13vh, 154px)`, no la primera.
-     Esta variable copiaba la primera, así que decía 93px cuando la barra medía
-     140: el reproductor de Inicio quedaba 12px por debajo del borde de la
-     barra en lugar de separado de ella. */
-  --topbar-h: clamp(96px, 13vh, 154px);
-}
-
-.top-clock {
-  font-size: clamp(13px, 0.95vw, 17px);
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.62);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-/* ARVIO reparte 4 destinos en la barra; CanalCasa lleva 7. Cuando dejan de
-   caber con etiqueta se quedan solo los iconos, que es lo que ya hacía el
-   sidebar anterior por debajo de 1200px. El `title` sigue nombrándolos.
-
-   El umbral subió de 1400 a 1660px al añadir "Mi enlace": con siete etiquetas,
-   a 1920px la barra ya iba tan apretada que la marca se truncaba. */
-.nav-item span {
-  white-space: nowrap;
-}
-
-@media (max-width: 1660px) {
-  .sidebar nav .nav-item span { display: none; }
-  .sidebar nav .nav-item { padding: 0 clamp(11px, 0.9vw, 16px); }
-}
-
-/* El monograma de marca: ARVIO mete una imagen dentro de `.brand`, aquí es
-   un icono, así que necesita su propio tamaño. */
-.brand svg {
-  width: 54%;
-  height: 54%;
-  color: #fff;
-}
-
-/* El foco del mando manda sobre el realce propio de la barra: sin esto el
-   fondo de `.nav-item:hover` tapa el anillo y no se ve dónde está el foco. */
-[data-input="dpad"] .nav-item:focus,
-[data-input="dpad"] .settings-gear:focus,
-[data-input="dpad"] .mobile-nav-item:focus {
-  outline: 3px solid var(--color-accent);
-  outline-offset: 3px;
-}
-
-/* ARVIO oculta `.profile-name-text` por debajo de 980px porque en el teléfono
-   la identidad la lleva su wordmark, un asset que aquí no existe y que además
-   es marca suya. Sin nombre, la cabecera del teléfono queda con un icono
-   anónimo, así que se recupera solo ahí; en la barra de escritorio estrecha se
-   mantiene oculto como en el original. */
-@media (max-width: 980px) {
-  .mobile-header .profile-name-text {
-    display: inline;
-    font-size: 15px;
-    max-width: 50vw;
-  }
-}
-
-/* Monograma de respaldo dentro de una tarjeta. ARVIO siempre tiene arte de
-   TMDB, así que su tarjeta solo prevé un icono genérico; las listas M3U rara
-   vez traen logo y dos letras identifican el canal mucho mejor que un icono
-   repetido cien veces. */
-.poster-mark {
-  font-size: clamp(30px, 3.2vw, 56px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: rgba(255, 255, 255, 0.34);
-}
-
-/* La pantalla de Canales calcula su hueco superior contra la barra de ARVIO.
-   La nuestra mide `--topbar-h` y lleva la marca escrita a la izquierda, justo
-   encima del título de la pantalla, así que el original deja los dos textos
-   pegados. Se separa lo justo para que se lean como dos cosas distintas. */
-.livetv-shell {
-  padding-top: calc(var(--topbar-h) + 30px);
-}
+::selection { background: rgba(245, 245, 247, 0.2); }
 
 /* ── Piezas propias con el lenguaje del diseño ───────────────────────
-   Pantallas que ARVIO no tiene, o partes suyas que aquí cambian. Reutilizan
-   sus variables (--chip, --line, --soft) para que no canten al lado del resto. */
+   Las pantallas que no forman parte del armazón. Usan sus mismas variables
+   (--chip, --line, --soft) para que no canten al lado del resto. */
 
 /* Buscar: teclado a un lado, resultados al otro.
-   ARVIO no tiene teclado en pantalla porque da por hecho un teclado físico.
-   En un televisor hace falta, y ocupa más de 500px de alto: apilado sobre los
+   En un televisor el teclado en pantalla hace falta, y ocupa más de 500px de alto: apilado sobre los
    resultados los empuja fuera de la pantalla y se escribe a ciegas. En columna
    se ve lo que se va encontrando mientras se teclea. */
 .buscar-cuerpo {
   display: grid;
   gap: clamp(20px, 2vw, 40px);
-  padding: 0 3.35vw;
+  padding: 0 var(--margen);
   align-items: start;
 }
 
@@ -267,7 +145,7 @@ html[data-player="on"] body {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(clamp(170px, 15vw, 240px), 1fr));
   gap: clamp(12px, 1vw, 18px);
-  padding: 0 3.35vw;
+  padding: 0 var(--margen);
 }
 
 .categoria-ficha {
@@ -302,31 +180,6 @@ html[data-player="on"] body {
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
 
-/* ── Objetivos táctiles ──────────────────────────────────────────────
-   44 píxeles es el mínimo que recomiendan tanto Apple como las pautas WCAG
-   para algo que se pulsa con el dedo. La auditoría encontró tres sitios por
-   debajo: las categorías de Canales (36px en teléfono), el interruptor de
-   Ajustes (34px) y las flechas de los carriles. En un mando da igual porque se
-   navega por foco, pero en un teléfono se falla el toque y parece que el botón
-   no funciona. */
-.livetv-cats button,
-.livetv-row-star,
-.mobile-nav-item {
-  min-height: 44px;
-}
-
-.rail-arrow {
-  min-width: 44px;
-  min-height: 44px;
-}
-
-/* Con siete destinos en la barra del teléfono cada casilla se queda en unos
-   55px: cabe, pero la etiqueta necesita ayuda para no partirse. */
-.mobile-nav-item {
-  min-width: 0;
-  padding-inline: 2px;
-}
-
 .mobile-nav-item span {
   font-size: 10px;
   line-height: 1.15;
@@ -336,30 +189,11 @@ html[data-player="on"] body {
   white-space: nowrap;
 }
 
-/* ── Carruseles: cómo se avanza en cada dispositivo ──────────────────
-   ARVIO oculta las flechas por debajo de 680px porque en una pantalla táctil
-   se montaban encima de las tarjetas. La decisión es buena pero se toma por
-   ancho, y el ancho no dice cómo se maneja el aparato: una ventana estrecha en
-   un ordenador, o un televisor LG con su mando-puntero, se quedaban sin
-   flechas y sin poder arrastrar. Aquí la condición pasa a ser el tipo de
-   entrada, que es lo que de verdad importa.
-
-   Los tres caminos quedan cubiertos: con mando se recorre moviendo el foco de
-   tarjeta en tarjeta y el carril sigue al foco; con ratón, las flechas; con el
-   dedo, el arrastre.
-
-   Ojo con la capa. La regla original es `display: none !important` dentro de
-   `arvio`, y con declaraciones `!important` el orden de las capas se
-   **invierte**: una `!important` sin capa pierde ante una `!important` con
-   capa, justo al revés que las reglas normales. Por eso esta anulación entra
-   en la misma capa y con más especificidad, en vez de ir suelta al final. */
-@layer arvio {
-  @media (max-width: 680px) and (hover: hover) and (pointer: fine) {
-    .rail-scroll-shell .rail-arrow {
-      display: grid !important;
-    }
-  }
-}
+/* Los tres caminos para recorrer un carril quedan cubiertos: con mando se
+   mueve el foco de tarjeta en tarjeta y el carril lo sigue; con ratón, las
+   flechas; con el dedo, el arrastre. `shell.css` esconde las flechas por tipo
+   de entrada y no por ancho, que es lo que de verdad importa: una ventana
+   estrecha en un ordenador, o un televisor con mando-puntero, las necesitan. */
 
 @media (hover: none) and (pointer: coarse) {
   .rail-strip {
@@ -389,7 +223,7 @@ html[data-player="on"] body {
    encima de la imagen en escritorio y se queden debajo en teléfono, sin
    duplicar la maqueta. */
 .live-card {
-  padding: 0 3.35vw;
+  padding: 0 var(--margen);
   margin-bottom: clamp(24px, 3vh, 40px);
 }
 
@@ -901,7 +735,7 @@ html[data-player="on"] body {
   position: relative;
   width: min(1200px, 100%);
   margin-inline: auto;
-  padding-inline: 3.35vw;
+  padding-inline: var(--margen);
 }
 
 .ficha-volver {
@@ -1020,7 +854,7 @@ html[data-player="on"] body {
 .ficha-cuerpo {
   width: min(1200px, 100%);
   margin-inline: auto;
-  padding: clamp(20px, 3vh, 36px) 3.35vw clamp(40px, 6vh, 80px);
+  padding: clamp(20px, 3vh, 36px) var(--margen) clamp(40px, 6vh, 80px);
 }
 
 .ficha-reproductor {
@@ -1305,19 +1139,6 @@ html[data-player="on"] body {
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
 
-/* `.screen` es una rejilla de una columna, y sin acotarla esa columna se
-   ensancha hasta el contenido más ancho que haya dentro. En Películas la
-   rejilla de pósters medía más que la ventana y arrastraba con ella al
-   buscador: en un teléfono de 390px el campo salía de 626px, fuera de la
-   pantalla, y dejaba de estar centrado.
-
-   `minmax(0, 1fr)` es la forma de decir "esta columna vale lo que el
-   contenedor, no lo que pida el contenido". Los carriles no se ven afectados:
-   ya scrollean por dentro. */
-.screen {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 /* ── Filtros del catálogo ────────────────────────────────────────────
    Los chips eran morados: lo único morado de toda la aplicación, herencia del
    diseño anterior de esta sección. Cambiar de Canales a Películas se notaba
@@ -1329,7 +1150,7 @@ html[data-player="on"] body {
 .catalogo-filtros {
   display: flex;
   gap: 8px;
-  padding: 2px 3.35vw 10px;
+  padding: 2px var(--margen) 10px;
   margin-bottom: 6px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -1369,20 +1190,9 @@ html[data-player="on"] body {
   color: #0a0a0a;
 }
 
-/* En teléfono el hueco superior de `.screen` está calculado para la barra fija
-   de escritorio, que mide el doble que la cabecera del móvil: sobraban unos
-   70px de negro antes del primer contenido. La cabecera del teléfono mide 56px
-   y `.app-shell` ya la descuenta, así que aquí basta un respiro. */
-@media (max-width: 680px) {
-  .screen {
-    padding-top: clamp(14px, 2vh, 24px);
-  }
-}
-
 /* ── El scroll de la rueda en escritorio ─────────────────────────────
-   ARVIO pone `overflow-x: hidden` en `body`, y el CSS tiene una regla poco
-   conocida: si `html` está en `visible`, el overflow del `body` **se propaga
-   al viewport**. El resultado es que el viewport queda en
+   Regla del CSS poco conocida: si `html` está en `visible`, el overflow del
+   `body` **se propaga al viewport**. El resultado es que el viewport queda en
    `overflow: hidden auto` y el `body` pasa a ser el contenedor de scroll.
    En Chrome se nota poco; en Safari y en Firefox, combinado con elementos
    `position: fixed` como nuestra barra, es la causa clásica de que la rueda
@@ -1405,10 +1215,6 @@ body {
    pantalla. */
 .live-slot {
   padding-top: calc(var(--topbar-h) + 22px);
-}
-
-.screen.sin-hueco {
-  padding-top: 0;
 }
 
 @media (max-height: 520px) and (orientation: landscape) {
@@ -1723,29 +1529,6 @@ body {
 }
 
 .fuente-quitar svg { width: 18px; height: 18px; }
-
-/* ── La marca ────────────────────────────────────────────────────────
-   Se truncaba a "CanalC…": el ancho máximo lo fija ARVIO pensando en un nombre
-   de perfil corto, y aquí es el nombre del producto. Partido en dos líneas
-   entra entero y ocupa la mitad de ancho, que es lo que la barra necesita con
-   siete destinos.
-
-   El icono baja de 58 a 46px en pantalla grande. Sigue siendo el elemento más
-   grande de la barra —tiene que verse desde el sofá— pero ya no compite con
-   los destinos por ser lo primero que se mira. */
-.marca {
-  display: grid;
-  line-height: 1.02;
-  font-size: clamp(13px, 0.95vw, 18px);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: rgba(255, 255, 255, 0.86);
-}
-
-.brand {
-  width: clamp(36px, 2.4vw, 46px);
-  height: clamp(36px, 2.4vw, 46px);
-}
 
 /* ── La ficha en columnas ────────────────────────────────────────────
    Sinopsis y reparto en la ancha; la ficha técnica al lado. En una sola

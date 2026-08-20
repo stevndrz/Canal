@@ -49,6 +49,8 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 | `npm run start`    | Inicia el servidor de producción                   |
 | `npm run lint`     | Ejecuta ESLint                                     |
 | `npm run typecheck`| Verifica tipos con TypeScript                      |
+| `npm run test`     | Pruebas de la lógica pura (vitest)                 |
+| `npm run verify`   | **Los cuatro de golpe.** Lo mismo que corre en CI  |
 
 ---
 
@@ -127,22 +129,38 @@ CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes.
 
 ## 🎨 Guía de estilos
 
-| Color        | Uso                          |
-|--------------|-------------------------------|
-| `#168766`    | Verde primario (acciones)    |
-| `#34d399`    | Verde claro (foco, acentos)  |
-| `#f4f7f6`    | Fondo claro                  |
-| `#f59e0b`    | Ámbar (favoritos)            |
+Lenguaje de televisor: fondo negro real, foco como protagonista, texto siempre
+debajo de la imagen. Los tokens viven en `src/app/shell.css`.
 
-Fuente: `ui-sans-serif, system-ui, -apple-system, ...`. Utilidades relevantes: `.scrollbar-none`, `.custom-scrollbar`, `.virtual-list-item` (renderizado eficiente de listas largas).
+| Token             | Uso                                              |
+|-------------------|--------------------------------------------------|
+| `--bg` `#000`     | Fondo. Negro real: en un OLED se apaga del todo  |
+| `--text` `#f5f5f7`| Texto principal                                  |
+| `--muted` / `--soft` / `--faint` | Los tres escalones de menos presencia |
+| `--gold` `#ffd60a`| Favoritos y valoraciones                         |
+| `--red` `#ff453a` | El punto del directo                             |
+| `--margen`        | Margen lateral **único** de toda la app          |
+| `--foco-borde`    | Borde blanco de 4px del foco                     |
+
+Dos hojas: `shell.css` (armazón) y `globals.css` (tokens, restablecimientos y
+pantallas propias). El reparto y las trampas de la cascada están en
+[`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 ---
 
 ## 🧑‍💻 Cómo agregar un campo a `Channel`
 
-1. Actualiza `ParsedM3uChannel` en `src/lib/m3u.ts` y `Channel` en `src/lib/types.ts`.
+> ⚠️ **Piénsalo dos veces.** La lista se serializa entera dentro del HTML de la
+> portada: un campo de treinta caracteres son 230 KB más que descargar y, sobre
+> todo, **interpretar** — que en un televisor barato es lo que se nota. Si el
+> valor se puede calcular en el cliente, calcúlalo ahí; si es constante, no lo
+> mandes. Ya se retiraron cuatro campos por esto (`description`, `logoText`,
+> `isFavorite`, `isLive`): sumaban 1,4 MB.
+
+1. Actualiza `Channel` en `src/lib/types.ts` (`ParsedChannel` se deriva solo).
 2. Llena el campo al construir el objeto en `parseM3uChannels` (`src/lib/m3u.ts`).
-3. Úsalo donde haga falta en `src/components/dashboard.tsx` o `stream-player.tsx`.
+3. Si puede faltar, decláralo opcional y **omite la clave** en vez de asignar
+   `undefined`: React lo serializa como el texto literal `"$undefined"`.
 
 ## 🧑‍💻 Cómo agregar un atajo de teclado
 
@@ -160,10 +178,15 @@ if (e.key === "r" || e.key === "R") {
 ## 🧪 Verificación
 
 ```bash
-npm run typecheck
-npm run lint
-npm run build
+npm run verify   # tipos + estilo + pruebas + compilación
 ```
+
+`npm run build` es el que de verdad atrapa los fallos: este proyecto ya se cayó
+en producción con un 500 porque `hls.js` y `mpegts.js` llegaron al paquete del
+servidor.
+
+Los componentes se comprueban con Playwright contra la app real, no con jsdom:
+el detalle de por qué está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 ---
 

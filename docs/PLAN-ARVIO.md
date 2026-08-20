@@ -19,7 +19,7 @@ Este plan se persiste **dentro del repo** como `docs/PLAN-ARVIO.md` (Fase 0). Pa
 1. `git checkout claude/arvio-clone-project-cqsoth && git pull origin claude/arvio-clone-project-cqsoth`
 2. Abrir `docs/PLAN-ARVIO.md` y buscar la primera casilla `[ ]` sin marcar.
 3. Ejecutar solo esa tarea.
-4. Marcar la casilla, `npm run typecheck && npm run lint && npm run build`, commit y push.
+4. Marcar la casilla, `npm run verify` (tipos + estilo + pruebas + build), commit y push.
 
 **Regla:** una fase = uno o más commits + la casilla marcada en el mismo commit. Nunca dejar una fase a medias sin actualizar el documento. Cada commit termina la frase "Este commit…" en español, como el resto del historial.
 
@@ -37,7 +37,7 @@ git -C /tmp/arvio checkout 5bd6a760068ee909692c3df1386af9d6a0d808af
 
 | Decisión | Elección |
 |---|---|
-| Estrategia CSS | **Importar el CSS de ARVIO tal cual**, dentro de `@layer arvio` |
+| Estrategia CSS | ~~Importar el CSS de ARVIO tal cual~~ → **hoja propia** `src/app/shell.css` desde la Fase 6.3: de sus 577 clases se usaban 106 |
 | Alcance | **Paridad visual en todas las pantallas.** No solo el shell: la maqueta de ARVIO manda en Inicio, Canales, Buscar, Favoritos, Ajustes, la ficha y el reproductor |
 | Marca | CanalCasa, en español. Cero assets ni nombre de ARVIO (Apache 2.0 §6) |
 | Reproductor | **Portar su `PlayerOverlay` entero** y volver a cablear encima Chromecast y Watch Party, que son propios |
@@ -46,29 +46,31 @@ git -C /tmp/arvio checkout 5bd6a760068ee909692c3df1386af9d6a0d808af
 
 ### El orden de capas de la cascada, que condiciona todo lo demás
 
-Tres capas, declaradas antes de cualquier `@import` porque el orden lo fija la
-primera aparición de cada nombre:
+> Actualizado en la Fase 6.3. La capa `arvio` ya no existe: el armazón es
+> nuestro y vive en `components`.
 
 ```css
-@layer theme, base, arvio, components, utilities;
+@layer theme, base, components, utilities;
 ```
 
 En CSS **toda regla sin capa gana a toda regla en capa**, sin importar la
 especificidad. De ahí salieron los dos únicos fallos visuales serios que ha
-habido hasta ahora, y los dos fueron invisibles al compilar:
+habido, y los dos fueron invisibles al compilar:
 
-1. El CSS de ARVIO importado suelto hacía que su `button { color: inherit }`
-   derrotase a `text-accent-on` de Tailwind: el botón "Ver ahora" salía blanco
-   sobre blanco. Se arregló metiéndolo en `arvio`.
-2. Los restablecimientos propios de CanalCasa sueltos hacían que
-   `button { font: inherit }` derrotase a `.nav-item { font-size: … }` de
-   ARVIO: **todos** los botones de la app se pintaban a 16px mientras los
-   enlaces salían a 28px. Se arregló metiéndolos en `base`.
+1. Con el armazón importado suelto, su `button { color: inherit }` derrotaba a
+   `text-accent-on` de Tailwind: el botón "Ver ahora" salía blanco sobre
+   blanco.
+2. Con los restablecimientos sueltos, `button { font: inherit }` derrotaba a
+   `.nav-item { font-size: … }`: **todos** los botones se pintaban a 16px
+   mientras los enlaces salían a 28px.
 
-**Regla para lo que queda:** los restablecimientos de elemento van en
-`@layer base`; el CSS copiado, en `@layer arvio`; los ajustes propios de
-CanalCasa, sueltos al final de `globals.css`, que es donde deben ganar. Un
-estilo nuevo que "no se aplica" o que "se aplica de más" casi siempre es esto.
+**Regla:** restablecimientos de elemento en `@layer base`; el armazón
+(`shell.css`) en `components`; las pantallas propias, sueltas al final de
+`globals.css`, que es donde deben ganar. Un estilo nuevo que "no se aplica" o
+que "se aplica de más" casi siempre es esto.
+
+Y la vuelta de tuerca: **con `!important` el orden de las capas se invierte**.
+Una `!important` sin capa pierde ante una `!important` con capa.
 
 ## Licencia y atribución (obligatorio, no opcional)
 
@@ -95,8 +97,8 @@ Coste: mínimo. **Hacer esto primero, antes que cualquier código**, para que el
 ## Fase 1 — La base de estilo
 
 **Archivos:**
-- NUEVO `src/app/arvio-shell.css` ← copia de `/tmp/arvio/web/app/globals.css` (12.680 líneas, 496 selectores, 67 media queries)
-- MOD `src/app/globals.css` — importar la hoja **dentro de una capa**: `@layer theme, base, arvio, components, utilities;` antes de todo, y luego `@import "./arvio-shell.css" layer(arvio);`. Sin capa, el CSS de ARVIO gana a las utilidades de Tailwind (ver Fase 2)
+- ~~NUEVO `src/app/arvio-shell.css` ← copia de `/tmp/arvio/web/app/globals.css`~~ *(retirado en la Fase 6.3 y sustituido por `src/app/shell.css`, propio)*
+- MOD `src/app/globals.css` — importar la hoja **dentro de una capa**, nunca suelta: sin capa gana a las utilidades de Tailwind (ver Fase 2)
 - MOD `src/app/layout.tsx` — cargar Inter
 
 **Tareas:**
@@ -601,6 +603,79 @@ de canales**, donde ocupaba un botón sin poder cumplir.
 > curl -s "localhost:3000$CSS" | grep -c ficha-columnas
 > ```
 > Si da 0, matar el servidor, `rm -rf .next` y volver a arrancar.
+
+---
+
+## Fase 6.3 — Hoja propia, estructura y peso ✅
+
+La tanda que dejó de remendar y reorganizó.
+
+### El armazón visual pasa a ser nuestro
+
+- [x] **Fuera `arvio-shell.css`** (12.704 líneas, 256 KB en producción) y
+  dentro `src/app/shell.css`, escrito de cero. De sus 577 clases la app usaba
+  106: el 82% era peso muerto. **256 KB → 71 KB** (15 KB comprimidos)
+- [x] Con la hoja en nuestras manos, `globals.css` pierde todo el andamiaje
+  que existía solo para pelearse con una hoja ajena: el `@layer arvio`, la
+  anulación con `!important` invertido, los comentarios sobre qué declaraba
+  ARVIO tres veces. **1.801 → 1.610 líneas**
+- [x] **Lenguaje visual de televisor**: foco con borde blanco de 4px y
+  crecimiento del 6% sobre la carátula; etiqueta siempre debajo de la imagen,
+  nunca encima; barra flotante translúcida con desenfoque; píldora blanca para
+  el destino activo; un único `--margen` para toda la app
+- [x] Tres desajustes que solo aparecen al mirar: la app marca lo activo con
+  `is-active` y la hoja nueva decía `.active`; `.top-right` es a la vez el
+  grupo derecho de la barra y un modificador de `.cw-badge`, así que se acota
+  a `.sidebar >`; el título de la tarjeta es hijo directo de `.media-card` y
+  no vive dentro de `.card-meta-row`
+
+### Peso: el documento pesaba más que todo lo demás junto
+
+Medido en producción, la portada mandaba **3,98 MB de HTML** frente a 1,5 MB
+de JavaScript. Son los 7.822 canales serializados, y la mitad no servía:
+
+- [x] **Fuera cuatro campos por canal**: `description` (un «Señal en vivo de X»
+  generado que no leía nadie), `logoText` (`channelMark()` lo deriva del
+  nombre), `isFavorite` (el estado real vive en el store, indexado por
+  `streamUrl`) e `isLive` (valía `true` en los 7.822)
+- [x] **Los campos de guía se omiten en vez de asignarse.** React codifica una
+  propiedad presente con valor `undefined` como el texto literal
+  `"$undefined"`: eran 23.488 apariciones, unos 700 KB de decir «aquí no hay
+  nada»
+- [x] **Resultado: 4,07 MB → 2,14 MB** (–47%). En el cable la mejora es menor
+  (474 → 413 KB, porque gzip ya comprimía bien tanta repetición), pero el
+  coste de **interpretar** ese JSON se parte por la mitad, y es lo que se nota
+  en un televisor barato
+- [x] Medido: **FCP 480 → 332 ms · DOMContentLoaded 665 → 351 ms**
+- [x] El destello de espera de una tarjeta solo se anima si de verdad hay una
+  imagen cargando. Antes bastaba `!loaded`, y `loaded` solo se pone al cargar
+  un `<img>`: una tarjeta sin arte se quedaba animando para siempre
+
+### Estructura y estándares
+
+- [x] **`src/lib/config.ts`**: única fuente de configuración. Siete archivos
+  leían `process.env` con siete criterios distintos para el valor por defecto
+- [x] **Pruebas** con vitest sobre la lógica pura: 37 en `magnet`, `url`,
+  `text` y `categories`. Y `npm run verify` = tipos + estilo + pruebas + build
+- [x] **CI** en `.github/workflows/ci.yml`, que compila **sin secretos** a
+  propósito: la app tiene que arrancar recién clonada
+- [x] **`docs/ARQUITECTURA.md`**: dónde vive cada cosa y por qué
+- [x] Sin vulnerabilidades: Next 16.2.6 → 16.3.1 y postcss ≥8.5.26 cierran
+  tres avisos de severidad alta
+
+### Enlaces magnet
+
+- [x] `src/lib/fuente-propia/magnet.ts`, **sin añadir ningún cliente
+  BitTorrent**. Un navegador no puede hablar con la red BitTorrent: los
+  clientes normales usan TCP y uTP, y desde una pestaña solo se abre WebRTC.
+  Meter WebTorrent serían ~600 KB que pagaría todo el mundo en cada carga para
+  un caso que seguiría sin funcionar
+- [x] Lo que **sí** funciona y es la razón del módulo: el parámetro `ws=`
+  (*web seed*, BEP 19) es una URL HTTP normal del mismo archivo. Cuando un
+  magnet la trae, se reproduce directamente
+- [x] `resolverFuente()` decide en un solo sitio: enlace normal, magnet con
+  réplica, o magnet sin ella —que se rechaza explicando el motivo mientras se
+  escribe, no después de guardarlo
 
 ---
 

@@ -1,4 +1,5 @@
 import type { MediaType } from "./types";
+import { serverConfig } from "@/lib/config";
 
 /**
  * Cliente mínimo de TMDB.
@@ -64,23 +65,8 @@ interface TmdbSeason {
  */
 const TMDB_TIMEOUT_MS = 5000;
 
-/**
- * Clave de reserva, para que la app funcione recién clonada y sin preparar
- * nada. `TMDB_API_KEY` la sobrescribe cuando está definida.
- *
- * PROVISIONAL: lo suyo es que viva solo en las variables de entorno (Vercel →
- * Settings → Environment Variables). Aquí queda registrada en el historial de
- * Git para siempre, así que si este repositorio deja de ser privado hay que
- * regenerarla en TMDB → Settings → API y borrar esta constante.
- *
- * El daño posible es limitado: es un token de solo lectura (`api_read`), no
- * puede modificar nada de la cuenta, y al no llevar el prefijo `NEXT_PUBLIC_`
- * nunca se manda al navegador.
- */
-const DEFAULT_TMDB_CREDENTIAL = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxOWM5NTFlZDA5ZmNlYWRkOGJiMTUxOTY3ZTNmZTBhZCIsIm5iZiI6MTc4NzExNjQ2My4zMjgsInN1YiI6IjZhODUzYmFmZTAyYzI0YmQ2NjVlZmRkYSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.2NAHUg6NQAvJsI9zD_-wVaPA1-OU-LN7dCMFlx1ZbqU";
-
 function tmdbCredential(): string {
-  return process.env.TMDB_API_KEY?.trim() || DEFAULT_TMDB_CREDENTIAL;
+  return serverConfig().tmdbCredencial;
 }
 
 async function tmdbFetch<T>(path: string): Promise<T | null> {

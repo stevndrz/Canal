@@ -1,0 +1,1180 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CanalCasa — el armazón visual
+   ═══════════════════════════════════════════════════════════════════════════
+
+   Esta hoja sustituye a `arvio-shell.css`, que era una copia literal de 12.704
+   líneas de la que se usaba el 18% (106 de 577 clases). Pesaba 256 KB en
+   producción para pintar unas noventa cosas.
+
+   Se conservan **los nombres de clase**, que son el contrato con los
+   componentes, y se reescriben las reglas. Eso permitió además absorber los
+   ajustes que antes vivían en `globals.css` peleándose por especificidad con
+   una hoja ajena: ahora no hay nada que anular, porque la hoja es nuestra.
+
+   El lenguaje visual es el de un televisor, no el de una web:
+
+   1. **El foco es el protagonista.** En un televisor no hay puntero: lo único
+      que dice dónde estás es el realce. Aquí la pieza enfocada crece, se
+      ilumina con un borde blanco y proyecta sombra; el resto se apaga.
+   2. **El texto va debajo de la imagen**, nunca encima. Sobre una carátula
+      cualquier texto compite con la ilustración y se lee peor desde el sofá.
+   3. **Cromo translúcido.** La barra flota sobre el contenido con desenfoque,
+      en lugar de ocupar una franja opaca.
+   4. **Márgenes anchos.** Los bordes de un televisor se recortan (*overscan*)
+      y además se mira desde tres metros: lo apretado no se lee.
+
+   Orden del archivo: variables · armazón · barra · rieles · tarjetas ·
+   encabezados · rejillas · buscador · canales · teléfono · movimiento.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: dark;
+
+  /* ── Superficies ──────────────────────────────────────────────────────
+     Negro real en el fondo, no gris azulado: en un OLED los píxeles se
+     apagan del todo y el contraste con la carátula es máximo. */
+  --bg: #000;
+  --bg-card: #101012;
+  --bg-elevated: #1c1c1f;
+
+  /* ── Texto, en cuatro pesos de presencia ────────────────────────────── */
+  --text: #f5f5f7;
+  --muted: rgba(245, 245, 247, 0.72);
+  --soft: rgba(245, 245, 247, 0.46);
+  --faint: rgba(245, 245, 247, 0.28);
+
+  /* ── Relleno y líneas ───────────────────────────────────────────────── */
+  --chip: rgba(245, 245, 247, 0.1);
+  --chip-focus: rgba(245, 245, 247, 0.2);
+  --line: rgba(245, 245, 247, 0.14);
+  --line-bright: rgba(255, 255, 255, 0.28);
+
+  /* ── Acentos ────────────────────────────────────────────────────────── */
+  --gold: #ffd60a;
+  --green: #30d158;
+  --red: #ff453a;
+
+  /* ── Cristal ──────────────────────────────────────────────────────────
+     Dos intensidades: la barra flotante y los paneles que se apoyan sobre
+     contenido. `backdrop-filter` con respaldo sólido para los navegadores de
+     televisor viejos, que lo ignoran sin fallar. */
+  --glass: rgba(22, 22, 24, 0.72);
+  --glass-strong: rgba(28, 28, 30, 0.88);
+
+  /* ── Foco ─────────────────────────────────────────────────────────────
+     Un solo gesto en toda la app: borde blanco de 4px pegado a la pieza,
+     crecimiento del 6% y sombra profunda. Es lo que hace un televisor. */
+  --foco-borde: 0 0 0 4px #fff;
+  --foco-sombra: 0 26px 60px rgba(0, 0, 0, 0.72);
+  --foco-escala: 1.06;
+
+  --sombra: 0 16px 40px rgba(0, 0, 0, 0.5);
+
+  /* ── Ritmo ────────────────────────────────────────────────────────────
+     El margen lateral es uno solo para toda la app: si cada pantalla elige el
+     suyo, los encabezados no se alinean con los rieles y se nota. */
+  --margen: clamp(20px, 4.2vw, 88px);
+  --radio-tarjeta: clamp(10px, 0.8vw, 14px);
+  --radio-panel: clamp(14px, 1.1vw, 22px);
+
+  /* Altura de la barra superior. Todo lo que tenga que apartarse de ella mide
+     contra esta variable, nunca repitiendo el clamp. */
+  --topbar-h: clamp(68px, 8.4vh, 92px);
+
+  /* La curva de tvOS: sale rápido y frena largo. */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* ═══ Armazón ═══════════════════════════════════════════════════════════ */
+
+.app-shell {
+  min-height: 100vh;
+  width: 100%;
+  /* `clip` y no `hidden`: `overflow-x: hidden` en un elemento de nivel
+     superior se propaga al viewport y deja muerta la rueda del ratón en
+     Safari y Firefox. Con `clip` se recorta igual sin crear contexto de
+     scroll. Costó una sesión entera descubrirlo. */
+  overflow-x: clip;
+  background:
+    radial-gradient(120% 80% at 78% 0%, rgba(255, 255, 255, 0.07), transparent 60%),
+    var(--bg);
+}
+
+.content {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  min-width: 0;
+  overflow-x: clip;
+}
+
+.screen {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  /* `minmax(0, 1fr)` y no `1fr`: sin acotar, un riel ancho estira la rejilla
+     y la pantalla entera scrollea en horizontal. */
+  grid-template-columns: minmax(0, 1fr);
+  padding: calc(var(--topbar-h) + clamp(24px, 4vh, 56px)) 0 clamp(56px, 8vh, 96px);
+  width: 100%;
+  min-width: 0;
+}
+
+/* Pantallas que ya reservan su propio hueco arriba no deben sumar el de
+   `.screen`, o queda el doble de aire que en el resto. */
+.screen.has-hero,
+.screen.has-section-heading,
+.screen.sin-hueco {
+  padding-top: 0;
+}
+
+/* Margen seguro de televisor: los bordes se recortan en muchos paneles. */
+.tv-safe {
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+}
+
+/* ═══ Barra superior ════════════════════════════════════════════════════
+   Flota sobre el contenido con desenfoque. `pointer-events: none` en la
+   barra y `auto` en sus tres grupos: así el degradado no intercepta clics
+   destinados a lo que hay debajo. */
+
+.sidebar {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 60;
+  height: var(--topbar-h);
+  padding: 0 var(--margen);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(12px, 1.5vw, 28px);
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.5) 60%, transparent);
+  transition: background 240ms var(--ease), backdrop-filter 240ms var(--ease);
+}
+
+/* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
+   solo no basta para que se lean los destinos. */
+.sidebar.is-scrolled {
+  background: var(--glass);
+  backdrop-filter: saturate(180%) blur(22px);
+  -webkit-backdrop-filter: saturate(180%) blur(22px);
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-cluster,
+.sidebar nav,
+.top-right {
+  pointer-events: auto;
+}
+
+.profile-cluster {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 0.8vw, 14px);
+  min-width: 0;
+}
+
+.sidebar nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(2px, 0.35vw, 8px);
+  min-width: 0;
+}
+
+/* Acotado a la barra a propósito: `.cw-badge` usa `top-right` como
+   modificador de posición y heredaría este flex. */
+.sidebar > .top-right {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1vw, 20px);
+  justify-self: end;
+}
+
+/* El destino: una píldora. Apagada en reposo, blanca cuando está activa —el
+   mismo par de estados que usa el selector de tvOS. */
+.nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 0 clamp(11px, 1vw, 18px);
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: clamp(14px, 1.02vw, 18px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition: background-color 180ms var(--ease), color 180ms var(--ease);
+}
+
+.nav-item svg {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
+.nav-item:hover {
+  color: var(--text);
+  background: var(--chip);
+}
+
+.nav-item.is-active {
+  color: #000;
+  background: #fff;
+  font-weight: 600;
+}
+
+.settings-gear {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  transition: background-color 180ms var(--ease), color 180ms var(--ease);
+}
+
+.settings-gear:hover,
+.settings-gear.is-active {
+  color: var(--text);
+  background: var(--chip);
+}
+
+.settings-gear svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* El monograma. Es lo más grande de la barra a propósito: identifica la app
+   de un vistazo desde el sofá. */
+.brand {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: clamp(34px, 2.3vw, 44px);
+  height: clamp(34px, 2.3vw, 44px);
+  border-radius: 12px;
+  background: linear-gradient(150deg, #2c2c2e, #131315);
+  border: 1px solid var(--line);
+}
+
+.brand svg {
+  width: 56%;
+  height: 56%;
+  color: #fff;
+}
+
+/* El nombre, en dos líneas. En una sola se truncaba a "CanalC…": el ancho de
+   la barra lo reparten siete destinos y no da para más. */
+.marca {
+  display: grid;
+  line-height: 1.04;
+  font-size: clamp(12px, 0.88vw, 16px);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text);
+}
+
+.top-clock {
+  font-size: clamp(13px, 0.95vw, 17px);
+  font-weight: 500;
+  color: var(--soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Con siete destinos, cuando dejan de caber con etiqueta se quedan los
+   iconos. El `title` sigue nombrándolos para quien los necesite. */
+@media (max-width: 1500px) {
+  .sidebar nav .nav-item span {
+    display: none;
+  }
+  .sidebar nav .nav-item {
+    padding: 0 clamp(9px, 0.8vw, 14px);
+  }
+}
+
+/* ═══ Rieles ════════════════════════════════════════════════════════════ */
+
+.rail {
+  position: relative;
+  z-index: 5;
+  width: 100%;
+  min-width: 0;
+  margin-top: clamp(18px, 2.6vh, 34px);
+  padding-left: var(--margen);
+  overflow: hidden;
+  /* No calcular ni pintar los rieles lejos de la pantalla. Es la mayor
+     ganancia de todo el archivo para el scroll vertical con veinte rieles:
+     el alto estimado mantiene la barra de scroll quieta mientras tanto. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: clamp(10px, 1.4vh, 16px);
+  padding-right: var(--margen);
+}
+
+.rail-head h3 {
+  margin: 0;
+  font-size: clamp(19px, 1.42vw, 27px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.rail-head span {
+  color: var(--soft);
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-scroll-shell {
+  position: relative;
+  min-width: 0;
+}
+
+.rail-strip {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: clamp(212px, 17.4vw, 330px);
+  gap: clamp(14px, 1.1vw, 22px);
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x proximity;
+  /* Aire arriba y abajo para que la tarjeta enfocada quepa al crecer sin que
+     el riel la recorte. */
+  padding: 10px var(--margen) clamp(18px, 2.4vh, 30px) 0;
+  scrollbar-width: none;
+}
+
+.rail-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.rail-strip > * {
+  scroll-snap-align: start;
+}
+
+/* Las flechas del riel. Solo con puntero: con mando se navega por foco y con
+   el dedo se arrastra, así que ahí sobran. */
+.rail-arrow {
+  position: absolute;
+  top: calc(50% - clamp(20px, 2.6vh, 32px));
+  transform: translateY(-50%);
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-bright);
+  border-radius: 999px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 200ms var(--ease), transform 200ms var(--ease);
+}
+
+.rail-arrow-left {
+  left: calc(var(--margen) - 22px);
+}
+
+.rail-arrow-right {
+  right: 10px;
+}
+
+.rail:hover .rail-arrow.can-prev,
+.rail:hover .rail-arrow.can-next,
+.rail-arrow:focus-visible {
+  opacity: 1;
+}
+
+.rail-arrow:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+
+.rail-arrow:disabled {
+  opacity: 0 !important;
+  pointer-events: none;
+}
+
+.rail-arrow svg {
+  width: 22px;
+  height: 22px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .rail-arrow {
+    display: none;
+  }
+}
+
+/* ═══ Tarjetas ══════════════════════════════════════════════════════════
+   La pieza que más se repite en la app, y donde el foco tiene que leerse
+   desde tres metros. */
+
+.media-card {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.poster {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio-tarjeta);
+  overflow: hidden;
+  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
+  display: grid;
+  place-items: center;
+  box-shadow: var(--sombra);
+  /* `transform-origin: center` y no `bottom`: el riel tiene aire arriba y
+     abajo, así que crecer desde el centro no recorta por ningún lado. */
+  transition: transform 240ms var(--ease), box-shadow 240ms var(--ease);
+  will-change: transform;
+}
+
+.poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Carátula vertical, para películas y series. */
+.media-card.is-poster .poster {
+  aspect-ratio: 2 / 3;
+}
+
+/* El realce. Se aplica al `.poster` y no a la tarjeta entera para que el
+   texto de debajo no se mueva: solo cambia de color. */
+.media-card:hover .poster,
+.media-card:focus-visible .poster,
+[data-input="dpad"] .media-card:focus .poster {
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+.media-card:focus-visible,
+[data-input="dpad"] .media-card:focus {
+  outline: none;
+}
+
+/* El texto: título y una línea de contexto, siempre debajo. */
+.media-card > strong {
+  display: block;
+  min-width: 0;
+  font-size: clamp(13px, 0.95vw, 16px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 180ms var(--ease);
+}
+
+/* Segunda línea: categoría y número, en horizontal y separados por un punto.
+   Apilados ocupaban tres líneas por tarjeta y el riel se volvía una lista. */
+.card-meta-row {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+  font-size: clamp(11px, 0.8vw, 14px);
+  color: var(--soft);
+}
+
+.card-date,
+.card-runtime {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-runtime::before {
+  content: "·";
+  margin-right: 7px;
+  color: var(--faint);
+}
+
+.media-card:hover > strong,
+.media-card:focus-visible > strong,
+[data-input="dpad"] .media-card:focus > strong {
+  color: var(--text);
+}
+
+/* La carátula entra con un fundido cuando termina de descargarse: aparecer de
+   golpe sobre el degradado de espera da un parpadeo en cada riel. */
+.poster-art {
+  opacity: 0;
+  transition: opacity 320ms var(--ease);
+}
+
+.poster-art.is-loaded {
+  opacity: 1;
+}
+
+/* Monograma de respaldo: la mayoría de canales de una lista M3U no traen
+   logo, y dos letras identifican mejor que un icono repetido cien veces. */
+.poster-mark {
+  font-size: clamp(26px, 2.6vw, 46px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Insignia de esquina y barra de progreso, para «continuar viendo». */
+.cw-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+
+.cw-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.cw-progress > span {
+  display: block;
+  height: 100%;
+  background: #fff;
+}
+
+/* ═══ Encabezados de sección ════════════════════════════════════════════ */
+
+.section-heading {
+  padding: calc(var(--topbar-h) + clamp(26px, 4.4vh, 60px)) var(--margen) clamp(16px, 2.4vh, 28px);
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: clamp(28px, 2.6vw, 50px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+/* `--muted` y no `--soft`: el antetítulo lleva información real (qué es esta
+   pantalla), no es decoración, y al 46% de opacidad se perdía en un teléfono
+   con brillo bajo. */
+.eyebrow {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: clamp(13px, 0.96vw, 17px);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.library-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: clamp(16px, 2vw, 40px);
+  flex-wrap: wrap;
+}
+
+.library-title-block {
+  min-width: 0;
+}
+
+/* ═══ Rejillas de resultados ════════════════════════════════════════════ */
+
+.grid-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(140px, 13vw, 210px), 1fr));
+  gap: clamp(16px, 1.5vw, 30px);
+  padding: 0 var(--margen);
+}
+
+/* Dentro de otra pantalla que ya pone su margen, la rejilla no lo repite. */
+.grid-results.is-embedded {
+  padding: 0;
+}
+
+.watchlist-empty,
+.livetv-list-empty {
+  padding: clamp(28px, 5vh, 60px) var(--margen);
+  color: var(--soft);
+  font-size: clamp(15px, 1.1vw, 19px);
+}
+
+/* ═══ Buscador ══════════════════════════════════════════════════════════ */
+
+.search-hero {
+  padding: calc(var(--topbar-h) + clamp(26px, 4.4vh, 60px)) var(--margen) clamp(18px, 2.6vh, 32px);
+  display: grid;
+  gap: clamp(12px, 1.6vh, 20px);
+}
+
+.screen.has-search-hero {
+  padding-top: 0;
+}
+
+.search-icon-shell {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  color: var(--soft);
+  flex: none;
+}
+
+/* ═══ Canales ═══════════════════════════════════════════════════════════ */
+
+.livetv-shell {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.8vh, 20px);
+  padding: calc(var(--topbar-h) + clamp(20px, 3vh, 40px)) var(--margen) clamp(28px, 4vh, 48px);
+  min-height: 100vh;
+}
+
+.livetv-topbar {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 1.4vw, 24px);
+  flex-wrap: wrap;
+}
+
+.livetv-heading h2 {
+  margin: 0;
+  font-size: clamp(24px, 2.2vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.livetv-heading span {
+  font-size: clamp(12px, 0.88vw, 15px);
+  color: var(--soft);
+}
+
+.livetv-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 260px;
+  max-width: 460px;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--chip);
+}
+
+.livetv-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: clamp(14px, 1vw, 17px);
+}
+
+.livetv-search input::placeholder {
+  color: var(--faint);
+}
+
+/* Lista y detalle. Por debajo de 1024px el detalle desaparece: en un teléfono
+   robaría toda la pantalla a la lista, que es lo que se viene a usar. */
+.livetv-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(16px, 1.8vw, 32px);
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .livetv-columns {
+    grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 420px);
+  }
+}
+
+.livetv-cats {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+
+.livetv-cats::-webkit-scrollbar {
+  display: none;
+}
+
+.livetv-cats button {
+  flex: none;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: clamp(13px, 0.92vw, 16px);
+  white-space: nowrap;
+  transition: background-color 160ms var(--ease), color 160ms var(--ease);
+}
+
+.livetv-cats button.is-active {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+  font-weight: 600;
+}
+
+.livetv-list {
+  min-width: 0;
+}
+
+.livetv-list-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: var(--soft);
+  font-size: clamp(12px, 0.88vw, 15px);
+}
+
+.livetv-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Una fila de canal. Se repiten 7.800, así que cada propiedad cuenta:
+   `content-visibility` en la fila evita calcular las que no se ven. */
+.livetv-row {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1vw, 18px);
+  width: 100%;
+  min-height: 64px;
+  padding: 8px clamp(10px, 1vw, 16px);
+  border: 0;
+  border-radius: var(--radio-tarjeta);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  transition: background-color 160ms var(--ease);
+}
+
+.livetv-row:hover {
+  background: var(--chip);
+}
+
+.livetv-row.is-selected {
+  background: var(--chip-focus);
+}
+
+.livetv-row-logo {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: clamp(48px, 4vw, 68px);
+  aspect-ratio: 16 / 10;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--bg-card);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--soft);
+}
+
+.livetv-row-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.livetv-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.livetv-row-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.livetv-row-title {
+  font-size: clamp(14px, 1.02vw, 18px);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livetv-row-now {
+  font-size: clamp(12px, 0.86vw, 15px);
+  color: var(--soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.livetv-progress {
+  height: 3px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--chip);
+  overflow: hidden;
+}
+
+.livetv-progress > span {
+  display: block;
+  height: 100%;
+  background: var(--muted);
+}
+
+.livetv-row-play,
+.livetv-row-star {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--soft);
+  transition: background-color 160ms var(--ease), color 160ms var(--ease);
+}
+
+.livetv-row-play:hover,
+.livetv-row-star:hover {
+  background: var(--chip);
+  color: var(--text);
+}
+
+.livetv-row-star.is-active {
+  color: var(--gold);
+}
+
+.livetv-quality {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--chip);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--soft);
+}
+
+/* El panel de detalle. */
+.livetv-detail {
+  position: sticky;
+  top: calc(var(--topbar-h) + 20px);
+  display: grid;
+  gap: clamp(12px, 1.6vh, 20px);
+  padding: clamp(16px, 1.4vw, 26px);
+  border: 1px solid var(--line);
+  border-radius: var(--radio-panel);
+  background: var(--bg-card);
+}
+
+.livetv-detail-art {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio-tarjeta);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
+}
+
+.livetv-detail-art img {
+  max-width: 72%;
+  max-height: 72%;
+  object-fit: contain;
+}
+
+.livetv-detail-group {
+  display: grid;
+  gap: 6px;
+}
+
+.livetv-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.livetv-detail-empty,
+.livetv-detail-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  padding: clamp(28px, 5vh, 56px) 16px;
+  text-align: center;
+  color: var(--soft);
+  font-size: clamp(13px, 0.95vw, 16px);
+}
+
+.livetv-program {
+  display: grid;
+  gap: 4px;
+}
+
+.livetv-program-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: clamp(12px, 0.88vw, 15px);
+  color: var(--soft);
+}
+
+/* ═══ Botones de acción ═════════════════════════════════════════════════ */
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 0 clamp(16px, 1.4vw, 26px);
+  border-radius: 999px;
+  font-size: clamp(14px, 1vw, 17px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 160ms var(--ease), background-color 160ms var(--ease);
+}
+
+.primary {
+  border: 0;
+  background: #fff;
+  color: #000;
+}
+
+.secondary {
+  border: 1px solid var(--line-bright);
+  background: var(--chip);
+  color: var(--text);
+}
+
+.primary:hover,
+.secondary:hover {
+  transform: scale(1.03);
+}
+
+.secondary:hover {
+  background: var(--chip-focus);
+}
+
+.primary svg,
+.secondary svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* ═══ Estados ═══════════════════════════════════════════════════════════ */
+
+.is-loading {
+  background: linear-gradient(100deg, #141416 30%, #1e1e21 50%, #141416 70%);
+  background-size: 220% 100%;
+  animation: cc-brillo 1.5s linear infinite;
+}
+
+@keyframes cc-brillo {
+  to {
+    background-position: -220% 0;
+  }
+}
+
+.is-muted {
+  color: var(--soft);
+}
+
+/* El punto rojo del directo. */
+.live-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--red);
+  animation: cc-live 2.4s ease-in-out infinite;
+}
+
+@keyframes cc-live {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Listas de 7.800 canales: no calcular lo que no se ve. */
+.row-virtual {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 68px;
+}
+
+.scroll-none {
+  scrollbar-width: none;
+}
+
+.scroll-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* ═══ Teléfono ══════════════════════════════════════════════════════════
+   Por encima de 680px la barra superior lleva todo. Por debajo se parte en
+   dos: cabecera arriba con la marca, destinos abajo al alcance del pulgar. */
+
+.mobile-header,
+.mobile-bottom-nav {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .sidebar {
+    display: none;
+  }
+
+  .mobile-header {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 58px;
+    padding: 0 16px;
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .mobile-bottom-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 60;
+    display: flex;
+    justify-content: space-around;
+    align-items: stretch;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: var(--glass);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 1px solid var(--line);
+  }
+
+  .mobile-nav-item {
+    flex: 1;
+    min-width: 0;
+    /* 44px es el mínimo que recomiendan Apple y las pautas WCAG para algo que
+       se pulsa con el dedo. Con siete destinos cada casilla queda en ~52px de
+       ancho: cabe, pero la etiqueta necesita ayuda para no partirse. */
+    min-height: 44px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 2px;
+    border: 0;
+    background: transparent;
+    color: var(--soft);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1.1;
+    text-align: center;
+  }
+
+  .mobile-nav-item svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  .mobile-nav-item.is-active {
+    color: var(--text);
+  }
+
+  /* Todo el contenido se aparta de las dos barras. */
+  .screen,
+  .livetv-shell,
+  .section-heading,
+  .search-hero {
+    padding-top: calc(58px + 14px);
+  }
+
+  .screen.has-hero,
+  .screen.has-section-heading,
+  .screen.has-search-hero,
+  .screen.sin-hueco {
+    padding-top: 0;
+  }
+
+  .content {
+    padding-bottom: calc(62px + env(safe-area-inset-bottom));
+  }
+
+  .livetv-detail {
+    display: none;
+  }
+
+  .rail-strip {
+    grid-auto-columns: clamp(148px, 44vw, 210px);
+  }
+}
+
+/* ═══ Movimiento ════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}
