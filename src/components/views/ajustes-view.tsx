@@ -55,7 +55,7 @@ function Toggle({
       aria-checked={checked}
       aria-label={label}
       onClick={onChange}
-      className={`relative h-[34px] w-[58px] shrink-0 rounded-full border border-white/12 ${
+      className={`relative h-11 w-[58px] shrink-0 rounded-full border border-white/12 ${
         checked ? "bg-accent" : "bg-white/[0.08]"
       }`}
     >

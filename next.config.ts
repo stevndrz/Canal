@@ -11,6 +11,17 @@ import type { NextConfig } from "next";
  */
 const nextConfig: NextConfig = {
   serverExternalPackages: ["hls.js", "mpegts.js"],
+
+  /**
+   * El indicador de desarrollo de Next se coloca abajo a la izquierda, que es
+   * exactamente donde vive la primera pestaña de la barra inferior del
+   * teléfono: mientras se desarrolla, "Inicio" no se puede pulsar. No afecta a
+   * producción —ese elemento no se emite—, pero sí a cualquier prueba en un
+   * móvil real o automatizada.
+   */
+  devIndicators: {
+    position: "top-right",
+  },
 };
 
 export default nextConfig;

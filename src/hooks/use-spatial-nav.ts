@@ -16,9 +16,28 @@ interface Candidate {
   rect: DOMRect;
 }
 
+/**
+ * Un candidato tiene que poder recibir el foco de verdad.
+ *
+ * `.focus()` sobre un `<div>` corriente no hace nada y no avisa: el motor cree
+ * que movió el foco, el foco se queda donde estaba y la navegación se atasca
+ * sin ningún error en consola. Pasó exactamente eso al marcar el contenedor de
+ * scroll de un carril con `data-nav`: al pulsar abajo desde la barra, ese div
+ * enorme ganaba por cercanía y el foco no salía nunca de la barra.
+ *
+ * En vez de confiar en que nadie vuelva a marcar un elemento no enfocable, se
+ * comprueba aquí.
+ */
+const ENFOCABLES = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "VIDEO"]);
+
+function esEnfocable(el: HTMLElement): boolean {
+  if (el.tabIndex >= 0) return true;
+  return ENFOCABLES.has(el.tagName) && !el.hasAttribute("disabled");
+}
+
 function collect(root: HTMLElement): Candidate[] {
   return [...root.querySelectorAll<HTMLElement>("[data-nav]")]
-    .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null)
+    .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null && esEnfocable(el))
     .map((el) => ({ el, rect: el.getBoundingClientRect() }))
     .filter(({ rect }) => rect.width > 0 && rect.height > 0);
 }
@@ -46,7 +65,23 @@ function pick(from: DOMRect, candidates: Candidate[], dir: Dir): HTMLElement | n
       dir === "up" ? -dy : dir === "down" ? dy : dir === "left" ? -dx : dx;
     if (primary < 12) return;
 
-    const secondary = dir === "up" || dir === "down" ? Math.abs(dx) : Math.abs(dy);
+    const vertical = dir === "up" || dir === "down";
+
+    // Izquierda y derecha no cambian de fila.
+    //
+    // Sin esta condición, pulsar derecha en el último botón del hero saltaba a
+    // la barra de navegación: está a la derecha y arriba, y la penalización por
+    // desviación no bastaba para descartarla. En una interfaz de televisor las
+    // filas son horizontales, así que el eje que se recorre con izquierda y
+    // derecha tiene que ser el de la fila en la que ya estás. Arriba y abajo
+    // sí cambian de fila, y ahí la desviación lateral solo se penaliza: el
+    // contenido es ancho y exigir la misma columna dejaría filas inalcanzables.
+    if (!vertical) {
+      const solape = Math.min(from.bottom, rect.bottom) - Math.max(from.top, rect.top);
+      if (solape <= 0) return;
+    }
+
+    const secondary = vertical ? Math.abs(dx) : Math.abs(dy);
 
     // Penaliza la desviación lateral: preferimos la misma columna/fila.
     const score = primary + secondary * 2.2;
@@ -91,10 +126,37 @@ export interface SpatialNavOptions {
   onBack?: () => void;
   /** Dígito 0-9 del mando para canal directo. */
   onDigit?: (digit: string) => void;
+  /**
+   * Desactiva el movimiento del foco, no la tecla Atrás.
+   *
+   * Durante la reproducción no queremos que las flechas muevan el foco por
+   * debajo del vídeo, pero Atrás tiene que seguir funcionando: es la única
+   * forma de salir con un mando, que no tiene ratón ni Tab.
+   */
   enabled?: boolean;
 }
 
 export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: SpatialNavOptions) {
+  /**
+   * Deja el foco en el primer elemento navegable.
+   *
+   * Un mando de televisor no tiene Tab: si al entrar en una pantalla no hay
+   * nada enfocado, las flechas no tienen desde dónde partir y el mando no
+   * responde. En ratón esto no se nota porque se pulsa directamente.
+   */
+  const focusFirst = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
+    const candidates = collect(root);
+    const primero = candidates[0];
+    if (primero) {
+      primero.el.focus({ preventScroll: true });
+      scrollNearest(primero.el);
+    }
+  }, [rootRef]);
+
   const focusIn = useCallback((dir: Dir) => {
     const root = rootRef.current;
     if (!root) return;
@@ -124,20 +186,28 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
   }, [rootRef]);
 
   useEffect(() => {
-    if (!enabled) return;
-
     const onKeyDown = (event: KeyboardEvent) => {
       // El input de búsqueda con teclado físico manda sobre la navegación.
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 
-      if (BACK_KEYCODES.has(event.keyCode) || event.key === "Escape") {
+      // Atrás se atiende siempre, incluso con el foco desactivado: es lo que
+      // saca del reproductor en un televisor. Escribiendo en un campo,
+      // Retroceso borra una letra y no debe salir de la pantalla.
+      const esAtras =
+        BACK_KEYCODES.has(event.keyCode) ||
+        event.key === "Escape" ||
+        event.key === "GoBack" ||
+        event.key === "BrowserBack" ||
+        (event.key === "Backspace" && !typing);
+
+      if (esAtras) {
         event.preventDefault();
         onBack?.();
         return;
       }
 
-      if (typing) return;
+      if (!enabled || typing) return;
 
       switch (event.key) {
         case "ArrowUp":
@@ -167,7 +237,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [enabled, focusIn, onBack, onDigit]);
 
-  return { focusIn };
+  return { focusIn, focusFirst };
 }
 
 /**

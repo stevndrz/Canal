@@ -127,8 +127,17 @@ export function Dashboard({
   );
 
   const handleBack = useCallback(() => {
-    if (view === "player") navigate(lastView);
-    else if (view !== "home") navigate("home");
+    if (view === "player") {
+      // Igual que el botón "Volver a la guía": si se pidió pantalla completa
+      // real hay que cerrarla antes, o el navegador se queda en fullscreen
+      // mostrando la navegación por debajo.
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+      navigate(lastView === "player" ? "canales" : lastView);
+    } else if (view !== "home") {
+      navigate("home");
+    }
   }, [view, lastView, navigate]);
 
   /** 0-9 del mando: salta a la centena de esa categoría (101, 201, …). */
@@ -151,12 +160,22 @@ export function Dashboard({
     return () => root.removeAttribute("data-player");
   }, [view]);
 
-  useSpatialNav({
+  const { focusFirst } = useSpatialNav({
     rootRef: shellRef,
     onBack: handleBack,
     onDigit: handleDigit,
     enabled: view !== "player",
   });
+
+  // Al cambiar de pantalla hay que dejar el foco en algún sitio. Un mando de
+  // televisor no tiene Tab: sin nada enfocado, las flechas no tienen desde
+  // dónde partir y parece que el mando no responde. Se espera un fotograma a
+  // que la vista nueva esté montada.
+  useEffect(() => {
+    if (view === "player") return undefined;
+    const id = window.setTimeout(focusFirst, 60);
+    return () => window.clearTimeout(id);
+  }, [view, focusFirst]);
 
   const pickCategory = useCallback(
     (next: string) => {

@@ -253,6 +253,69 @@ La pantalla que más se usa en esta app y la mejor resuelta de ARVIO:
 
 ---
 
+## Fase 5.5 — Auditoría funcional y accesibilidad ✅
+
+Insertada por delante del resto del porte. El aspecto ya era el de ARVIO, pero
+la app **no se podía usar con un mando** y dos secciones enteras eran
+inalcanzables desde un teléfono. Portar más pantallas encima de eso solo
+habría multiplicado el problema.
+
+Método: medir en vez de suponer. Un guion recorre las seis vistas a 1920px y a
+390px y cuenta elementos interactivos sin nombre accesible, objetivos por
+debajo de 44px, secciones inalcanzables y errores de JavaScript. Otro simula un
+mando: pulsa Atrás en el reproductor y recorre hero, carriles y barra.
+
+**Lo que encontró, todo real y todo invisible al compilar:**
+
+- [x] **Del reproductor no se salía con el mando.** Ni Escape, ni Atrás, ni las
+  teclas de Tizen/webOS. Solo con el botón de la pantalla. En un televisor eso
+  es quedarse encerrado. La tecla Atrás se atiende ahora **siempre**, incluso
+  con el movimiento del foco desactivado durante la reproducción.
+- [x] **Al entrar no había nada enfocado.** Un mando no tiene Tab: sin foco
+  inicial, las flechas no tienen desde dónde partir y parece que el mando está
+  roto. Ahora cada cambio de pantalla deja el foco en el primer navegable.
+- [x] **El foco se quedaba atrapado en la barra superior.** Causa: `data-nav`
+  puesto en el contenedor de scroll del carril, que es un `<div>` **no
+  enfocable**. `.focus()` sobre un div no hace nada y no avisa, así que el
+  motor creía haber movido el foco. Con un mando, la app era solo la barra.
+  Arreglado en origen: `collect()` ahora exige que el candidato pueda recibir
+  el foco de verdad, así que el fallo no puede repetirse.
+- [x] **Pulsar derecha saltaba a la barra de navegación.** Izquierda y derecha
+  no deben cambiar de fila: ahora exigen solape vertical con el elemento de
+  partida. Arriba y abajo sí cambian de fila y solo penalizan la desviación.
+- [x] **Buscar y Categorías no existían en el teléfono.** La barra superior se
+  oculta bajo 680px y la inferior solo llevaba cinco de los siete destinos. Los
+  siete caben: unos 55px por casilla en una pantalla de 390px.
+- [x] **Objetivos táctiles por debajo de 44px**: categorías de Canales (36px),
+  interruptores de Ajustes (34px) y flechas de carril. Corregidos.
+- [x] **iOS**: sin `viewportFit: "cover"`, `env(safe-area-inset-*)` vale 0 y la
+  barra inferior quedaba pegada al indicador de inicio del iPhone. Añadido,
+  junto con los metadatos para añadir a la pantalla de inicio.
+- [x] **El carrusel no se podía recorrer.** Ahora los tres caminos funcionan:
+  con mando, moviendo el foco de tarjeta en tarjeta —el carril sigue al foco—;
+  con ratón, las flechas; con el dedo, arrastre con anclaje por tarjeta.
+- [x] **El indicador de desarrollo de Next tapaba la pestaña «Inicio»** del
+  teléfono. No afecta a producción, pero impedía probar en un móvil real.
+
+**Segunda lección de capas, y va al revés que la primera.** La regla que oculta
+las flechas es `display: none !important` dentro de `arvio`. Con declaraciones
+`!important` **el orden de las capas se invierte**: una `!important` sin capa
+*pierde* ante una `!important` con capa. La anulación tuvo que entrar en la
+misma capa y con más especificidad. Para reglas normales, lo de siempre.
+
+**Cómo volver a pasar la auditoría** (los guiones viven en el bloc de notas de
+la sesión; si hace falta, se reescriben desde este resumen):
+
+1. Recorrer las seis vistas a 1920 y 390 px contando: interactivos sin nombre
+   accesible, objetivos <44px, destinos no visibles, errores de JavaScript.
+2. Simular el mando: Atrás en el reproductor; y desde el foco inicial, bajar al
+   hero, entrar en un carril y recorrerlo con derecha comprobando que
+   `scrollLeft` avanza.
+3. Comprobar las flechas del carril con ratón y con dedo por separado
+   (`hasTouch`), que dan resultados distintos a propósito.
+
+---
+
 ## Fase 6 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.

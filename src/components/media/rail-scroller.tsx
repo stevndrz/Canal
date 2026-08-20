@@ -13,8 +13,10 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
  *
  * MODIFICADO respecto al original (Apache 2.0 §4b):
  *   - Textos de accesibilidad en español.
- *   - `data-nav="rail"` para que use-spatial-nav trate el carril como una
- *     unidad al moverse con el mando.
+ *   - Las flechas quedan fuera de la navegación con mando: en un televisor el
+ *     carril se recorre moviendo el foco de tarjeta en tarjeta, y el propio
+ *     desplazamiento sigue al foco. Las flechas son para ratón y para pantallas
+ *     táctiles que no descubren el arrastre.
  */
 export function RailScroller({
   children,
@@ -70,7 +72,10 @@ export function RailScroller({
       >
         <ChevronLeft size={24} />
       </button>
-      <div ref={ref} className={className} data-nav="rail">
+      {/* Sin `data-nav`: este div es el contenedor de scroll, no un destino.
+          Marcarlo hacía que la navegación con mando lo eligiera como vecino y
+          se atascara, porque `.focus()` sobre un div corriente no hace nada. */}
+      <div ref={ref} className={className}>
         {children}
       </div>
       <button

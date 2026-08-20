@@ -39,5 +39,13 @@ export const NAV_ITEMS: NavItem[] = [
   { kind: "view", key: "ajustes", label: "Ajustes", Icon: Settings },
 ];
 
-/** Las que caben en la barra inferior del teléfono. */
-export const MOBILE_KEYS = ["home", "canales", "peliculas", "favoritos", "ajustes"];
+/**
+ * Destinos de la barra inferior del teléfono.
+ *
+ * Están **los siete**. Antes había cinco y, como la barra superior se oculta
+ * por debajo de 680px, Buscar y Categorías quedaban sin ninguna forma de
+ * llegar a ellas desde un teléfono: dos secciones enteras inaccesibles. Con
+ * siete cada casilla mide unos 55px de ancho en una pantalla de 390px, por
+ * encima del mínimo táctil recomendado de 44px.
+ */
+export const MOBILE_KEYS = NAV_ITEMS.map((item) => item.key);

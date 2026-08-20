@@ -304,3 +304,81 @@ html[data-player="on"] body {
   font-size: clamp(12px, 0.85vw, 15px);
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
+
+/* ── Objetivos táctiles ──────────────────────────────────────────────
+   44 píxeles es el mínimo que recomiendan tanto Apple como las pautas WCAG
+   para algo que se pulsa con el dedo. La auditoría encontró tres sitios por
+   debajo: las categorías de Canales (36px en teléfono), el interruptor de
+   Ajustes (34px) y las flechas de los carriles. En un mando da igual porque se
+   navega por foco, pero en un teléfono se falla el toque y parece que el botón
+   no funciona. */
+.livetv-cats button,
+.livetv-chipbtn,
+.livetv-row-star,
+.mobile-nav-item {
+  min-height: 44px;
+}
+
+.rail-arrow {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Con siete destinos en la barra del teléfono cada casilla se queda en unos
+   55px: cabe, pero la etiqueta necesita ayuda para no partirse. */
+.mobile-nav-item {
+  min-width: 0;
+  padding-inline: 2px;
+}
+
+.mobile-nav-item span {
+  font-size: 10px;
+  line-height: 1.15;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Carruseles: cómo se avanza en cada dispositivo ──────────────────
+   ARVIO oculta las flechas por debajo de 680px porque en una pantalla táctil
+   se montaban encima de las tarjetas. La decisión es buena pero se toma por
+   ancho, y el ancho no dice cómo se maneja el aparato: una ventana estrecha en
+   un ordenador, o un televisor LG con su mando-puntero, se quedaban sin
+   flechas y sin poder arrastrar. Aquí la condición pasa a ser el tipo de
+   entrada, que es lo que de verdad importa.
+
+   Los tres caminos quedan cubiertos: con mando se recorre moviendo el foco de
+   tarjeta en tarjeta y el carril sigue al foco; con ratón, las flechas; con el
+   dedo, el arrastre.
+
+   Ojo con la capa. La regla original es `display: none !important` dentro de
+   `arvio`, y con declaraciones `!important` el orden de las capas se
+   **invierte**: una `!important` sin capa pierde ante una `!important` con
+   capa, justo al revés que las reglas normales. Por eso esta anulación entra
+   en la misma capa y con más especificidad, en vez de ir suelta al final. */
+@layer arvio {
+  @media (max-width: 680px) and (hover: hover) and (pointer: fine) {
+    .rail-scroll-shell .rail-arrow {
+      display: grid !important;
+    }
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rail-strip {
+    scroll-snap-type: x proximity;
+  }
+
+  .rail-strip > .media-card {
+    scroll-snap-align: start;
+  }
+}
+
+/* El desplazamiento del carril tiene que ser suave cuando lo mueve el foco o
+   una flecha, pero instantáneo para quien pidió no ver animaciones. */
+@media (prefers-reduced-motion: reduce) {
+  .rail-strip {
+    scroll-behavior: auto;
+  }
+}

@@ -23,6 +23,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "CanalCasa",
   description: "TV en vivo en casa: televisor, tablet o teléfono.",
+  // Añadida a la pantalla de inicio de un iPhone, la app abre sin la barra de
+  // Safari. Sin esto se pierden 120px de alto y la barra inferior queda tapada.
+  appleWebApp: {
+    capable: true,
+    title: "CanalCasa",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 /** App instalable y a pantalla completa; sin zoom accidental con el mando. */
@@ -33,6 +40,13 @@ export const viewport: Viewport = {
   userScalable: false,
   themeColor: "#09090b",
   colorScheme: "dark",
+  /**
+   * Sin `viewportFit: "cover"`, `env(safe-area-inset-*)` vale siempre 0 en iOS.
+   * La barra inferior del teléfono usa ese hueco para apartarse del indicador
+   * de inicio del iPhone; sin él queda justo debajo y los últimos destinos son
+   * casi imposibles de pulsar.
+   */
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
