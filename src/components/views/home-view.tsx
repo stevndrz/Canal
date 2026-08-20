@@ -33,6 +33,7 @@ interface HomeViewProps {
   /** Pasar a pantalla completa con ese canal. */
   onExpand: (channel: Channel) => void;
   onNext: () => void;
+  onPrev: () => void;
   onOpenTitle: (mediaType: string, id: string) => void;
 }
 
@@ -62,6 +63,7 @@ export function HomeView({
   onSelect,
   onExpand,
   onNext,
+  onPrev,
   onOpenTitle,
 }: HomeViewProps) {
   const favoriteChannels = useMemo(
@@ -97,6 +99,7 @@ export function HomeView({
           settings={settings}
           onExpand={onExpand}
           onNext={onNext}
+          onPrev={onPrev}
         />
       )}
 

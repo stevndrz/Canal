@@ -149,14 +149,17 @@ export function Dashboard({
     [select],
   );
 
-  /** Canal siguiente dentro de lo que se está mirando. */
-  const nextChannel = useCallback(() => {
-    if (!tunedId) return;
-    const lista = visible.length > 0 ? visible : channels;
-    const actual = lista.findIndex((channel) => channel.id === tunedId);
-    const siguiente = lista[(actual + 1 + lista.length) % lista.length];
-    if (siguiente) select(siguiente);
-  }, [tunedId, visible, channels, select]);
+  /** Zapear dentro de lo que se está mirando, en un sentido u otro. */
+  const zap = useCallback(
+    (delta: number) => {
+      if (!tunedId) return;
+      const lista = visible.length > 0 ? visible : channels;
+      const actual = lista.findIndex((channel) => channel.id === tunedId);
+      const destino = lista[(actual + delta + lista.length) % lista.length];
+      if (destino) select(destino);
+    },
+    [tunedId, visible, channels, select],
+  );
 
   const handleBack = useCallback(() => {
     if (view === "player") {
@@ -269,7 +272,8 @@ export function Dashboard({
             settings={settings}
             onSelect={select}
             onExpand={tune}
-            onNext={nextChannel}
+            onNext={() => zap(1)}
+            onPrev={() => zap(-1)}
             onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
           />
         )}

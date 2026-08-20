@@ -548,3 +548,173 @@ html[data-player="on"] body {
   max-width: min(560px, 92vw);
   margin-bottom: clamp(16px, 2vh, 26px);
 }
+
+/* ── La barra de controles del reproductor ───────────────────────────
+   Sustituye a los seis círculos de cristal idénticos que había antes.
+
+   Fondo sólido y no translúcido a propósito: el desenfoque se veía bien sobre
+   una escena oscura y desaparecía sobre una clara, así que la legibilidad
+   dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
+
+   Y jerarquía: el control primario es más grande y de color invertido, los
+   secundarios llevan su palabra, y los ocasionales quedan a la derecha en un
+   tamaño menor. Antes todo medía 58px y pausar pesaba lo mismo que "ver en
+   familia". */
+.player-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: clamp(8px, 0.8vw, 16px);
+  padding: clamp(10px, 1vw, 18px) clamp(12px, 1.2vw, 22px);
+  border-radius: clamp(14px, 1.1vw, 20px);
+  background: rgba(12, 13, 16, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-bar.is-fullscreen {
+  border-radius: clamp(16px, 1.3vw, 24px);
+  background: rgba(8, 9, 11, 0.94);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+.player-bar-main,
+.player-bar-extras {
+  display: flex;
+  align-items: center;
+  gap: clamp(6px, 0.6vw, 12px);
+  min-width: 0;
+}
+
+.player-btn {
+  min-height: 52px;
+  min-width: 52px;
+  padding: 0 clamp(10px, 0.9vw, 16px);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
+}
+
+.player-btn svg {
+  width: clamp(19px, 1.3vw, 24px);
+  height: clamp(19px, 1.3vw, 24px);
+  flex-shrink: 0;
+}
+
+.player-btn:hover,
+.player-btn:focus-visible {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: scale(1.04);
+}
+
+/* El primario: más alto, invertido y separado del resto. Es el único control
+   que alguien busca a ciegas. */
+.player-btn.is-primary {
+  min-height: 60px;
+  padding: 0 clamp(16px, 1.3vw, 26px);
+  margin-right: clamp(4px, 0.5vw, 10px);
+  background: #fff;
+  color: #0a0a0a;
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.player-btn.is-primary:hover,
+.player-btn.is-primary:focus-visible {
+  background: #e6e6e6;
+}
+
+/* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
+.player-btn.is-extra {
+  padding: 0;
+  width: 52px;
+  justify-content: center;
+}
+
+.player-btn.is-extra span {
+  display: none;
+}
+
+.player-btn.is-extra.is-active {
+  color: var(--color-live, #ff453a);
+  border-color: rgba(255, 69, 58, 0.4);
+}
+
+/* Controles grandes: todo sube y aparecen todas las palabras. */
+.player-bar.is-big .player-btn {
+  min-height: 62px;
+  font-size: clamp(15px, 1.05vw, 19px);
+}
+
+.player-bar.is-big .player-btn.is-primary {
+  min-height: 70px;
+}
+
+.player-bar.is-big .player-btn svg {
+  width: clamp(22px, 1.5vw, 28px);
+  height: clamp(22px, 1.5vw, 28px);
+}
+
+.player-bar.is-big .player-btn.is-extra {
+  width: auto;
+  padding: 0 clamp(12px, 1vw, 18px);
+}
+
+.player-bar.is-big .player-btn.is-extra span {
+  display: inline;
+}
+
+/* En teléfono la barra se parte en dos filas antes que salirse de la pantalla,
+   y los secundarios pierden la palabra para que quepan los seis. */
+@media (max-width: 720px) {
+  .player-bar {
+    justify-content: center;
+  }
+
+  .player-btn:not(.is-primary) span {
+    display: none;
+  }
+
+  .player-btn:not(.is-primary) {
+    width: 52px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .player-bar.is-big .player-btn:not(.is-primary) {
+    width: 58px;
+  }
+}
+
+/* El botón de pantalla completa conserva su palabra aunque sea "extra": es el
+   único control que cambia el modo entero, y sin texto nadie que no reconozca
+   el icono sabe cómo volver. */
+.player-btn.is-extra.is-mode {
+  width: auto;
+  padding: 0 clamp(12px, 1vw, 18px);
+}
+
+.player-btn.is-extra.is-mode span {
+  display: inline;
+}
+
+@media (max-width: 720px) {
+  .player-btn.is-extra.is-mode {
+    width: auto;
+    padding: 0 14px;
+  }
+
+  .player-btn.is-extra.is-mode span {
+    display: inline;
+  }
+}

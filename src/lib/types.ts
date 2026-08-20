@@ -43,6 +43,14 @@ export interface PlaybackSettings {
   liveBufferLatencyChasing: boolean;
   startUnmuted: boolean;
   engine: "auto" | "hls" | "mpegts";
+  /**
+   * Controles más grandes y con todas las palabras a la vista.
+   *
+   * No es un ajuste de accesibilidad escondido: es la diferencia entre una app
+   * que usa quien ya conoce los iconos y una que usa cualquiera de la casa. Con
+   * él, hasta los controles secundarios llevan su etiqueta.
+   */
+  bigControls: boolean;
 }
 
 export const DEFAULT_PLAYBACK: PlaybackSettings = {
@@ -51,4 +59,5 @@ export const DEFAULT_PLAYBACK: PlaybackSettings = {
   liveBufferLatencyChasing: true,
   startUnmuted: true,
   engine: "auto",
+  bigControls: false,
 };

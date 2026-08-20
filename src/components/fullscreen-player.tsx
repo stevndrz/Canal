@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Cast, List, Minimize, Pause, Play, SkipForward, Users, Volume2, VolumeX } from "lucide-react";
+import { Cast } from "lucide-react";
+import {
+  ICONO_CAST,
+  ICONO_FAMILIA,
+  ICONO_GUIA,
+  PlayerControls,
+} from "@/components/player/player-controls";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -24,7 +30,12 @@ interface FullscreenPlayerProps {
   clock: string;
 }
 
-const CONTROLS_TIMEOUT = 4000;
+/* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
+   iconos en decidir cuál pulsar es más largo que el de quien ya los reconoce, y
+   que la barra se vaya mientras dudas es justo lo que la hace sentir hostil.
+   Solo aplica en pantalla completa: el reproductor de Inicio lleva sus
+   controles debajo del vídeo, donde no tapan nada, y no los oculta nunca. */
+const CONTROLS_TIMEOUT = 5000;
 const GUIDE_TIMEOUT = 5000;
 
 export function FullscreenPlayer({
@@ -173,8 +184,6 @@ export function FullscreenPlayer({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [zap, showGuide, openGuide, wake]);
 
-  const controlClass =
-    "grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl border border-white/12 bg-white/12 text-accent backdrop-blur-md";
 
   return (
     <div
@@ -217,114 +226,60 @@ export function FullscreenPlayer({
           showControls ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
-        <div className="scroll-none flex min-w-0 items-center gap-2.5 overflow-x-auto">
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={state.isPlaying ? "Pausar" : "Reproducir"}
-            onClick={() => {
-              playerRef.current?.togglePlay();
-              wake();
-            }}
-            className="grid h-[58px] w-[58px] shrink-0 place-items-center rounded-2xl bg-accent text-accent-on"
-          >
-            {state.isPlaying ? (
-              <Pause aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            ) : (
-              <Play aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label={state.isMuted ? "Activar sonido" : "Silenciar"}
-            aria-pressed={state.isMuted}
-            onClick={() => {
-              playerRef.current?.toggleMute();
-              wake();
-            }}
-            className={controlClass}
-          >
-            {state.isMuted ? (
-              <VolumeX aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            ) : (
-              <Volume2 aria-hidden="true" strokeWidth={1.5} className="h-[22px] w-[22px]" />
-            )}
-          </button>
-
-          {/* Cambiar de canal es lo que más se hace viendo la tele, así que
-              tiene botón propio. Marcar un favorito no: eso se hace desde la
-              lista, con la parrilla delante y sin tapar el vídeo. */}
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Canal siguiente"
-            onClick={() => zap(1)}
-            className={controlClass}
-          >
-            <SkipForward aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Guía de canales"
-            aria-expanded={showGuide}
-            onClick={() => (showGuide ? setShowGuide(false) : openGuide())}
-            className={controlClass}
-          >
-            <List aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          <button
-            type="button"
-            data-nav="button"
-            aria-label="Ver en familia"
-            aria-expanded={showParty}
-            onClick={() => setShowParty((value) => !value)}
-            className={controlClass}
-          >
-            <Users aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-
-          {canCast && (
-            <button
-              type="button"
-              data-nav="button"
-              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
-              aria-pressed={isCasting}
-              onClick={isCasting ? stopCasting : startCasting}
-              className={`${controlClass} ${isCasting ? "text-live" : ""}`}
-            >
-              <Cast aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-            </button>
-          )}
-
-          <button
-            type="button"
-            data-nav="button"
-            /* Un único botón para salir.
-               Antes había dos y se confundían: uno pedía pantalla completa real
-               al navegador y el otro devolvía a la navegación. Como ahora se
-               entra aquí desde el reproductor pequeño de Inicio, "pantalla
-               completa" es un solo estado y este botón lo deshace entero: cierra
-               la pantalla completa del navegador si estaba activa y vuelve. El
-               doble clic sigue alternando la del navegador, como en cualquier
-               reproductor de escritorio. */
-            aria-label="Salir de pantalla completa"
-            onClick={() => {
+        <PlayerControls
+          variant="fullscreen"
+          isPlaying={state.isPlaying}
+          isMuted={state.isMuted}
+          big={settings.bigControls}
+          onTogglePlay={() => {
+            playerRef.current?.togglePlay();
+            wake();
+          }}
+          onToggleMute={() => {
+            playerRef.current?.toggleMute();
+            wake();
+          }}
+          onPrev={() => zap(-1)}
+          onNext={() => zap(1)}
+          fullscreen={{
+            active: true,
+            onToggle: () => {
               // Deshace el estado entero: la pantalla completa del navegador,
               // si se concedió, y la vista inmersiva. Salir a medias dejaba al
               // navegador en fullscreen enseñando la navegación por debajo.
               if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
               onExit();
-            }}
-            className={controlClass}
-          >
-            <Minimize aria-hidden="true" strokeWidth={1.5} className="h-5 w-5" />
-          </button>
-        </div>
+            },
+          }}
+          extras={[
+            {
+              id: "guia",
+              label: "Guía",
+              icon: ICONO_GUIA,
+              expanded: showGuide,
+              onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
+            },
+            {
+              id: "familia",
+              label: "Ver en familia",
+              icon: ICONO_FAMILIA,
+              expanded: showParty,
+              onClick: () => setShowParty((value) => !value),
+            },
+            ...(canCast
+              ? [
+                  {
+                    id: "cast",
+                    label: isCasting ? "Dejar de transmitir" : "Transmitir a la TV",
+                    icon: ICONO_CAST,
+                    active: isCasting,
+                    pressed: isCasting,
+                    onClick: isCasting ? stopCasting : startCasting,
+                  },
+                ]
+              : []),
+          ]}
+        />
 
         <div className="hidden items-center gap-5 text-[13px] text-zinc-100/50 lg:flex">
           <span>↑↓ cambiar canal</span>

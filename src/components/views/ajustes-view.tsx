@@ -146,6 +146,17 @@ export function AjustesView({
                 }
               />
             </Row>
+            <Row
+              label="Controles grandes"
+              hint="Botones más altos y con todas las palabras a la vista"
+            >
+              <Toggle
+                checked={settings.bigControls}
+                label="Controles grandes"
+                onChange={() => onChange({ bigControls: !settings.bigControls })}
+              />
+            </Row>
+
             <Row label="Arrancar con sonido" hint="Si el navegador lo bloquea, pide un OK">
               <Toggle
                 checked={settings.startUnmuted}

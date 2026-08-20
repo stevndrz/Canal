@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Maximize, SkipForward, Volume2, VolumeX } from "lucide-react";
+import { PlayerControls } from "@/components/player/player-controls";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -32,11 +32,12 @@ interface LiveCardProps {
   settings: PlaybackSettings;
   /** Pasar a pantalla completa con este canal. */
   onExpand: (channel: Channel) => void;
-  /** Cambiar al canal siguiente sin salir de Inicio. */
+  /** Cambiar de canal sin salir de Inicio. */
   onNext: () => void;
+  onPrev: () => void;
 }
 
-export function LiveCard({ channel, settings, onExpand, onNext }: LiveCardProps) {
+export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCardProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const [state, setState] = useState<StreamPlayerState>({
     isPlaying: true,
@@ -104,41 +105,20 @@ export function LiveCard({ channel, settings, onExpand, onNext }: LiveCardProps)
         )}
       </div>
 
-      <div className="live-card-controles">
-        <button
-          type="button"
-          data-nav="button"
-          className="live-card-boton"
-          aria-label={state.isMuted ? "Activar sonido" : "Silenciar"}
-          aria-pressed={state.isMuted}
-          onClick={() => playerRef.current?.toggleMute()}
-        >
-          {state.isMuted ? <VolumeX size={19} /> : <Volume2 size={19} />}
-          <span>{state.isMuted ? "Sonido" : "Silenciar"}</span>
-        </button>
-
-        <button
-          type="button"
-          data-nav="button"
-          className="live-card-boton"
-          aria-label="Canal siguiente"
-          onClick={onNext}
-        >
-          <SkipForward size={19} />
-          <span>Siguiente</span>
-        </button>
-
-        <button
-          type="button"
-          data-nav="button"
-          className="live-card-boton is-primary"
-          aria-label={`Ver ${channel.name} en pantalla completa`}
-          onClick={expandir}
-        >
-          <Maximize size={19} />
-          <span>Pantalla completa</span>
-        </button>
-      </div>
+      {/* Los controles van DEBAJO del vídeo, no encima: aquí no hay nada que
+          tapar y así no se ocultan nunca. Ocultarlos solo tiene sentido en
+          pantalla completa, donde sí estorban a la imagen. */}
+      <PlayerControls
+        variant="embedded"
+        isPlaying={state.isPlaying}
+        isMuted={state.isMuted}
+        onTogglePlay={() => playerRef.current?.togglePlay()}
+        onToggleMute={() => playerRef.current?.toggleMute()}
+        onPrev={onPrev}
+        onNext={onNext}
+        fullscreen={{ active: false, onToggle: expandir }}
+        big={settings.bigControls}
+      />
     </section>
   );
 }

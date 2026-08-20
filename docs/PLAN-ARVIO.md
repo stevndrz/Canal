@@ -360,6 +360,52 @@ obligaba a salir antes de poder ver nada más.
 
 ---
 
+## Fase 5.7 — Reproductor propio y chrome parejo en todas las rutas ✅
+
+Tres cosas que se veían usando la app y no compilando.
+
+**Películas llevaba varias fases reventando.** No es que "la barra
+desapareciera": la ruta entera se caía. Sus fichas usan `next/image` contra
+TMDB y `next.config.ts` no declaraba ese host; `next/image` no degrada a una
+imagen rota, **lanza y tumba la ruta completa**. Estaba anotado como "verificar
+de paso" desde la Fase 3 y nunca se comprobó. Lección: una nota de "verificar"
+sin ejecutar no vale nada.
+
+- [x] `images.remotePatterns` con TMDB, y solo TMDB: los logos de canal salen de
+  cientos de dominios de listas IPTV y por eso van con `<img>` normal
+- [x] `/peliculas` pinta el mismo chrome que el resto: `.app-shell`, `TopNav`,
+  `.screen`
+- [x] `TopNav` aprende a vivir fuera del App Shell: la sección activa la decide
+  la URL, volver a una vista se pide con `?vista=`, y el reloj pasa a ser suyo
+  en vez de un prop
+
+**Pantalla completa en un solo gesto.** El botón solo cambiaba de vista, así que
+el navegador seguía enseñando su barra de direcciones y hacía falta un doble
+clic más. `requestFullscreen` **solo vale dentro de un gesto de la persona**,
+así que se pide en el mismo clic y sobre el documento, porque el contenedor del
+reproductor todavía no existe en ese instante.
+
+**Reproductor nuevo** (`src/components/player/player-controls.tsx`), compartido
+por el pequeño de Inicio y el de pantalla completa. Antes eran seis círculos
+idénticos de 58px, solo icono, translúcidos con desenfoque. Tres problemas
+reales, ninguno de gusto:
+
+- [x] **Jerarquía en vez de uniformidad.** Pausar pesaba lo mismo que "ver en
+  familia". Ahora hay primario, secundarios y ocasionales, y el tamaño lo dice
+- [x] **Fondo sólido en vez de cristal.** El translúcido se veía sobre una
+  escena oscura y desaparecía sobre una clara: la legibilidad dependía de lo
+  que estuvieran emitiendo
+- [x] **Las palabras se ven.** Un icono solo sirve a quien ya lo conoce
+- [x] **Ajuste «Controles grandes»** (`bigControls`): sube tamaños y saca todas
+  las etiquetas. Una misma app para quien reconoce los iconos y para quien no
+- [x] **Ocultar solo en pantalla completa**, a los 5 segundos y no 4. En el
+  reproductor de Inicio los controles van debajo del vídeo, donde no tapan
+  nada, y no se ocultan nunca
+- [x] El botón de pantalla completa **nunca se queda sin texto**: es el único
+  que cambia el modo entero de la aplicación
+
+---
+
 ## Fase 6 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.
