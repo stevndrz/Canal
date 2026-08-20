@@ -3,6 +3,7 @@ import { fetchCatalogRows, tmdbIdFromCatalogId } from "./discover";
 import { fetchSeason, fetchTitle } from "./tmdb";
 import type {
   CatalogItem,
+  CatalogSection,
   MediaType,
   PlaybackSource,
   ResolvedCatalogItem,
@@ -64,7 +65,7 @@ export async function resolveCatalog(): Promise<ResolvedCatalogItem[]> {
 }
 
 /** Agrupa por `collection` conservando el orden de aparición en el JSON. */
-export function groupByCollection(items: ResolvedCatalogItem[]): { title: string; items: ResolvedCatalogItem[] }[] {
+export function groupByCollection(items: ResolvedCatalogItem[]): CatalogSection[] {
   const groups = new Map<string, ResolvedCatalogItem[]>();
   for (const item of items) {
     const key = item.collection?.trim() || "Destacados";
@@ -83,7 +84,7 @@ export function groupByCollection(items: ResolvedCatalogItem[]): { title: string
  * escribes manda**, así que tus colecciones salen arriba y el catálogo
  * automático va debajo, sin poder desplazarlas.
  */
-export async function getCatalogSections(): Promise<{ title: string; items: ResolvedCatalogItem[] }[]> {
+export async function getCatalogSections(): Promise<CatalogSection[]> {
   const [own, rows] = await Promise.all([resolveCatalog(), fetchCatalogRows()]);
   return [...groupByCollection(own), ...rows];
 }

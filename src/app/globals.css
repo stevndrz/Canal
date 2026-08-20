@@ -38,29 +38,50 @@
   --ease-native: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
-* { box-sizing: border-box; }
+/* Restablecimientos de elemento, en `base` y no sueltos.
+   Sin capa, `button { font: inherit }` ganaba a `.nav-item { font-size: … }`
+   del CSS de ARVIO —que vive en `arvio`— y todos los botones de la aplicación
+   se pintaban a 16px mientras los enlaces salían a 28px: la barra tenía
+   "Películas" al doble de tamaño que el resto. En `base` ceden ante los
+   componentes de ARVIO y siguen mandando sobre el HTML sin estilar. */
+@layer base {
+  * { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: var(--color-app);
+  }
+
+  body {
+    color: var(--color-accent);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+  }
+
+  button { cursor: pointer; font: inherit; }
+  button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+  a { color: var(--color-accent); text-decoration: none; }
+  a:hover { color: #a1a1aa; }
+}
+
+/* La ventana scrollea, salvo durante la reproducción.
+   El shell de ARVIO cuenta con que la página entera scrollee: su barra es
+   `position: fixed` y reacciona a `window.scrollY`, y cada `.screen` crece
+   hasta donde haga falta. Antes aquí había `overflow: hidden` en `body` y el
+   scroll vivía dentro de cada vista; los dos modelos no conviven, así que
+   manda el suyo.
+   El reproductor es la excepción: si la página puede scrollear por debajo, el
+   vídeo se despega del borde superior al arrastrar en un teléfono. Mientras
+   dura, `dashboard.tsx` marca <html> y se vuelve a bloquear. */
+html[data-player="on"],
+html[data-player="on"] body {
   height: 100%;
-  background: var(--color-app);
-}
-
-body {
-  color: var(--color-accent);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  /* App shell: nunca scroll de ventana. El scroll vive en los contenedores. */
   overflow: hidden;
-  overscroll-behavior: none;
 }
-
-button { cursor: pointer; font: inherit; }
-button:disabled { cursor: not-allowed; opacity: 0.45; }
-
-a { color: var(--color-accent); text-decoration: none; }
-a:hover { color: #a1a1aa; }
 
 /* ── Foco D-pad ──────────────────────────────────────────────────────
    Un único lenguaje de foco para toda la app. Usamos :focus-visible en
@@ -131,9 +152,6 @@ a:hover { color: #a1a1aa; }
   --topbar-h: clamp(76px, 8.6vh, 96px);
 }
 
-/* Deja libre la franja que ocupa la barra fija. */
-.below-topbar { padding-top: calc(var(--topbar-h) + 14px); }
-
 .top-clock {
   font-size: clamp(13px, 0.95vw, 17px);
   font-weight: 600;
@@ -178,4 +196,27 @@ a:hover { color: #a1a1aa; }
     font-size: 15px;
     max-width: 50vw;
   }
+}
+
+/* Monograma de respaldo dentro de una tarjeta. ARVIO siempre tiene arte de
+   TMDB, así que su tarjeta solo prevé un icono genérico; las listas M3U rara
+   vez traen logo y dos letras identifican el canal mucho mejor que un icono
+   repetido cien veces. */
+.poster-mark {
+  font-size: clamp(30px, 3.2vw, 56px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+/* La cabecera lleva antetítulo, que en ARVIO no existe porque su hero siempre
+   habla de una película; aquí distingue "Destacado" de "Continuar viendo". */
+.hero-eyebrow {
+  display: block;
+  margin-bottom: 10px;
+  font-size: clamp(11px, 0.8vw, 14px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
 }

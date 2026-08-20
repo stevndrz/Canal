@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
+import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, filterChannels, withChannelNumbers } from "@/lib/channels";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
@@ -43,7 +44,13 @@ const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
  * - El mando se maneja en un solo sitio: useSpatialNav para mover el foco,
  *   este componente para Atrás y los dígitos de canal directo.
  */
-export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
+export function Dashboard({
+  initialChannels,
+  catalog,
+}: {
+  initialChannels: Channel[];
+  catalog: CatalogSection[];
+}) {
   const router = useRouter();
   const shellRef = useRef<HTMLDivElement | null>(null);
 
@@ -133,6 +140,17 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     [channels, tune],
   );
 
+  // El shell scrollea la ventana, pero el reproductor a pantalla completa no
+  // puede: si la página scrollea por debajo, el vídeo se despega del borde
+  // superior al arrastrar. La marca en <html> es lo que globals.css consulta
+  // para volver a bloquear el scroll mientras dura la reproducción.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (view === "player") root.setAttribute("data-player", "on");
+    else root.removeAttribute("data-player");
+    return () => root.removeAttribute("data-player");
+  }, [view]);
+
   useSpatialNav({
     rootRef: shellRef,
     onBack: handleBack,
@@ -176,35 +194,34 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     );
   }
 
-  /* Vistas con scroll simple comparten el mismo contenedor. `below-topbar`
-     aparta el contenido de la barra fija, que flota por encima y no ocupa
-     sitio en el flujo. */
-  const scrollShell = "scroll-thin tv-safe below-topbar flex-1 overflow-y-auto pb-28 md:pb-7";
-  const columnShell = "tv-safe below-topbar flex min-h-0 flex-1 flex-col pb-28 md:pb-7";
+  /* Contenedor de las vistas que todavía no están portadas al diseño.
+     `.screen` pone el hueco superior que deja libre la barra fija; `tv-safe`,
+     el margen lateral de televisor. Inicio no lo usa porque ya es un `.screen`
+     por sí mismo. */
+  const pantalla = "screen tv-safe";
 
   return (
-    <div ref={shellRef} className="relative flex h-dvh overflow-hidden bg-app text-accent">
+    <div ref={shellRef} className="app-shell">
       {/* La barra desaparece durante la reproducción. Es `position: fixed` con
           z-index 60 y el reproductor va en z-50, así que sin esto flotaría
           por encima del vídeo. ARVIO hace lo mismo con su `activeStream`. */}
       {view !== "player" && <TopNav view={view} onNavigate={navigate} clock={clock} />}
 
-      <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="content">
         {view === "home" && (
-          <div className={scrollShell}>
-            <HomeView
-              channels={channels}
-              tuned={tuned}
-              favorites={favorites.ids}
-              recents={recentChannels}
-              onTune={tune}
-              onToggleFavorite={favorites.toggle}
-            />
-          </div>
+          <HomeView
+            channels={channels}
+            tuned={tuned}
+            favorites={favorites.ids}
+            recents={recentChannels}
+            catalog={catalog}
+            onTune={tune}
+            onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
+          />
         )}
 
         {view === "canales" && (
-          <div className={columnShell}>
+          <div className={pantalla}>
             <CanalesView
               channels={visible}
               tuned={tuned}
@@ -221,7 +238,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         )}
 
         {view === "favoritos" && (
-          <div className={scrollShell}>
+          <div className={pantalla}>
             <FavoritosView
               channels={channels}
               favorites={favorites.ids}
@@ -232,7 +249,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         )}
 
         {view === "buscar" && (
-          <div className={columnShell}>
+          <div className={pantalla}>
             <BuscarView
               results={search ? visible : channels.slice(0, 24)}
               search={search}
@@ -243,13 +260,13 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         )}
 
         {view === "categorias" && (
-          <div className={scrollShell}>
+          <div className={pantalla}>
             <CategoriasView channels={channels} onPick={pickCategory} />
           </div>
         )}
 
         {view === "ajustes" && (
-          <div className={scrollShell}>
+          <div className={pantalla}>
             <AjustesView
               settings={settings}
               onChange={patchSettings}
@@ -262,7 +279,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
           </div>
         )}
 
-      </main>
+      </section>
 
       {view === "player" && tuned && (
         <FullscreenPlayer

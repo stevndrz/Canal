@@ -107,3 +107,15 @@ export interface ResolvedEpisode {
   still: string | null;
   source: PlaybackSource;
 }
+
+/**
+ * Una fila del catálogo: un título y las fichas que van debajo.
+ *
+ * Existía ya como forma anónima devuelta por `getCatalogSections()`; tiene
+ * nombre desde que Inicio también pinta estas filas y las dos pantallas
+ * necesitan referirse al mismo tipo.
+ */
+export interface CatalogSection {
+  title: string;
+  items: ResolvedCatalogItem[];
+}

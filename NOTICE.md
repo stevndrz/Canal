@@ -29,6 +29,10 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 |----------------------|-----------------|----------------|
 | `src/app/arvio-shell.css` | `web/app/globals.css` | Renombrado; cabecera de atribución añadida. Sin cambios en las reglas: se importa dentro de `@layer arvio` desde `globals.css` para que Tailwind conserve su prioridad, y los ajustes propios viven en `globals.css`, nunca aquí. |
 | `src/components/shell/top-nav.tsx` | `web/components/shell/TopNav.tsx` | Fuera el sistema de perfiles y la marca ARVIO; destinos desde `NAV_ITEMS` (admite rutas de Next, no solo vistas); reloj en lugar del avatar; `data-nav` para la navegación con mando. Se conservan sus nombres de clase, que son el contrato con el CSS. |
+| `src/components/media/rail-scroller.tsx` | `web/components/media/RailScroller.tsx` | Textos de accesibilidad en español; `data-nav` para la navegación con mando. |
+| `src/components/media/media-card.tsx` | `web/components/media/MediaCard.tsx` | Sin peticiones a TMDB desde la tarjeta (el catálogo llega resuelto del servidor); fuera Trakt, servidores domésticos y menú contextual; añadido monograma de respaldo. Se conserva su estructura de DOM y sus clases. |
+| `src/components/media/media-rail.tsx` | `web/components/media/MediaRail.tsx` | El modo póster llega por prop en vez de leerse de un store global; recuento propio. |
+| `src/components/media/hero.tsx` | `web/components/home/HomeScreen.tsx` (sección `.hero`) | Extraído a componente propio; sin búsqueda del logotipo en TMDB; antetítulo añadido; textos en español. |
 
 Cada archivo derivado lleva además una cabecera con su ruta de origen y una
 nota de modificación, de modo que la procedencia sea evidente al abrirlo sin

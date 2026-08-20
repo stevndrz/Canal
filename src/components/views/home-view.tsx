@@ -1,114 +1,141 @@
 "use client";
 
-import { Play, Star } from "lucide-react";
+import { useMemo, useState } from "react";
 import type { Channel } from "@/lib/types";
-import { ChannelRail } from "@/components/channel-rail";
-import { channelMark, groupByCategory } from "@/lib/channels";
+import type { CatalogSection } from "@/lib/catalog/types";
+import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
+import { groupByCategory } from "@/lib/channels";
+import { Hero } from "@/components/media/hero";
+import { MediaRail } from "@/components/media/media-rail";
 
 interface HomeViewProps {
   channels: Channel[];
   tuned: Channel | null;
   favorites: Set<number>;
   recents: Channel[];
+  catalog: CatalogSection[];
   onTune: (channel: Channel) => void;
-  onToggleFavorite: (id: number) => void;
+  onOpenTitle: (mediaType: string, id: string) => void;
 }
 
-/** Inicio lean-back: hero de "seguir viendo" + rieles. Nada de rejilla plana. */
+/** Cuántas categorías de canales se ofrecen antes de mandar a Canales. */
+const MAX_GRUPOS = 6;
+/** Un riel más largo que esto no lo recorre nadie; para eso está Canales. */
+const MAX_POR_RIEL = 20;
+
+/**
+ * Inicio: hero + rieles, el patrón lean-back de ARVIO.
+ *
+ * El hero rota sobre el catálogo y no sobre los canales por una razón de
+ * material: una ficha de TMDB trae un fondo apaisado pensado para ocupar la
+ * pantalla, mientras que un canal solo tiene un logo cuadrado que al estirarse
+ * queda borroso. Los canales mandan en los rieles, que es donde su logo se ve
+ * bien; el catálogo manda arriba, que es donde hace falta una imagen grande.
+ */
 export function HomeView({
   channels,
   tuned,
   favorites,
   recents,
+  catalog,
   onTune,
-  onToggleFavorite,
+  onOpenTitle,
 }: HomeViewProps) {
-  const favoriteChannels = channels.filter((channel) => favorites.has(channel.id));
-  const groups = groupByCategory(channels).slice(0, 6);
-  const isFavorite = tuned ? favorites.has(tuned.id) : false;
+  const [pinned, setPinned] = useState<CardItem | null>(null);
+
+  const favoriteChannels = useMemo(
+    () => channels.filter((channel) => favorites.has(channel.id)),
+    [channels, favorites],
+  );
+
+  const grupos = useMemo(() => groupByCategory(channels).slice(0, MAX_GRUPOS), [channels]);
+
+  // Solo entran al hero las fichas con fondo apaisado de verdad. Sin este
+  // filtro, una ficha sin backdrop deja la cabecera en negro y parece un fallo.
+  const heroPool = useMemo(
+    () =>
+      catalog
+        .flatMap((section) => section.items)
+        .filter((item) => item.backdrop)
+        .slice(0, 12)
+        .map(catalogToCard),
+    [catalog],
+  );
+
+  const seguirViendo = useMemo(
+    () => recents.map((channel) => channelToCard(channel, { live: true })),
+    [recents],
+  );
+
+  const abrirCanal = (card: CardItem) => {
+    const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+    if (canal) onTune(canal);
+  };
+
+  const abrirFicha = (card: CardItem) => {
+    const [mediaType, ...resto] = card.key.split("-");
+    onOpenTitle(mediaType, resto.join("-"));
+  };
+
+  const tunedCard = tuned ? channelToCard(tuned, { live: true }) : null;
 
   return (
-    <>
-      {tuned && (
-        <section className="grid items-center gap-8 pb-2 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="min-w-0">
-            <span className="inline-flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-zinc-500">
-              <span className="live-dot h-1.5 w-1.5 rounded-full bg-live" />
-              Continuar viendo
-            </span>
-
-            <h1 className="mt-3.5 text-[26px] font-semibold leading-[1.1] tracking-[-0.03em] xl:text-[34px]">
-              {tuned.name}
-            </h1>
-            <p className="mt-2.5 text-base text-zinc-400">
-              {tuned.number} · {tuned.category} · en vivo ahora
-            </p>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button
-                type="button"
-                data-nav="button"
-                autoFocus
-                onClick={() => onTune(tuned)}
-                className="inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl bg-accent px-5.5 text-base font-medium text-accent-on"
-              >
-                <Play aria-hidden="true" strokeWidth={1.5} className="h-[19px] w-[19px]" />
-                Ver ahora
-              </button>
-
-              <button
-                type="button"
-                data-nav="button"
-                aria-pressed={isFavorite}
-                onClick={() => onToggleFavorite(tuned.id)}
-                className="inline-flex min-h-[50px] items-center gap-2.5 rounded-2xl border border-white/10 bg-white/[0.06] px-5.5 text-base font-medium hover:bg-white/[0.13]"
-              >
-                <Star
-                  aria-hidden="true"
-                  strokeWidth={1.5}
-                  className={`h-[18px] w-[18px] ${isFavorite ? "fill-accent" : ""}`}
-                />
-                {isFavorite ? "En favoritos" : "Añadir a favoritos"}
-              </button>
-            </div>
-          </div>
-
-          <div className="relative grid aspect-video place-items-center overflow-hidden rounded-card border border-hairline bg-surface">
-            <span className="text-[64px] font-bold tracking-[-0.04em] text-zinc-100/[0.07]">
-              {channelMark(tuned)}
-            </span>
-            <span className="absolute left-4 top-3.5 inline-flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.14em]">
-              <span className="h-1.5 w-1.5 rounded-full bg-live" />
-              EN VIVO
-            </span>
-          </div>
-        </section>
+    <div className={heroPool.length > 0 ? "screen has-hero" : "screen"}>
+      {heroPool.length > 0 && (
+        <Hero
+          pool={heroPool}
+          pinned={pinned}
+          eyebrow="Destacado"
+          onPlay={abrirFicha}
+          onDetails={abrirFicha}
+        />
       )}
 
-      <ChannelRail
+      {tunedCard && (
+        <MediaRail
+          title="Continuar viendo"
+          items={[tunedCard]}
+          onOpen={abrirCanal}
+          activeKey={tunedCard.key}
+        />
+      )}
+
+      <MediaRail
         title="Seguir viendo"
-        channels={recents}
-        favorites={favorites}
-        tunedId={tuned?.id ?? null}
-        onSelect={onTune}
+        items={seguirViendo}
+        onOpen={abrirCanal}
+        activeKey={tunedCard?.key ?? null}
       />
-      <ChannelRail
+
+      <MediaRail
         title="Tus favoritos"
-        channels={favoriteChannels}
-        favorites={favorites}
-        tunedId={tuned?.id ?? null}
-        onSelect={onTune}
+        items={favoriteChannels.map((channel) => channelToCard(channel))}
+        onOpen={abrirCanal}
+        count={favoriteChannels.length > 0 ? `${favoriteChannels.length}` : undefined}
+        activeKey={tunedCard?.key ?? null}
       />
-      {groups.map(({ category, items }) => (
-        <ChannelRail
-          key={category}
-          title={category}
-          channels={items.slice(0, 20)}
-          favorites={favorites}
-          tunedId={tuned?.id ?? null}
-          onSelect={onTune}
+
+      {catalog.map((section) => (
+        <MediaRail
+          key={section.title}
+          title={section.title}
+          items={section.items.map(catalogToCard)}
+          onOpen={abrirFicha}
+          onFocus={setPinned}
+          posterMode
         />
       ))}
-    </>
+
+      {grupos.map(({ category, items }) => (
+        <MediaRail
+          key={category}
+          title={category}
+          items={items.slice(0, MAX_POR_RIEL).map((channel) => channelToCard(channel))}
+          onOpen={abrirCanal}
+          count={`${items.length}`}
+          activeKey={tunedCard?.key ?? null}
+        />
+      ))}
+    </div>
   );
 }

@@ -1,12 +1,25 @@
 import { Dashboard } from "@/components/dashboard";
 import { loadM3uPlaylist } from "@/lib/m3u";
 import { fetchEpg, getEpgEntry } from "@/lib/epg";
+import { getCatalogSections } from "@/lib/catalog/catalog";
+import type { CatalogSection } from "@/lib/catalog/types";
 import type { Channel } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const { channels: parsedChannels, epgUrl } = await loadM3uPlaylist();
+
+  // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
+  // envuelto porque son peticiones a TMDB: si la clave falta o la API se cae,
+  // Inicio se queda con los canales —que es lo que de verdad importa en esta
+  // app— en lugar de devolver un 500 por una sección secundaria.
+  let catalog: CatalogSection[] = [];
+  try {
+    catalog = await getCatalogSections();
+  } catch {
+    catalog = [];
+  }
 
   // La guía de programación es opcional: si la lista M3U no referencia
   // ninguna y no hay EPG_URL configurada, la app funciona igual, solo sin
@@ -28,5 +41,5 @@ export default async function HomePage() {
     };
   });
 
-  return <Dashboard initialChannels={initialChannels} />;
+  return <Dashboard initialChannels={initialChannels} catalog={catalog} />;
 }

@@ -37,12 +37,38 @@ git -C /tmp/arvio checkout 5bd6a760068ee909692c3df1386af9d6a0d808af
 
 | Decisión | Elección |
 |---|---|
-| Estrategia CSS | **Importar el CSS de ARVIO tal cual** como hoja aparte; Tailwind sigue disponible |
-| Alcance de esta tanda | **Shell + Inicio + tarjetas**. Sin `DetailsDrawer`, sin `PlayerOverlay`, sin `SettingsScreen` |
+| Estrategia CSS | **Importar el CSS de ARVIO tal cual**, dentro de `@layer arvio` |
+| Alcance | **Paridad visual en todas las pantallas.** No solo el shell: la maqueta de ARVIO manda en Inicio, Canales, Buscar, Favoritos, Ajustes, la ficha y el reproductor |
 | Marca | CanalCasa, en español. Cero assets ni nombre de ARVIO (Apache 2.0 §6) |
-| Reproductor | Se mantiene `fullscreen-player.tsx` propio, con Cast y watch party |
+| Reproductor | **Portar su `PlayerOverlay` entero** y volver a cablear encima Chromecast y Watch Party, que son propios |
+| Películas y Series | **Absorberla dentro del App Shell** como una vista más, dejando de ser ruta aparte |
+| Guía EPG | **Solo la vista de lista** por ahora; la parrilla queda para después |
 
----
+### El orden de capas de la cascada, que condiciona todo lo demás
+
+Tres capas, declaradas antes de cualquier `@import` porque el orden lo fija la
+primera aparición de cada nombre:
+
+```css
+@layer theme, base, arvio, components, utilities;
+```
+
+En CSS **toda regla sin capa gana a toda regla en capa**, sin importar la
+especificidad. De ahí salieron los dos únicos fallos visuales serios que ha
+habido hasta ahora, y los dos fueron invisibles al compilar:
+
+1. El CSS de ARVIO importado suelto hacía que su `button { color: inherit }`
+   derrotase a `text-accent-on` de Tailwind: el botón "Ver ahora" salía blanco
+   sobre blanco. Se arregló metiéndolo en `arvio`.
+2. Los restablecimientos propios de CanalCasa sueltos hacían que
+   `button { font: inherit }` derrotase a `.nav-item { font-size: … }` de
+   ARVIO: **todos** los botones de la app se pintaban a 16px mientras los
+   enlaces salían a 28px. Se arregló metiéndolos en `base`.
+
+**Regla para lo que queda:** los restablecimientos de elemento van en
+`@layer base`; el CSS copiado, en `@layer arvio`; los ajustes propios de
+CanalCasa, sueltos al final de `globals.css`, que es donde deben ganar. Un
+estilo nuevo que "no se aplica" o que "se aplica de más" casi siempre es esto.
 
 ## Licencia y atribución (obligatorio, no opcional)
 
@@ -153,50 +179,98 @@ ARVIO renderiza tres barras del mismo array y las conmuta por CSS: `.sidebar` (e
 
 ---
 
-## Fase 3 — Hero, rieles y tarjetas
+## Fase 3 — Hero, rieles y tarjetas ✅
 
-Es donde el diseño se nota de verdad.
+Las primitivas visuales del diseño y el cambio de modelo de scroll.
 
-**Origen:** `HomeScreen.tsx` (196), `MediaRail.tsx` (35), `RailScroller.tsx` (77), `MediaCard.tsx` (268), `LazyRail.tsx` (140).
+- [x] `src/lib/media-item.ts` — `CardItem` con `channelToCard()` y `catalogToCard()`. Un canal y una ficha de TMDB no se parecen en nada, así que en vez de unificar los dos tipos se traducen los dos a lo que la tarjeta consume
+- [x] `src/components/media/rail-scroller.tsx`, `media-rail.tsx`, `media-card.tsx`, `hero.tsx`
+- [x] `home-view.tsx` reescrito como `.screen has-hero`
+- [x] El catálogo llega a Inicio desde `src/app/page.tsx`, envuelto en `try`: si TMDB falla, Inicio se queda con los canales en lugar de devolver un 500
+- [x] **Modelo de scroll cambiado**: fuera `overflow: hidden` de `body`, `min-height` en lugar de `height`, y `html[data-player="on"]` vuelve a bloquearlo durante la reproducción
+- [x] Restablecimientos propios movidos a `@layer base` (ver arriba)
 
-**Archivos nuevos:** `src/components/media/hero.tsx`, `media-rail.tsx`, `rail-scroller.tsx`, `media-card.tsx`
-**Modificados:** `src/components/views/home-view.tsx`, `src/components/channel-rail.tsx`, `src/components/catalog/poster-card.tsx`
+**Decisión de diseño que conviene no deshacer:** el hero rota sobre el
+**catálogo** y no sobre los canales. Una ficha de TMDB trae un fondo apaisado
+pensado para ocupar la pantalla; un canal solo tiene un logo cuadrado que al
+estirarse queda borroso. Los canales mandan en los rieles, donde su logo se ve
+bien; el catálogo manda arriba, donde hace falta una imagen grande.
 
-**El problema de tipos, y su solución.** ARVIO tiene un `MediaItem` único. Tú tienes dos tipos distintos: `Channel` (`src/lib/types.ts`) y `ResolvedCatalogItem` (`src/lib/catalog/types.ts`). No hay que unificarlos — hay que adaptarlos:
-
-- [ ] NUEVO `src/lib/media-item.ts` con un `CardItem` mínimo (`id`, `title`, `image`, `backdrop`, `subtitle`, `badge`, `progress?`) y dos funciones: `channelToCard()` y `catalogToCard()`. Así una sola `MediaCard` sirve a canales en vivo y a películas.
-
-**Tareas:**
-- [ ] `rail-scroller.tsx` y `media-rail.tsx` con `.rail`, `.rail-head`, `.rail-strip`, `.rail-scroll-shell`
-- [ ] `media-card.tsx` con `.media-card` (42 bloques CSS), soportando `posterMode` (2:3) y modo backdrop (16:9), barra de progreso y estado "visto"
-- [ ] `hero.tsx` con `.hero`, `.hero-copy`, `.hero-meta`, `.hero-actions`, `.hero-logo`. Rotación automática cada 8s que se detiene al primer hover/foco — esa lógica está en `HomeScreen.tsx:62-70`
-- [ ] Reescribir `home-view.tsx` con `<div className="screen has-hero">` + hero + rieles
-
-**Recortar al portar** (son dependencias de ARVIO que no tienes): Trakt, `isHomeServer`, `resolveTmdbId`, `getImdbRating`, `openContextMenu`, `serviceLogos`. `MediaCard` baja de 268 a ~120 líneas útiles.
-
-**Reutilizar lo tuyo, no reimplementar:**
-
-| Necesidad | Ya existe en CanalCasa |
-|---|---|
-| URLs de imagen TMDB | `tmdbImage()`, `POSTER_SIZE`, `BACKDROP_SIZE` en `src/lib/catalog/tmdb.ts` |
-| Agrupar canales en rieles | `groupByCategory()`, `channelMark()` en `src/lib/channels.ts` |
-| Favoritos y recientes | `usePersistedSet`, `usePersistedRecents` en `src/hooks/use-persisted-set.ts` |
-| Logo con respaldo | `src/lib/logos.ts` + `src/lib/logo-index.json` |
-
-**Nota sobre imágenes:** ARVIO usa `<img>` plano y `background-image` en CSS, nunca `next/image`. Al portar, mantener eso — evita tocar `remotePatterns`. **Verificar de paso** si `poster-card.tsx` funciona hoy: usa `next/image` contra `image.tmdb.org` y `next.config.ts` no declara `images.remotePatterns`, lo que normalmente lanza *"hostname not configured"*. Si está roto, se arregla aquí.
-
-**Verificación:** Inicio muestra hero rotativo + rieles · los rieles scrollean con rueda, arrastre y D-pad · las tarjetas de canal muestran logo y respaldo de monograma · `/peliculas` sigue funcionando.
+Al portar `MediaCard` se quitaron todas sus peticiones a TMDB. El original pide
+logo, duración, nota de IMDb y logotipos de plataforma **por cada tarjeta que se
+monta**; con más de 500 canales eso es la diferencia entre un carril fluido y
+uno a tirones. Aquí el catálogo ya llega resuelto del servidor.
 
 ---
 
-## Fase 4 — Cierre y limpieza
+## Fase 4 — Canales con la pantalla de Live TV
 
-- [ ] Retirar código muerto de `app-nav.tsx`, `channel-rail.tsx`, `channel-tile.tsx`
-- [ ] Actualizar `README.md`: arquitectura nueva, sección de licencias y atribución
-- [ ] Revisar `NOTICE.md` contra lo realmente portado
-- [ ] Prueba en teléfono y en TV
+La pantalla que más se usa en esta app y la mejor resuelta de ARVIO:
+`components/livetv/LiveTvScreen.tsx` (699 líneas).
+
+**Origen:** `LiveTvScreen.tsx` y su `ChannelRow` interno.
+**Sustituye a:** `views/canales-view.tsx`, `channel-list.tsx`, `channel-tile.tsx`.
+
+- [ ] `src/components/livetv/live-tv-view.tsx` con `.livetv-shell`, `.livetv-topbar`, `.livetv-columns`, `.livetv-cats`, `.livetv-list`
+- [ ] `ChannelRow` → `.livetv-row` con logo, nombre, programa actual y barra de progreso del EPG, que `src/lib/epg.ts` ya calcula
+- [ ] Panel de detalle `.livetv-detail` a la derecha
+- [ ] Categorías con recuento, alimentadas por `CATEGORY_ORDER` de `src/lib/channels.ts`
+- [ ] **Sin** el conmutador Lista/Guía ni la parrilla: decidido dejarlo para después
+- [ ] **Sin** la gestión de listas M3U de ARVIO: aquí la lista se configura por `M3U_URL`, no desde la interfaz
 
 ---
+
+## Fase 5 — Buscar y Favoritos
+
+- [ ] `buscar-view.tsx` → `.search-hero` + `.grid-results` (`SearchScreen.tsx`, 28 líneas)
+- [ ] `favoritos-view.tsx` → `.library-grid` + `.library-toolbar` (`WatchlistScreen.tsx`)
+- [ ] `categorias-view.tsx` → rejilla con el mismo lenguaje
+
+---
+
+## Fase 6 — Absorber Películas y Series en el shell
+
+Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.
+
+- [ ] `peliculas-view.tsx` dentro del shell, con hero + rieles ya construidos en la Fase 3
+- [ ] Ficha de título con el diseño de `DetailsDrawer.tsx` (1.030 líneas): temporadas, episodios, reparto y selector de fuentes
+- [ ] `NAV_ITEMS` pasa su entrada de `kind: "link"` a `kind: "view"`
+- [ ] `/peliculas` y `/peliculas/[mediaType]/[id]` se conservan como redirecciones para no romper enlaces guardados
+
+**Lo que hay que aceptar al hacerlo:** se pierden las URLs propias de cada
+título. El comentario de `app-nav.tsx` ya había descartado esto una vez; la
+decisión se revierte a conciencia, a cambio de que la navegación y las
+transiciones sean las mismas en toda la app.
+
+---
+
+## Fase 7 — Ajustes
+
+- [ ] `ajustes-view.tsx` → `.settings-shell`, `.settings-panel-card`, `.settings-list-row`, `.set-control`
+- [ ] Se porta **la maqueta**, no las 2.776 líneas: la mayor parte de ese archivo son opciones de ARVIO que aquí no existen (cuentas, addons, servidores domésticos, Trakt, Telegram)
+
+---
+
+## Fase 8 — El reproductor
+
+La parte más delicada. Se hace al final a propósito: es lo único que hoy
+funciona y que ARVIO no puede reemplazar tal cual.
+
+**Origen:** `components/player/PlayerOverlay.tsx` (1.837 líneas).
+
+- [ ] Portar la maqueta y los controles: `.player-overlay`, `.player-top`, `.player-controls`, `.player-panel-row`
+- [ ] **Volver a cablear `use-cast.ts` y `use-watch-party.ts`**, que ARVIO no tiene y son la razón por la que este paso va el último
+- [ ] Conservar la carga con `next/dynamic({ ssr: false })` y `serverExternalPackages`
+- [ ] Añadir salida con Atrás y Escape: hoy solo se sale con el botón, porque `useSpatialNav` va desactivado en el reproductor
+
+---
+
+## Fase 9 — Cierre
+
+- [ ] Retirar el código muerto que vayan dejando las fases anteriores
+- [ ] `README.md`: arquitectura nueva, licencias y atribución
+- [ ] `NOTICE.md` repasado contra lo realmente portado
+- [ ] Prueba en teléfono y en televisor
 
 ## Verificación de cada fase
 
@@ -215,6 +289,13 @@ Comprobación manual mínima por fase: abrir, ver que arranca en el reproductor,
 
 ## Fuera de alcance (decidido, no olvidado)
 
-`DetailsDrawer` (1.030 líneas) · `PlayerOverlay` (1.837) · `SettingsScreen` (2.776) · `LiveTvScreen` (699) · auth, cloud sync, entitlement y paywall · proxy CORS, addons Stremio, resolver, Xtream, Jellyfin/Plex.
+Nada de ARVIO que sea **suyo**: auth, sincronización en la nube, entitlement y
+paywall. Y nada que dependa de infraestructura que CanalCasa no tiene: addons de
+Stremio, resolver, Xtream, Jellyfin/Plex, Trakt, Telegram.
 
-El **proxy CORS** (`web/app/api/proxy/route.ts`, 271 líneas) sigue siendo la mejora de mayor retorno pendiente: resolvería la limitación que tu propio README documenta como aceptada. Candidato natural para la tanda siguiente, una vez el diseño esté en pie.
+Dos candidatos claros para cuando la paridad visual esté cerrada:
+
+- **Proxy CORS** (`web/app/api/proxy/route.ts`, 271 líneas). Resolvería la
+  limitación que el README documenta hoy como aceptada: "si un canal no carga es
+  porque esa fuente no tiene CORS". Es la mejora de mayor retorno pendiente.
+- **La parrilla de la guía EPG**, aplazada en la Fase 4.
