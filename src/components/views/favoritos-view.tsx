@@ -2,8 +2,22 @@
 
 import { Star } from "lucide-react";
 import type { Channel } from "@/lib/types";
-import { ChannelTile } from "@/components/channel-tile";
+import { channelToCard, type CardItem } from "@/lib/media-item";
+import { MediaCard } from "@/components/media/media-card";
 
+/**
+ * Favoritos.
+ *
+ * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
+ * Origen:  web/components/watchlist/WatchlistScreen.tsx
+ * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
+ * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
+ *
+ * MODIFICADO respecto al original (Apache 2.0 §4b): se porta el encabezado y la
+ * rejilla, y se deja fuera todo su selector de origen —Trakt, Jellyfin, Plex,
+ * Emby y sus bibliotecas—, porque aquí solo hay un origen: lo que está marcado
+ * en este dispositivo.
+ */
 interface FavoritosViewProps {
   channels: Channel[];
   favorites: Set<number>;
@@ -13,37 +27,43 @@ interface FavoritosViewProps {
 
 export function FavoritosView({ channels, favorites, tunedId, onTune }: FavoritosViewProps) {
   const items = channels.filter((channel) => favorites.has(channel.id));
+  const tarjetas = items.map((channel) => channelToCard(channel));
+
+  const abrir = (card: CardItem) => {
+    const canal = items.find((channel) => `canal-${channel.id}` === card.key);
+    if (canal) onTune(canal);
+  };
 
   return (
-    <>
-      <h1 className="text-[26px] font-semibold tracking-[-0.03em] xl:text-[34px]">Favoritos</h1>
-      <p className="mt-2.5 mb-7 text-[15px] text-zinc-500">
-        {items.length
-          ? `${items.length} canales guardados en este dispositivo`
-          : "Se guardan solo en este dispositivo"}
-      </p>
+    <div className="screen has-section-heading">
+      <section className="section-heading library-heading">
+        <div className="library-title-block">
+          <p className="eyebrow">Guardados en este dispositivo</p>
+          <h2>Favoritos</h2>
+        </div>
+      </section>
 
-      {items.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4.5 md:grid-cols-3 xl:grid-cols-4">
-          {items.map((channel) => (
-            <ChannelTile
-              key={channel.id}
-              channel={channel}
-              isFavorite
-              isTuned={channel.id === tunedId}
-              onSelect={onTune}
+      {tarjetas.length > 0 ? (
+        <div className="grid-results">
+          {tarjetas.map((item) => (
+            <MediaCard
+              key={item.key}
+              item={item}
+              onOpen={abrir}
+              active={tunedId !== null && item.key === `canal-${tunedId}`}
             />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-3.5 rounded-card border border-dashed border-white/12 px-6 py-20 text-center">
-          <Star aria-hidden="true" strokeWidth={1.5} className="h-[30px] w-[30px] text-zinc-600" />
-          <p className="text-base text-zinc-400">Todavía no marcas ningún canal</p>
-          <p className="text-sm text-zinc-600">
-            Con el canal enfocado, presiona la estrella. Se guardan en este dispositivo.
-          </p>
+        <div className="watchlist-empty">
+          <Star size={30} />
+          <p>Todavía no marcas ningún canal</p>
+          <span>
+            Pulsa la estrella en cualquier canal de la lista. Se guardan solo en este
+            dispositivo.
+          </span>
         </div>
       )}
-    </>
+    </div>
   );
 }

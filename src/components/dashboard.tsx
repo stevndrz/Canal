@@ -237,31 +237,25 @@ export function Dashboard({
         )}
 
         {view === "favoritos" && (
-          <div className={pantalla}>
-            <FavoritosView
+          <FavoritosView
               channels={channels}
               favorites={favorites.ids}
               tunedId={tuned?.id ?? null}
               onTune={tune}
             />
-          </div>
         )}
 
         {view === "buscar" && (
-          <div className={pantalla}>
-            <BuscarView
+          <BuscarView
               results={search ? visible : channels.slice(0, 24)}
               search={search}
               onSearchChange={setSearch}
               onTune={tune}
             />
-          </div>
         )}
 
         {view === "categorias" && (
-          <div className={pantalla}>
-            <CategoriasView channels={channels} onPick={pickCategory} />
-          </div>
+          <CategoriasView channels={channels} onPick={pickCategory} />
         )}
 
         {view === "ajustes" && (

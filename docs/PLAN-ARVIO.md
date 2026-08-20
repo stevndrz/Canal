@@ -232,11 +232,24 @@ La pantalla que más se usa en esta app y la mejor resuelta de ARVIO:
 
 ---
 
-## Fase 5 — Buscar y Favoritos
+## Fase 5 — Buscar y Favoritos ✅
 
-- [ ] `buscar-view.tsx` → `.search-hero` + `.grid-results` (`SearchScreen.tsx`, 28 líneas)
-- [ ] `favoritos-view.tsx` → `.library-grid` + `.library-toolbar` (`WatchlistScreen.tsx`)
-- [ ] `categorias-view.tsx` → rejilla con el mismo lenguaje
+- [x] `buscar-view.tsx` → `.search-hero` + `.grid-results` (`SearchScreen.tsx`, 28 líneas)
+- [x] `favoritos-view.tsx` → `.section-heading` + `.grid-results` (`WatchlistScreen.tsx`)
+- [x] `categorias-view.tsx` → rejilla propia con el mismo lenguaje
+
+**Dónde nos separamos de ARVIO, y por qué:**
+
+- **Buscar mantiene el teclado en pantalla**, que ARVIO no tiene porque da por
+  hecho un teclado físico. En un televisor sin él, un campo de texto es un
+  callejón sin salida: el mando solo mueve el foco. Va en columna junto a los
+  resultados —apilado encima ocupa más de 500px de alto y empuja los resultados
+  fuera de la pantalla, así que se escribiría a ciegas.
+- **Favoritos deja fuera todo el selector de origen** de su Watchlist —Trakt,
+  Jellyfin, Plex, Emby y sus bibliotecas—. Aquí solo hay un origen: lo marcado
+  en este dispositivo.
+- **Categorías no existe en ARVIO** (sus categorías viven dentro de Live TV), así
+  que no hay nada que portar: se adopta su lenguaje, no su código.
 
 ---
 

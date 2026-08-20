@@ -228,3 +228,79 @@ html[data-player="on"] body {
 .livetv-shell {
   padding-top: calc(var(--topbar-h) + 30px);
 }
+
+/* ── Piezas propias con el lenguaje del diseño ───────────────────────
+   Pantallas que ARVIO no tiene, o partes suyas que aquí cambian. Reutilizan
+   sus variables (--chip, --line, --soft) para que no canten al lado del resto. */
+
+/* Buscar: teclado a un lado, resultados al otro.
+   ARVIO no tiene teclado en pantalla porque da por hecho un teclado físico.
+   En un televisor hace falta, y ocupa más de 500px de alto: apilado sobre los
+   resultados los empuja fuera de la pantalla y se escribe a ciegas. En columna
+   se ve lo que se va encontrando mientras se teclea. */
+.buscar-cuerpo {
+  display: grid;
+  gap: clamp(20px, 2vw, 40px);
+  padding: 0 3.35vw;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .buscar-cuerpo {
+    grid-template-columns: minmax(0, clamp(380px, 30vw, 520px)) minmax(0, 1fr);
+  }
+}
+
+.buscar-resultados { min-width: 0; }
+
+/* Dentro de la columna el margen lateral ya lo pone `.buscar-cuerpo`. */
+.grid-results.is-embedded { padding-inline: 0; }
+
+.buscar-recuento {
+  margin: 0 0 14px;
+  font-size: clamp(12px, 0.9vw, 15px);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+/* Categorías: rejilla de fichas. */
+.categoria-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(170px, 15vw, 240px), 1fr));
+  gap: clamp(12px, 1vw, 18px);
+  padding: 0 3.35vw;
+}
+
+.categoria-ficha {
+  min-height: 104px;
+  padding: 20px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: var(--panel-radius, 20px);
+  background: var(--chip, rgba(255, 255, 255, 0.06));
+  color: inherit;
+  text-align: left;
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.categoria-ficha:hover,
+.categoria-ficha:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.14));
+  transform: scale(1.02);
+}
+
+.categoria-ficha strong {
+  font-size: clamp(16px, 1.15vw, 21px);
+  font-weight: 650;
+}
+
+.categoria-ficha em {
+  font-style: normal;
+  font-size: clamp(12px, 0.85vw, 15px);
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
