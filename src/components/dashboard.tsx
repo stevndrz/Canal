@@ -11,7 +11,7 @@ import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
 import { HomeView } from "@/components/views/home-view";
-import { CanalesView } from "@/components/views/canales-view";
+import { LiveTvView } from "@/components/livetv/live-tv-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
 import { BuscarView } from "@/components/views/buscar-view";
 import { CategoriasView } from "@/components/views/categorias-view";
@@ -221,20 +221,19 @@ export function Dashboard({
         )}
 
         {view === "canales" && (
-          <div className={pantalla}>
-            <CanalesView
-              channels={visible}
-              tuned={tuned}
-              favorites={favorites.ids}
-              categories={categories}
-              category={category}
-              search={search}
-              onCategoryChange={setCategory}
-              onTune={tune}
-              onToggleFavorite={favorites.toggle}
-              onOpenSearch={() => navigate("buscar")}
-            />
-          </div>
+          <LiveTvView
+            channels={channels}
+            visible={visible}
+            tuned={tuned}
+            favorites={favorites.ids}
+            categories={categories}
+            category={category}
+            search={search}
+            onCategoryChange={setCategory}
+            onSearchChange={setSearch}
+            onTune={tune}
+            onToggleFavorite={favorites.toggle}
+          />
         )}
 
         {view === "favoritos" && (

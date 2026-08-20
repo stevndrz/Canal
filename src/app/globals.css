@@ -220,3 +220,11 @@ html[data-player="on"] body {
   text-transform: uppercase;
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
+
+/* La pantalla de Canales calcula su hueco superior contra la barra de ARVIO.
+   La nuestra mide `--topbar-h` y lleva la marca escrita a la izquierda, justo
+   encima del título de la pantalla, así que el original deja los dos textos
+   pegados. Se separa lo justo para que se lean como dos cosas distintas. */
+.livetv-shell {
+  padding-top: calc(var(--topbar-h) + 30px);
+}

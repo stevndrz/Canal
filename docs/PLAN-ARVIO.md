@@ -203,7 +203,7 @@ uno a tirones. Aquí el catálogo ya llega resuelto del servidor.
 
 ---
 
-## Fase 4 — Canales con la pantalla de Live TV
+## Fase 4 — Canales con la pantalla de Live TV ✅
 
 La pantalla que más se usa en esta app y la mejor resuelta de ARVIO:
 `components/livetv/LiveTvScreen.tsx` (699 líneas).
@@ -211,12 +211,24 @@ La pantalla que más se usa en esta app y la mejor resuelta de ARVIO:
 **Origen:** `LiveTvScreen.tsx` y su `ChannelRow` interno.
 **Sustituye a:** `views/canales-view.tsx`, `channel-list.tsx`, `channel-tile.tsx`.
 
-- [ ] `src/components/livetv/live-tv-view.tsx` con `.livetv-shell`, `.livetv-topbar`, `.livetv-columns`, `.livetv-cats`, `.livetv-list`
-- [ ] `ChannelRow` → `.livetv-row` con logo, nombre, programa actual y barra de progreso del EPG, que `src/lib/epg.ts` ya calcula
-- [ ] Panel de detalle `.livetv-detail` a la derecha
-- [ ] Categorías con recuento, alimentadas por `CATEGORY_ORDER` de `src/lib/channels.ts`
-- [ ] **Sin** el conmutador Lista/Guía ni la parrilla: decidido dejarlo para después
-- [ ] **Sin** la gestión de listas M3U de ARVIO: aquí la lista se configura por `M3U_URL`, no desde la interfaz
+- [x] `src/components/livetv/live-tv-view.tsx` con `.livetv-shell`, `.livetv-topbar`, `.livetv-columns`, `.livetv-cats`, `.livetv-list`
+- [x] `ChannelRow` → `.livetv-row` con logo, nombre, programa actual y barra de progreso del EPG, que `src/lib/epg.ts` ya calcula
+- [x] Panel de detalle `.livetv-detail` a la derecha
+- [x] Categorías con recuento, alimentadas por `CATEGORY_ORDER` de `src/lib/channels.ts`
+- [x] **Sin** el conmutador Lista/Guía ni la parrilla: decidido dejarlo para después
+- [x] **Sin** la gestión de listas M3U de ARVIO: aquí la lista se configura por `M3U_URL`, no desde la interfaz
+
+**Lo que hizo falta y no estaba previsto:**
+
+- [x] `Channel` gana `currentStart`, `currentEnd` y `nextStart`. Con solo el
+  título del programa no se puede dibujar cuánto lleva emitido; `epg.ts` ya
+  tenía esas marcas de tiempo y se descartaban al construir el canal.
+- [x] Render por lotes de 60 filas con un centinela al final. La lista real
+  tiene **7.822 canales**: pintarlos de golpe cuesta cientos de milisegundos en
+  un televisor.
+- [x] Hueco superior propio en `.livetv-shell`. Su cálculo asume la altura de
+  la barra de ARVIO; la nuestra mide `--topbar-h` y lleva la marca escrita
+  justo encima del título de la pantalla.
 
 ---
 

@@ -38,6 +38,9 @@ export default async function HomePage() {
       id: index + 1,
       currentProgram: entry?.current?.title ?? "",
       nextProgram: entry?.next?.title ?? "",
+      currentStart: entry?.current?.start,
+      currentEnd: entry?.current?.stop,
+      nextStart: entry?.next?.start,
     };
   });
 
