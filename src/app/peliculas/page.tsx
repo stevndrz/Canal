@@ -1,6 +1,7 @@
-import Link from "next/link";
 import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
+import { HeroDestacado } from "@/components/catalog/hero-destacado";
+import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
@@ -47,6 +48,18 @@ export default async function MoviesPage({
   const filtrados = filtrando ? await fetchFiltered(tipo, genero, validos) : [];
   const tmdbReady = isTmdbConfigured();
 
+  /**
+   * El título del hero: el primero de la primera fila **que tenga arte
+   * apaisado**. Sin esa condición salía el primero a secas y, cuando le
+   * faltaba el backdrop, la cabecera quedaba en un rectángulo negro con texto
+   * encima. Buscar uno con arte cuesta nada y no falla nunca.
+   *
+   * Solo aparece en el catálogo, no al buscar ni al filtrar: ahí la respuesta
+   * a lo que se ha pedido son los resultados, y una cabecera de 78vh de otra
+   * película los empujaría fuera de la pantalla.
+   */
+  const destacado = rows.flatMap((fila) => fila.items).find((item) => item.backdrop) ?? null;
+
   return (
     // `.app-shell` y `.screen`, las mismas piezas que usa el resto de la
     // aplicación. Esta ruta vive fuera del App Shell —conserva sus URLs por
@@ -55,23 +68,21 @@ export default async function MoviesPage({
     <div className="app-shell">
       <TopNav />
 
-      <div className="screen tv-safe">
+      {destacado && <HeroDestacado item={destacado} />}
+
+      {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
+          borde y lo reserva ella. */}
+      <div className={`screen tv-safe ${destacado ? "has-hero" : ""}`}>
         <CatalogSearch query={query} />
 
         {!tmdbReady && (
-          <div className="mb-6 flex gap-3 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4 text-sm text-amber-100">
-            <Info aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-amber-300" />
-            <div>
-              <p className="font-semibold">Falta la clave de TMDB</p>
-              <p className="mt-1 text-amber-100/80">
-                Se están mostrando solo los datos escritos en{" "}
-                <code className="rounded bg-black/30 px-1">src/data/catalog.json</code>. Añade{" "}
-                <code className="rounded bg-black/30 px-1">TMDB_API_KEY</code> en{" "}
-                <code className="rounded bg-black/30 px-1">.env.local</code> para que los pósters y
-                los episodios se rellenen solos.
-              </p>
-            </div>
-          </div>
+          <p className="catalogo-aviso">
+            <Info aria-hidden="true" />
+            <span>
+              Falta <code>TMDB_API_KEY</code>: se ven solo los títulos escritos a mano en{" "}
+              <code>src/data/catalog.json</code>.
+            </span>
+          </p>
         )}
 
         {!searching && (
@@ -82,45 +93,36 @@ export default async function MoviesPage({
           filtrados.length > 0 ? (
             <CatalogGrid items={filtrados} />
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
-              <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-white/40" />
-              <p className="font-medium text-white/80">Nada con esos filtros</p>
-              <p className="mt-1 text-sm text-white/50">Prueba con otro género o cambia el tipo.</p>
-            </div>
+            <EstadoVacio
+              Icono={SearchX}
+              titulo="Nada con esos filtros"
+              detalle="Prueba con otro género o cambia el tipo."
+            />
           )
         ) : searching ? (
           results.length > 0 ? (
             <>
-              <h2 className="mb-3 text-lg font-bold tracking-tight text-white sm:text-xl">
-                Resultados para “{query}”
-              </h2>
+              <section className="section-heading">
+                <h2>Resultados para «{query}»</h2>
+              </section>
               <CatalogGrid items={results} />
             </>
           ) : (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
-              <SearchX aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-white/40" />
-              <p className="font-medium text-white/80">Sin resultados para “{query}”</p>
-              <p className="mt-1 text-sm text-white/50">
-                Prueba con menos palabras, o con el título original.
-              </p>
-              <Link
-                href="/peliculas"
-                className="mt-4 inline-block rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white/80 transition hover:bg-white/10 focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400"
-              >
-                Volver al catálogo
-              </Link>
-            </div>
+            <EstadoVacio
+              Icono={SearchX}
+              titulo={`Sin resultados para «${query}»`}
+              detalle="Prueba con menos palabras, o con el título original."
+              accion={{ href: "/peliculas", texto: "Volver al catálogo" }}
+            />
           )
         ) : rows.length > 0 ? (
           <CatalogRows sections={rows} />
         ) : (
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-10 text-center">
-            <Clapperboard aria-hidden="true" className="mx-auto mb-3 h-10 w-10 text-white/40" />
-            <p className="font-medium text-white/80">Tu catálogo está vacío</p>
-            <p className="mt-1 text-sm text-white/50">
-              Agrega títulos en <code className="rounded bg-black/30 px-1">src/data/catalog.json</code>.
-            </p>
-          </div>
+          <EstadoVacio
+            Icono={Clapperboard}
+            titulo="Tu catálogo está vacío"
+            detalle="Añade títulos en src/data/catalog.json, o configura TMDB_API_KEY."
+          />
         )}
       </div>
     </div>

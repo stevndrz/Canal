@@ -41,12 +41,29 @@ export const NAV_ITEMS: NavItem[] = [
 ];
 
 /**
- * Destinos de la barra inferior del teléfono.
+ * Destinos de la barra inferior del teléfono, en dos grupos.
  *
- * Están **los siete**. Antes había cinco y, como la barra superior se oculta
- * por debajo de 680px, Buscar y Categorías quedaban sin ninguna forma de
- * llegar a ellas desde un teléfono: dos secciones enteras inaccesibles. Con
- * siete cada casilla mide unos 55px de ancho en una pantalla de 390px, por
- * encima del mínimo táctil recomendado de 44px.
+ * Los ocho no caben. En un iPhone de 393px cada casilla quedaba en 49px: por
+ * encima del mínimo táctil de 44px, sí, pero con la etiqueta partida a
+ * «Categoría…» y todo apelmazado. Y las etiquetas no son opcionales aquí —
+ * esta aplicación la usa gente que reconoce la palabra antes que el icono.
+ *
+ * Así que cinco a la vista y tres detrás de «Más», que es el patrón que
+ * cualquiera ya conoce de su teléfono. Los cinco elegidos son los que se usan
+ * mientras se ve algo; los otros tres se visitan de vez en cuando.
+ *
+ * Ninguna sección queda inalcanzable, que fue el motivo de meterlas todas en
+ * su día: la barra superior se oculta por debajo de 680px, así que lo que no
+ * esté aquí no existe en un teléfono.
  */
-export const MOBILE_KEYS = NAV_ITEMS.map((item) => item.key);
+export const MOBILE_PRIMARY_KEYS: NavItem["key"][] = [
+  "home",
+  "canales",
+  "peliculas",
+  "buscar",
+  "favoritos",
+];
+
+export const MOBILE_OVERFLOW_KEYS: NavItem["key"][] = NAV_ITEMS.map((item) => item.key).filter(
+  (key) => !MOBILE_PRIMARY_KEYS.includes(key),
+);

@@ -575,6 +575,152 @@
   background: #fff;
 }
 
+/* ═══ Hero ══════════════════════════════════════════════════════════════
+   La cabecera a sangre de Películas. Ocupa alto de pantalla porque su trabajo
+   es que, desde el sofá, se vea de qué va el catálogo antes de leer nada. */
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: min(78vh, 760px);
+  padding: clamp(28px, 6vh, 80px) var(--margen) clamp(24px, 4vh, 56px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero-arte {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 18%;
+}
+
+/* Dos degradados, no una capa gris encima.
+   El vertical apoya el texto contra el borde inferior y funde el hero con el
+   primer riel; el horizontal oscurece solo el lado donde vive el texto. Una
+   capa uniforme apagaría la ilustración entera, que es justo lo que hay que
+   enseñar. */
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(0deg, var(--bg) 2%, rgba(0, 0, 0, 0.72) 32%, transparent 72%),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.42) 42%, transparent 78%);
+}
+
+.hero-copy {
+  /* Ancho de lectura. A 1920px una sinopsis a todo lo ancho son líneas de 200
+     caracteres que la vista no sabe seguir de vuelta. */
+  max-width: min(56ch, 62%);
+  min-width: 0;
+}
+
+.hero-titulo {
+  margin: 0;
+  font-size: clamp(34px, 4.6vw, 84px);
+  font-weight: 700;
+  line-height: 1.02;
+  letter-spacing: -0.035em;
+  color: #fff;
+  text-wrap: balance;
+}
+
+.hero-lema {
+  margin: clamp(8px, 1.2vh, 14px) 0 0;
+  font-size: clamp(14px, 1.15vw, 21px);
+  font-style: italic;
+  color: var(--muted);
+}
+
+.hero-datos {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: clamp(8px, 0.9vw, 16px);
+  margin-top: clamp(12px, 1.8vh, 22px);
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Separador entre datos: un punto dibujado, no un carácter en el HTML. Así el
+   texto se puede leer en voz alta sin que se cuele un "punto" entre cada dato. */
+.hero-datos > span + span::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-right: clamp(8px, 0.9vw, 16px);
+  border-radius: 999px;
+  background: var(--faint);
+  vertical-align: middle;
+}
+
+.hero-nota {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: var(--gold);
+  color: #1a1400;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hero-nota svg {
+  width: 13px;
+  height: 13px;
+}
+
+.hero-sinopsis {
+  margin: clamp(12px, 1.8vh, 22px) 0 0;
+  font-size: clamp(14px, 1.1vw, 19px);
+  line-height: 1.55;
+  color: var(--muted);
+  /* Tres líneas y el resto en la ficha: la sinopsis completa de una serie
+     larga empujaría los botones fuera de la pantalla. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(10px, 1vw, 16px);
+  margin-top: clamp(18px, 2.6vh, 32px);
+}
+
+@media (max-width: 680px) {
+  .hero {
+    min-height: 62vh;
+    padding-top: calc(58px + 20px);
+  }
+
+  .hero-copy {
+    max-width: 100%;
+  }
+
+  /* En vertical el degradado tiene que venir de abajo: a lo ancho no hay sitio
+     para dejar media imagen despejada. */
+  .hero::after {
+    background: linear-gradient(0deg, var(--bg) 4%, rgba(0, 0, 0, 0.78) 38%, rgba(0, 0, 0, 0.22) 78%);
+  }
+
+  .hero-acciones .primary,
+  .hero-acciones .secondary {
+    flex: 1 1 140px;
+  }
+}
+
 /* ═══ Encabezados de sección ════════════════════════════════════════════ */
 
 .section-heading {
@@ -710,7 +856,13 @@
 }
 
 /* Lista y detalle. Por debajo de 1024px el detalle desaparece: en un teléfono
-   robaría toda la pantalla a la lista, que es lo que se viene a usar. */
+   robaría toda la pantalla a la lista, que es lo que se viene a usar.
+
+   Ojo con el número de hijos: aquí dentro van **tres** —categorías, lista y
+   detalle—, no dos. Declarar solo dos columnas metía la lista en la estrecha
+   de la derecha y empujaba el detalle a una segunda fila, que es exactamente
+   el mosaico roto que se vio en pantalla. Las categorías ocupan la fila
+   entera; lista y detalle se reparten la siguiente. */
 .livetv-columns {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -721,6 +873,10 @@
 @media (min-width: 1024px) {
   .livetv-columns {
     grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 420px);
+  }
+
+  .livetv-cats {
+    grid-column: 1 / -1;
   }
 }
 
@@ -775,13 +931,27 @@
   gap: 4px;
 }
 
-/* Una fila de canal. Se repiten 7.800, así que cada propiedad cuenta:
-   `content-visibility` en la fila evita calcular las que no se ven. */
+/* Una fila de canal.
+   La estructura real es un `<article>` con dos botones dentro: el grande, que
+   sintoniza, y la estrella. El que se lee como "la fila" es el de dentro
+   (`.livetv-row-main`), y es el que tiene que ser la caja horizontal — cuando
+   solo lo era el `<article>`, el logo, el texto y el play se apilaban y cada
+   fila medía 154px en vez de 64. */
 .livetv-row {
   display: flex;
   align-items: center;
-  gap: clamp(10px, 1vw, 18px);
+  gap: 4px;
   width: 100%;
+  border-radius: var(--radio-tarjeta);
+  transition: background-color 160ms var(--ease);
+}
+
+.livetv-row-main {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1vw, 18px);
+  flex: 1;
+  min-width: 0;
   min-height: 64px;
   padding: 8px clamp(10px, 1vw, 16px);
   border: 0;
@@ -789,7 +959,6 @@
   background: transparent;
   color: var(--text);
   text-align: left;
-  transition: background-color 160ms var(--ease);
 }
 
 .livetv-row:hover {
@@ -820,37 +989,78 @@
   object-fit: contain;
 }
 
-.livetv-row-main {
+/* `flex: 1` es lo que empuja el play al extremo derecho de la fila. Sin él se
+   queda pegado al nombre del canal, a media fila, y parece suelto. */
+.livetv-row-copy {
+  display: grid;
+  gap: 2px;
   flex: 1;
   min-width: 0;
 }
 
-.livetv-row-copy {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
+/* El título lleva dentro el nombre y el número del canal, uno al lado del
+   otro. `min-width: 0` en el `<strong>` es lo que deja que el nombre largo se
+   recorte en vez de empujar al número fuera de la fila. */
 .livetv-row-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
   font-size: clamp(14px, 1.02vw, 18px);
   font-weight: 500;
   letter-spacing: -0.01em;
-  white-space: nowrap;
+}
+
+.livetv-row-title strong {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+/* Monograma de dos letras cuando el canal no trae logo, que en una lista M3U
+   es la mayoría. */
+.livetv-row-mark {
+  font-size: clamp(13px, 1vw, 17px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--soft);
 }
 
 .livetv-row-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
   font-size: clamp(12px, 0.86vw, 15px);
   color: var(--soft);
-  white-space: nowrap;
+}
+
+.livetv-row-now em {
+  font-style: normal;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El programa siguiente: la tercera línea, y la más prescindible. Se esconde
+   cuando la fila no tiene sitio, antes que apretar las dos importantes. */
+.livetv-row-copy small {
+  display: block;
+  margin-top: 2px;
+  font-size: clamp(11px, 0.78vw, 13px);
+  color: var(--faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .livetv-progress {
+  flex: none;
+  width: clamp(46px, 6vw, 90px);
   height: 3px;
-  margin-top: 6px;
   border-radius: 999px;
   background: var(--chip);
   overflow: hidden;
@@ -1056,6 +1266,53 @@
   display: none;
 }
 
+/* ═══ Piezas sueltas que faltaban ══════════════════════════════════════ */
+
+/* La transición entre rutas. `template.tsx` la envuelve para que Películas
+   entre con un fundido en vez de aparecer de golpe.
+
+   **Solo opacidad, nunca `transform`.** Un ancestro con transform se convierte
+   en el bloque contenedor de sus descendientes `position: fixed`, y este
+   envuelve la aplicación entera: con un `translateY` aquí, la barra superior y
+   la inferior del teléfono dejaban de estar fijas y se iban con el scroll —la
+   de abajo acababa a 5.500px del viewport, imposible de alcanzar.
+
+   Y `both` mantiene aplicado el fotograma inicial, así que ni siquiera hace
+   falta que la animación esté corriendo para romperlo. */
+.app-fade {
+  animation: cc-entrar 240ms var(--ease) both;
+}
+
+@keyframes cc-entrar {
+  from {
+    opacity: 0;
+  }
+}
+
+/* La superficie de un reproductor: negra, con las esquinas del resto del
+   diseño y sin que nada se salga por ellas. */
+.player-surface {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radio-panel);
+  background: #000;
+  box-shadow: var(--sombra);
+}
+
+/* La columna del teclado en pantalla de Buscar. En un televisor hace falta
+   —no hay teclado físico— y mide más de 500px de alto, así que va al lado de
+   los resultados y no encima. */
+.buscar-teclado {
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  /* Con puntero o dedo hay teclado de verdad: el de pantalla estorba. */
+  .buscar-teclado {
+    display: none;
+  }
+}
+
 /* ═══ Teléfono ══════════════════════════════════════════════════════════
    Por encima de 680px la barra superior lleva todo. Por debajo se parte en
    dos: cabecera arriba con la marca, destinos abajo al alcance del pulgar. */
@@ -1109,32 +1366,107 @@
     border-top: 1px solid var(--line);
   }
 
+  /* 44px es el mínimo que recomiendan Apple y las pautas WCAG para algo que se
+     pulsa con el dedo. Con cinco destinos más «Más», cada casilla queda en
+     ~65px en un iPhone: entra la etiqueta entera y sobra aire. */
   .mobile-nav-item {
     flex: 1;
     min-width: 0;
-    /* 44px es el mínimo que recomiendan Apple y las pautas WCAG para algo que
-       se pulsa con el dedo. Con siete destinos cada casilla queda en ~52px de
-       ancho: cabe, pero la etiqueta necesita ayuda para no partirse. */
-    min-height: 44px;
+    min-height: 48px;
     display: grid;
     justify-items: center;
     align-content: center;
-    gap: 2px;
+    gap: 3px;
+    padding: 4px 2px;
     border: 0;
     background: transparent;
     color: var(--soft);
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 500;
-    line-height: 1.1;
+    line-height: 1.15;
     text-align: center;
   }
 
   .mobile-nav-item svg {
-    width: 21px;
-    height: 21px;
+    width: 22px;
+    height: 22px;
+  }
+
+  .mobile-nav-item span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-nav-item.is-active {
+    color: var(--text);
+  }
+
+  /* ── El panel «Más» ──────────────────────────────────────────────────
+     Se apoya sobre la barra, no la sustituye: así se ve de dónde salió y
+     dónde se vuelve. */
+  .mobile-mas-fondo {
+    position: fixed;
+    inset: 0;
+    z-index: 59;
+    border: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+  }
+
+  .mobile-mas {
+    position: fixed;
+    z-index: 61;
+    left: 8px;
+    right: 8px;
+    bottom: calc(62px + env(safe-area-inset-bottom));
+    display: grid;
+    gap: 2px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--glass-strong);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    animation: cc-subir 200ms var(--ease) both;
+  }
+
+  @keyframes cc-subir {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .mobile-mas-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-height: 52px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 500;
+    text-align: left;
+  }
+
+  .mobile-mas-item svg {
+    width: 21px;
+    height: 21px;
+    flex: none;
+    color: var(--soft);
+  }
+
+  .mobile-mas-item.is-active {
+    background: var(--chip);
+  }
+
+  .mobile-mas-item.is-active svg {
     color: var(--text);
   }
 

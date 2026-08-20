@@ -131,6 +131,19 @@ html[data-player="on"] body {
 /* Dentro de la columna el margen lateral ya lo pone `.buscar-cuerpo`. */
 .grid-results.is-embedded { padding-inline: 0; }
 
+/* Dos grupos de resultados, canales y catálogo, con aire entre ellos para que
+   se lean como dos listas y no como una revuelta. */
+.buscar-grupo + .buscar-grupo {
+  margin-top: clamp(24px, 3.4vh, 44px);
+}
+
+.buscar-vacio {
+  margin: 0;
+  padding: clamp(24px, 4vh, 48px) 0;
+  font-size: clamp(15px, 1.1vw, 19px);
+  color: var(--soft);
+}
+
 .buscar-recuento {
   margin: 0 0 14px;
   font-size: clamp(12px, 0.9vw, 15px);
@@ -548,11 +561,14 @@ html[data-player="on"] body {
    quedaba sitio para cuatro letras antes de que el texto se metiera debajo del
    botón, y en un televisor el campo se estiraba de lado a lado hasta dejar de
    parecer un campo. */
+/* Alineado a la izquierda como todo lo demás de la pantalla, no centrado.
+   Centrado quedaba como una isla: el hero, los chips de filtro y los rieles
+   arrancan todos en el margen y el buscador flotaba en medio. */
 .catalogo-buscador {
   display: flex;
   gap: 10px;
-  width: min(720px, 100%);
-  margin: 0 auto clamp(18px, 2.4vh, 32px);
+  width: min(640px, 100%);
+  margin: clamp(18px, 2.6vh, 34px) var(--margen) clamp(16px, 2.2vh, 28px);
 }
 
 .catalogo-buscador-campo {
@@ -944,6 +960,65 @@ html[data-player="on"] body {
   color: #0a0a0a;
 }
 
+/* «Directo» no es un proveedor de iframe: es otra forma de reproducir. Se
+   distingue con un punto para que no parezca el quinto servidor igual. */
+.servidor.is-directo::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 7px;
+  border-radius: 999px;
+  background: var(--green, #30d158);
+  vertical-align: middle;
+}
+
+/* El panel del servidor directo, ocupando el hueco del vídeo mientras se
+   busca el enlace. Mismo tamaño que el reproductor para que la pantalla no
+   dé un salto cuando aparezca. */
+.ficha-directo {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  aspect-ratio: 16 / 9;
+  padding: clamp(20px, 3vw, 44px);
+  text-align: center;
+}
+
+.ficha-directo p {
+  margin: 0;
+  font-size: clamp(16px, 1.3vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text, #f5f5f7);
+}
+
+.ficha-directo span:not(.ficha-directo-girando) {
+  max-width: 44ch;
+  font-size: clamp(13px, 0.95vw, 16px);
+  color: var(--soft, rgba(245, 245, 247, 0.46));
+}
+
+.ficha-directo button {
+  margin-top: 6px;
+}
+
+.ficha-directo-girando {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--chip, rgba(255, 255, 255, 0.12));
+  border-top-color: var(--text, #f5f5f7);
+  border-radius: 999px;
+  animation: cc-girar 800ms linear infinite;
+}
+
+@keyframes cc-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .servidores-nota {
   margin-left: auto;
   flex-shrink: 0;
@@ -1139,6 +1214,74 @@ html[data-player="on"] body {
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
 
+/* ── Estados vacíos y avisos ─────────────────────────────────────────
+   Uno solo para toda la app. Es lo que se ve cuando algo va mal, que es justo
+   cuando peor sienta que el producto parezca de otro. */
+.estado-vacio {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  margin: 0 var(--margen);
+  padding: clamp(36px, 6vh, 72px) clamp(20px, 3vw, 48px);
+  border: 1px solid var(--line);
+  border-radius: var(--radio-panel);
+  background: var(--bg-card);
+  text-align: center;
+}
+
+.estado-vacio > svg {
+  width: 34px;
+  height: 34px;
+  color: var(--faint);
+}
+
+.estado-vacio-titulo {
+  margin: 0;
+  font-size: clamp(16px, 1.25vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.estado-vacio-detalle {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(13px, 0.98vw, 16px);
+  color: var(--soft);
+}
+
+.estado-vacio .secondary {
+  margin-top: 8px;
+}
+
+.catalogo-aviso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 var(--margen) clamp(14px, 2vh, 24px);
+  padding: 13px 16px;
+  border: 1px solid rgba(255, 214, 10, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 214, 10, 0.08);
+  font-size: clamp(13px, 0.95vw, 15px);
+  color: #ffe89a;
+}
+
+.catalogo-aviso svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  margin-top: 1px;
+  color: var(--gold);
+}
+
+.catalogo-aviso code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.92em;
+}
+
 /* ── Filtros del catálogo ────────────────────────────────────────────
    Los chips eran morados: lo único morado de toda la aplicación, herencia del
    diseño anterior de esta sección. Cambiar de Canales a Películas se notaba
@@ -1213,21 +1356,6 @@ body {
    pasa a ser suyo, y la vista que va debajo deja de reservarlo: si no, entre el
    reproductor y el primer riel quedaba el doble de aire que en cualquier otra
    pantalla. */
-.live-slot {
-  padding-top: calc(var(--topbar-h) + 22px);
-}
-
-@media (max-height: 520px) and (orientation: landscape) {
-  .live-slot {
-    padding-top: calc(var(--topbar-h) + 10px);
-  }
-}
-
-@media (max-width: 680px) {
-  .live-slot {
-    padding-top: clamp(14px, 2vh, 24px);
-  }
-}
 
 /* ── Ajustes ─────────────────────────────────────────────────────────
    Su encabezado era un `<h1>` suelto con clases propias: el único de la app
@@ -1264,17 +1392,30 @@ body {
   }
 }
 
-/* Y un poco más de aire entre la barra y el vídeo: pegados se leían como una
-   sola pieza. En teléfono el hueco lo pone `.app-shell`, así que aquí basta un
-   respiro; esta excepción va después a propósito, porque la regla general
-   estaba anulándola y dejaba 200px de negro sobre el vídeo. */
+/* El hueco superior del reproductor en directo.
+
+   Lo reserva él y no la vista de debajo: si lo pusieran los dos, entre el
+   vídeo y el primer riel quedaba el doble de aire que en cualquier otra
+   pantalla. Un poco más que la barra, porque pegados se leen como una sola
+   pieza.
+
+   En teléfono se mide contra la cabecera real (58px) y no contra
+   `--topbar-h`, que es la de escritorio. Aquí decía `clamp(14px, 2vh, 24px)`
+   dando por hecho que el hueco lo ponía `.app-shell` — y no lo pone: el vídeo
+   se metía 41px por debajo de la cabecera fija. */
 .live-slot {
   padding-top: calc(var(--topbar-h) + 36px);
 }
 
+@media (max-height: 520px) and (orientation: landscape) {
+  .live-slot {
+    padding-top: calc(var(--topbar-h) + 10px);
+  }
+}
+
 @media (max-width: 680px) {
   .live-slot {
-    padding-top: clamp(14px, 2vh, 24px);
+    padding-top: calc(58px + clamp(10px, 1.6vh, 18px));
   }
 }
 

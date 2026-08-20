@@ -33,3 +33,7 @@ npm-debug.log*
 
 # Next.js
 next-env.d.ts
+# Servicio extractor (Python)
+__pycache__/
+*.py[cod]
+.venv/

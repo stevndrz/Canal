@@ -56,6 +56,10 @@ src/
 │   ├── fuente-propia/        Mi enlace: clasificar URLs, leer magnets
 │   └── watch-party/          Firma e identificadores de sala
 └── store/use-app-store.ts    Estado global persistido (favoritos, preferencias)
+
+servicios/
+└── extractor/                Servicio Python aparte: busca el .mp4 de una
+                              película en caliente. Ver su README.
 ```
 
 ---
@@ -186,6 +190,7 @@ Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 | `NEXT_PUBLIC_CANAL_INICIAL` | Canal de arranque | `Canal 7` |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
 | `NEXT_PUBLIC_PUSHER_KEY` / `_CLUSTER` + `PUSHER_SECRET` | Watch Party | Sin ellas, «Ver en familia» se desactiva sola |
+| `EXTRACTOR_URL` | Servidor «Directo» de la ficha (`servicios/extractor`) | Sin ella el botón explica qué falta |
 
 > ⚠️ El token de TMDB de reserva está en el historial de Git. Es de solo
 > lectura del catálogo público y nunca sale hacia el navegador, pero si este

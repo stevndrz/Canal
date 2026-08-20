@@ -7,7 +7,8 @@ import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Info, Star, Users } from "lucide-react";
 import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
 import { useGridNavigation } from "@/hooks/use-grid-navigation";
-import { ServerPicker } from "./server-picker";
+import { ServerPicker, ID_DIRECTO } from "./server-picker";
+import { useExtractor } from "@/hooks/use-extractor";
 import { TopNav } from "@/components/shell/top-nav";
 import { useAppStore } from "@/store/use-app-store";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
@@ -53,6 +54,18 @@ export function TitleDetail({
   const providers = getProviders();
   const preferredProvider = useAppStore((state) => state.preferredProvider);
   const setPreferredProvider = useAppStore((state) => state.setPreferredProvider);
+
+  /**
+   * El servidor «Directo»: en vez de un iframe ajeno, un `.mp4` nuestro que se
+   * busca en el momento de pulsarlo.
+   *
+   * No se puede preparar de antemano porque el enlace viene firmado y caduca en
+   * horas: guardarlo daría un catálogo que funciona hoy y está roto mañana. Y
+   * como tarda entre 10 y 30 segundos, hay que contar lo que está pasando —de
+   * ahí el estado, y no un simple booleano.
+   */
+  const { estado: extraccion, extraer, reiniciar } = useExtractor();
+  const enDirecto = preferredProvider === ID_DIRECTO;
   // El guardado manda si sigue existiendo; si no, el primero de la lista, que
   // ya viene ordenada poniendo delante los que piden subtítulos en español.
   const activeProvider =
@@ -159,23 +172,77 @@ export function TitleDetail({
           ) : embedUrl ? (
             <>
               <div className="ficha-conjunto">
-                <div className="player-surface ficha-marco">
-                  <iframe
-                    src={embedUrl}
-                    title={item.title}
-                    allowFullScreen
-                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                    referrerPolicy="origin"
-                  />
-                </div>
+                {enDirecto ? (
+                  extraccion.fase === "listo" ? (
+                    <NativePlayer
+                      streams={[{ label: "Directo", url: extraccion.url, type: "auto" }]}
+                      title={item.title}
+                    />
+                  ) : (
+                    <div className="player-surface ficha-marco ficha-directo">
+                      {extraccion.fase === "buscando" ? (
+                        <>
+                          <span className="ficha-directo-girando" aria-hidden="true" />
+                          <p>Buscando el enlace…</p>
+                          <span>
+                            Hay que recorrer el sitio de origen: puede tardar medio minuto.
+                          </span>
+                        </>
+                      ) : extraccion.fase === "fallo" ? (
+                        <>
+                          <p>No se pudo</p>
+                          <span>{extraccion.motivo}</span>
+                          <button
+                            type="button"
+                            data-nav="button"
+                            className="secondary"
+                            onClick={() => extraer(item.title, item.year)}
+                          >
+                            Reintentar
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p>Enlace directo</p>
+                          <span>
+                            Se busca un archivo de vídeo en español, sin iframe. Tarda un poco.
+                          </span>
+                          <button
+                            type="button"
+                            data-nav="button"
+                            className="primary"
+                            onClick={() => extraer(item.title, item.year)}
+                          >
+                            Buscar ahora
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )
+                ) : (
+                  <div className="player-surface ficha-marco">
+                    <iframe
+                      src={embedUrl}
+                      title={item.title}
+                      allowFullScreen
+                      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                      referrerPolicy="origin"
+                    />
+                  </div>
+                )}
 
                 {/* Al pie del vídeo, no suelto en la página: es un control de
                     este reproductor, y cuando la imagen no se ve la mano ya
                     está ahí. */}
                 <ServerPicker
                   providers={providers}
-                  activeId={activeProvider?.id ?? ""}
-                  onSelect={setPreferredProvider}
+                  activeId={enDirecto ? ID_DIRECTO : (activeProvider?.id ?? "")}
+                  onSelect={(id) => {
+                    // Al cambiar de servidor se descarta lo extraído: si no, un
+                    // enlace ya caducado seguiría en pantalla al volver.
+                    reiniciar();
+                    setPreferredProvider(id);
+                  }}
                   nota={
                     /* Se distingue lo que se sabe con certeza (se rodó en
                        español) de lo que solo se puede pedir (subtítulos),

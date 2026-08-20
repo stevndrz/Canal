@@ -3,9 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Settings, Tv } from "lucide-react";
+import { Ellipsis, Settings, Tv, X } from "lucide-react";
 import type { ViewId } from "@/lib/types";
-import { NAV_ITEMS, MOBILE_KEYS, type NavItem } from "@/components/app-nav";
+import {
+  NAV_ITEMS,
+  MOBILE_OVERFLOW_KEYS,
+  MOBILE_PRIMARY_KEYS,
+  type NavItem,
+} from "@/components/app-nav";
 
 /**
  * Barra de navegación del shell.
@@ -68,6 +73,7 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [clock, setClock] = useState("");
+  const [masAbierto, setMasAbierto] = useState(false);
 
   // El reloj lo lleva la barra y no quien la usa: es parte del chrome, y así
   // funciona igual dentro y fuera del shell sin que nadie tenga que pasárselo.
@@ -80,6 +86,7 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
   }, []);
 
   const irA = (destino: ViewId) => {
+    setMasAbierto(false);
     if (onNavigate) onNavigate(destino);
     // Fuera del shell no hay estado de vista que cambiar: se vuelve a la
     // aplicación pidiendo la sección por la URL.
@@ -186,11 +193,45 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
         <span className="top-clock">{clock}</span>
       </header>
 
-      {/* …y destinos abajo, donde llega el pulgar. */}
+      {/* …y destinos abajo, donde llega el pulgar.
+
+          Cinco a la vista y el resto detrás de «Más»: los ocho en 393px dejan
+          cada casilla en 49px con la etiqueta partida, y aquí las etiquetas no
+          sobran — esta app la usa gente que reconoce la palabra antes que el
+          icono. */}
+      {masAbierto && (
+        <>
+          {/* Tocar fuera cierra. Es un `<button>` y no un `<div>` para que
+              también se pueda cerrar desde un teclado o un mando. */}
+          <button
+            type="button"
+            className="mobile-mas-fondo"
+            aria-label="Cerrar más secciones"
+            onClick={() => setMasAbierto(false)}
+          />
+          <div className="mobile-mas" role="group" aria-label="Más secciones">
+            {NAV_ITEMS.filter((item) => MOBILE_OVERFLOW_KEYS.includes(item.key)).map((item) =>
+              renderItem(item, "mobile-mas-item"),
+            )}
+          </div>
+        </>
+      )}
+
       <nav className="mobile-bottom-nav" aria-label="Secciones" data-nav-chrome>
-        {NAV_ITEMS.filter((item) => MOBILE_KEYS.includes(item.key)).map((item) =>
+        {NAV_ITEMS.filter((item) => MOBILE_PRIMARY_KEYS.includes(item.key)).map((item) =>
           renderItem(item, "mobile-nav-item"),
         )}
+        <button
+          type="button"
+          data-nav="button"
+          className={`mobile-nav-item ${masAbierto ? "is-active" : ""}`}
+          aria-expanded={masAbierto}
+          aria-label={masAbierto ? "Cerrar más secciones" : "Más secciones"}
+          onClick={() => setMasAbierto((abierto) => !abierto)}
+        >
+          {masAbierto ? <X aria-hidden="true" /> : <Ellipsis aria-hidden="true" />}
+          <span>{masAbierto ? "Cerrar" : "Más"}</span>
+        </button>
       </nav>
     </>
   );

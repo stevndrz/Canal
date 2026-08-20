@@ -679,6 +679,80 @@ de JavaScript. Son los 7.822 canales serializados, y la mitad no servía:
 
 ---
 
+## Fase 6.4 — Lo que la hoja nueva rompió, y el diseño que faltaba ✅
+
+### Tres regresiones, dos de ellas de la tanda anterior
+
+- [x] **El mosaico de Canales, roto en PC.** `.livetv-columns` tiene **tres**
+  hijos —categorías, lista y detalle— y la rejilla nueva solo declaraba dos
+  columnas: la lista caía en la estrecha de 420px y el detalle bajaba a una
+  segunda fila. Las categorías pasan a ocupar la fila entera
+- [x] **Las filas de canal medían 154px en vez de 64.** La caja horizontal es
+  `.livetv-row-main` —el botón de dentro—, no el `<article>` que lo envuelve.
+  Al no serlo, logo, texto y play se apilaban
+- [x] **Las dos barras del teléfono dejaron de estar fijas.** `.app-fade`
+  animaba un `transform` con `fill-mode: both`, y un ancestro con transform se
+  convierte en el bloque contenedor de sus descendientes `position: fixed`: la
+  barra de abajo acababa a 5.500px del viewport. Ahora la transición es solo
+  de opacidad
+- [x] **Cuatro clases propias sin una sola regla** (`livetv-row-mark`,
+  `buscar-teclado`, `player-surface`, `app-fade`). Se encontraron preguntando
+  al navegador qué pinta y comparándolo con lo que define el CSS servido, no
+  mirando archivo por archivo
+
+### El teléfono
+
+- [x] **El reproductor se metía 41px por debajo de la cabecera.** La regla de
+  `.live-slot` en móvil daba por hecho que el hueco lo ponía `.app-shell`, y
+  no lo pone. Ahora se mide contra la cabecera real (58px)
+- [x] **Ocho destinos en 393px** dejaban cada casilla en 49px con la etiqueta
+  partida a «Categoría…». Cinco a la vista y tres tras «Más»: 64px cada uno y
+  la etiqueta entera. Las etiquetas no son opcionales aquí — esta app la usa
+  gente que reconoce la palabra antes que el icono
+- [x] **Pantalla completa en iPhone.** Desde iOS 26 `requestFullscreen` existe
+  en el iPhone, así que el orden de intentos se quedaba en él —que no esconde
+  las barras de Safari— y nunca llegaba a `webkitEnterFullscreen()`, la única
+  vía real. Ahora en iPhone se va directo a esa, y en el resto se **espera**
+  cada intento en vez de lanzarlo y olvidarse
+
+### Buscar, en los dos catálogos
+
+- [x] Solo recorría la lista M3U: escribir el nombre de una película no daba
+  nada. Ahora hay dos grupos de resultados
+- [x] Los canales se filtran **en memoria** (ya están en el cliente) y las
+  películas pasan por `/api/buscar`, porque la credencial de TMDB no sale al
+  navegador
+- [x] Antirrebote de 250 ms y `AbortController`: sin cancelar, la respuesta de
+  «bat» podía llegar después que la de «batman» y pintarse encima
+
+### El diseño premium
+
+- [x] **Hero a sangre en Películas** (`hero-destacado.tsx`): arte de fondo,
+  título grande y apretado, nota en dorado, línea de datos con puntos,
+  sinopsis a tres líneas y dos acciones. Se elige el primer título **con arte
+  apaisado**, no el primero a secas
+- [x] **Fuera el Tailwind suelto de los estados vacíos**, que eran lo único de
+  la app con anillos morados y `bg-white/5`. Un `EstadoVacio` para todos
+- [x] El buscador del catálogo, alineado al margen como el resto en vez de
+  centrado
+
+### El servidor «Directo»
+
+- [x] `servicios/extractor/` — FastAPI + Playwright, **fuera de la app**: hace
+  falta un Chromium de verdad (~400 MB) y tarda 10-30 s, así que no cabe en
+  una función sin servidor
+- [x] Busca la película por título y año, porque de TMDB no sale la dirección
+  del sitio de origen. Elige por título normalizado, no el primer enlace
+- [x] **`DOMINIOS_PERMITIDOS` no es opcional**: sin esa lista el parámetro
+  `url` convierte el servicio en un proxy abierto capaz de leer
+  `169.254.169.254` desde dentro de la red. Comprobado que lo rechaza
+- [x] El navegador nunca habla con el extractor: pasa por `/api/extraer`, que
+  lee `EXTRACTOR_URL` del servidor. Sin configurar, el botón lo explica
+- [x] Caché en memoria de 30 min, un solo Chromium reutilizado, y bloqueo de
+  imágenes y hojas de estilo — no se mira la página, solo se siguen enlaces
+
+---
+
 ## Fase 7 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.

@@ -67,7 +67,9 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
    * ese sistema permite sin abrir su reproductor nativo.
    */
   const expandir = useCallback(() => {
-    pedirPantallaCompleta(playerRef.current?.video() ?? null);
+    // Sin `await`: `requestFullscreen` tiene que salir dentro del gesto de la
+    // persona, y esperar aquí devolvería el control al navegador antes.
+    void pedirPantallaCompleta(playerRef.current?.video() ?? null);
     onExpand(channel);
   }, [onExpand, channel]);
 
@@ -195,18 +197,51 @@ export function LiveCardSkeleton() {
  * vía —conservar nuestro diseño y ganar la pantalla completa— es añadir la app
  * a la pantalla de inicio, que la abre sin nada de Safari alrededor.
  */
-function pedirPantallaCompleta(video: HTMLVideoElement | null) {
+async function pedirPantallaCompleta(video: HTMLVideoElement | null) {
   const raiz = document.documentElement as HTMLElement & {
     webkitRequestFullscreen?: () => Promise<void> | void;
   };
-  if (typeof raiz.requestFullscreen === "function") {
-    void raiz.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-    return;
-  }
-  if (typeof raiz.webkitRequestFullscreen === "function") {
-    void raiz.webkitRequestFullscreen();
-    return;
-  }
   const nativo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+
+  // En iPhone se va directo al reproductor del sistema y no se prueba nada
+  // antes. Desde iOS 26 `requestFullscreen` **existe** en el iPhone, así que
+  // el orden de antes se quedaba en ese primer intento —que no esconde las
+  // barras de Safari— y nunca llegaba aquí. Es exactamente el fallo que se
+  // veía: el vídeo crecía y la barra de direcciones seguía encima.
+  if (esIPhone() && nativo?.webkitEnterFullscreen) {
+    nativo.webkitEnterFullscreen();
+    return;
+  }
+
+  // En el resto: documento primero, para conservar nuestros controles.
+  // Se **espera** cada intento en vez de lanzarlo y olvidarse: si el navegador
+  // lo rechaza, hay que enterarse para probar el siguiente. Un `.catch()` que
+  // traga el error y un `return` justo detrás dejan al usuario sin pantalla
+  // completa y sin saber por qué.
+  try {
+    if (typeof raiz.requestFullscreen === "function") {
+      await raiz.requestFullscreen({ navigationUI: "hide" });
+      return;
+    }
+    if (typeof raiz.webkitRequestFullscreen === "function") {
+      await raiz.webkitRequestFullscreen();
+      return;
+    }
+  } catch {
+    // Sigue al respaldo en lugar de rendirse aquí.
+  }
+
   nativo?.webkitEnterFullscreen?.();
+}
+
+/**
+ * ¿Es un iPhone (o un iPod)?
+ *
+ * Deliberadamente **no** incluye el iPad: ahí la Fullscreen API sí funciona
+ * sobre elementos normales, y usar el reproductor del sistema sacrificaría
+ * nuestros controles sin ganar nada. Y el iPad moderno se anuncia como
+ * "Macintosh", así que buscarlo por nombre tampoco funcionaría.
+ */
+function esIPhone(): boolean {
+  return /iPhone|iPod/.test(navigator.userAgent);
 }
