@@ -466,7 +466,71 @@ truncarse porque ahí sí hay sitio para leerla entera.
 
 ---
 
-## Fase 6 — Absorber Películas y Series en el shell
+## Fase 5.9 — El reproductor como reproductor ✅
+
+**La rueda del ratón no movía la página en escritorio.** Causa: ARVIO pone
+`overflow-x: hidden` en `body`, y el CSS tiene una regla poco conocida — si
+`html` está en `visible`, **el overflow del `body` se propaga al viewport**. El
+viewport quedaba en `overflow: hidden auto` y el `body` pasaba a ser el
+contenedor de scroll. En Chrome se nota poco; en Safari y Firefox, combinado con
+elementos `position: fixed` como la barra, es la causa clásica de que la rueda
+deje de responder.
+
+- [x] `overflow-x: clip` sobre `html, body`: recorta igual pero **no crea
+  contenedor de scroll ni se propaga**. Declarado después de `hidden` para que
+  los navegadores viejos de televisor que no lo conocen se queden con lo de
+  antes, que para ellos ya funcionaba
+
+**El cartel de «Activar sonido» ya no existe.** Si el navegador bloqueaba el
+autoplay con audio, se tapaba el vídeo con un cartel y no se veía **ni sonaba**
+nada hasta pulsarlo: lo contrario de lo que quiere quien abre una app de TV.
+
+- [x] Ante un bloqueo se silencia y se reintenta. Todos los navegadores permiten
+  el autoplay en silencio, así que la imagen aparece siempre. El botón de sonido
+  vuelve a ser un control y no un peaje
+
+**Los controles viven dentro de la imagen en escritorio.**
+
+- [x] El marco pasa a ser un contenedor posicionado y el vídeo vive dentro con
+  su proporción. Esa separación permite las dos disposiciones sin duplicar
+  maqueta
+- [x] En escritorio, la barra se apoya en el borde inferior del vídeo y aparece
+  al acercar el ratón o **al enfocar con el mando** (`:focus-within`, que es lo
+  que evita navegar a ciegas por una barra invisible)
+- [x] En teléfono se queda debajo, en el flujo: ahí tapar el vídeo cuesta caro, y
+  esa disposición —imagen arriba, botones grandes abajo— es la que hace que se
+  lea como un mando para pasar el canal a la tele
+- [x] `margin-inline: auto` en el marco: **estaba pegado a la izquierda** con
+  medio televisor en negro al lado
+
+**La señal sigue a la pestaña.** El reproductor lo montaba Inicio, así que al
+pasar a Canales React lo desmontaba y la emisión se cortaba.
+
+- [x] Montado en el shell, ocupa el mismo sitio del árbol en Inicio y en
+  Canales: React conserva la instancia, el `<video>` no se recrea y la emisión
+  no se interrumpe mientras se busca otro canal. Verificado comparando la
+  identidad del elemento `<video>` antes y después de cambiar de pestaña
+- [x] En las demás vistas no se monta: nadie va a Ajustes a ver la tele, y así
+  no se gasta ancho de banda en segundo plano
+
+---
+
+## Fase 6 (nueva) — Fuente propia y Watch Party
+
+Trabajo que el autor hará en su propia rama. **Las bases están puestas**, no la
+funcionalidad: ver [`docs/FUENTE-PROPIA.md`](FUENTE-PROPIA.md) y
+`src/lib/fuente-propia/`.
+
+Decisión de producto que queda fijada ahí: el Watch Party **solo** tiene sentido
+sobre una fuente propia. En Canales no hace falta —una emisión en vivo ya va
+igual para todos y no se puede pausar— y en Películas es imposible, porque el
+`<video>` vive dentro del iframe de otro dominio. Cuando esa pantalla exista,
+el botón debe **retirarse** de los otros dos sitios en lugar de quedarse sin
+poder cumplir.
+
+---
+
+## Fase 7 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.
 
@@ -482,14 +546,14 @@ transiciones sean las mismas en toda la app.
 
 ---
 
-## Fase 7 — Ajustes
+## Fase 8 — Ajustes
 
 - [ ] `ajustes-view.tsx` → `.settings-shell`, `.settings-panel-card`, `.settings-list-row`, `.set-control`
 - [ ] Se porta **la maqueta**, no las 2.776 líneas: la mayor parte de ese archivo son opciones de ARVIO que aquí no existen (cuentas, addons, servidores domésticos, Trakt, Telegram)
 
 ---
 
-## Fase 8 — El reproductor
+## Fase 9 — El reproductor
 
 La parte más delicada. Se hace al final a propósito: es lo único que hoy
 funciona y que ARVIO no puede reemplazar tal cual.
@@ -503,7 +567,7 @@ funciona y que ARVIO no puede reemplazar tal cual.
 
 ---
 
-## Fase 9 — Cierre
+## Fase 10 — Cierre
 
 - [ ] Retirar el código muerto que vayan dejando las fases anteriores
 - [ ] `README.md`: arquitectura nueva, licencias y atribución

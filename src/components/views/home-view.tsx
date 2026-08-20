@@ -1,25 +1,11 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import { useMemo } from "react";
-import type { Channel, PlaybackSettings } from "@/lib/types";
+import type { Channel } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
 import { groupByCategory } from "@/lib/channels";
 import { MediaRail } from "@/components/media/media-rail";
-import { LiveCardSkeleton } from "@/components/live-card";
-
-/**
- * El reproductor solo puede existir en el navegador.
- *
- * `hls.js` y `mpegts.js` tocan `self` al evaluarse, y en el servidor eso es un
- * `ReferenceError` que tumba la página entera con un 500. Ya pasó una vez en
- * producción con este mismo diseño.
- */
-const LiveCard = dynamic(() => import("@/components/live-card").then((m) => m.LiveCard), {
-  ssr: false,
-  loading: () => <LiveCardSkeleton />,
-});
 
 interface HomeViewProps {
   channels: Channel[];
@@ -27,14 +13,11 @@ interface HomeViewProps {
   favorites: Set<number>;
   recents: Channel[];
   catalog: CatalogSection[];
-  settings: PlaybackSettings;
-  /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta. */
+  /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta de arriba. */
   onSelect: (channel: Channel) => void;
-  /** Pasar a pantalla completa con ese canal. */
-  onExpand: (channel: Channel) => void;
-  onNext: () => void;
-  onPrev: () => void;
   onOpenTitle: (mediaType: string, id: string) => void;
+  /** El shell ya pintó la señal en directo encima; no repetir el hueco. */
+  sinHueco?: boolean;
 }
 
 /** Cuántas categorías de canales se ofrecen antes de mandar a Canales. */
@@ -59,12 +42,9 @@ export function HomeView({
   favorites,
   recents,
   catalog,
-  settings,
   onSelect,
-  onExpand,
-  onNext,
-  onPrev,
   onOpenTitle,
+  sinHueco,
 }: HomeViewProps) {
   const favoriteChannels = useMemo(
     () => channels.filter((channel) => favorites.has(channel.id)),
@@ -92,17 +72,7 @@ export function HomeView({
        superior a cero porque asume que la primera cosa de la pantalla es un
        encabezado. Aquí lo primero es la tarjeta en directo, y sin hueco su
        cabecera se metía debajo de la barra de navegación. */
-    <div className="screen">
-      {tuned && (
-        <LiveCard
-          channel={tuned}
-          settings={settings}
-          onExpand={onExpand}
-          onNext={onNext}
-          onPrev={onPrev}
-        />
-      )}
-
+    <div className={sinHueco ? "screen sin-hueco" : "screen"}>
       <MediaRail
         title="Seguir viendo"
         items={recents.map((channel) => channelToCard(channel))}

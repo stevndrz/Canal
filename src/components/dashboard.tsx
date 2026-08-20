@@ -10,6 +10,7 @@ import { CATEGORY_ORDER, canalDeArranque, filterChannels, withChannelNumbers } f
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
+import { LiveCardSkeleton } from "@/components/live-card";
 import { HomeView } from "@/components/views/home-view";
 import { LiveTvView } from "@/components/livetv/live-tv-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
@@ -25,6 +26,20 @@ import { AjustesView } from "@/components/views/ajustes-view";
  * `ReferenceError: self is not defined` y Vercel devuelve un 500 — es lo que
  * tumbó este mismo diseño la primera vez que se intentó desplegar.
  */
+/**
+ * El reproductor incrustado vive en el shell, no dentro de una vista.
+ *
+ * Antes lo montaba Inicio, así que al pasar a Canales React lo desmontaba, la
+ * conexión se cortaba y el canal se quedaba en silencio. Montado aquí, ocupa el
+ * mismo sitio del árbol en las dos pestañas: React conserva la instancia, el
+ * `<video>` no se recrea y la emisión sigue sin cortarse mientras se busca otro
+ * canal. Es el mismo motivo por el que nunca hay dos reproductores a la vez.
+ */
+const LiveCard = dynamic(() => import("@/components/live-card").then((m) => m.LiveCard), {
+  ssr: false,
+  loading: () => <LiveCardSkeleton />,
+});
+
 const FullscreenPlayer = dynamic(
   () => import("@/components/fullscreen-player").then((m) => m.FullscreenPlayer),
   { ssr: false, loading: () => <div className="fixed inset-0 z-50 bg-app" /> }
@@ -254,6 +269,9 @@ export function Dashboard({
      por sí mismo. */
   const pantalla = "screen tv-safe";
 
+  /** Las dos vistas que llevan la señal en directo encima. */
+  const conReproductor = view === "home" || view === "canales";
+
   return (
     <div ref={shellRef} className="app-shell">
       {/* La barra desaparece durante la reproducción. Es `position: fixed` con
@@ -262,24 +280,37 @@ export function Dashboard({
       {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
 
       <section className="content">
+        {/* Inicio y Canales comparten la señal en directo. En las demás vistas
+            no se monta: nadie va a Ajustes a ver la tele, y así no se gasta
+            ancho de banda en segundo plano. */}
+        {conReproductor && tuned && (
+          <div className="live-slot">
+            <LiveCard
+              channel={tuned}
+              settings={settings}
+              onExpand={tune}
+              onNext={() => zap(1)}
+              onPrev={() => zap(-1)}
+            />
+          </div>
+        )}
+
         {view === "home" && (
           <HomeView
+            sinHueco
             channels={channels}
             tuned={tuned}
             favorites={favorites.ids}
             recents={recentChannels}
             catalog={catalog}
-            settings={settings}
             onSelect={select}
-            onExpand={tune}
-            onNext={() => zap(1)}
-            onPrev={() => zap(-1)}
             onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
           />
         )}
 
         {view === "canales" && (
           <LiveTvView
+            sinHueco
             channels={channels}
             visible={visible}
             tuned={tuned}

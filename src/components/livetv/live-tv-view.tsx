@@ -55,6 +55,8 @@ interface LiveTvViewProps {
   onSearchChange: (search: string) => void;
   onTune: (channel: Channel) => void;
   onToggleFavorite: (id: number) => void;
+  /** El shell ya pintó la señal en directo encima; no repetir el hueco. */
+  sinHueco?: boolean;
 }
 
 export function LiveTvView({
@@ -69,6 +71,7 @@ export function LiveTvView({
   onSearchChange,
   onTune,
   onToggleFavorite,
+  sinHueco,
 }: LiveTvViewProps) {
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   const [pintadas, setPintadas] = useState(LOTE);
@@ -115,7 +118,7 @@ export function LiveTvView({
   const esFavorito = canal ? favorites.has(canal.id) : false;
 
   return (
-    <div className="screen livetv-shell">
+    <div className={`screen livetv-shell ${sinHueco ? "sin-hueco" : ""}`}>
       <header className="livetv-topbar">
         <div className="livetv-heading">
           <h2>Canales</h2>

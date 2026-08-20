@@ -124,6 +124,21 @@ const StreamPlayer = memo(
       video.removeAttribute("src");
       video.load();
 
+      /**
+       * Arrancar siempre, aunque sea en silencio.
+       *
+       * Antes, si el navegador bloqueaba el autoplay con audio, se tapaba el
+       * vídeo con un cartel de "Activar sonido" y no sonaba **ni se veía** nada
+       * hasta que alguien lo pulsara. Eso es exactamente al revés de lo que
+       * quiere quien abre una app de televisión: la imagen tiene que estar ahí.
+       *
+       * Todos los navegadores permiten el autoplay en silencio, así que ante un
+       * bloqueo se silencia y se reintenta. El botón de sonido de la barra
+       * queda como lo que es: un control, no un peaje.
+       *
+       * El cartel solo sobrevive para el caso raro en que ni siquiera en
+       * silencio se pueda reproducir; ahí sí no hay nada que enseñar.
+       */
       const tryPlay = () => {
         if (cancelled) return;
         video
@@ -133,10 +148,18 @@ const StreamPlayer = memo(
           })
           .catch(() => {
             if (cancelled) return;
-            // El navegador bloqueó el autoplay con audio.
-            // NO muteamos — mostramos un overlay pidiendo un click.
-            setNeedsUserGesture(true);
-            setIsPlaying(false);
+            video.muted = true;
+            setIsMuted(true);
+            video
+              .play()
+              .then(() => {
+                if (!cancelled) setIsPlaying(true);
+              })
+              .catch(() => {
+                if (cancelled) return;
+                setNeedsUserGesture(true);
+                setIsPlaying(false);
+              });
           });
       };
 

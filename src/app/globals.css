@@ -383,10 +383,15 @@ html[data-player="on"] body {
   }
 }
 
-/* ── El canal en directo dentro de Inicio ────────────────────────────
+/* ── El canal en directo ─────────────────────────────────────────────
    Ocupa el sitio que antes tenía la cabecera de películas. El orden dice cuál
    es la prioridad de esta app: primero la señal en vivo, y las películas
-   después, como una sección más. */
+   después, como una sección más.
+
+   El marco es un contenedor posicionado, y el vídeo vive dentro con su
+   proporción. Esa separación es la que permite que los controles se metan
+   encima de la imagen en escritorio y se queden debajo en teléfono, sin
+   duplicar la maqueta. */
 .live-card {
   padding: 0 3.35vw;
   margin-bottom: clamp(24px, 3vh, 40px);
@@ -394,15 +399,19 @@ html[data-player="on"] body {
 
 .live-card-marco {
   position: relative;
-  aspect-ratio: 16 / 9;
-  width: 100%;
   /* Un reproductor incrustado, no una portada.
      A pantalla completa de un televisor, 16:9 sobre todo el ancho da más de
-     1000px de alto y no cabe nada más: dejaría de ser "el canal dentro de
-     Inicio" para volver a ser lo que se quitó. Acotado por ancho y no por alto,
-     porque limitar el alto con `aspect-ratio` deja el marco más ancho que el
-     vídeo y aparecen bandas negras a los lados. */
-  max-width: min(100%, 116vh);
+     1000px de alto y no cabe nada más. Y `margin-inline: auto` es lo que lo
+     centra: sin él quedaba pegado a la izquierda con medio televisor en negro
+     al lado. */
+  width: min(100%, 116vh);
+  margin-inline: auto;
+}
+
+.live-card-video {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  width: 100%;
   overflow: hidden;
   border-radius: clamp(14px, 1.1vw, 22px);
   background: #000;
@@ -411,11 +420,12 @@ html[data-player="on"] body {
   cursor: pointer;
 }
 
-.live-card-marco.is-cargando {
+.live-card-marco.is-cargando,
+.live-card-video.is-cargando {
   background: linear-gradient(135deg, #16181f, #0a0b0f);
 }
 
-.live-card-marco video {
+.live-card-video video {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -489,55 +499,43 @@ html[data-player="on"] body {
   cursor: pointer;
 }
 
-.live-card-controles {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
+/* ── Dónde vive la barra de controles ────────────────────────────────
+   En escritorio, **encima del vídeo**, apoyada en su borde inferior: así se lee
+   como un reproductor y no como un mando suelto debajo de una imagen. Se
+   desvanece cuando el ratón no está encima, para no tapar la emisión.
 
-.live-card-boton {
-  min-height: 48px;
-  padding: 0 clamp(14px, 1.1vw, 22px);
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.1));
-  color: inherit;
-  font-size: clamp(13px, 0.95vw, 16px);
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease;
-}
-
-.live-card-boton:hover,
-.live-card-boton:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.2));
-  transform: scale(1.03);
-}
-
-.live-card-boton.is-primary {
-  background: #fff;
-  color: #0a0a0a;
-  border-color: transparent;
-}
-
-/* En teléfono las etiquetas no caben junto a los tres iconos. */
-@media (max-width: 560px) {
-  .live-card-boton span {
-    display: none;
+   En teléfono se queda debajo, en el flujo. Ahí la pantalla es estrecha y tapar
+   el vídeo cuesta caro; además esa disposición —imagen arriba, botones grandes
+   abajo— es la que hace que se lea como un mando para pasar el canal a la tele. */
+@media (min-width: 681px) {
+  .live-card-marco .player-bar.is-embedded {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(12px, 1.4vh, 22px);
+    transform: translateX(-50%);
+    z-index: 5;
+    width: max-content;
+    max-width: calc(100% - 24px);
+    background: rgba(8, 9, 11, 0.9);
+    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transition: opacity 200ms ease, transform 200ms ease;
+    pointer-events: none;
   }
 
-  .live-card-boton {
-    min-width: 48px;
-    justify-content: center;
-    padding: 0 16px;
+  /* Aparece al acercarse con el ratón o al enfocar con el mando. `:focus-within`
+     es lo que evita que el mando se quede navegando a ciegas por una barra
+     invisible. */
+  .live-card-marco:hover .player-bar.is-embedded,
+  .live-card-marco:focus-within .player-bar.is-embedded {
+    opacity: 1;
+    pointer-events: auto;
   }
+}
 
-  .live-card-meta {
-    display: none;
+@media (max-width: 680px) {
+  .live-card-marco .player-bar.is-embedded {
+    margin-top: 12px;
   }
 }
 
@@ -959,6 +957,50 @@ html[data-player="on"] body {
    y `.app-shell` ya la descuenta, así que aquí basta un respiro. */
 @media (max-width: 680px) {
   .screen {
+    padding-top: clamp(14px, 2vh, 24px);
+  }
+}
+
+/* ── El scroll de la rueda en escritorio ─────────────────────────────
+   ARVIO pone `overflow-x: hidden` en `body`, y el CSS tiene una regla poco
+   conocida: si `html` está en `visible`, el overflow del `body` **se propaga
+   al viewport**. El resultado es que el viewport queda en
+   `overflow: hidden auto` y el `body` pasa a ser el contenedor de scroll.
+   En Chrome se nota poco; en Safari y en Firefox, combinado con elementos
+   `position: fixed` como nuestra barra, es la causa clásica de que la rueda
+   del ratón deje de mover la página.
+
+   `clip` recorta igual pero **no crea un contenedor de scroll** ni se propaga,
+   así que el viewport vuelve a ser quien scrollea. Se declara después de
+   `hidden` a propósito: los navegadores viejos de televisor que no conocen
+   `clip` ignoran la segunda línea y se quedan con el comportamiento anterior,
+   que para ellos ya funcionaba. */
+html,
+body {
+  overflow-x: hidden;
+  overflow-x: clip;
+}
+
+/* La señal en directo la pinta el shell, encima de la vista. El hueco superior
+   pasa a ser suyo, y la vista que va debajo deja de reservarlo: si no, entre el
+   reproductor y el primer riel quedaba el doble de aire que en cualquier otra
+   pantalla. */
+.live-slot {
+  padding-top: calc(var(--topbar-h) + 22px);
+}
+
+.screen.sin-hueco {
+  padding-top: 0;
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .live-slot {
+    padding-top: calc(var(--topbar-h) + 10px);
+  }
+}
+
+@media (max-width: 680px) {
+  .live-slot {
     padding-top: clamp(14px, 2vh, 24px);
   }
 }

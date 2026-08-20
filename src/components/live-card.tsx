@@ -90,39 +90,45 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
           de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
           porque es lo que espera cualquiera que venga de un reproductor de
           escritorio; con mando y con el dedo está el botón. */}
-      <div className="live-card-marco" onDoubleClick={expandir}>
-        <StreamPlayer
-          ref={playerRef}
-          channel={channel}
-          settings={settings}
-          onStateChange={setState}
-        />
+      <div className="live-card-marco">
+        <div className="live-card-video" onDoubleClick={expandir}>
+          <StreamPlayer
+            ref={playerRef}
+            channel={channel}
+            settings={settings}
+            onStateChange={setState}
+          />
 
-        <div className="live-card-top">
+          <div className="live-card-top">
           <span className="live-card-vivo">
             <span className="live-dot" />
             EN VIVO
           </span>
           <strong className="live-card-nombre">{channel.name}</strong>
-          <span className="live-card-meta">
-            {channel.number} · {channel.category}
-          </span>
+            <span className="live-card-meta">
+              {channel.number} · {channel.category}
+            </span>
+          </div>
+
+          {state.streamError && (
+            <div className="live-card-aviso">
+              <p>Este canal no está respondiendo.</p>
+              <button type="button" data-nav="button" onClick={() => playerRef.current?.retry()}>
+                Reintentar
+              </button>
+            </div>
+          )}
         </div>
 
-        {state.streamError && (
-          <div className="live-card-aviso">
-            <p>Este canal no está respondiendo.</p>
-            <button type="button" data-nav="button" onClick={() => playerRef.current?.retry()}>
-              Reintentar
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Los controles van DEBAJO del vídeo, no encima: aquí no hay nada que
-          tapar y así no se ocultan nunca. Ocultarlos solo tiene sentido en
-          pantalla completa, donde sí estorban a la imagen. */}
-      <PlayerControls
+        {/* Dentro del marco, no fuera.
+            En escritorio la barra se posiciona **encima del vídeo**, en el
+            borde inferior, que es como se ve un reproductor y no un mando
+            suelto debajo de una imagen. En teléfono se queda debajo, en el
+            flujo: ahí la pantalla es estrecha, tapar el vídeo con una barra
+            cuesta caro, y además esa disposición —imagen arriba, botones
+            grandes abajo— es la que hace que se lea como un mando para pasar
+            el canal a la tele, que es justo lo que se quería. */}
+        <PlayerControls
         variant="embedded"
         isPlaying={state.isPlaying}
         isMuted={state.isMuted}
@@ -145,8 +151,9 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
                 },
               ]
             : []
-        }
-      />
+          }
+        />
+      </div>
 
       {castError && (
         <p className="live-card-error" role="status">
@@ -164,8 +171,9 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
 export function LiveCardSkeleton() {
   return (
     <section className="live-card" aria-hidden="true">
-      <div className="live-card-marco is-cargando" />
-      <div className="live-card-controles" />
+      <div className="live-card-marco">
+        <div className="live-card-video is-cargando" />
+      </div>
     </section>
   );
 }
