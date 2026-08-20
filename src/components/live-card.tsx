@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { PlayerControls } from "@/components/player/player-controls";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ICONO_CAST, PlayerControls } from "@/components/player/player-controls";
+import { useCast } from "@/hooks/use-cast";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -39,6 +40,7 @@ interface LiveCardProps {
 
 export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCardProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<StreamPlayerState>({
     isPlaying: true,
     isMuted: true,
@@ -65,9 +67,21 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
    * ese sistema permite sin abrir su reproductor nativo.
    */
   const expandir = useCallback(() => {
-    document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+    pedirPantallaCompleta(playerRef.current?.video() ?? null);
     onExpand(channel);
   }, [onExpand, channel]);
+
+  // El vídeo real vive dentro de StreamPlayer y se expone por método; Cast lo
+  // necesita como ref, así que se copia en cuanto existe.
+  useEffect(() => {
+    videoRef.current = playerRef.current?.video() ?? null;
+  }, [channel.streamUrl]);
+
+  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } = useCast(
+    videoRef,
+    channel.streamUrl,
+    channel.name,
+  );
 
   return (
     <section className="live-card" aria-label={`En directo: ${channel.name}`}>
@@ -118,7 +132,30 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
         onNext={onNext}
         fullscreen={{ active: false, onToggle: expandir }}
         big={settings.bigControls}
+        extras={
+          canCast
+            ? [
+                {
+                  id: "cast",
+                  label: isCasting ? "Dejar de transmitir" : "Enviar a la TV",
+                  icon: ICONO_CAST,
+                  active: isCasting,
+                  pressed: isCasting,
+                  onClick: isCasting ? stopCasting : startCasting,
+                },
+              ]
+            : []
+        }
       />
+
+      {castError && (
+        <p className="live-card-error" role="status">
+          {castError}
+          <button type="button" data-nav="button" onClick={dismissCastError} aria-label="Cerrar aviso">
+            ✕
+          </button>
+        </p>
+      )}
     </section>
   );
 }
@@ -131,4 +168,37 @@ export function LiveCardSkeleton() {
       <div className="live-card-controles" />
     </section>
   );
+}
+
+/**
+ * Pantalla completa de verdad, probando lo que cada sistema permite.
+ *
+ * En orden: la API estándar sobre el documento; la variante WebKit; y por
+ * último `webkitEnterFullscreen()` sobre el propio `<video>`.
+ *
+ * Ese último paso es el que importa en un iPhone. Safari en iPhone **no
+ * implementa la Fullscreen API sobre nada que no sea un `<video>`**: en una
+ * pestaña normal, `requestFullscreen` ni existe, y por eso la barra de
+ * direcciones seguía encima aunque el reproductor ocupara la ventana. La única
+ * forma de que un iPhone entregue la pantalla entera es el reproductor nativo
+ * del sistema, que además trae AirPlay incorporado.
+ *
+ * El precio: en iPhone se ven los controles de Apple y no los nuestros. La otra
+ * vía —conservar nuestro diseño y ganar la pantalla completa— es añadir la app
+ * a la pantalla de inicio, que la abre sin nada de Safari alrededor.
+ */
+function pedirPantallaCompleta(video: HTMLVideoElement | null) {
+  const raiz = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void> | void;
+  };
+  if (typeof raiz.requestFullscreen === "function") {
+    void raiz.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+    return;
+  }
+  if (typeof raiz.webkitRequestFullscreen === "function") {
+    void raiz.webkitRequestFullscreen();
+    return;
+  }
+  const nativo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+  nativo?.webkitEnterFullscreen?.();
 }

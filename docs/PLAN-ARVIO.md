@@ -406,6 +406,66 @@ reales, ninguno de gusto:
 
 ---
 
+## Fase 5.8 — Encaje real en cada pantalla ✅
+
+Todo salió de capturas de un iPhone de verdad, y todo era invisible en pruebas
+de escritorio.
+
+**Teléfono en horizontal.** El caso no es de anchura sino de **altura**: girado,
+un teléfono tiene unos 874px de ancho —así que ninguna regla de
+`max-width: 680px` entra— pero solo 402px de alto. Con los tamaños de
+escritorio, la barra de controles se partía en dos filas pegadas a la izquierda
+y el hueco superior de `.screen` se llevaba 120px de los 402, empujando los
+controles por debajo del pliegue: había que scrollear para pausar.
+
+- [x] La barra va **centrada** (`justify-content: center`); con `space-between`
+  los dos grupos se iban a los extremos y al envolverse quedaban desalineados
+- [x] Media query por `max-height: 520px` y `orientation: landscape`, no por
+  anchura
+- [x] Hueco superior y tamaño de la tarjeta recalculados para que vídeo y
+  controles quepan a la vez sin scroll
+
+**Pantalla completa en iPhone.** Safari en iPhone **no implementa la Fullscreen
+API sobre nada que no sea un `<video>`**: en una pestaña normal
+`requestFullscreen` ni existe, y por eso la barra de direcciones seguía encima.
+
+- [x] Cadena de intentos: estándar → WebKit sobre el documento →
+  `video.webkitEnterFullscreen()`. El último es el único que un iPhone acepta,
+  y entrega el reproductor nativo de Apple —con AirPlay incluido— a cambio de
+  no ver nuestros controles
+- [x] La otra vía, que conserva el diseño: **añadir la app a la pantalla de
+  inicio**. Ahí abre sin nada de Safari alrededor
+
+**Enviar a la TV desde Inicio.** `useCast` ya existía y solo vivía en el
+reproductor grande; ahora la tarjeta de Inicio lo lleva también.
+
+**Películas, rediseñada.**
+
+- [x] El buscador deja de ser un botón en `position: absolute` encima del campo
+  con 7rem de `padding-right` reservados. En un teléfono eso dejaba sitio para
+  cuatro letras antes de que el texto se metiera debajo del botón. Ahora campo
+  y botón son hermanos en una fila, centrada y acotada
+- [x] **La galería usa `MediaRail` y `MediaCard`**, las mismas de Inicio. Tenía
+  su propia rejilla de pósters de ancho fijo (132/180px): en un televisor de
+  1920 eso eran dos carátulas diminutas arriba a la izquierda con el resto de
+  la pantalla en negro. Reutilizarlas trae gratis tamaños fluidos, flechas de
+  carril, navegación con mando y arrastre con anclaje
+- [x] Los chips dejan de ser morados —lo único morado de toda la app— y
+  scrollean en horizontal en vez de recortarse: los géneros de TMDB son
+  veintitantos
+- [x] `.screen` pasa a `grid-template-columns: minmax(0, 1fr)`. Sin acotar, la
+  columna se ensanchaba hasta el contenido más ancho: la rejilla de pósters
+  arrastraba consigo al buscador, que en un teléfono de 390px salía de 626px
+- [x] La ficha de un título lleva la barra, y vídeo y servidores van centrados
+  y acotados: a 1400px el vídeo se comía la pantalla y los botones de servidor
+  colgaban en la esquina izquierda, lejos de la imagen a la que se refieren
+
+**Ajustes en teléfono.** Cada fila era una línea con etiqueta, pista y control;
+en 390px no caben. Ahora se apilan por debajo de `sm`, y la pista deja de
+truncarse porque ahí sí hay sitio para leerla entera.
+
+---
+
 ## Fase 6 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.

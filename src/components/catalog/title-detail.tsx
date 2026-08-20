@@ -8,6 +8,7 @@ import { ArrowLeft, Info, Star, Users } from "lucide-react";
 import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
 import { useGridNavigation } from "@/hooks/use-grid-navigation";
 import { ServerPicker } from "./server-picker";
+import { TopNav } from "@/components/shell/top-nav";
 import { useAppStore } from "@/store/use-app-store";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
@@ -66,7 +67,11 @@ export function TitleDetail({
   }, [activeSource, item.tmdbId, item.mediaType, selectedSeason, selectedEpisode, activeProvider]);
 
   return (
-    <div className="min-h-screen bg-[#0b0f14] text-white">
+    /* El mismo chrome que el resto: sin la barra, entrar en una ficha se
+       sentía como salir de la aplicación. */
+    <div className="app-shell">
+      <TopNav />
+
       {/* Portada */}
       <div className="relative">
         {item.backdrop && (
@@ -118,8 +123,10 @@ export function TitleDetail({
       </div>
 
       <div className="mx-auto max-w-[1400px] px-3 pb-12 sm:px-6 md:px-8">
-        {/* Reproductor */}
-        <section className="mb-8">
+        {/* Reproductor centrado y acotado. A 1400px de ancho el vídeo se comía
+            la pantalla en un televisor, y la botonera de servidores quedaba
+            colgando a la izquierda muy lejos de la imagen. */}
+        <section className="ficha-reproductor mb-8">
           {activeSource.kind === "manual" ? (
             <>
               <WatchPartyBar room={room} onRoomChange={setRoom} onJoin={() => setActiveRoom(normalizeRoomId(room))} activeRoom={activeRoom} />

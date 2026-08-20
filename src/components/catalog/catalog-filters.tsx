@@ -17,12 +17,16 @@ const TIPOS: { id: MediaFilter; label: string }[] = [
   { id: "tv", label: "Series" },
 ];
 
+/**
+ * Los chips comparten el lenguaje del resto de la app.
+ *
+ * Antes eran morados —herencia del diseño anterior de esta sección— y eran lo
+ * único morado en toda la aplicación: cambiar de Canales a Películas se notaba
+ * como un salto a otro producto. El estilo vive en `globals.css`, junto al
+ * resto, y no repartido en clases sueltas aquí.
+ */
 function chip(activo: boolean): string {
-  return `whitespace-nowrap rounded-xl px-3.5 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-4 focus-visible:ring-violet-400 ${
-    activo
-      ? "bg-violet-600 text-white shadow-md"
-      : "border border-white/15 bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-  }`;
+  return `catalogo-chip ${activo ? "is-active" : ""}`;
 }
 
 export interface GenerosValidos {
@@ -68,8 +72,8 @@ export function CatalogFilters({
   generosValidos?: GenerosValidos;
 }) {
   return (
-    <div className="mb-5 space-y-2">
-      <div className="flex gap-2" role="group" aria-label="Tipo de contenido">
+    <div className="mb-2">
+      <div className="catalogo-filtros" role="group" aria-label="Tipo de contenido">
         {TIPOS.map(({ id, label }) => (
           <Link key={id} href={href(id, genero, generosValidos)} aria-current={tipo === id ? "true" : undefined} className={chip(tipo === id)}>
             {label}
@@ -78,7 +82,7 @@ export function CatalogFilters({
       </div>
 
       {generos.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none" role="group" aria-label="Género">
+        <div className="catalogo-filtros" role="group" aria-label="Género">
           <Link href={href(tipo, null)} aria-current={genero === null ? "true" : undefined} className={chip(genero === null)}>
             Todos los géneros
           </Link>

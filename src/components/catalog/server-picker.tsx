@@ -33,13 +33,18 @@ export function ServerPicker({
   if (providers.length < 2) return null;
 
   return (
-    <div className="mt-3">
-      <div className="mb-2 flex items-center gap-2 text-sm text-white/60">
+    <div className="mt-4 flex flex-col items-center">
+      <div className="mb-2.5 flex items-center gap-2 text-center text-sm text-white/60">
         <MonitorPlay aria-hidden="true" className="h-4 w-4" />
         <span>¿No se ve o está en otro idioma? Cambia de servidor:</span>
       </div>
 
-      <div ref={listRef} className="flex flex-wrap gap-2" role="group" aria-label="Servidor de video">
+      <div
+        ref={listRef}
+        className="flex flex-wrap justify-center gap-2"
+        role="group"
+        aria-label="Servidor de video"
+      >
         {providers.map((provider) => {
           const active = provider.id === activeId;
           return (

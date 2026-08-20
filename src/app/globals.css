@@ -541,14 +541,6 @@ html[data-player="on"] body {
   }
 }
 
-/* Películas vive en su propia ruta pero se pinta con el shell. El buscador
-   necesita un ancho propio: a 1920px estirado de lado a lado no se lee como un
-   campo, se lee como una franja. */
-.peliculas-buscador {
-  max-width: min(560px, 92vw);
-  margin-bottom: clamp(16px, 2vh, 26px);
-}
-
 /* ── La barra de controles del reproductor ───────────────────────────
    Sustituye a los seis círculos de cristal idénticos que había antes.
 
@@ -564,7 +556,10 @@ html[data-player="on"] body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  /* Centrada. Con `space-between` los dos grupos se iban a los extremos, y al
+     envolverse en una pantalla estrecha quedaban pegados a la izquierda en dos
+     filas desalineadas: es lo que se veía al girar el teléfono. */
+  justify-content: center;
   gap: clamp(8px, 0.8vw, 16px);
   padding: clamp(10px, 1vw, 18px) clamp(12px, 1.2vw, 22px);
   border-radius: clamp(14px, 1.1vw, 20px);
@@ -716,5 +711,254 @@ html[data-player="on"] body {
 
   .player-btn.is-extra.is-mode span {
     display: inline;
+  }
+}
+
+/* ── Buscador del catálogo ───────────────────────────────────────────
+   Campo y botón son hermanos en una fila. Antes el botón iba en absolute
+   encima del campo y el campo le reservaba 7rem de padding: en un teléfono
+   quedaba sitio para cuatro letras antes de que el texto se metiera debajo del
+   botón, y en un televisor el campo se estiraba de lado a lado hasta dejar de
+   parecer un campo. */
+.catalogo-buscador {
+  display: flex;
+  gap: 10px;
+  width: min(720px, 100%);
+  margin: 0 auto clamp(18px, 2.4vh, 32px);
+}
+
+.catalogo-buscador-campo {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  min-height: 54px;
+  padding: 0 18px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.08));
+}
+
+.catalogo-buscador-campo:focus-within {
+  border-color: rgba(255, 255, 255, 0.34);
+  box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
+}
+
+.catalogo-buscador-campo svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--soft, rgba(255, 255, 255, 0.5));
+}
+
+.catalogo-buscador-campo input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: clamp(15px, 1.05vw, 18px);
+  outline: none;
+}
+
+.catalogo-buscador-campo input::placeholder {
+  color: var(--soft, rgba(255, 255, 255, 0.45));
+}
+
+/* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
+.catalogo-buscador-campo input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.catalogo-buscador-enviar {
+  flex-shrink: 0;
+  min-height: 54px;
+  padding: 0 clamp(18px, 1.6vw, 30px);
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #0a0a0a;
+  font-size: clamp(14px, 1vw, 17px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+
+.catalogo-buscador-enviar:hover,
+.catalogo-buscador-enviar:focus-visible {
+  background: #e6e6e6;
+  transform: scale(1.03);
+}
+
+/* ── Teléfono en horizontal ──────────────────────────────────────────
+   No es cuestión de ancho sino de **alto**: girado, un teléfono tiene unos
+   890px de ancho —así que las reglas de `max-width: 720px` no entran— pero
+   solo 430px de alto. Con los tamaños de escritorio, la barra de controles se
+   comía un tercio de la pantalla y se partía en dos filas.
+
+   La condición correcta es la altura, no la anchura. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .player-bar {
+    padding: 7px 10px;
+    gap: 6px;
+    border-radius: 14px;
+  }
+
+  .player-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .player-btn.is-primary {
+    min-height: 46px;
+    padding: 0 16px;
+  }
+
+  /* Solo conservan la palabra el primario y el de pantalla completa: uno es el
+     que se busca a ciegas, el otro el que cambia el modo entero. */
+  .player-btn:not(.is-primary):not(.is-mode) span {
+    display: none;
+  }
+
+  .player-btn:not(.is-primary):not(.is-mode) {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  /* La cabecera del reproductor también se aprieta: en horizontal el vídeo es
+     lo único que importa. */
+  .live-card-top {
+    padding: 8px 14px;
+  }
+
+  /* El hueco superior de `.screen` está pensado para una pantalla alta: en
+     horizontal se llevaba 120px de los 402 disponibles y empujaba la barra de
+     controles por debajo del pliegue, así que había que scrollear para pausar.
+     Aquí basta con dejar libre la barra fija. */
+  .screen {
+    padding-top: calc(var(--topbar-h) + 10px);
+    padding-bottom: 20px;
+  }
+
+  /* Y la tarjeta se acota por altura para que quepan vídeo y controles a la
+     vez. Más ancha se vería mejor el vídeo, pero los controles se irían fuera,
+     que es exactamente el problema que se está resolviendo. */
+  .live-card-marco {
+    max-width: min(100%, 104vh);
+  }
+
+  .live-card {
+    margin-bottom: 14px;
+  }
+}
+
+/* Aviso de fallo al transmitir, debajo de la tarjeta de Inicio. */
+.live-card-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 69, 58, 0.34);
+  border-radius: 14px;
+  background: rgba(255, 69, 58, 0.1);
+  font-size: clamp(13px, 0.95vw, 16px);
+}
+
+.live-card-error button {
+  margin-left: auto;
+  min-width: 44px;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* La ficha de un título: vídeo y botonera de servidores, centrados y acotados.
+   El contenedor de la página mide 1400px, y a esa anchura el vídeo se comía
+   la pantalla de un televisor mientras los botones de servidor quedaban
+   colgando en la esquina izquierda, muy lejos de la imagen a la que se
+   refieren. */
+.ficha-reproductor {
+  width: min(100%, 116vh);
+  margin-inline: auto;
+}
+
+/* `.screen` es una rejilla de una columna, y sin acotarla esa columna se
+   ensancha hasta el contenido más ancho que haya dentro. En Películas la
+   rejilla de pósters medía más que la ventana y arrastraba con ella al
+   buscador: en un teléfono de 390px el campo salía de 626px, fuera de la
+   pantalla, y dejaba de estar centrado.
+
+   `minmax(0, 1fr)` es la forma de decir "esta columna vale lo que el
+   contenedor, no lo que pida el contenido". Los carriles no se ven afectados:
+   ya scrollean por dentro. */
+.screen {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ── Filtros del catálogo ────────────────────────────────────────────
+   Los chips eran morados: lo único morado de toda la aplicación, herencia del
+   diseño anterior de esta sección. Cambiar de Canales a Películas se notaba
+   como saltar a otro producto.
+
+   Y las dos filas se salían por la derecha. Los géneros de TMDB son veinte y
+   pico; en cualquier pantalla sobran, así que la fila scrollea en horizontal
+   en vez de recortarse. */
+.catalogo-filtros {
+  display: flex;
+  gap: 8px;
+  padding: 2px 3.35vw 10px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-inline: contain;
+}
+
+.catalogo-filtros::-webkit-scrollbar {
+  display: none;
+}
+
+.catalogo-chip {
+  flex-shrink: 0;
+  min-height: 44px;
+  padding: 0 clamp(13px, 1vw, 20px);
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.07));
+  color: var(--muted, rgba(255, 255, 255, 0.7));
+  font-size: clamp(13px, 0.92vw, 16px);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.catalogo-chip:hover,
+.catalogo-chip:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
+  color: #fff;
+  transform: scale(1.03);
+}
+
+.catalogo-chip.is-active {
+  background: #fff;
+  border-color: transparent;
+  color: #0a0a0a;
+}
+
+/* En teléfono el hueco superior de `.screen` está calculado para la barra fija
+   de escritorio, que mide el doble que la cabecera del móvil: sobraban unos
+   70px de negro antes del primer contenido. La cabecera del teléfono mide 56px
+   y `.app-shell` ya la descuenta, así que aquí basta un respiro. */
+@media (max-width: 680px) {
+  .screen {
+    padding-top: clamp(14px, 2vh, 24px);
   }
 }

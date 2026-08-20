@@ -222,7 +222,11 @@ export function FullscreenPlayer({
 
       {/* Controles */}
       <div
-        className={`tv-safe absolute inset-x-0 bottom-0 z-30 flex items-center justify-between gap-6 bg-gradient-to-t from-black/85 to-transparent py-7 transition-opacity duration-300 ${
+        /* `justify-center`: la barra va centrada. Con `justify-between` se
+           quedaba pegada a la izquierda y las ayudas de teclado a la derecha,
+           que en un teléfono girado se veía descolocado. Las ayudas pasan a
+           estar posicionadas y no compiten por el espacio. */
+        className={`tv-safe absolute inset-x-0 bottom-0 z-30 flex items-center justify-center gap-6 bg-gradient-to-t from-black/85 to-transparent py-7 transition-opacity duration-300 ${
           showControls ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
@@ -281,7 +285,7 @@ export function FullscreenPlayer({
           ]}
         />
 
-        <div className="hidden items-center gap-5 text-[13px] text-zinc-100/50 lg:flex">
+        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-zinc-100/50 xl:flex">
           <span>↑↓ cambiar canal</span>
           <span>OK guía</span>
           <span>Atrás salir</span>
