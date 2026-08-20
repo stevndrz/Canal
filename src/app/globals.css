@@ -1,9 +1,21 @@
+/* Orden de capas de la cascada. Se declara antes que nada porque el orden lo
+   fija la primera aparición de cada nombre, y hay que colar `arvio` entre las
+   capas de Tailwind en vez de detrás de todas ellas.
+
+   Esto no es cosmético. En CSS, cualquier regla SIN capa gana a cualquier
+   regla EN capa, pase lo que pase con la especificidad. Tailwind v4 emite sus
+   utilidades dentro de `@layer utilities`, así que importar el CSS de ARVIO
+   sin capa hacía que su `button { color: inherit }` —especificidad 0,0,1—
+   derrotase a `text-accent-on` en toda la aplicación: el botón "Ver ahora"
+   salía blanco sobre blanco. Metido en `arvio`, por debajo de `utilities`,
+   las utilidades vuelven a mandar y el diseño del shell sigue intacto. */
+@layer theme, base, arvio, components, utilities;
+
 @import "tailwindcss";
 
-/* Lenguaje visual del shell, derivado de ARVIO (Apache 2.0). Va aquí arriba a
-   propósito: lo que CanalCasa declara debajo debe poder ganarle, no al revés.
+/* Lenguaje visual del shell, derivado de ARVIO (Apache 2.0).
    Ver NOTICE.md y LICENSES/ARVIO-Apache-2.0.txt. */
-@import "./arvio-shell.css";
+@import "./arvio-shell.css" layer(arvio);
 
 /* ── CanalCasa: tokens de app nativa (Tailwind v4) ───────────────── */
 @theme {
@@ -105,4 +117,65 @@ a:hover { color: #a1a1aa; }
 @media (prefers-reduced-motion: reduce) {
   *, [data-nav] { transition: none !important; animation: none !important; }
   * { scroll-behavior: auto !important; }
+}
+
+/* ── Ajustes propios sobre el shell de ARVIO ─────────────────────────
+   Van aquí y no en arvio-shell.css a propósito: ese archivo es una copia
+   fiel y debe poder re-sincronizarse contra el repo de origen sin resolver
+   conflictos. Lo que es de CanalCasa vive de este lado. */
+
+:root {
+  /* Altura de la barra superior fija, la misma que declara `.sidebar`.
+     Aquí como variable para que el contenido pueda apartarse de ella sin
+     repetir el clamp en cada vista. */
+  --topbar-h: clamp(76px, 8.6vh, 96px);
+}
+
+/* Deja libre la franja que ocupa la barra fija. */
+.below-topbar { padding-top: calc(var(--topbar-h) + 14px); }
+
+.top-clock {
+  font-size: clamp(13px, 0.95vw, 17px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.62);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ARVIO reparte 4 destinos en la barra; CanalCasa lleva 6. Cuando dejan de
+   caber con etiqueta se quedan solo los iconos, que es lo que ya hacía el
+   sidebar anterior por debajo de 1200px. El `title` sigue nombrándolos. */
+@media (max-width: 1400px) {
+  .sidebar nav .nav-item span { display: none; }
+  .sidebar nav .nav-item { padding: 0 clamp(11px, 0.9vw, 16px); }
+}
+
+/* El monograma de marca: ARVIO mete una imagen dentro de `.brand`, aquí es
+   un icono, así que necesita su propio tamaño. */
+.brand svg {
+  width: 54%;
+  height: 54%;
+  color: #fff;
+}
+
+/* El foco del mando manda sobre el realce propio de la barra: sin esto el
+   fondo de `.nav-item:hover` tapa el anillo y no se ve dónde está el foco. */
+[data-input="dpad"] .nav-item:focus,
+[data-input="dpad"] .settings-gear:focus,
+[data-input="dpad"] .mobile-nav-item:focus {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 3px;
+}
+
+/* ARVIO oculta `.profile-name-text` por debajo de 980px porque en el teléfono
+   la identidad la lleva su wordmark, un asset que aquí no existe y que además
+   es marca suya. Sin nombre, la cabecera del teléfono queda con un icono
+   anónimo, así que se recupera solo ahí; en la barra de escritorio estrecha se
+   mantiene oculto como en el original. */
+@media (max-width: 980px) {
+  .mobile-header .profile-name-text {
+    display: inline;
+    font-size: 15px;
+    max-width: 50vw;
+  }
 }

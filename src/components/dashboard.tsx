@@ -8,7 +8,7 @@ import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, filterChannels, withChannelNumbers } from "@/lib/channels";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
-import { AppBottomNav, AppSidebar } from "@/components/app-nav";
+import { TopNav } from "@/components/shell/top-nav";
 import { HomeView } from "@/components/views/home-view";
 import { CanalesView } from "@/components/views/canales-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
@@ -176,18 +176,18 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
     );
   }
 
-  /** Vistas con scroll simple comparten el mismo contenedor con padding de TV. */
-  const scrollShell = "scroll-thin tv-safe flex-1 overflow-y-auto pt-7 pb-28 md:pb-7 xl:pt-10";
+  /* Vistas con scroll simple comparten el mismo contenedor. `below-topbar`
+     aparta el contenido de la barra fija, que flota por encima y no ocupa
+     sitio en el flujo. */
+  const scrollShell = "scroll-thin tv-safe below-topbar flex-1 overflow-y-auto pb-28 md:pb-7";
+  const columnShell = "tv-safe below-topbar flex min-h-0 flex-1 flex-col pb-28 md:pb-7";
 
   return (
     <div ref={shellRef} className="relative flex h-dvh overflow-hidden bg-app text-accent">
-      <AppSidebar
-        view={view}
-        onNavigate={navigate}
-        channelCount={channels.length}
-        categoryCount={categories.length - 1}
-        clock={clock}
-      />
+      {/* La barra desaparece durante la reproducción. Es `position: fixed` con
+          z-index 60 y el reproductor va en z-50, así que sin esto flotaría
+          por encima del vídeo. ARVIO hace lo mismo con su `activeStream`. */}
+      {view !== "player" && <TopNav view={view} onNavigate={navigate} clock={clock} />}
 
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         {view === "home" && (
@@ -204,7 +204,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         )}
 
         {view === "canales" && (
-          <div className="tv-safe flex min-h-0 flex-1 flex-col pt-7 pb-28 md:pb-7 xl:pt-10">
+          <div className={columnShell}>
             <CanalesView
               channels={visible}
               tuned={tuned}
@@ -232,7 +232,7 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
         )}
 
         {view === "buscar" && (
-          <div className="tv-safe flex min-h-0 flex-1 flex-col pt-7 pb-28 md:pb-7 xl:pt-10">
+          <div className={columnShell}>
             <BuscarView
               results={search ? visible : channels.slice(0, 24)}
               search={search}
@@ -262,7 +262,6 @@ export function Dashboard({ initialChannels }: { initialChannels: Channel[] }) {
           </div>
         )}
 
-        <AppBottomNav view={view} onNavigate={navigate} />
       </main>
 
       {view === "player" && tuned && (

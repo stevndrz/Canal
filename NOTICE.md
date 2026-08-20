@@ -27,7 +27,8 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 
 | Archivo en CanalCasa | Origen en ARVIO | Modificaciones |
 |----------------------|-----------------|----------------|
-| `src/app/arvio-shell.css` | `web/app/globals.css` | Renombrado; cabecera de atribución añadida. Sin cambios en las reglas. |
+| `src/app/arvio-shell.css` | `web/app/globals.css` | Renombrado; cabecera de atribución añadida. Sin cambios en las reglas: se importa dentro de `@layer arvio` desde `globals.css` para que Tailwind conserve su prioridad, y los ajustes propios viven en `globals.css`, nunca aquí. |
+| `src/components/shell/top-nav.tsx` | `web/components/shell/TopNav.tsx` | Fuera el sistema de perfiles y la marca ARVIO; destinos desde `NAV_ITEMS` (admite rutas de Next, no solo vistas); reloj en lugar del avatar; `data-nav` para la navegación con mando. Se conservan sus nombres de clase, que son el contrato con el CSS. |
 
 Cada archivo derivado lleva además una cabecera con su ruta de origen y una
 nota de modificación, de modo que la procedencia sea evidente al abrirlo sin

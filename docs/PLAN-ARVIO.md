@@ -70,7 +70,7 @@ Coste: mínimo. **Hacer esto primero, antes que cualquier código**, para que el
 
 **Archivos:**
 - NUEVO `src/app/arvio-shell.css` ← copia de `/tmp/arvio/web/app/globals.css` (12.680 líneas, 496 selectores, 67 media queries)
-- MOD `src/app/globals.css` — añadir `@import "./arvio-shell.css";` **después** de `@import "tailwindcss"`
+- MOD `src/app/globals.css` — importar la hoja **dentro de una capa**: `@layer theme, base, arvio, components, utilities;` antes de todo, y luego `@import "./arvio-shell.css" layer(arvio);`. Sin capa, el CSS de ARVIO gana a las utilidades de Tailwind (ver Fase 2)
 - MOD `src/app/layout.tsx` — cargar Inter
 
 **Tareas:**
@@ -115,12 +115,37 @@ En `dashboard.tsx`, poner/quitar `data-player` en `document.documentElement` seg
 ARVIO renderiza tres barras del mismo array y las conmuta por CSS: `.sidebar` (escritorio/TV, fija arriba), `.mobile-header` y `.mobile-bottom-nav` (ambas ocultas con `display:none !important` y reactivadas en `@media (max-width: 680px)`).
 
 **Tareas:**
-- [ ] Portar `TopNav` a `src/components/shell/top-nav.tsx` con las clases `.sidebar`, `.nav-item`, `.mobile-header`, `.mobile-bottom-nav`, `.settings-gear`
-- [ ] Alimentarlo con `NAV_ITEMS` de `app-nav.tsx` — **conservar los 7 destinos actuales**, incluido el `kind: "link"` de `/peliculas`, que ARVIO no tiene. El comentario en `app-nav.tsx:12-19` explica por qué Películas es ruta propia y no una `view`: esa decisión se mantiene.
-- [ ] Sustituir el avatar de perfil (ARVIO tiene perfiles, tú no) por el reloj que ya calcula `dashboard.tsx:70-78`, y la marca por el monograma de `src/lib/logos.ts`
-- [ ] Añadir `data-nav="button"` a cada botón para que `use-spatial-nav.ts` lo siga viendo
-- [ ] **Cambiar el modelo de scroll** (venía de la Fase 1): quitar `overflow: hidden` de `body` en `globals.css`, pasar `html, body` de `height: 100%` a `min-height: 100%`, y añadir `html[data-player="on"] body { overflow: hidden }`. Se hace en el mismo commit que monta el shell nuevo, nunca antes
-- [ ] Cablear `data-player` en `<html>` desde `dashboard.tsx` según `view === "player"`
+- [x] Portar `TopNav` a `src/components/shell/top-nav.tsx` con las clases `.sidebar`, `.nav-item`, `.mobile-header`, `.mobile-bottom-nav`, `.settings-gear`
+- [x] Alimentarlo con `NAV_ITEMS` de `app-nav.tsx` — **conservar los 7 destinos actuales**, incluido el `kind: "link"` de `/peliculas`, que ARVIO no tiene. El comentario en `app-nav.tsx:12-19` explica por qué Películas es ruta propia y no una `view`: esa decisión se mantiene.
+- [x] Sustituir el avatar de perfil (ARVIO tiene perfiles, tú no) por el reloj que ya calcula `dashboard.tsx:70-78`, y la marca por el monograma de `src/lib/logos.ts`
+- [x] Añadir `data-nav="button"` a cada botón para que `use-spatial-nav.ts` lo siga viendo
+- [~] **Cambiar el modelo de scroll** — **movido a la Fase 3**: quitar `overflow: hidden` de `body` en `globals.css`, pasar `html, body` de `height: 100%` a `min-height: 100%`, y añadir `html[data-player="on"] body { overflow: hidden }`. Se hace en el mismo commit que monta el shell nuevo, nunca antes
+- [~] Cablear `data-player` en `<html>` — va con el cambio de scroll, en la Fase 3
+
+> Segunda corrección de secuencia. El modelo de scroll no puede cambiar hasta
+> que `home-view` sea un `.screen`: hoy las vistas scrollean por dentro con
+> `flex-1 overflow-y-auto`, y soltar el scroll de la ventana antes de tiempo
+> deja dos barras compitiendo. Mientras tanto la barra fija flota por encima y
+> el contenido se aparta con `.below-topbar`, así que cada commit de esta fase
+> queda desplegable por sí solo.
+
+**Lo que apareció al ejecutar y no estaba previsto:**
+
+- [x] La barra se oculta durante la reproducción. `.sidebar` es `position: fixed`
+  con `z-index: 60` y el reproductor va en `z-50`: sin la condición flotaba
+  encima del vídeo. ARVIO hace lo mismo con `activeStream` en su `AppShell`.
+- [x] El CSS de ARVIO entra en una **capa** `@layer arvio`, no suelto. En CSS
+  toda regla sin capa gana a toda regla en capa, sin importar la
+  especificidad, y Tailwind v4 emite sus utilidades dentro de
+  `@layer utilities`: importarlo suelto hacía que `button { color: inherit }`
+  derrotase a `text-accent-on` en toda la app y el botón "Ver ahora" salía
+  blanco sobre blanco. El archivo copiado sigue intacto; solo cambia el
+  `@import`.
+- [x] Recuperado el nombre en la cabecera del teléfono. ARVIO oculta
+  `.profile-name-text` bajo 980px porque allí pone su wordmark, que es marca
+  suya y no se copia; sin él la cabecera quedaba con un icono anónimo.
+- [x] Etiquetas de la barra ocultas bajo 1400px: ARVIO reparte 4 destinos y
+  CanalCasa lleva 6, así que dejan de caber antes.
 
 **No portar:** `lib/tvNav.ts` y `lib/gamepadNav.ts` de ARVIO. Tu `src/hooks/use-spatial-nav.ts` (195 líneas) ya cubre navegación D-pad y `useRemoteInput`, y está integrado con `[data-input="dpad"]` en tu CSS. Duplicarlo daría dos motores de foco peleándose.
 
