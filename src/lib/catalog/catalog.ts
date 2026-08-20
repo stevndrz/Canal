@@ -20,10 +20,6 @@ import type {
 
 const catalog = catalogData as CatalogItem[];
 
-export function getCatalog(): CatalogItem[] {
-  return catalog;
-}
-
 export function findCatalogItem(mediaType: MediaType, id: string): CatalogItem | null {
   const own = catalog.find((item) => item.id === id && item.mediaType === mediaType);
   if (own) return own;
@@ -132,8 +128,4 @@ export async function resolveSeason(item: CatalogItem, season: number): Promise<
       still: null,
       source: episode.source ?? item.source,
     }));
-}
-
-export function isManual(source: PlaybackSource): source is Extract<PlaybackSource, { kind: "manual" }> {
-  return source.kind === "manual";
 }

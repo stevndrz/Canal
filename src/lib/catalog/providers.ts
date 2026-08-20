@@ -128,11 +128,6 @@ export function getProviders(): EmbedProvider[] {
   }));
 }
 
-export function findProvider(id: string | null | undefined): EmbedProvider | null {
-  if (!id) return null;
-  return getProviders().find((provider) => provider.id === id) ?? null;
-}
-
 export interface EmbedTarget {
   tmdbId: number;
   season?: number;

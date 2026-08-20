@@ -321,6 +321,7 @@ export function Dashboard({
             search={search}
             onCategoryChange={setCategory}
             onSearchChange={setSearch}
+            onSelect={select}
             onTune={tune}
             onToggleFavorite={favorites.toggle}
           />

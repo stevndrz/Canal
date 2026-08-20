@@ -117,10 +117,6 @@ html[data-player="on"] body {
 .scroll-none { scrollbar-width: none; }
 .scroll-none::-webkit-scrollbar { display: none; }
 
-.scroll-thin { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.16) transparent; }
-.scroll-thin::-webkit-scrollbar { width: 6px; }
-.scroll-thin::-webkit-scrollbar-thumb { background: rgba(255,255,255,.16); border-radius: 999px; }
-.scroll-thin::-webkit-scrollbar-track { background: transparent; }
 
 /* Listas de 500+ canales: no pintes lo que no se ve. */
 .row-virtual { content-visibility: auto; contain-intrinsic-size: 68px; }
@@ -222,18 +218,6 @@ html[data-player="on"] body {
   color: rgba(255, 255, 255, 0.34);
 }
 
-/* La cabecera lleva antetítulo, que en ARVIO no existe porque su hero siempre
-   habla de una película; aquí distingue "Destacado" de "Continuar viendo". */
-.hero-eyebrow {
-  display: block;
-  margin-bottom: 10px;
-  font-size: clamp(11px, 0.8vw, 14px);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
-}
-
 /* La pantalla de Canales calcula su hueco superior contra la barra de ARVIO.
    La nuestra mide `--topbar-h` y lleva la marca escrita a la izquierda, justo
    encima del título de la pantalla, así que el original deja los dos textos
@@ -326,7 +310,6 @@ html[data-player="on"] body {
    navega por foco, pero en un teléfono se falla el toque y parece que el botón
    no funciona. */
 .livetv-cats button,
-.livetv-chipbtn,
 .livetv-row-star,
 .mobile-nav-item {
   min-height: 44px;
@@ -1046,13 +1029,22 @@ html[data-player="on"] body {
   margin-bottom: clamp(24px, 4vh, 48px);
 }
 
+/* Vídeo y selector como una sola pieza: bordes redondeados solo por fuera, y
+   una línea que los separa por dentro. Suelto en la página, el selector
+   parecía una sección más y había que buscarlo. */
+.ficha-conjunto {
+  border-radius: clamp(12px, 1vw, 20px);
+  overflow: hidden;
+  background: #0c0d10;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+}
+
 .ficha-marco {
   aspect-ratio: 16 / 9;
   width: 100%;
   overflow: hidden;
-  border-radius: clamp(12px, 1vw, 20px);
   background: #000;
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
 }
 
 .ficha-marco iframe {
@@ -1061,14 +1053,71 @@ html[data-player="on"] body {
   border: 0;
 }
 
-.ficha-idioma {
+/* La barra de servidores, al pie del vídeo. */
+.servidores {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: clamp(10px, 1vw, 18px);
+  padding: clamp(12px, 1.2vw, 18px) clamp(14px, 1.4vw, 22px);
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+}
+
+.servidores-titulo {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
-  margin: 12px 0 0;
+  margin: 0;
+  flex-shrink: 0;
+  font-size: clamp(12px, 0.88vw, 15px);
+  font-weight: 600;
+  color: var(--muted, rgba(255, 255, 255, 0.68));
+}
+
+.servidores-titulo svg { width: 17px; height: 17px; }
+
+.servidores-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.servidor {
+  min-height: 44px;
+  padding: 0 clamp(14px, 1.1vw, 20px);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  background: var(--chip, rgba(255, 255, 255, 0.07));
+  color: var(--muted, rgba(255, 255, 255, 0.72));
+  font-size: clamp(13px, 0.9vw, 16px);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.servidor:hover,
+.servidor:focus-visible {
+  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
+  color: #fff;
+  transform: scale(1.03);
+}
+
+.servidor.is-active {
+  background: #fff;
+  border-color: transparent;
+  color: #0a0a0a;
+}
+
+.servidores-nota {
+  margin-left: auto;
+  flex-shrink: 0;
   font-size: clamp(11px, 0.8vw, 14px);
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+}
+
+@media (max-width: 680px) {
+  .servidores-nota { margin-left: 0; }
 }
 
 .ficha-marca {
@@ -1120,14 +1169,6 @@ html[data-player="on"] body {
   line-height: 1.62;
   color: var(--muted, rgba(255, 255, 255, 0.74));
 }
-
-.ficha-autoria {
-  margin: 14px 0 0;
-  font-size: clamp(13px, 0.95vw, 16px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
-}
-
-.ficha-autoria strong { color: var(--text, #ededed); font-weight: 650; }
 
 /* El reparto scrollea en horizontal: doce caras no caben en ninguna pantalla
    sin encoger tanto que dejen de reconocerse. */
@@ -1683,9 +1724,78 @@ body {
 
 .fuente-quitar svg { width: 18px; height: 18px; }
 
-/* La marca se truncaba a "CanalC…". Su ancho máximo lo fija ARVIO pensando en
-   un nombre de perfil corto; aquí es el nombre del producto y tiene que leerse
-   entero. */
-.profile-name-text {
-  max-width: none;
+/* ── La marca ────────────────────────────────────────────────────────
+   Se truncaba a "CanalC…": el ancho máximo lo fija ARVIO pensando en un nombre
+   de perfil corto, y aquí es el nombre del producto. Partido en dos líneas
+   entra entero y ocupa la mitad de ancho, que es lo que la barra necesita con
+   siete destinos.
+
+   El icono baja de 58 a 46px en pantalla grande. Sigue siendo el elemento más
+   grande de la barra —tiene que verse desde el sofá— pero ya no compite con
+   los destinos por ser lo primero que se mira. */
+.marca {
+  display: grid;
+  line-height: 1.02;
+  font-size: clamp(13px, 0.95vw, 18px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgba(255, 255, 255, 0.86);
+}
+
+.brand {
+  width: clamp(36px, 2.4vw, 46px);
+  height: clamp(36px, 2.4vw, 46px);
+}
+
+/* ── La ficha en columnas ────────────────────────────────────────────
+   Sinopsis y reparto en la ancha; la ficha técnica al lado. En una sola
+   columna todo se convertía en una lista vertical interminable donde había que
+   bajar mucho para ver algo que cabe de un vistazo. */
+.ficha-columnas {
+  display: grid;
+  gap: clamp(20px, 2.6vw, 48px);
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .ficha-columnas {
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  }
+}
+
+.ficha-columna-principal { min-width: 0; }
+
+.ficha-tecnica {
+  min-width: 0;
+  padding: clamp(16px, 1.5vw, 26px);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  border-radius: clamp(12px, 1vw, 18px);
+  background: var(--chip, rgba(255, 255, 255, 0.04));
+}
+
+.ficha-tecnica h2 {
+  margin: 0 0 clamp(10px, 1.2vh, 16px);
+  font-size: clamp(15px, 1vw, 19px);
+  font-weight: 650;
+}
+
+.ficha-tecnica dl {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+
+.ficha-tecnica dt {
+  font-size: clamp(11px, 0.78vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(255, 255, 255, 0.45));
+}
+
+.ficha-tecnica dd {
+  margin: 4px 0 0;
+  font-size: clamp(13px, 0.95vw, 16px);
+  line-height: 1.45;
+  color: var(--text, #ededed);
 }

@@ -156,6 +156,35 @@ export function AjustesView({
               />
             </Row>
             <Row
+              label="Calidad máxima"
+              hint="Arranca en la mejor pista en vez de subir poco a poco. Para fibra"
+            >
+              <Toggle
+                checked={settings.calidadMaxima}
+                label="Calidad máxima"
+                onChange={() => onChange({ calidadMaxima: !settings.calidadMaxima })}
+              />
+            </Row>
+
+            <Row
+              label="Ajuste de imagen"
+              hint="Contener respeta la imagen entera; llenar recorta para ocupar el marco"
+            >
+              <button
+                type="button"
+                data-nav="button"
+                className={buttonClass}
+                onClick={() =>
+                  onChange({
+                    ajusteImagen: settings.ajusteImagen === "contener" ? "llenar" : "contener",
+                  })
+                }
+              >
+                {settings.ajusteImagen === "contener" ? "Contener" : "Llenar"}
+              </button>
+            </Row>
+
+            <Row
               label="Controles grandes"
               hint="Botones más altos y con todas las palabras a la vista"
             >

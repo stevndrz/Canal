@@ -20,6 +20,18 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
   loading: () => <div className="aspect-video w-full animate-pulse rounded-2xl bg-black" />,
 });
 
+/** Los pocos idiomas que aparecen de verdad en este catálogo. */
+const IDIOMAS: Record<string, string> = {
+  es: "Español",
+  en: "Inglés",
+  ja: "Japonés",
+  ko: "Coreano",
+  fr: "Francés",
+  it: "Italiano",
+  pt: "Portugués",
+  de: "Alemán",
+};
+
 export function TitleDetail({
   item,
   episodes,
@@ -146,33 +158,36 @@ export function TitleDetail({
             </>
           ) : embedUrl ? (
             <>
-              <div className="player-surface ficha-marco">
-                <iframe
-                  src={embedUrl}
-                  title={item.title}
-                  allowFullScreen
-                  allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                  referrerPolicy="origin"
+              <div className="ficha-conjunto">
+                <div className="player-surface ficha-marco">
+                  <iframe
+                    src={embedUrl}
+                    title={item.title}
+                    allowFullScreen
+                    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+                    referrerPolicy="origin"
+                  />
+                </div>
+
+                {/* Al pie del vídeo, no suelto en la página: es un control de
+                    este reproductor, y cuando la imagen no se ve la mano ya
+                    está ahí. */}
+                <ServerPicker
+                  providers={providers}
+                  activeId={activeProvider?.id ?? ""}
+                  onSelect={setPreferredProvider}
+                  nota={
+                    /* Se distingue lo que se sabe con certeza (se rodó en
+                       español) de lo que solo se puede pedir (subtítulos),
+                       para no prometer un doblaje que quizá no exista. */
+                    spokenInSpanish ? (
+                      <span className="ficha-marca is-si">Hablada en español</span>
+                    ) : activeProvider?.spanishSubtitles ? (
+                      <span className="ficha-marca is-quiza">Subtítulos en español</span>
+                    ) : null
+                  }
                 />
               </div>
-
-              {/* Qué esperar del idioma. Se distingue lo que se sabe con
-                  certeza (se rodó en español) de lo que solo se puede pedir
-                  (subtítulos), para no prometer un doblaje que quizá no exista. */}
-              <p className="ficha-idioma">
-                {spokenInSpanish ? (
-                  <span className="ficha-marca is-si">Hablada en español</span>
-                ) : activeProvider?.spanishSubtitles ? (
-                  <span className="ficha-marca is-quiza">Se piden subtítulos en español</span>
-                ) : null}
-                <span>Este título usa el reproductor del proveedor externo, con sus propios controles.</span>
-              </p>
-
-              <ServerPicker
-                providers={providers}
-                activeId={activeProvider?.id ?? ""}
-                onSelect={setPreferredProvider}
-              />
             </>
           ) : (
             <div className="ficha-sin-fuente">
@@ -186,41 +201,90 @@ export function TitleDetail({
           )}
         </section>
 
-        {/* Debajo del vídeo, que es donde se mira cuando ya se está viendo. */}
-        {item.overview && (
-          <section className="ficha-seccion">
-            <h2>Sinopsis</h2>
-            <p className="ficha-sinopsis">{item.overview}</p>
-            {item.autoria.length > 0 && (
-              <p className="ficha-autoria">
-                <strong>{isSeries ? "Creada por" : "Dirigida por"}</strong> {item.autoria.join(", ")}
-              </p>
+        {/* Debajo del vídeo, en columnas: la sinopsis y el reparto ocupan la
+            ancha, y la ficha técnica va al lado en vez de convertirse en otra
+            fila más de una lista vertical interminable. */}
+        <div className="ficha-columnas">
+          <div className="ficha-columna-principal">
+            {item.overview && (
+              <section className="ficha-seccion">
+                <h2>Sinopsis</h2>
+                <p className="ficha-sinopsis">{item.overview}</p>
+              </section>
             )}
-          </section>
-        )}
 
-        {item.reparto.length > 0 && (
-          <section className="ficha-seccion">
-            <h2>Reparto</h2>
-            <div className="ficha-reparto">
-              {item.reparto.map((persona) => (
-                <figure key={`${persona.nombre}-${persona.personaje}`} className="ficha-persona">
-                  {persona.foto ? (
-                    <Image src={persona.foto} alt="" width={342} height={513} />
-                  ) : (
-                    <span className="ficha-persona-inicial" aria-hidden="true">
-                      {persona.nombre.slice(0, 1)}
-                    </span>
-                  )}
-                  <figcaption>
-                    <strong>{persona.nombre}</strong>
-                    {persona.personaje && <span>{persona.personaje}</span>}
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          </section>
-        )}
+            {item.reparto.length > 0 && (
+              <section className="ficha-seccion">
+                <h2>Reparto</h2>
+                <div className="ficha-reparto">
+                  {item.reparto.map((persona) => (
+                    <figure key={`${persona.nombre}-${persona.personaje}`} className="ficha-persona">
+                      {persona.foto ? (
+                        <Image src={persona.foto} alt="" width={342} height={513} />
+                      ) : (
+                        <span className="ficha-persona-inicial" aria-hidden="true">
+                          {persona.nombre.slice(0, 1)}
+                        </span>
+                      )}
+                      <figcaption>
+                        <strong>{persona.nombre}</strong>
+                        {persona.personaje && <span>{persona.personaje}</span>}
+                      </figcaption>
+                    </figure>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          <aside className="ficha-tecnica">
+            <h2>Ficha</h2>
+            <dl>
+              {item.year && (
+                <div>
+                  <dt>{isSeries ? "Estreno" : "Año"}</dt>
+                  <dd>{item.year}</dd>
+                </div>
+              )}
+              {minutos && (
+                <div>
+                  <dt>{isSeries ? "Episodio" : "Duración"}</dt>
+                  <dd>{minutos}</dd>
+                </div>
+              )}
+              {item.autoria.length > 0 && (
+                <div>
+                  <dt>{isSeries ? "Creación" : "Dirección"}</dt>
+                  <dd>{item.autoria.join(", ")}</dd>
+                </div>
+              )}
+              {item.generos.length > 0 && (
+                <div>
+                  <dt>Géneros</dt>
+                  <dd>{item.generos.join(" · ")}</dd>
+                </div>
+              )}
+              {item.rating !== null && item.rating > 0 && (
+                <div>
+                  <dt>Valoración</dt>
+                  <dd>{item.rating.toFixed(1)} sobre 10</dd>
+                </div>
+              )}
+              {item.originalLanguage && (
+                <div>
+                  <dt>Idioma original</dt>
+                  <dd>{IDIOMAS[item.originalLanguage] ?? item.originalLanguage.toUpperCase()}</dd>
+                </div>
+              )}
+              {isSeries && item.seasons.length > 0 && (
+                <div>
+                  <dt>Temporadas</dt>
+                  <dd>{item.seasons.length}</dd>
+                </div>
+              )}
+            </dl>
+          </aside>
+        </div>
 
         {/* Temporadas y episodios */}
         {isSeries && (

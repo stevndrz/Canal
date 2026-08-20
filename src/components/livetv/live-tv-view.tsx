@@ -53,6 +53,9 @@ interface LiveTvViewProps {
   search: string;
   onCategoryChange: (category: string) => void;
   onSearchChange: (search: string) => void;
+  /** Sintonizar sin salir de la lista: la señal de arriba cambia de canal. */
+  onSelect: (channel: Channel) => void;
+  /** Sintonizar y ocupar la pantalla. Solo desde el botón del panel. */
   onTune: (channel: Channel) => void;
   onToggleFavorite: (id: number) => void;
   /** El shell ya pintó la señal en directo encima; no repetir el hueco. */
@@ -69,10 +72,24 @@ export function LiveTvView({
   search,
   onCategoryChange,
   onSearchChange,
+  onSelect,
   onTune,
   onToggleFavorite,
   sinHueco,
 }: LiveTvViewProps) {
+  /**
+   * Elegir un canal cambia la señal de arriba y sube a verla.
+   *
+   * Antes saltaba a pantalla completa, y eso convertía explorar la lista en un
+   * viaje de ida: para probar otro canal había que salir del reproductor,
+   * volver a Canales y buscar dónde estabas. Ahora la emisión cambia en la
+   * tarjeta que ya está en esta misma pantalla, y la lista se queda donde
+   * estaba. Ir a pantalla completa sigue siendo una decisión aparte.
+   */
+  const sintonizar = (canal: Channel) => {
+    onSelect(canal);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   const [pintadas, setPintadas] = useState(LOTE);
   const centinela = useRef<HTMLDivElement | null>(null);
@@ -196,7 +213,7 @@ export function LiveTvView({
                     favorite={favorites.has(item.id)}
                     selected={canal?.id === item.id}
                     onFocus={() => setSeleccionado(item.id)}
-                    onPlay={() => onTune(item)}
+                    onPlay={() => sintonizar(item)}
                     onToggleFavorite={() => onToggleFavorite(item.id)}
                   />
                 ))}

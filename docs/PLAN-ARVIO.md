@@ -549,6 +549,61 @@ de canales**, donde ocupaba un botón sin poder cumplir.
 
 ---
 
+## Fase 6.2 — La ficha en columnas, la marca, la calidad y la poda ✅
+
+- [x] **El selector de servidor baja al pie del vídeo.** Antes flotaba suelto
+  entre el reproductor y el texto, en una fila de botones idénticos que no
+  decían para qué servían. Ahora `.ficha-conjunto` envuelve vídeo y selector en
+  una sola pieza redondeada y el selector se presenta con la pregunta que de
+  verdad se hace quien lo usa: *¿No se ve o está en otro idioma?*
+- [x] **La metadata deja de ser una lista vertical.** `.ficha-columnas` es una
+  rejilla de dos columnas por encima de 900px: sinopsis y reparto en la ancha,
+  y una `.ficha-tecnica` con `<dl>` de Año, Duración, Dirección, Géneros,
+  Valoración, Idioma original y Temporadas al lado. Debajo de 900px se apilan
+- [x] **La marca cabe entera.** Se truncaba a "CanalC…" porque el ancho máximo
+  lo fija ARVIO pensando en un nombre de perfil. Partida en dos líneas
+  (`Canal` / `Casa`) ocupa 49px en lugar de 81 y se lee completa; el monograma
+  baja de 58 a 46px, que sigue siendo lo más grande de la barra
+- [x] **Elegir un canal en Canales ya no salta a pantalla completa.** Sube al
+  principio de la página y lo pone en emisión en el reproductor que ya está
+  ahí. Verificado: `scrollY` 1400 → 0, `data-player` sin marcar, la vista sigue
+  siendo Canales y hay vídeo
+- [x] **Calidad máxima** (`calidadMaxima`): `startLevel: Infinity` y
+  `capLevelToPlayerSize: false` en hls.js. Por omisión hls.js arranca en la
+  pista baja y sube según mide la conexión, y además limita la pista al tamaño
+  en píxeles del reproductor. Con fibra eso se nota como unos segundos borrosos
+  en cada cambio de canal, y en un televisor con el vídeo a media pantalla
+  impide subir a 1080 aunque la haya. El ajuste rearranca la instancia, porque
+  las dos opciones solo se leen al construirla
+- [x] **Ajuste de imagen** (`ajusteImagen`): `object-fit` entre *contener* —la
+  imagen entera, con bandas si la proporción no encaja— y *llenar* —recortar
+  para ocupar toda la pantalla. Un canal 4:3 en un televisor 16:9 se ve
+  minúsculo con lo primero y bien con lo segundo
+- [x] **Aviso de enlace firmado** en Mi enlace: los enlaces que se sacan de un
+  reproductor web llevan `t=`, `e=`, `s=`… y caducan en horas. Se detectan con
+  `esEnlaceFirmado()` y se avisa antes de guardarlos, en vez de dejar que el
+  usuario descubra días después que su lista está muerta
+- [x] **Poda.** Fuera seis componentes sin un solo importador —`app-bar`,
+  `site-nav`, `channel-list`, `channel-rail`, `channel-tile`, `media/hero`—,
+  cuatro funciones exportadas sin usar —`getCatalog`, `isManual`,
+  `findProvider`, `useStoreHydrated`— y tres bloques de CSS huérfanos
+  —`.scroll-thin`, `.ficha-autoria`, `.hero-eyebrow`
+
+> **Aviso para la próxima sesión: Turbopack sirvió CSS viejo.** Lanzar
+> `npm run build` con `npm run dev` en marcha deja `.next` en un estado en el
+> que el servidor de desarrollo sigue sirviendo la hoja anterior. Las medidas
+> de esta fase salieron mal la primera vez por eso: `.ficha-columnas` computaba
+> `display: block` y la marca salía en una línea, con el CSS correcto en disco.
+> Antes de creerse una medición rara, comprobar que la clase existe en la hoja
+> servida:
+> ```bash
+> CSS=$(curl -s localhost:3000 | grep -oP '/_next/static/[^"]+\.css' | head -1)
+> curl -s "localhost:3000$CSS" | grep -c ficha-columnas
+> ```
+> Si da 0, matar el servidor, `rm -rf .next` y volver a arrancar.
+
+---
+
 ## Fase 7 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.

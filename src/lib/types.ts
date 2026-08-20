@@ -52,6 +52,24 @@ export interface PlaybackSettings {
    * él, hasta los controles secundarios llevan su etiqueta.
    */
   bigControls: boolean;
+  /**
+   * Forzar la calidad más alta del stream en lugar de adaptarla al ancho de
+   * banda.
+   *
+   * Por defecto HLS empieza bajo y sube según mide la conexión, que es lo
+   * correcto con una línea justa: evita cortes. Con fibra esa prudencia se nota
+   * como unos segundos borrosos cada vez que se cambia de canal, sin motivo.
+   * Activado, arranca directamente en la mejor pista disponible.
+   */
+  calidadMaxima: boolean;
+  /**
+   * Cómo se encaja la imagen cuando su proporción no es la del marco.
+   *
+   * `contener` respeta la imagen entera y deja bandas; `llenar` recorta para
+   * ocupar todo el marco. Muchos canales emiten en 4:3 dentro de un contenedor
+   * 16:9, así que la elección es entre ver bandas o perder los bordes.
+   */
+  ajusteImagen: "contener" | "llenar";
 }
 
 export const DEFAULT_PLAYBACK: PlaybackSettings = {
@@ -61,4 +79,6 @@ export const DEFAULT_PLAYBACK: PlaybackSettings = {
   startUnmuted: true,
   engine: "auto",
   bigControls: false,
+  calidadMaxima: false,
+  ajusteImagen: "contener",
 };

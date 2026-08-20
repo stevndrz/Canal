@@ -186,6 +186,22 @@ const StreamPlayer = memo(
           const hls = new Hls({
             enableWorker: settings.enableWorker,
             lowLatencyMode: settings.lowLatencyMode,
+            /**
+             * Con "calidad máxima" se arranca en la mejor pista y se deja de
+             * limitar por el tamaño del reproductor.
+             *
+             * `startLevel: -1` es el comportamiento normal: empezar bajo y
+             * subir a medida que se mide la conexión, que con una línea justa
+             * evita cortes. Con fibra esa prudencia se nota como unos segundos
+             * borrosos en cada cambio de canal. `Infinity` pide directamente la
+             * más alta que exista.
+             *
+             * `capLevelToPlayerSize` limita la pista al tamaño en píxeles del
+             * reproductor. Ahorra datos, pero en un televisor con el vídeo a
+             * media pantalla impide que suba a 1080 aunque la haya.
+             */
+            startLevel: settings.calidadMaxima ? Infinity : -1,
+            capLevelToPlayerSize: !settings.calidadMaxima,
           });
           hlsRef.current = hls;
           hls.on(Hls.Events.ERROR, (_event, data) => {
@@ -254,6 +270,9 @@ const StreamPlayer = memo(
       settings.lowLatencyMode,
       settings.liveBufferLatencyChasing,
       settings.startUnmuted,
+      // Cambiar "calidad máxima" tiene que rearrancar hls.js: `startLevel` y
+      // `capLevelToPlayerSize` solo se leen al construir la instancia.
+      settings.calidadMaxima,
     ]);
 
     const togglePlay = useCallback(() => {
@@ -310,6 +329,7 @@ const StreamPlayer = memo(
           playsInline
           autoPlay
           muted={isMuted}
+          style={{ objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain" }}
         />
 
         {needsUserGesture && !streamError && (

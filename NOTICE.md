@@ -32,7 +32,6 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 | `src/components/media/rail-scroller.tsx` | `web/components/media/RailScroller.tsx` | Textos de accesibilidad en español; `data-nav` para la navegación con mando. |
 | `src/components/media/media-card.tsx` | `web/components/media/MediaCard.tsx` | Sin peticiones a TMDB desde la tarjeta (el catálogo llega resuelto del servidor); fuera Trakt, servidores domésticos y menú contextual; añadido monograma de respaldo. Se conserva su estructura de DOM y sus clases. |
 | `src/components/media/media-rail.tsx` | `web/components/media/MediaRail.tsx` | El modo póster llega por prop en vez de leerse de un store global; recuento propio. |
-| `src/components/media/hero.tsx` | `web/components/home/HomeScreen.tsx` (sección `.hero`) | Extraído a componente propio; sin búsqueda del logotipo en TMDB; antetítulo añadido; textos en español. |
 | `src/components/livetv/live-tv-view.tsx` | `web/components/livetv/LiveTvScreen.tsx` | Fuera la gestión de listas M3U (aquí se configura por `M3U_URL`), el conmutador Lista/Guía, Catch-up, VLC y los avisos de Xtream. Render por lotes propio para 7.800 canales. Textos en español. |
 | `src/components/livetv/channel-row.tsx` | `web/components/livetv/LiveTvScreen.tsx` (su `ChannelRow`) | Extraído a archivo propio; sin la carga perezosa de guía por fila; añadidos número de canal y monograma de respaldo. |
 | `src/components/views/buscar-view.tsx` | `web/components/search/SearchScreen.tsx` | Conserva el teclado en pantalla de CanalCasa, que el original no tiene, en columna junto a los resultados. |
@@ -42,6 +41,13 @@ actualiza en el mismo commit en el que se añade cada archivo derivado.
 Cada archivo derivado lleva además una cabecera con su ruta de origen y una
 nota de modificación, de modo que la procedencia sea evidente al abrirlo sin
 tener que consultar este documento.
+
+### Archivos derivados que ya no existen
+
+`src/components/media/hero.tsx` derivaba de la sección `.hero` de
+`web/components/home/HomeScreen.tsx`. Se retiró al decidir que en la portada
+manda el reproductor en directo y no una cabecera de película; queda anotado
+aquí porque estuvo publicado en versiones anteriores de este repositorio.
 
 ## Lo que NO se ha tomado de ARVIO
 

@@ -145,7 +145,13 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
           <span className="brand" aria-hidden="true">
             <Tv strokeWidth={1.5} />
           </span>
-          <span className="profile-name-text">CanalCasa</span>
+          {/* En dos líneas. En una sola no cabía junto a siete destinos y se
+              truncaba a "CanalC…"; partido por la mitad entra entero y
+              además ocupa menos ancho, que es lo que la barra necesita. */}
+          <span className="marca" aria-label="CanalCasa">
+            <span aria-hidden="true">Canal</span>
+            <span aria-hidden="true">Casa</span>
+          </span>
         </div>
 
         <nav>{DESTINOS.map((item) => renderItem(item, "nav-item"))}</nav>
@@ -172,7 +178,10 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
           <span className="brand" aria-hidden="true">
             <Tv strokeWidth={1.5} />
           </span>
-          <span className="profile-name-text">CanalCasa</span>
+          <span className="marca" aria-label="CanalCasa">
+            <span aria-hidden="true">Canal</span>
+            <span aria-hidden="true">Casa</span>
+          </span>
         </div>
         <span className="top-clock">{clock}</span>
       </header>

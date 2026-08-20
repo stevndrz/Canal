@@ -39,16 +39,55 @@ export function avisoDeClase(clase: ClaseFuente): string {
   return "";
 }
 
-/** Nombre por defecto: el del archivo, sin extensión ni guiones. */
+/** Parece un hash y no un nombre: largo, sin espacios y casi todo hexadecimal. */
+function pareceHash(texto: string): boolean {
+  const compacto = texto.replace(/\s+/g, "");
+  if (compacto.length < 16) return false;
+  const hex = (compacto.match(/[0-9a-f]/gi) ?? []).length;
+  return hex / compacto.length > 0.8;
+}
+
+/**
+ * Nombre por defecto: el del archivo, sin extensión ni guiones.
+ *
+ * Con un enlace normal sale bien. Con uno sacado de un servidor de descarga
+ * directa —que es de donde vienen la mayoría— el archivo se llama
+ * `azlpa-7415e0f3a89a00ce9b77067047cd2822844215bf.mp4`, y poner eso de título
+ * es peor que no poner nada. Ahí se cae al nombre del servidor, que al menos
+ * dice de dónde salió, y la persona puede escribir el suyo en el campo de al
+ * lado.
+ */
 export function tituloDesdeUrl(url: string): string {
   try {
-    const ruta = new URL(url).pathname;
-    const archivo = decodeURIComponent(ruta.split("/").filter(Boolean).pop() ?? "");
-    const sinExtension = archivo.replace(/\.[a-z0-9]{2,5}$/i, "");
-    const legible = sinExtension.replace(/[._-]+/g, " ").trim();
-    return legible || "Fuente sin título";
+    const { pathname, hostname } = new URL(url);
+    const archivo = decodeURIComponent(pathname.split("/").filter(Boolean).pop() ?? "");
+    const legible = archivo
+      .replace(/\.[a-z0-9]{2,5}$/i, "")
+      .replace(/[._-]+/g, " ")
+      .trim();
+    if (!legible || pareceHash(legible)) return hostname.replace(/^www\./, "");
+    return legible;
   } catch {
     return "Fuente sin título";
+  }
+}
+
+/**
+ * ¿El enlace lleva firma y caducidad?
+ *
+ * Los servidores de descarga directa reparten URLs firmadas: un token y un
+ * plazo. El de ejemplo trae `e=43200`, que son doce horas. Funcionan
+ * perfectamente mientras duran, y luego dejan de funcionar sin avisar — así
+ * que se avisa antes, o el fallo de mañana parecerá un fallo de la aplicación.
+ */
+export function esEnlaceFirmado(url: string): boolean {
+  try {
+    const params = new URL(url).searchParams;
+    return ["t", "token", "s", "sig", "signature", "e", "expires", "exp"].some((clave) =>
+      params.has(clave),
+    );
+  } catch {
+    return false;
   }
 }
 

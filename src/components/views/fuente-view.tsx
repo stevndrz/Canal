@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import { Link2, Play, Trash2, Users } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
-import { avisoDeClase, claseDeUrl, urlUtilizable } from "@/lib/fuente-propia/url";
+import { avisoDeClase, claseDeUrl, esEnlaceFirmado, urlUtilizable } from "@/lib/fuente-propia/url";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
 
@@ -41,7 +41,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [sala, setSala] = useState("");
   const [salaActiva, setSalaActiva] = useState("");
 
-  const aviso = url.trim() ? avisoDeClase(claseDeUrl(url.trim())) : "";
+  const limpiaAhora = url.trim();
+  const aviso = limpiaAhora ? avisoDeClase(claseDeUrl(limpiaAhora)) : "";
+  const firmado = limpiaAhora ? esEnlaceFirmado(limpiaAhora) : false;
 
   const enviar = (evento: React.FormEvent) => {
     evento.preventDefault();
@@ -74,7 +76,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             data-nav="input"
             value={url}
             onChange={(evento) => setUrl(evento.target.value)}
-            placeholder="https://…  (.mp4, .m3u8, .mkv)"
+            placeholder="https://…  (.mp4, .m3u8, .mkv, o un enlace directo)"
             aria-label="Enlace del vídeo"
             required
           />
@@ -99,6 +101,12 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </p>
       )}
       {!error && aviso && <p className="fuente-aviso">{aviso}</p>}
+      {!error && !aviso && firmado && (
+        <p className="fuente-aviso">
+          Este enlace lleva firma y caducidad: funcionará mientras el servidor lo dé por
+          válido y dejará de hacerlo al expirar, sin avisar. Cuando pase, vuelve a copiarlo.
+        </p>
+      )}
 
       {activa && (
         <section className="fuente-reproductor">

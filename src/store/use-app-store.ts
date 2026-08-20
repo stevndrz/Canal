@@ -1,6 +1,5 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -76,19 +75,3 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
-
-/**
- * Indica si el estado persistido ya se leyó de localStorage.
- *
- * Hace falta porque el servidor renderiza sin favoritos y el navegador los
- * añade después: pintarlos antes de la hidratación provocaría un desajuste.
- * Se usa `useSyncExternalStore` para que el componente se vuelva a pintar en
- * cuanto termina la hidratación, sin efectos ni estado intermedio.
- */
-export function useStoreHydrated(): boolean {
-  return useSyncExternalStore(
-    (onStoreChange) => useAppStore.persist.onFinishHydration(onStoreChange),
-    () => useAppStore.persist.hasHydrated(),
-    () => false // en el servidor nunca hay nada hidratado
-  );
-}
