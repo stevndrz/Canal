@@ -175,6 +175,14 @@ if (e.key === "r" || e.key === "R") {
 
 ---
 
+## 👥 El equipo de agentes
+
+Cinco agentes, cada uno dueño de una zona del código: canales, catálogo, diseño,
+calidad y dispositivos. Quién es quién, cómo se invocan y las reglas que
+comparten están en [`docs/EQUIPO.md`](docs/EQUIPO.md).
+
+---
+
 ## 🧪 Verificación
 
 ```bash

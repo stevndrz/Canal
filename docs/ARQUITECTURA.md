@@ -1,5 +1,7 @@
 # Arquitectura de CanalCasa
 
+> Si trabajas con el equipo de agentes, empieza por [`EQUIPO.md`](EQUIPO.md).
+
 Este documento explica **dónde vive cada cosa y por qué**, para no tener que
 deducirlo leyendo el árbol. Si añades algo y no sabes dónde ponerlo, la
 respuesta está aquí; si no está, añádela.
