@@ -22,16 +22,6 @@ import type { EmbedProvider } from "@/lib/catalog/providers";
  * Se numeran ("Servidor 1", "Servidor 2") a propósito: quien está delante de la
  * tele no tiene por qué saber qué es VidSrc.
  */
-/**
- * Identificador del servidor «Directo».
- *
- * No sale de `getProviders()` porque no es un proveedor de iframe: no tiene
- * plantilla de URL ni dominio. Es otra forma de reproducir —un archivo de
- * vídeo que se busca en el momento— y se añade al final de la lista para que
- * quien esté delante de la tele lo vea como un servidor más.
- */
-export const ID_DIRECTO = "directo";
-
 export function ServerPicker({
   providers,
   activeId,
@@ -49,10 +39,6 @@ export function ServerPicker({
 
   if (providers.length < 2) return null;
 
-  const opciones = [...providers.map((p) => ({ id: p.id, label: p.label })), {
-    id: ID_DIRECTO,
-    label: "Directo",
-  }];
 
   return (
     <div className="servidores">
@@ -62,21 +48,19 @@ export function ServerPicker({
       </p>
 
       <div ref={listRef} className="servidores-lista" role="group" aria-label="Servidor de vídeo">
-        {opciones.map((opcion) => {
-          const activo = opcion.id === activeId;
+        {providers.map((provider) => {
+          const activo = provider.id === activeId;
           return (
             <button
-              key={opcion.id}
+              key={provider.id}
               type="button"
               data-server
               data-nav="button"
               aria-pressed={activo}
-              onClick={() => onSelect(opcion.id)}
-              className={`servidor ${activo ? "is-active" : ""} ${
-                opcion.id === ID_DIRECTO ? "is-directo" : ""
-              }`}
+              onClick={() => onSelect(provider.id)}
+              className={`servidor ${activo ? "is-active" : ""}`}
             >
-              {opcion.label}
+              {provider.label}
             </button>
           );
         })}

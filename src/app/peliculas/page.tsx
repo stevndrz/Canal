@@ -1,12 +1,13 @@
 import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
+import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
 import { getCatalogSections } from "@/lib/catalog/catalog";
-import { fetchFiltered, searchCatalog } from "@/lib/catalog/discover";
+import { fetchFiltered, searchCatalogPagina } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 export const dynamic = "force-dynamic";
@@ -14,9 +15,9 @@ export const dynamic = "force-dynamic";
 export default async function MoviesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tipo?: string; genero?: string }>;
+  searchParams: Promise<{ q?: string; tipo?: string; genero?: string; pagina?: string }>;
 }) {
-  const { q, tipo: tipoParam, genero: generoParam } = await searchParams;
+  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam } = await searchParams;
   const query = q?.trim() ?? "";
   const searching = query.length > 0;
 
@@ -26,17 +27,40 @@ export default async function MoviesPage({
   const genero = Number.isInteger(generoId) && generoId > 0 ? generoId : null;
   const filtrando = !searching && (tipo !== "todo" || genero !== null);
 
+  /**
+   * La página pedida, acotada.
+   *
+   * Viene de la URL, o sea de fuera: `?pagina=-5` o `?pagina=abc` llegarían
+   * tal cual a la consulta de TMDB, que respondería con un error y dejaría la
+   * pantalla vacía sin explicación. 500 es el tope que sirve su API.
+   */
+  const pagina = Math.min(Math.max(Number(paginaParam) || 1, 1), 500);
+
+  /** URL de otra página, conservando búsqueda y filtros. */
+  const enlacePagina = (n: number) => {
+    const p = new URLSearchParams();
+    if (query) p.set("q", query);
+    if (tipo !== "todo") p.set("tipo", tipo);
+    if (genero) p.set("genero", String(genero));
+    if (n > 1) p.set("pagina", String(n));
+    const cadena = p.toString();
+    return cadena ? `/peliculas?${cadena}` : "/peliculas";
+  };
+
   // Solo se pide lo que se va a pintar: buscando o filtrando no hacen falta las
   // diez filas del catálogo, que son diez peticiones a TMDB.
   // Las dos listas de géneros, porque no coinciden: series no tiene Terror y su
   // Acción es otro id. Se necesitan ambas para saber a qué tipo aplica el
   // género elegido y para pintar los botones correctos.
-  const [rows, results, generosPeli, generosSerie] = await Promise.all([
+  const [rows, busqueda, generosPeli, generosSerie] = await Promise.all([
     searching || filtrando ? Promise.resolve([]) : getCatalogSections(),
-    searching ? searchCatalog(query) : Promise.resolve([]),
+    searching
+      ? searchCatalogPagina(query, pagina)
+      : Promise.resolve({ items: [], pagina, totalPaginas: 0 }),
     fetchGenres("movie"),
     fetchGenres("tv"),
   ]);
+  const results = busqueda.items;
 
   const validos = {
     movie: new Set(generosPeli.map((g) => g.id)),
@@ -45,7 +69,10 @@ export default async function MoviesPage({
   // Con "todo" se ofrecen los de películas, que es el conjunto más completo y
   // el que la gente reconoce; al pasar a Series se cambian por los suyos.
   const generos = tipo === "tv" ? generosSerie : generosPeli;
-  const filtrados = filtrando ? await fetchFiltered(tipo, genero, validos) : [];
+  const filtrado = filtrando
+    ? await fetchFiltered(tipo, genero, validos, pagina)
+    : { items: [], pagina, totalPaginas: 0 };
+  const filtrados = filtrado.items;
   const tmdbReady = isTmdbConfigured();
 
   /**
@@ -91,7 +118,14 @@ export default async function MoviesPage({
 
         {filtrando ? (
           filtrados.length > 0 ? (
-            <CatalogGrid items={filtrados} />
+            <>
+              <CatalogGrid items={filtrados} />
+              <Paginador
+                pagina={filtrado.pagina}
+                totalPaginas={filtrado.totalPaginas}
+                href={enlacePagina}
+              />
+            </>
           ) : (
             <EstadoVacio
               Icono={SearchX}
@@ -106,6 +140,11 @@ export default async function MoviesPage({
                 <h2>Resultados para «{query}»</h2>
               </section>
               <CatalogGrid items={results} />
+              <Paginador
+                pagina={busqueda.pagina}
+                totalPaginas={busqueda.totalPaginas}
+                href={enlacePagina}
+              />
             </>
           ) : (
             <EstadoVacio

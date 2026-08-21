@@ -9,9 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-import type HlsType from "hls.js";
-import type MpegtsType from "mpegts.js";
 import { RefreshCw, Radio, Volume1 } from "lucide-react";
+import { claseDeEmision, montarMotor, type MotorMontado } from "@/lib/reproduccion/motor";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 
@@ -24,37 +23,7 @@ import { DEFAULT_PLAYBACK } from "@/lib/types";
  */
 
 // Determina el motor de reproducción según el formato del stream.
-// Por defecto asumimos HLS: es el formato dominante en listas IPTV públicas,
-// incluso cuando la URL no termina en .m3u8.
-function getStreamKind(url: string): "hls" | "mpegts" | "flv" | "native" {
-  const clean = url.toLowerCase().split("?")[0];
-  if (/\.flv$/.test(clean)) return "flv";
-  if (/\.ts$/.test(clean)) return "mpegts";
-  if (/\.(mp4|webm|mkv|mov)$/.test(clean)) return "native";
-  return "hls";
-}
 
-/**
- * `hls.js` y `mpegts.js` se cargan solo cuando hace falta reproducir.
- *
- * Segunda capa de la misma defensa que en dashboard.tsx: si algo llegara a
- * evaluar este módulo en el servidor pese a la frontera de arriba, un import
- * de nivel de módulo tocaría `self` y tumbaría la página igual. Con
- * `await import()` dentro del efecto, el servidor nunca llega a evaluarlos.
- * Cada uno se pide una sola vez y se reutiliza: la promesa queda cacheada.
- */
-let hlsModule: Promise<typeof HlsType> | null = null;
-let mpegtsModule: Promise<typeof MpegtsType> | null = null;
-
-function loadHls(): Promise<typeof HlsType> {
-  hlsModule ??= import("hls.js").then((m) => m.default);
-  return hlsModule;
-}
-
-function loadMpegts(): Promise<typeof MpegtsType> {
-  mpegtsModule ??= import("mpegts.js").then((m) => m.default);
-  return mpegtsModule;
-}
 
 export interface StreamPlayerHandle {
   togglePlay: () => void;
@@ -85,8 +54,11 @@ const StreamPlayer = memo(
     ref,
   ) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
-    const hlsRef = useRef<HlsType | null>(null);
-    const mpegtsRef = useRef<ReturnType<typeof MpegtsType.createPlayer> | null>(null);
+    // Los tipos salen de `MotorMontado` en lugar de importar hls.js y
+    // mpegts.js aquí: son los mismos, y así este archivo deja de nombrar las
+    // librerías que ya no usa directamente.
+    const hlsRef = useRef<MotorMontado["hls"]>(null);
+    const mpegtsRef = useRef<MotorMontado["mpegts"]>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [streamError, setStreamError] = useState(false);
@@ -167,80 +139,43 @@ const StreamPlayer = memo(
         if (!cancelled) setStreamError(true);
       };
 
-      const detected = getStreamKind(streamUrl);
-      const kind =
+      const clase =
         settings.engine === "hls"
           ? "hls"
           : settings.engine === "mpegts"
             ? "mpegts"
-            : detected;
+            : claseDeEmision(streamUrl);
 
-      // Selección de motor en una función asíncrona: las librerías se piden
-      // ahora, no al cargar el módulo. `cancelled` se revisa tras cada espera
-      // porque el canal puede haber cambiado mientras llegaba el import.
-      void (async () => {
-      if (kind === "hls") {
-        const Hls = await loadHls();
-        if (cancelled) return;
-        if (Hls.isSupported()) {
-          const hls = new Hls({
-            enableWorker: settings.enableWorker,
-            lowLatencyMode: settings.lowLatencyMode,
-            /**
-             * Con "calidad máxima" se arranca en la mejor pista y se deja de
-             * limitar por el tamaño del reproductor.
-             *
-             * `startLevel: -1` es el comportamiento normal: empezar bajo y
-             * subir a medida que se mide la conexión, que con una línea justa
-             * evita cortes. Con fibra esa prudencia se nota como unos segundos
-             * borrosos en cada cambio de canal. `Infinity` pide directamente la
-             * más alta que exista.
-             *
-             * `capLevelToPlayerSize` limita la pista al tamaño en píxeles del
-             * reproductor. Ahorra datos, pero en un televisor con el vídeo a
-             * media pantalla impide que suba a 1080 aunque la haya.
-             */
-            startLevel: settings.calidadMaxima ? Infinity : -1,
-            capLevelToPlayerSize: !settings.calidadMaxima,
-          });
-          hlsRef.current = hls;
-          hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (data.fatal) handleFatalError();
-          });
-          hls.on(Hls.Events.MANIFEST_PARSED, tryPlay);
-          hls.loadSource(streamUrl);
-          hls.attachMedia(video);
-        } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-          video.src = streamUrl;
-          video.addEventListener("loadedmetadata", tryPlay, { once: true });
-        } else {
-          handleFatalError();
+      // El motor se monta aparte: qué librería reproduce cada enlace es una
+      // decisión propia, no parte del ciclo de vida de este componente.
+      void montarMotor({
+        video,
+        url: streamUrl,
+        clase,
+        // Solo lo que el motor usa, y campo a campo: así las dependencias del
+        // efecto siguen siendo granulares y cambiar un ajuste que no le
+        // incumbe no reinicia la emisión.
+        settings: {
+          enableWorker: settings.enableWorker,
+          lowLatencyMode: settings.lowLatencyMode,
+          liveBufferLatencyChasing: settings.liveBufferLatencyChasing,
+          calidadMaxima: settings.calidadMaxima,
+        },
+        cancelado: () => cancelled,
+        alPoderReproducir: tryPlay,
+        alFallar: handleFatalError,
+      }).then((motor) => {
+        // Si se cambió de canal mientras se cargaba la librería, lo que acaba
+        // de montarse ya no sirve: se destruye aquí mismo en vez de guardarlo
+        // en el ref, donde pelearía con el motor del canal nuevo.
+        if (cancelled) {
+          motor.hls?.destroy();
+          motor.mpegts?.destroy();
+          return;
         }
-      } else if (kind === "mpegts" || kind === "flv") {
-        const mpegts = await loadMpegts();
-        if (cancelled) return;
-        if (mpegts.isSupported()) {
-          const player = mpegts.createPlayer(
-            { type: kind === "flv" ? "flv" : "mpegts", url: streamUrl, isLive: true },
-            {
-              enableWorker: settings.enableWorker,
-              liveBufferLatencyChasing: settings.liveBufferLatencyChasing,
-            },
-          );
-          mpegtsRef.current = player;
-          player.on(mpegts.Events.ERROR, handleFatalError);
-          player.attachMediaElement(video);
-          player.load();
-          tryPlay();
-        } else {
-          video.src = streamUrl;
-          tryPlay();
-        }
-      } else {
-        video.src = streamUrl;
-        tryPlay();
-      }
-      })();
+        hlsRef.current = motor.hls;
+        mpegtsRef.current = motor.mpegts;
+      });
 
       const handleNativeError = () => handleFatalError();
       video.addEventListener("error", handleNativeError);

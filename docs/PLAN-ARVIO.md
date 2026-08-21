@@ -753,6 +753,64 @@ de JavaScript. Son los 7.822 canales serializados, y la mitad no servía:
 
 ---
 
+## Fase 6.5 — Salud del código, producción y paginación ✅
+
+### Salud del código (informe de CodeScene)
+
+El detalle está en [`SALUD-CODIGO.md`](SALUD-CODIGO.md). Resumen:
+
+- [x] **El informe no trae la lista de hotspots** —es el resumen agregado— así
+  que se calcularon con `git log` + complejidad. Los tres reales:
+  `dashboard.tsx` (30 cambios), `m3u.ts` (20) y `stream-player.tsx`
+- [x] **`title-detail.tsx`: 466 → 122 líneas.** Era casi con seguridad el 7,3
+  del informe: un componente de 388 líneas con **catorce niveles** de
+  anidamiento. Partido en `FichaPortada`, `FichaReproductor`, `FichaColumnas`
+  y `FichaEpisodios`, por responsabilidad y no por tamaño
+- [x] **El conmutador de ocho vistas** sale de `dashboard.tsx` a
+  `vista-activa.tsx`. Además de acortarlo, el `switch` sobre `ViewId` hace que
+  TypeScript avise si algún día se añade una vista y se olvida su caso — antes
+  era una pantalla en blanco sin ningún error
+- [x] **La elección de motor de vídeo** sale a `lib/reproduccion/motor.ts`. Era
+  lógica de dominio dentro de un `useEffect` de 141 líneas, imposible de
+  probar sin montar un componente; ahora tiene 5 pruebas
+- [x] **El reloj estaba escrito dos veces** —`dashboard` y `top-nav`, mismo
+  `toLocaleTimeString`—: ahora es `use-reloj.ts`
+- [x] **`no-unused-vars` activada como error.** El preajuste de Next no la
+  trae, y `npm run lint` pasaba limpio con 10 símbolos muertos
+
+### Producto
+
+- [x] **Fuera el scraper.** Se retiran `servicios/extractor`, `/api/extraer`,
+  `use-extractor` y el servidor «Directo». La idea era buena pero dependía de
+  que un sitio ajeno no cambiara su HTML; queda pendiente sustituirlo por una
+  API de audio latino
+- [x] **Favicon**: `icon.svg`, una tele viejita con antenas y perilla roja,
+  dibujada a trazos de 3px para que sobreviva a 16 píxeles. Y `apple-icon.png`
+  para «Añadir a pantalla de inicio», que iOS exige en PNG
+- [x] **Paginación en Películas**, 1 · 2 · 3 … 500. Cada página se pide a TMDB
+  al navegar a ella y **no se guarda nada**. Son enlaces y no botones, así que
+  cada página es una URL que se puede compartir y a la que Atrás vuelve
+- [x] **El tope de 500 páginas es de TMDB**, no nuestro: su API dice
+  `total_pages` en miles pero rechaza cualquier página por encima de 500
+- [x] **Fuera el catálogo de ejemplo.** `catalog.json` queda vacío y todo el
+  catálogo viene de TMDB: diez filas, encabezadas por lo hablado en español
+
+### El fallo de pantalla completa, esta vez de verdad
+
+- [x] Se reportó dos veces y el primer arreglo no bastó. La causa no era la
+  cadena de intentos sino **el cambio de vista**: `onExpand` lleva a la vista
+  `player`, que desmonta el reproductor para montar otro, y el `<video>` al
+  que se le acababa de pedir pantalla completa desaparecía del documento en el
+  mismo fotograma. iOS cancela la pantalla completa al quedarse sin elemento
+- [x] En iPhone ya **no se cambia de vista**: se abre el reproductor del
+  sistema y punto. Cambiar de vista no aportaba nada, porque ese reproductor
+  se pinta por encima de todo
+- [x] Verificado simulando iPhone y Android, con `webkitEnterFullscreen`
+  instrumentado: iPhone con vídeo cargado lo llama y se queda en Canales;
+  Android pide sobre `<html>` y sí cambia de vista
+
+---
+
 ## Fase 7 — Absorber Películas y Series en el shell
 
 Decidido: deja de ser ruta aparte y pasa a ser una vista más, como en ARVIO.

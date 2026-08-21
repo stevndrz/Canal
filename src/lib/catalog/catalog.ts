@@ -5,7 +5,6 @@ import type {
   CatalogItem,
   CatalogSection,
   MediaType,
-  PlaybackSource,
   ResolvedCatalogItem,
   ResolvedEpisode,
 } from "./types";

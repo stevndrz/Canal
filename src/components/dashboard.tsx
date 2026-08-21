@@ -7,17 +7,12 @@ import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, canalDeArranque, filterChannels, withChannelNumbers } from "@/lib/channels";
+import { useReloj } from "@/hooks/use-reloj";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
+import { VistaActiva } from "@/components/vista-activa";
 import { LiveCardSkeleton } from "@/components/live-card";
-import { HomeView } from "@/components/views/home-view";
-import { LiveTvView } from "@/components/livetv/live-tv-view";
-import { FavoritosView } from "@/components/views/favoritos-view";
-import { BuscarView } from "@/components/views/buscar-view";
-import { FuenteView } from "@/components/views/fuente-view";
-import { CategoriasView } from "@/components/views/categorias-view";
-import { AjustesView } from "@/components/views/ajustes-view";
 
 /**
  * El reproductor se carga solo en el navegador.
@@ -90,23 +85,14 @@ export function Dashboard({
   const [category, setCategory] = useState("Todas");
   const [search, setSearch] = useState("");
   const [settings, setSettings] = useState<PlaybackSettings>(DEFAULT_PLAYBACK);
-  const [clock, setClock] = useState("");
 
   const favorites = usePersistedSet("canalcasa:favorites");
   const recents = usePersistedRecents("canalcasa:recents");
 
   useRemoteInput();
 
-  // Reloj de la cabecera: la hora es lo primero que se busca en una TV.
-  useEffect(() => {
-    const update = () =>
-      setClock(
-        new Date().toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" }),
-      );
-    update();
-    const timer = setInterval(update, 20_000);
-    return () => clearInterval(timer);
-  }, []);
+  // La hora es lo primero que se busca en un televisor.
+  const clock = useReloj();
 
   const tuned = useMemo(
     () => channels.find((channel) => channel.id === tunedId) ?? channels[0] ?? null,
@@ -264,12 +250,6 @@ export function Dashboard({
     );
   }
 
-  /* Contenedor de las vistas que todavía no están portadas al diseño.
-     `.screen` pone el hueco superior que deja libre la barra fija; `tv-safe`,
-     el margen lateral de televisor. Inicio no lo usa porque ya es un `.screen`
-     por sí mismo. */
-  const pantalla = "screen tv-safe";
-
   /** Las dos vistas que llevan la señal en directo encima. */
   const conReproductor = view === "home" || view === "canales";
 
@@ -296,82 +276,32 @@ export function Dashboard({
           </div>
         )}
 
-        {view === "home" && (
-          <HomeView
-            sinHueco
-            channels={channels}
-            tuned={tuned}
-            favorites={favorites.ids}
-            recents={recentChannels}
-            catalog={catalog}
-            onSelect={select}
-            onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
-          />
-        )}
-
-        {view === "canales" && (
-          <LiveTvView
-            sinHueco
-            channels={channels}
-            visible={visible}
-            tuned={tuned}
-            favorites={favorites.ids}
-            categories={categories}
-            category={category}
-            search={search}
-            onCategoryChange={setCategory}
-            onSearchChange={setSearch}
-            onSelect={select}
-            onTune={tune}
-            onToggleFavorite={favorites.toggle}
-          />
-        )}
-
-        {view === "favoritos" && (
-          <FavoritosView
-              channels={channels}
-              favorites={favorites.ids}
-              tunedId={tuned?.id ?? null}
-              onTune={tune}
-            />
-        )}
-
-        {view === "buscar" && (
-          <BuscarView
-              results={search ? visible : channels.slice(0, 24)}
-              search={search}
-              onSearchChange={setSearch}
-              onTune={tune}
-            />
-        )}
-
-        {view === "fuente" && <FuenteView />}
-
-        {view === "categorias" && (
-          <CategoriasView channels={channels} onPick={pickCategory} />
-        )}
-
-        {view === "ajustes" && (
-          <div className={pantalla}>
-            <AjustesView
-              settings={settings}
-              onChange={patchSettings}
-              channelCount={channels.length}
-              favoriteCount={favorites.ids.size}
-              onClearFavorites={favorites.clear}
-              onRefresh={() => router.refresh()}
-              m3uSource={M3U_SOURCE}
-            />
-          </div>
-        )}
-
+        <VistaActiva
+          view={view}
+          channels={channels}
+          visible={visible}
+          tuned={tuned}
+          favorites={favorites}
+          recentChannels={recentChannels}
+          catalog={catalog}
+          categories={categories}
+          category={category}
+          search={search}
+          settings={settings}
+          m3uSource={M3U_SOURCE}
+          onCategoryChange={setCategory}
+          onSearchChange={setSearch}
+          onSelect={select}
+          onTune={tune}
+          onPickCategory={pickCategory}
+          onPatchSettings={patchSettings}
+        />
       </section>
 
       {view === "player" && tuned && (
         <FullscreenPlayer
           channel={tuned}
           playlist={visible.length > 0 ? visible : channels}
-          favorites={favorites.ids}
           settings={settings}
           clock={clock}
           onTune={(next) => {

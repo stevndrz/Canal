@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CanalCasa">
+  <!--
+    Televisor de los de antes: caja con patas, antenas en V y una perilla.
+
+    Dibujado a 64×64 y con trazos de 3px porque a 16 píxeles —el tamaño real
+    en una pestaña— cualquier detalle más fino desaparece. Por eso no hay
+    reflejo en la pantalla ni rejilla del altavoz: a ese tamaño solo
+    sobreviven la silueta, las antenas y el punto rojo.
+
+    Next lo sirve como favicon por estar en `src/app/icon.svg`; no hace falta
+    declarar nada en `metadata`.
+  -->
+  <rect width="64" height="64" rx="14" fill="#0b0b0d" />
+
+  <g fill="none" stroke="#f5f5f7" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Antenas, saliendo por detrás de la caja. -->
+    <path d="M24 18 14 8" />
+    <path d="M40 18 50 8" />
+
+    <!-- La caja y su pantalla. -->
+    <rect x="10" y="18" width="44" height="30" rx="6" />
+
+    <!-- Las patas. -->
+    <path d="M22 48v5" />
+    <path d="M42 48v5" />
+  </g>
+
+  <!-- La perilla, del rojo del directo: es lo único con color y lo que hace
+       reconocible el icono a 16px. -->
+  <circle cx="46" cy="33" r="3.4" fill="#ff453a" />
+</svg>

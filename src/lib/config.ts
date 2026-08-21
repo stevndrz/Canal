@@ -83,13 +83,6 @@ export function serverConfig() {
     /** Secreto de Pusher, solo para firmar canales privados en la ruta de auth. */
     pusherSecret: process.env.PUSHER_SECRET || "",
 
-    /**
-     * Servicio extractor de enlaces directos (`servicios/extractor`).
-     *
-     * Vive en otra máquina porque necesita un Chromium de verdad: no cabe en
-     * una función sin servidor. Sin esta variable, el servidor «Directo» de
-     * la ficha aparece deshabilitado y explica qué falta, en vez de fallar.
-     */
-    extractorUrl: process.env.EXTRACTOR_URL?.trim().replace(/\/$/, "") || "",
+
   };
 }

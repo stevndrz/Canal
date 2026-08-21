@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
+import { useReloj } from "@/hooks/use-reloj";
 import type { ViewId } from "@/lib/types";
 import {
   NAV_ITEMS,
@@ -72,18 +73,11 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
-  const [clock, setClock] = useState("");
   const [masAbierto, setMasAbierto] = useState(false);
 
   // El reloj lo lleva la barra y no quien la usa: es parte del chrome, y así
-  // funciona igual dentro y fuera del shell sin que nadie tenga que pasárselo.
-  useEffect(() => {
-    const update = () =>
-      setClock(new Date().toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" }));
-    update();
-    const timer = setInterval(update, 20_000);
-    return () => clearInterval(timer);
-  }, []);
+  // funciona igual dentro y fuera del shell sin que nadie se lo tenga que pasar.
+  const clock = useReloj();
 
   const irA = (destino: ViewId) => {
     setMasAbierto(false);

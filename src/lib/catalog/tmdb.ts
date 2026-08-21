@@ -219,6 +219,7 @@ interface TmdbListItem {
 
 interface TmdbListResponse {
   results?: TmdbListItem[];
+  total_pages?: number;
 }
 
 export interface TmdbListEntry {
@@ -265,14 +266,45 @@ function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry
   };
 }
 
+/** Una página de resultados, con cuántas hay en total. */
+export interface TmdbPagina {
+  entradas: TmdbListEntry[];
+  /**
+   * Páginas disponibles, ya acotadas a lo que TMDB sirve de verdad.
+   *
+   * Su API dice `total_pages` en miles, pero **rechaza cualquier página por
+   * encima de 500**: pedir la 501 devuelve un error, no una lista vacía. Sin
+   * acotar aquí, el paginador ofrecería miles de páginas y todas menos las
+   * 500 primeras darían error.
+   */
+  totalPaginas: number;
+}
+
 /** Una lista de TMDB (discover/trending). Sin clave o sin respuesta, vacía. */
 export async function fetchList(path: string, fallbackType: MediaType): Promise<TmdbListEntry[]> {
-  const data = await tmdbFetch<TmdbListResponse>(path);
-  if (!data?.results) return [];
-  return data.results
-    .map((item) => toListEntry(item, fallbackType))
-    .filter((entry): entry is TmdbListEntry => entry !== null);
+  return (await fetchPagina(path, fallbackType)).entradas;
 }
+
+/**
+ * Igual que `fetchList`, pero diciendo además cuántas páginas hay.
+ *
+ * Se separa en vez de cambiar `fetchList` porque las filas de la portada no
+ * paginan —son una selección, no un listado— y añadirles el recuento sería
+ * cargarlas con algo que no usan.
+ */
+export async function fetchPagina(path: string, fallbackType: MediaType): Promise<TmdbPagina> {
+  const data = await tmdbFetch<TmdbListResponse>(path);
+  if (!data?.results) return { entradas: [], totalPaginas: 0 };
+  return {
+    entradas: data.results
+      .map((item) => toListEntry(item, fallbackType))
+      .filter((entry): entry is TmdbListEntry => entry !== null),
+    totalPaginas: Math.min(data.total_pages ?? 1, TOPE_PAGINAS_TMDB),
+  };
+}
+
+/** Ver `TmdbPagina.totalPaginas`. */
+const TOPE_PAGINAS_TMDB = 500;
 
 /**
  * Busca en todo el catálogo de TMDB. Devuelve el título en español aunque la

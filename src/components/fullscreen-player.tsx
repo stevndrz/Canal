@@ -29,7 +29,6 @@ interface FullscreenPlayerProps {
  */
 /** Lista visible: define qué zapea ↑↓ y qué muestra la guía. */
   playlist: Channel[];
-  favorites: Set<number>;
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
   onExit: () => void;
@@ -47,7 +46,6 @@ const GUIDE_TIMEOUT = 5000;
 export function FullscreenPlayer({
   channel,
   playlist,
-  favorites,
   settings,
   onTune,
   onExit,
@@ -81,7 +79,7 @@ export function FullscreenPlayer({
    * navegador seguía encima. `toggleFullscreen` sí pide el modo real, con
    * respaldo a `documentElement` cuando el contenedor lo rechaza.
    */
-  const { isFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoElRef);
+  const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el

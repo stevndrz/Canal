@@ -1,38 +1,35 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import Image from "next/image";
-import Link from "next/link";
-import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, Info, Star, Users } from "lucide-react";
+import { useMemo, useState } from "react";
 import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
-import { useGridNavigation } from "@/hooks/use-grid-navigation";
-import { ServerPicker, ID_DIRECTO } from "./server-picker";
-import { useExtractor } from "@/hooks/use-extractor";
 import { TopNav } from "@/components/shell/top-nav";
 import { useAppStore } from "@/store/use-app-store";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
+import { FichaColumnas } from "./ficha-columnas";
+import { FichaEpisodios } from "./ficha-episodios";
+import { FichaPortada } from "./ficha-portada";
+import { FichaReproductor } from "./ficha-reproductor";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 
-// El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
-// enlace propio, no cuando se delega en el iframe del proveedor.
-const NativePlayer = dynamic(() => import("@/components/native-player"), {
-  ssr: false,
-  loading: () => <div className="aspect-video w-full animate-pulse rounded-2xl bg-black" />,
-});
-
-/** Los pocos idiomas que aparecen de verdad en este catálogo. */
-const IDIOMAS: Record<string, string> = {
-  es: "Español",
-  en: "Inglés",
-  ja: "Japonés",
-  ko: "Coreano",
-  fr: "Francés",
-  it: "Italiano",
-  pt: "Portugués",
-  de: "Alemán",
-};
-
+/**
+ * La ficha de un título: portada, reproductor, datos y —si es serie—
+ * episodios.
+ *
+ * Este componente **solo decide qué se reproduce y en qué estado está la
+ * pantalla**; el pintado vive en las cuatro piezas que compone. Era un único
+ * componente de 388 líneas con catorce niveles de anidamiento, y el archivo
+ * con peor salud de código de todo el proyecto: cada arreglo aquí obligaba a
+ * leerlo entero para saber si algo más dependía de lo que se tocaba.
+ *
+ * El reparto es por responsabilidad, no por tamaño:
+ *
+ * | Pieza | De qué se ocupa |
+ * |---|---|
+ * | `FichaPortada` | Arte, carátula, título y datos sueltos |
+ * | `FichaReproductor` | Las tres formas de reproducir, y Ver en familia |
+ * | `FichaColumnas` | Sinopsis, reparto y ficha técnica |
+ * | `FichaEpisodios` | Temporadas y episodios, con su navegación por mando |
+ */
 export function TitleDetail({
   item,
   episodes,
@@ -44,43 +41,24 @@ export function TitleDetail({
 }) {
   const isSeries = item.mediaType === "tv";
   const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
-    isSeries ? (episodes[0] ?? null) : null
+    isSeries ? (episodes[0] ?? null) : null,
   );
-  const [room, setRoom] = useState("");
-  const [activeRoom, setActiveRoom] = useState("");
-  const episodeListRef = useRef<HTMLDivElement | null>(null);
-  useGridNavigation(episodeListRef, "[data-episode]");
+  const [sala, setSala] = useState("");
+  const [salaActiva, setSalaActiva] = useState("");
 
   const providers = getProviders();
   const preferredProvider = useAppStore((state) => state.preferredProvider);
   const setPreferredProvider = useAppStore((state) => state.setPreferredProvider);
-
-  /**
-   * El servidor «Directo»: en vez de un iframe ajeno, un `.mp4` nuestro que se
-   * busca en el momento de pulsarlo.
-   *
-   * No se puede preparar de antemano porque el enlace viene firmado y caduca en
-   * horas: guardarlo daría un catálogo que funciona hoy y está roto mañana. Y
-   * como tarda entre 10 y 30 segundos, hay que contar lo que está pasando —de
-   * ahí el estado, y no un simple booleano.
-   */
-  const { estado: extraccion, extraer, reiniciar } = useExtractor();
-  const enDirecto = preferredProvider === ID_DIRECTO;
   // El guardado manda si sigue existiendo; si no, el primero de la lista, que
   // ya viene ordenada poniendo delante los que piden subtítulos en español.
   const activeProvider =
     providers.find((provider) => provider.id === preferredProvider) ?? providers[0] ?? null;
 
-  /**
-   * Si se rodó en español, el audio se oye en español sin depender de doblajes.
-   * Es lo único que se puede afirmar: ningún proveedor publica qué pistas de
-   * audio tiene, así que para el resto solo se promete subtítulo.
-   */
-  const spokenInSpanish = item.originalLanguage === "es";
-
   // Qué se reproduce ahora mismo: el episodio elegido en series, el título en
   // películas. Los episodios pueden traer su propia fuente (otro doblaje).
-  const activeSource: PlaybackSource = isSeries ? (selectedEpisode?.source ?? item.source) : item.source;
+  const activeSource: PlaybackSource = isSeries
+    ? (selectedEpisode?.source ?? item.source)
+    : item.source;
 
   const embedUrl = useMemo(() => {
     if (activeSource.kind !== "embed" || !item.tmdbId || !activeProvider) return null;
@@ -91,375 +69,54 @@ export function TitleDetail({
     });
   }, [activeSource, item.tmdbId, item.mediaType, selectedSeason, selectedEpisode, activeProvider]);
 
-  const minutos = item.duracion
-    ? item.duracion >= 60
-      ? `${Math.floor(item.duracion / 60)} h ${item.duracion % 60} min`
-      : `${item.duracion} min`
-    : null;
-
   return (
     <div className="app-shell">
       <TopNav />
 
-      {/* El fondo va aquí y no en un `absolute inset-0` desde y=0: así arranca
-          por debajo de la barra fija en vez de meterse detrás de ella, que era
-          lo que hacía que el título y el botón de volver se leyeran encima de
-          la navegación. */}
-      <div
-        className="ficha-portada"
-        style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
-      >
-        <div className="ficha-cabecera">
-          <Link href="/peliculas" data-nav="button" className="ficha-volver">
-            <ArrowLeft aria-hidden="true" />
-            Volver al catálogo
-          </Link>
-
-          <div className="ficha-titular">
-            {item.poster && (
-              <Image
-                src={item.poster}
-                alt=""
-                width={342}
-                height={513}
-                className="ficha-poster"
-                priority
-              />
-            )}
-
-            <div className="ficha-datos">
-              <h1>{item.title}</h1>
-              {item.tagline && <p className="ficha-tagline">{item.tagline}</p>}
-
-              <div className="ficha-meta">
-                {item.year && <span>{item.year}</span>}
-                {minutos && <span>{minutos}</span>}
-                {item.rating !== null && item.rating > 0 && (
-                  <span className="ficha-nota">
-                    <Star aria-hidden="true" />
-                    {item.rating.toFixed(1)}
-                  </span>
-                )}
-                <span className="ficha-tipo">{isSeries ? "Serie" : "Película"}</span>
-              </div>
-
-              {item.generos.length > 0 && (
-                <div className="ficha-generos">
-                  {item.generos.map((genero) => (
-                    <span key={genero}>{genero}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+      <FichaPortada item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
 
       <div className="ficha-cuerpo">
-        {/* Reproductor centrado y acotado. A 1400px de ancho el vídeo se comía
-            la pantalla en un televisor, y la botonera de servidores quedaba
-            colgando a la izquierda muy lejos de la imagen. */}
-        <section className="ficha-reproductor">
-          {activeSource.kind === "manual" ? (
-            <>
-              <WatchPartyBar room={room} onRoomChange={setRoom} onJoin={() => setActiveRoom(normalizeRoomId(room))} activeRoom={activeRoom} />
-              <NativePlayer
-                streams={activeSource.streams}
-                title={item.title}
-                roomId={activeRoom || undefined}
-              />
-            </>
-          ) : embedUrl ? (
-            <>
-              <div className="ficha-conjunto">
-                {enDirecto ? (
-                  extraccion.fase === "listo" ? (
-                    <NativePlayer
-                      streams={[{ label: "Directo", url: extraccion.url, type: "auto" }]}
-                      title={item.title}
-                    />
-                  ) : (
-                    <div className="player-surface ficha-marco ficha-directo">
-                      {extraccion.fase === "buscando" ? (
-                        <>
-                          <span className="ficha-directo-girando" aria-hidden="true" />
-                          <p>Buscando el enlace…</p>
-                          <span>
-                            Hay que recorrer el sitio de origen: puede tardar medio minuto.
-                          </span>
-                        </>
-                      ) : extraccion.fase === "fallo" ? (
-                        <>
-                          <p>No se pudo</p>
-                          <span>{extraccion.motivo}</span>
-                          <button
-                            type="button"
-                            data-nav="button"
-                            className="secondary"
-                            onClick={() => extraer(item.title, item.year)}
-                          >
-                            Reintentar
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <p>Enlace directo</p>
-                          <span>
-                            Se busca un archivo de vídeo en español, sin iframe. Tarda un poco.
-                          </span>
-                          <button
-                            type="button"
-                            data-nav="button"
-                            className="primary"
-                            onClick={() => extraer(item.title, item.year)}
-                          >
-                            Buscar ahora
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  )
-                ) : (
-                  <div className="player-surface ficha-marco">
-                    <iframe
-                      src={embedUrl}
-                      title={item.title}
-                      allowFullScreen
-                      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                      referrerPolicy="origin"
-                    />
-                  </div>
-                )}
+        <FichaReproductor
+          fuente={activeSource}
+          titulo={item.title}
+          embedUrl={embedUrl}
+          providers={providers}
+          activeProvider={activeProvider}
+          onSelectProvider={setPreferredProvider}
+          /**
+           * Si se rodó en español, el audio se oye en español sin depender de
+           * doblajes. Es lo único que se puede afirmar: ningún proveedor
+           * publica qué pistas de audio tiene, así que para el resto solo se
+           * promete subtítulo.
+           */
+          spokenInSpanish={item.originalLanguage === "es"}
+          sala={sala}
+          salaActiva={salaActiva}
+          onSalaChange={setSala}
+          onEntrarSala={() => setSalaActiva(normalizeRoomId(sala))}
+        />
 
-                {/* Al pie del vídeo, no suelto en la página: es un control de
-                    este reproductor, y cuando la imagen no se ve la mano ya
-                    está ahí. */}
-                <ServerPicker
-                  providers={providers}
-                  activeId={enDirecto ? ID_DIRECTO : (activeProvider?.id ?? "")}
-                  onSelect={(id) => {
-                    // Al cambiar de servidor se descarta lo extraído: si no, un
-                    // enlace ya caducado seguiría en pantalla al volver.
-                    reiniciar();
-                    setPreferredProvider(id);
-                  }}
-                  nota={
-                    /* Se distingue lo que se sabe con certeza (se rodó en
-                       español) de lo que solo se puede pedir (subtítulos),
-                       para no prometer un doblaje que quizá no exista. */
-                    spokenInSpanish ? (
-                      <span className="ficha-marca is-si">Hablada en español</span>
-                    ) : activeProvider?.spanishSubtitles ? (
-                      <span className="ficha-marca is-quiza">Subtítulos en español</span>
-                    ) : null
-                  }
-                />
-              </div>
-            </>
-          ) : (
-            <div className="ficha-sin-fuente">
-              <Info aria-hidden="true" />
-              <p>No se puede reproducir esta ficha</p>
-              <span>
-                Le falta el identificador de TMDB, que es lo que usan los servidores para
-                encontrar el título. Añádelo, o pon un enlace propio en <code>catalog.json</code>.
-              </span>
-            </div>
-          )}
-        </section>
+        <FichaColumnas item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
 
-        {/* Debajo del vídeo, en columnas: la sinopsis y el reparto ocupan la
-            ancha, y la ficha técnica va al lado en vez de convertirse en otra
-            fila más de una lista vertical interminable. */}
-        <div className="ficha-columnas">
-          <div className="ficha-columna-principal">
-            {item.overview && (
-              <section className="ficha-seccion">
-                <h2>Sinopsis</h2>
-                <p className="ficha-sinopsis">{item.overview}</p>
-              </section>
-            )}
-
-            {item.reparto.length > 0 && (
-              <section className="ficha-seccion">
-                <h2>Reparto</h2>
-                <div className="ficha-reparto">
-                  {item.reparto.map((persona) => (
-                    <figure key={`${persona.nombre}-${persona.personaje}`} className="ficha-persona">
-                      {persona.foto ? (
-                        <Image src={persona.foto} alt="" width={342} height={513} />
-                      ) : (
-                        <span className="ficha-persona-inicial" aria-hidden="true">
-                          {persona.nombre.slice(0, 1)}
-                        </span>
-                      )}
-                      <figcaption>
-                        <strong>{persona.nombre}</strong>
-                        {persona.personaje && <span>{persona.personaje}</span>}
-                      </figcaption>
-                    </figure>
-                  ))}
-                </div>
-              </section>
-            )}
-          </div>
-
-          <aside className="ficha-tecnica">
-            <h2>Ficha</h2>
-            <dl>
-              {item.year && (
-                <div>
-                  <dt>{isSeries ? "Estreno" : "Año"}</dt>
-                  <dd>{item.year}</dd>
-                </div>
-              )}
-              {minutos && (
-                <div>
-                  <dt>{isSeries ? "Episodio" : "Duración"}</dt>
-                  <dd>{minutos}</dd>
-                </div>
-              )}
-              {item.autoria.length > 0 && (
-                <div>
-                  <dt>{isSeries ? "Creación" : "Dirección"}</dt>
-                  <dd>{item.autoria.join(", ")}</dd>
-                </div>
-              )}
-              {item.generos.length > 0 && (
-                <div>
-                  <dt>Géneros</dt>
-                  <dd>{item.generos.join(" · ")}</dd>
-                </div>
-              )}
-              {item.rating !== null && item.rating > 0 && (
-                <div>
-                  <dt>Valoración</dt>
-                  <dd>{item.rating.toFixed(1)} sobre 10</dd>
-                </div>
-              )}
-              {item.originalLanguage && (
-                <div>
-                  <dt>Idioma original</dt>
-                  <dd>{IDIOMAS[item.originalLanguage] ?? item.originalLanguage.toUpperCase()}</dd>
-                </div>
-              )}
-              {isSeries && item.seasons.length > 0 && (
-                <div>
-                  <dt>Temporadas</dt>
-                  <dd>{item.seasons.length}</dd>
-                </div>
-              )}
-            </dl>
-          </aside>
-        </div>
-
-        {/* Temporadas y episodios */}
         {isSeries && (
-          <section className="ficha-seccion">
-            <div className="ficha-episodios-cabecera">
-              <h2>Episodios</h2>
-              {item.seasons.length > 1 && (
-                <div className="catalogo-filtros" role="tablist" aria-label="Temporadas">
-                  {item.seasons.map((season) => (
-                    <Link
-                      key={season}
-                      href={`/peliculas/tv/${item.id}?t=${season}`}
-                      role="tab"
-                      data-nav="button"
-                      aria-selected={season === selectedSeason}
-                      className={`catalogo-chip ${season === selectedSeason ? "is-active" : ""}`}
-                    >
-                      Temporada {season}
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {episodes.length > 0 ? (
-              <div ref={episodeListRef} className="ficha-episodios">
-                {episodes.map((episode) => {
-                  const active = selectedEpisode?.episode === episode.episode;
-                  return (
-                    <button
-                      key={`${episode.season}-${episode.episode}`}
-                      type="button"
-                      data-episode
-                      data-nav="row"
-                      onClick={() => setSelectedEpisode(episode)}
-                      aria-pressed={active}
-                      className={`ficha-episodio ${active ? "is-active" : ""}`}
-                    >
-                      <span className="ficha-episodio-arte">
-                        {episode.still ? (
-                          <Image src={episode.still} alt="" width={224} height={126} />
-                        ) : (
-                          `E${episode.episode}`
-                        )}
-                      </span>
-                      <span className="ficha-episodio-texto">
-                        <strong>
-                          {episode.episode}. {episode.title}
-                        </strong>
-                        {episode.overview && <span>{episode.overview}</span>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className="ficha-vacio">
-                No hay episodios listados. Añade la clave de TMDB o escríbelos en{" "}
-                <code>catalog.json</code>.
-              </p>
-            )}
-          </section>
+          <FichaEpisodios
+            item={item}
+            episodes={episodes}
+            selectedSeason={selectedSeason}
+            selectedEpisode={selectedEpisode}
+            onSelectEpisode={setSelectedEpisode}
+          />
         )}
       </div>
     </div>
   );
 }
 
-/** Entrada a la sala sincronizada. Solo aparece con enlaces propios. */
-function WatchPartyBar({
-  room,
-  activeRoom,
-  onRoomChange,
-  onJoin,
-}: {
-  room: string;
-  activeRoom: string;
-  onRoomChange: (value: string) => void;
-  onJoin: () => void;
-}) {
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onJoin();
-      }}
-      className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-3"
-    >
-      <Users aria-hidden="true" className="h-5 w-5 shrink-0 text-emerald-300" />
-      <label htmlFor="watch-party-room" className="text-sm font-semibold">
-        Ver en familia
-      </label>
-      <input
-        id="watch-party-room"
-        value={room}
-        onChange={(event) => onRoomChange(event.target.value)}
-        placeholder="nombre de la sala"
-        className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder-white/35 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-      />
-      <button
-        type="submit"
-        className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-      >
-        {activeRoom ? "Cambiar sala" : "Entrar"}
-      </button>
-      <p className="w-full text-xs text-white/45">
-        Quien abra esta misma página con el mismo nombre de sala verá la película sincronizada.
-      </p>
-    </form>
-  );
+/** «2 h 5 min», que es como se dice una duración, y no «125». */
+function formatearDuracion(minutos: number | null): string | null {
+  if (!minutos) return null;
+  if (minutos < 60) return `${minutos} min`;
+  const horas = Math.floor(minutos / 60);
+  const resto = minutos % 60;
+  return resto ? `${horas} h ${resto} min` : `${horas} h`;
 }

@@ -51,25 +51,32 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
   /**
    * Pantalla completa de verdad, en un solo gesto.
    *
-   * Antes esto solo cambiaba de vista: el reproductor ocupaba la ventana pero
-   * el navegador seguía enseñando su barra de direcciones y sus pestañas, así
-   * que había que dar además un doble clic para completarla. Dos pasos para una
-   * sola intención.
-   *
    * `requestFullscreen` **solo funciona dentro de un gesto de la persona**, así
-   * que se pide aquí mismo y no después de cambiar de vista. Se pide sobre el
-   * documento entero porque el contenedor del reproductor todavía no existe en
-   * este instante: se monta justo después.
+   * que se pide aquí mismo y no después de cambiar de vista.
    *
-   * Safari en iPhone no implementa la API sobre elementos que no sean `<video>`
-   * —ahí `requestFullscreen` ni existe—, así que el `catch` y el `?.` no son
-   * decorativos: en iPhone se queda en la vista inmersiva, que es todo lo que
-   * ese sistema permite sin abrir su reproductor nativo.
+   * ⚠️ **En iPhone NO se cambia de vista.** Es la corrección que costó dos
+   * intentos entender. `onExpand` lleva a la vista `player`, y eso desmonta
+   * este reproductor para montar otro: el `<video>` al que se le acaba de
+   * pedir pantalla completa **desaparece del documento en el mismo
+   * fotograma**, y iOS cancela la pantalla completa al quedarse sin elemento.
+   * El resultado era justo lo que se veía: el vídeo ocupando la ventana y la
+   * barra de Safari encima.
+   *
+   * Además, en iPhone cambiar de vista no aporta nada: `webkitEnterFullscreen`
+   * abre el reproductor del sistema por encima de todo, así que nuestra vista
+   * quedaría detrás sin que nadie la vea.
+   *
+   * En el resto se pide sobre el documento entero —que sobrevive al cambio de
+   * vista— y sí se cambia, para conservar nuestros controles.
    */
   const expandir = useCallback(() => {
+    if (esIPhone()) {
+      pedirPantallaCompletaIPhone(playerRef.current?.video() ?? null);
+      return;
+    }
     // Sin `await`: `requestFullscreen` tiene que salir dentro del gesto de la
     // persona, y esperar aquí devolvería el control al navegador antes.
-    void pedirPantallaCompleta(playerRef.current?.video() ?? null);
+    void pedirPantallaCompleta();
     onExpand(channel);
   }, [onExpand, channel]);
 
@@ -181,43 +188,21 @@ export function LiveCardSkeleton() {
 }
 
 /**
- * Pantalla completa de verdad, probando lo que cada sistema permite.
+ * Pantalla completa en todo lo que no sea un iPhone.
  *
- * En orden: la API estándar sobre el documento; la variante WebKit; y por
- * último `webkitEnterFullscreen()` sobre el propio `<video>`.
+ * Se pide sobre `document.documentElement` y no sobre el contenedor del
+ * reproductor porque ese contenedor está a punto de desmontarse: la vista
+ * cambia justo después. El documento sobrevive.
  *
- * Ese último paso es el que importa en un iPhone. Safari en iPhone **no
- * implementa la Fullscreen API sobre nada que no sea un `<video>`**: en una
- * pestaña normal, `requestFullscreen` ni existe, y por eso la barra de
- * direcciones seguía encima aunque el reproductor ocupara la ventana. La única
- * forma de que un iPhone entregue la pantalla entera es el reproductor nativo
- * del sistema, que además trae AirPlay incorporado.
- *
- * El precio: en iPhone se ven los controles de Apple y no los nuestros. La otra
- * vía —conservar nuestro diseño y ganar la pantalla completa— es añadir la app
- * a la pantalla de inicio, que la abre sin nada de Safari alrededor.
+ * Se **espera** cada intento en vez de lanzarlo y olvidarse: si el navegador
+ * lo rechaza hay que enterarse para probar el siguiente. Un `.catch()` que
+ * traga el error con un `return` detrás deja sin pantalla completa y sin
+ * ninguna pista de por qué.
  */
-async function pedirPantallaCompleta(video: HTMLVideoElement | null) {
+async function pedirPantallaCompleta(): Promise<void> {
   const raiz = document.documentElement as HTMLElement & {
     webkitRequestFullscreen?: () => Promise<void> | void;
   };
-  const nativo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
-
-  // En iPhone se va directo al reproductor del sistema y no se prueba nada
-  // antes. Desde iOS 26 `requestFullscreen` **existe** en el iPhone, así que
-  // el orden de antes se quedaba en ese primer intento —que no esconde las
-  // barras de Safari— y nunca llegaba aquí. Es exactamente el fallo que se
-  // veía: el vídeo crecía y la barra de direcciones seguía encima.
-  if (esIPhone() && nativo?.webkitEnterFullscreen) {
-    nativo.webkitEnterFullscreen();
-    return;
-  }
-
-  // En el resto: documento primero, para conservar nuestros controles.
-  // Se **espera** cada intento en vez de lanzarlo y olvidarse: si el navegador
-  // lo rechaza, hay que enterarse para probar el siguiente. Un `.catch()` que
-  // traga el error y un `return` justo detrás dejan al usuario sin pantalla
-  // completa y sin saber por qué.
   try {
     if (typeof raiz.requestFullscreen === "function") {
       await raiz.requestFullscreen({ navigationUI: "hide" });
@@ -225,13 +210,34 @@ async function pedirPantallaCompleta(video: HTMLVideoElement | null) {
     }
     if (typeof raiz.webkitRequestFullscreen === "function") {
       await raiz.webkitRequestFullscreen();
-      return;
     }
   } catch {
-    // Sigue al respaldo en lugar de rendirse aquí.
+    // Algunos navegadores de televisor la rechazan sobre <html>. No hay más
+    // respaldo que ofrecer: la vista igualmente ocupa toda la ventana.
   }
+}
 
-  nativo?.webkitEnterFullscreen?.();
+/**
+ * Pantalla completa en iPhone: el reproductor del sistema, y nada más.
+ *
+ * Safari en iPhone **no entrega la pantalla a ningún elemento que no sea un
+ * `<video>`**. Desde iOS 26 `requestFullscreen` existe sobre otros elementos,
+ * pero no esconde las barras del navegador, así que probarlo primero solo
+ * sirve para no llegar nunca a la única vía que sí funciona.
+ *
+ * Requiere metadatos cargados; si aún no han llegado se espera a ellos en vez
+ * de fallar en silencio. El precio de esta vía es que se ven los controles de
+ * Apple y no los nuestros; a cambio trae AirPlay.
+ */
+function pedirPantallaCompletaIPhone(video: HTMLVideoElement | null): void {
+  const nativo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+  if (!nativo?.webkitEnterFullscreen) return;
+
+  if (nativo.readyState >= 1) {
+    nativo.webkitEnterFullscreen();
+    return;
+  }
+  nativo.addEventListener("loadedmetadata", () => nativo.webkitEnterFullscreen?.(), { once: true });
 }
 
 /**
@@ -240,7 +246,7 @@ async function pedirPantallaCompleta(video: HTMLVideoElement | null) {
  * Deliberadamente **no** incluye el iPad: ahí la Fullscreen API sí funciona
  * sobre elementos normales, y usar el reproductor del sistema sacrificaría
  * nuestros controles sin ganar nada. Y el iPad moderno se anuncia como
- * "Macintosh", así que buscarlo por nombre tampoco funcionaría.
+ * "Macintosh", así que buscarlo por nombre tampoco serviría.
  */
 function esIPhone(): boolean {
   return /iPhone|iPod/.test(navigator.userAgent);
