@@ -589,6 +589,18 @@
   isolation: isolate;
 }
 
+/*
+   La imagen no termina: **se disuelve**.
+
+   Antes acababa en un borde recto y debajo empezaba el negro, que es lo que
+   delata que hay una foto pegada sobre un fondo. Con una máscara de opacidad
+   el propio píxel de la imagen se va apagando, así que no hay borde que ver —
+   es lo que hace la app de Apple TV, y la diferencia entre «una web con una
+   foto» y «una portada».
+
+   Van dos máscaras multiplicadas: una vertical, que apaga el pie, y una
+   horizontal, que aclara el lado del texto. `mask-composite: intersect` es lo
+   que las combina; sin él solo se aplicaría la última. */
 .hero-arte {
   position: absolute;
   inset: 0;
@@ -597,6 +609,26 @@
   height: 100%;
   object-fit: cover;
   object-position: center 18%;
+
+  --disolver-abajo: linear-gradient(
+    180deg,
+    #000 0%,
+    #000 42%,
+    rgba(0, 0, 0, 0.85) 62%,
+    rgba(0, 0, 0, 0.35) 84%,
+    transparent 100%
+  );
+  --disolver-lado: linear-gradient(
+    90deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.85) 26%,
+    #000 55%
+  );
+
+  -webkit-mask-image: var(--disolver-abajo), var(--disolver-lado);
+  mask-image: var(--disolver-abajo), var(--disolver-lado);
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
 }
 
 /* Dos degradados, no una capa gris encima.
@@ -609,9 +641,14 @@
   position: absolute;
   inset: 0;
   z-index: -1;
-  background:
-    linear-gradient(0deg, var(--bg) 2%, rgba(0, 0, 0, 0.72) 32%, transparent 72%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.42) 42%, transparent 78%);
+  /* Ahora que la imagen se disuelve sola, esto solo asegura contraste bajo el
+     texto. Antes tenía que oscurecer mucho para tapar el corte recto. */
+  background: linear-gradient(
+    100deg,
+    rgba(0, 0, 0, 0.72) 0%,
+    rgba(0, 0, 0, 0.3) 45%,
+    transparent 75%
+  );
 }
 
 .hero-copy {
@@ -892,17 +929,42 @@
   display: none;
 }
 
+/* El chip lleva dentro el nombre y el recuento, en dos elementos. Sin `gap`
+   salían pegados —«Infantil297»— porque no hay espacio en el HTML entre ellos:
+   ponerlo con un espacio en el texto habría sido inventar contenido. */
 .livetv-cats button {
   flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 8px 0 16px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
   font-size: clamp(13px, 0.92vw, 16px);
   white-space: nowrap;
+  transition: background-color 160ms var(--ease), color 160ms var(--ease),
+    border-color 160ms var(--ease);
+}
+
+/* El recuento, en su propia cápsula: es un dato, no parte del nombre. */
+.livetv-cats button em {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--chip);
+  font-style: normal;
+  font-size: 0.82em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--soft);
   transition: background-color 160ms var(--ease), color 160ms var(--ease);
+}
+
+.livetv-cats button:hover {
+  border-color: var(--line-bright);
+  color: var(--text);
 }
 
 .livetv-cats button.is-active {
@@ -910,6 +972,11 @@
   border-color: #fff;
   color: #000;
   font-weight: 600;
+}
+
+.livetv-cats button.is-active em {
+  background: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.62);
 }
 
 .livetv-list {
@@ -1359,32 +1426,65 @@
     display: flex;
     justify-content: space-around;
     align-items: stretch;
-    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
-    background: var(--glass);
-    backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    gap: 2px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    /* Más opaca y más desenfocada que antes: por debajo pasan carátulas
+       claras, y con el cristal flojo las etiquetas se perdían encima. */
+    background: rgba(16, 16, 18, 0.86);
+    backdrop-filter: saturate(180%) blur(28px);
+    -webkit-backdrop-filter: saturate(180%) blur(28px);
     border-top: 1px solid var(--line);
+    /* Una línea de luz en el borde superior, como el cristal de iOS. */
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -12px 30px rgba(0, 0, 0, 0.5);
   }
 
   /* 44px es el mínimo que recomiendan Apple y las pautas WCAG para algo que se
      pulsa con el dedo. Con cinco destinos más «Más», cada casilla queda en
      ~65px en un iPhone: entra la etiqueta entera y sobra aire. */
   .mobile-nav-item {
+    position: relative;
     flex: 1;
     min-width: 0;
-    min-height: 48px;
+    min-height: 50px;
     display: grid;
     justify-items: center;
     align-content: center;
     gap: 3px;
-    padding: 4px 2px;
+    padding: 6px 2px;
     border: 0;
+    border-radius: 14px;
     background: transparent;
     color: var(--soft);
     font-size: 11px;
     font-weight: 500;
     line-height: 1.15;
     text-align: center;
+    transition: color 180ms var(--ease), background-color 180ms var(--ease),
+      transform 140ms var(--ease);
+  }
+
+  /* Respuesta al toque: se hunde un poco, como un botón de verdad. Es lo que
+     sustituye al destello que se acaba de quitar. */
+  .mobile-nav-item:active {
+    transform: scale(0.93);
+    background: var(--chip);
+  }
+
+  .mobile-nav-item.is-active {
+    color: var(--text);
+    background: var(--chip);
+  }
+
+  /* El punto del destino activo. Un fondo relleno a lo ancho de la casilla se
+     comía la etiqueta; un punto de 4px se ve al instante y no estorba. */
+  .mobile-nav-item.is-active::after {
+    content: "";
+    position: absolute;
+    bottom: 2px;
+    width: 4px;
+    height: 4px;
+    border-radius: 999px;
+    background: currentColor;
   }
 
   .mobile-nav-item svg {
@@ -1397,10 +1497,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .mobile-nav-item.is-active {
-    color: var(--text);
   }
 
   /* ── El panel «Más» ──────────────────────────────────────────────────

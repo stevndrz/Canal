@@ -171,6 +171,21 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
   const focusFirst = useCallback(() => {
     const root = rootRef.current;
     if (!root) return;
+
+    /**
+     * En una pantalla táctil, no.
+     *
+     * Esto existe para el mando: sin nada enfocado, las flechas no tienen
+     * desde dónde partir. En un teléfono no hay flechas, y lo único que se
+     * consigue es dibujar un recuadro blanco alrededor del primer destino
+     * nada más abrir la app — que es exactamente lo que se veía y parecía un
+     * fallo de pintado.
+     *
+     * Se comprueba el tipo de puntero y no el ancho: un televisor con
+     * mando-puntero es «coarse» y ahí el anillo tampoco ayuda, mientras que
+     * una ventana estrecha en un ordenador sí lo necesita.
+     */
+    if (window.matchMedia?.("(pointer: coarse)").matches) return;
     const active = document.activeElement as HTMLElement | null;
     if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
     const candidates = collect(root);

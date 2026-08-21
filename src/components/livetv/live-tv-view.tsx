@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
+import { describirCanal } from "@/lib/describir-canal";
 import { ChannelRow } from "./channel-row";
 
 /**
@@ -258,9 +259,11 @@ export function LiveTvView({
                   )}
                 </div>
               ) : (
-                <p className="livetv-detail-empty">
-                  Este canal no tiene guía de programación.
-                </p>
+                /* Sin guía, el panel cuenta lo que sí se sabe del canal en vez
+                   de quedarse en «no hay datos» y dejar la columna vacía. Todo
+                   se deriva en el cliente: cero peticiones, cero bytes de más
+                   en los 7.822 canales que viajan en el HTML. */
+                <AcercaDelCanal canal={canal} />
               )}
 
               {canal.nextProgram && (
@@ -297,6 +300,34 @@ export function LiveTvView({
           )}
         </aside>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Qué es este canal, cuando no hay guía que contar.
+ *
+ * Es lo que ocupa la columna de detalle en la mayoría de los casos: casi
+ * ninguna lista M3U pública trae EPG, así que antes ahí solo se leía «Este
+ * canal no tiene guía de programación» y debajo, nada.
+ */
+function AcercaDelCanal({ canal }: { canal: Channel }) {
+  const { descripcion, datos } = describirCanal(canal);
+
+  return (
+    <div className="livetv-acerca">
+      <p className="livetv-acerca-texto">{descripcion}</p>
+
+      <dl className="livetv-acerca-datos">
+        {datos.map(({ termino, valor }) => (
+          <div key={termino}>
+            <dt>{termino}</dt>
+            <dd>{valor}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="livetv-acerca-nota">Este canal no publica guía de programación.</p>
     </div>
   );
 }

@@ -124,57 +124,119 @@ function extractTitle(inner: string): string {
 }
 
 // Formato XMLTV: YYYYMMDDHHmmss seguido de un offset opcional (+HHMM/-HHMM).
+/**
+ * Una marca de tiempo de XMLTV a milisegundos.
+ *
+ * El formato es `20260821183000 -0600`: catorce dígitos y, opcionalmente, un
+ * desfase horario. Sin desfase se interpreta como UTC, que es lo que hacen los
+ * lectores de XMLTV cuando la guía no lo dice.
+ */
 function parseXmltvTime(value: string): number | null {
   const match = value.trim().match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?$/);
   if (!match) return null;
+
   const [, y, mo, d, h, mi, s, tz] = match;
-  const asUtcMs = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
-  if (!tz) return asUtcMs;
-  const sign = tz[0] === "-" ? -1 : 1;
-  const offsetMinutes = sign * (Number(tz.slice(1, 3)) * 60 + Number(tz.slice(3, 5)));
-  return asUtcMs - offsetMinutes * 60_000;
+  const enUtc = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s));
+  return enUtc - desfaseEnMs(tz);
 }
 
+/** `-0600` → -21.600.000 ms. Sin desfase, cero. */
+function desfaseEnMs(tz: string | undefined): number {
+  if (!tz) return 0;
+  const signo = tz[0] === "-" ? -1 : 1;
+  const minutos = Number(tz.slice(1, 3)) * 60 + Number(tz.slice(3, 5));
+  return signo * minutos * 60_000;
+}
 
+/**
+ * Interpreta una guía XMLTV.
+ *
+ * Se apoya en dos pasadas separadas porque son dos trabajos distintos:
+ * la primera construye el índice de **nombre → id** y la segunda la lista de
+ * programas por canal. Estaban juntas en una sola función con dos bucles
+ * anidados —lo que CodeScene llama *Bumpy Road*— y para entender cualquiera de
+ * las dos había que leer las dos.
+ *
+ * Con expresiones regulares y no con un analizador de XML a propósito: estas
+ * guías pesan decenas de megabytes y montar un DOM entero para sacar cuatro
+ * atributos por nodo costaría más memoria de la que tiene un televisor.
+ */
 export function parseXmltv(xml: string): EpgGuide {
-  const programmesByChannel: EpgByChannel = new Map();
-  const idByName = new Map<string, string>();
+  return {
+    idByName: indexarCanales(xml),
+    programmesByChannel: indexarProgramas(xml),
+  };
+}
 
-  const channelRe = /<channel([^>]*)>([\s\S]*?)<\/channel>/g;
-  let channelMatch: RegExpExecArray | null;
-  let channelCount = 0;
-  while (channelCount < MAX_CHANNELS && (channelMatch = channelRe.exec(xml))) {
-    channelCount++;
-    const [, attrs, inner] = channelMatch;
-    const id = getAttr(attrs, "id")?.trim();
+/**
+ * Nombre normalizado → id de canal.
+ *
+ * Hace falta porque la mayoría de listas M3U públicas no traen `tvg-id`, así
+ * que la única forma de emparejar un canal con su guía es por el nombre.
+ * **Gana el primero**: una guía puede declarar varios `display-name` para el
+ * mismo canal, y el primero es el principal.
+ */
+function indexarCanales(xml: string): Map<string, string> {
+  const idPorNombre = new Map<string, string>();
+  const canalRe = /<channel([^>]*)>([\s\S]*?)<\/channel>/g;
+  let canal: RegExpExecArray | null;
+  let vistos = 0;
+
+  while (vistos < MAX_CHANNELS && (canal = canalRe.exec(xml))) {
+    vistos++;
+    const [, atributos, interior] = canal;
+    const id = getAttr(atributos, "id")?.trim();
     if (!id) continue;
 
-    const displayNameRe = /<display-name[^>]*>([\s\S]*?)<\/display-name>/g;
-    let nameMatch: RegExpExecArray | null;
-    while ((nameMatch = displayNameRe.exec(inner))) {
-      const normalized = normalizeChannelName(decodeXmlEntities(nameMatch[1]));
-      if (normalized && !idByName.has(normalized)) idByName.set(normalized, id);
+    const nombreRe = /<display-name[^>]*>([\s\S]*?)<\/display-name>/g;
+    let nombre: RegExpExecArray | null;
+    while ((nombre = nombreRe.exec(interior))) {
+      const clave = normalizeChannelName(decodeXmlEntities(nombre[1]));
+      if (clave && !idPorNombre.has(clave)) idPorNombre.set(clave, id);
     }
   }
 
-  const programmeRe = /<programme([^>]*)>([\s\S]*?)<\/programme>/g;
-  let match: RegExpExecArray | null;
-  let count = 0;
-  while (count < MAX_PROGRAMMES && (match = programmeRe.exec(xml))) {
-    count++;
-    const [, attrs, inner] = match;
-    const channelId = getAttr(attrs, "channel")?.trim().toLowerCase();
-    const start = parseXmltvTime(getAttr(attrs, "start") ?? "");
-    const stop = parseXmltvTime(getAttr(attrs, "stop") ?? "");
-    const title = extractTitle(inner);
-    if (!channelId || start == null || stop == null || !title) continue;
+  return idPorNombre;
+}
 
-    const list = programmesByChannel.get(channelId);
-    if (list) list.push({ title, start, stop });
-    else programmesByChannel.set(channelId, [{ title, start, stop }]);
+/** Id de canal → sus programas, descartando los que estén incompletos. */
+function indexarProgramas(xml: string): EpgByChannel {
+  const porCanal: EpgByChannel = new Map();
+  const programaRe = /<programme([^>]*)>([\s\S]*?)<\/programme>/g;
+  let programa: RegExpExecArray | null;
+  let vistos = 0;
+
+  while (vistos < MAX_PROGRAMMES && (programa = programaRe.exec(xml))) {
+    vistos++;
+    const entrada = leerPrograma(programa[1], programa[2]);
+    if (!entrada) continue;
+
+    const lista = porCanal.get(entrada.canalId);
+    if (lista) lista.push(entrada.programa);
+    else porCanal.set(entrada.canalId, [entrada.programa]);
   }
 
-  return { programmesByChannel, idByName };
+  return porCanal;
+}
+
+/**
+ * Un `<programme>`, o `null` si le falta algo imprescindible.
+ *
+ * Sin canal, sin horas o sin título no se puede pintar nada: se descarta en
+ * vez de guardar una entrada a medias que luego habría que comprobar en cada
+ * sitio donde se lee.
+ */
+function leerPrograma(
+  atributos: string,
+  interior: string
+): { canalId: string; programa: EpgProgramme } | null {
+  const canalId = getAttr(atributos, "channel")?.trim().toLowerCase();
+  const start = parseXmltvTime(getAttr(atributos, "start") ?? "");
+  const stop = parseXmltvTime(getAttr(atributos, "stop") ?? "");
+  const title = extractTitle(interior);
+
+  if (!canalId || start == null || stop == null || !title) return null;
+  return { canalId, programa: { title, start, stop } };
 }
 
 function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): EpgProgramme[] | null {

@@ -12,7 +12,8 @@ import StreamPlayer, {
   type StreamPlayerHandle,
   type StreamPlayerState,
 } from "@/components/stream-player";
-import { channelMark, stepChannel } from "@/lib/channels";
+import { stepChannel } from "@/lib/channels";
+import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useCast } from "@/hooks/use-cast";
 
@@ -54,7 +55,6 @@ export function FullscreenPlayer({
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const guideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const railRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
 
@@ -131,19 +131,6 @@ export function FullscreenPlayer({
       if (guideTimer.current) clearTimeout(guideTimer.current);
     };
   }, [channel.id, wake]);
-
-  // Mantén el canal sintonizado a la vista dentro de la guía.
-  useEffect(() => {
-    if (!showGuide) return;
-    const rail = railRef.current;
-    const active = rail?.querySelector<HTMLElement>(`[data-guide-id="${channel.id}"]`);
-    if (rail && active) {
-      const ar = active.getBoundingClientRect();
-      const rr = rail.getBoundingClientRect();
-      if (ar.left < rr.left + 28) rail.scrollLeft += ar.left - rr.left - 28;
-      else if (ar.right > rr.right - 28) rail.scrollLeft += ar.right - rr.right + 28;
-    }
-  }, [showGuide, channel.id]);
 
   // El mando manda: ↑↓ zapea, OK abre la guía, Atrás sale.
   useEffect(() => {
@@ -287,45 +274,14 @@ export function FullscreenPlayer({
 
       {/* Guía: la cuadrícula vuelve como overlay translúcido, sin salir del vivo */}
       {showGuide && (
-        <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-app/92 via-app/55 to-transparent pt-6 pb-32 backdrop-blur-xl">
-          <div className="tv-safe flex items-baseline justify-between gap-4 pb-4">
-            <span className="text-xs uppercase tracking-[0.16em] text-zinc-100/55">
-              {playlist.length} canales
-            </span>
-            <span className="text-[13px] text-zinc-100/40">← → recorrer · OK sintonizar</span>
-          </div>
-
-          <div ref={railRef} className="scroll-none tv-safe flex gap-3.5 overflow-x-auto py-1.5">
-            {playlist.map((item) => {
-              const tuned = item.id === channel.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  data-guide-id={item.id}
-                  onClick={() => {
-                    onTune(item);
-                    openGuide();
-                  }}
-                  style={{ flex: "0 0 196px", width: 196 }}
-                  className={`rounded-tile text-left ${
-                    tuned ? "outline outline-[3px] outline-offset-4 outline-accent" : ""
-                  }`}
-                >
-                  <div className="relative grid aspect-video place-items-center overflow-hidden rounded-xl border border-white/[0.09] bg-surface-2/90">
-                    <span className="text-2xl font-bold text-zinc-100/40">
-                      {channelMark(item)}
-                    </span>
-                    <span className="absolute left-2.5 top-1.5 font-mono text-[11px] text-zinc-100/45">
-                      {item.number}
-                    </span>
-                  </div>
-                  <p className="mt-2 truncate px-0.5 text-sm font-medium">{item.name}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        <GuiaCanales
+          playlist={playlist}
+          channelId={channel.id}
+          onTune={(canal) => {
+            onTune(canal);
+            openGuide();
+          }}
+        />
       )}
 
       {/* Aviso de fallo al transmitir. Antes solo se veía en la consola del

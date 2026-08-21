@@ -65,6 +65,19 @@
     overscroll-behavior: none;
   }
 
+  /**
+   * El destello gris al tocar, fuera.
+   *
+   * Es la «caja blanca» que aparece un instante antes de que reaccione el
+   * botón en un teléfono: `-webkit-tap-highlight-color` pinta un rectángulo
+   * sobre el área táctil, sin respetar el `border-radius`, así que en una
+   * píldora sale un cuadrado. Se quita en todo el documento y cada control
+   * pone su propia respuesta al toque, que además llega antes.
+   */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   button { cursor: pointer; font: inherit; }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
@@ -578,11 +591,21 @@ html[data-player="on"] body {
   gap: 12px;
   flex: 1;
   min-width: 0;
-  min-height: 54px;
-  padding: 0 18px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  min-height: 52px;
+  padding: 0 20px;
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
   border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
+  /* Cristal y no un gris plano: debajo pasa el degradado del hero, y un
+     relleno opaco lo cortaba en seco. */
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: border-color 180ms var(--ease-native), background-color 180ms var(--ease-native);
+}
+
+.catalogo-buscador-campo:focus-within {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: rgba(255, 255, 255, 0.09);
 }
 
 .catalogo-buscador-campo:focus-within {
@@ -1289,13 +1312,18 @@ html[data-player="on"] body {
    Y las dos filas se salían por la derecha. Los géneros de TMDB son veinte y
    pico; en cualquier pantalla sobran, así que la fila scrollea en horizontal
    en vez de recortarse. */
+/* Los géneros de TMDB son veinte y pico: la fila scrollea en horizontal en
+   vez de recortarse. La máscara del borde derecho es lo que dice que hay más
+   —sin ella, la fila parece que se acaba justo donde acaba la pantalla. */
 .catalogo-filtros {
   display: flex;
   gap: 8px;
-  padding: 2px var(--margen) 10px;
-  margin-bottom: 6px;
+  padding: 2px var(--margen) 12px;
+  margin-bottom: 4px;
   overflow-x: auto;
   scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 60px), transparent 100%);
+  mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 60px), transparent 100%);
   overscroll-behavior-inline: contain;
 }
 
@@ -1303,33 +1331,40 @@ html[data-player="on"] body {
   display: none;
 }
 
+/* Mismo lenguaje que los chips de Canales: apagados y sin relleno en reposo,
+   blancos al estar activos. Antes iban rellenos de gris, así que veinte
+   géneros seguidos formaban una barra sólida donde no se distinguía el
+   elegido. */
 .catalogo-chip {
   flex-shrink: 0;
   min-height: 44px;
-  padding: 0 clamp(13px, 1vw, 20px);
+  padding: 0 clamp(14px, 1.1vw, 20px);
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
   border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.07));
-  color: var(--muted, rgba(255, 255, 255, 0.7));
+  background: transparent;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
   font-size: clamp(13px, 0.92vw, 16px);
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   white-space: nowrap;
-  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
+  transition: background-color 160ms var(--ease-native), color 160ms var(--ease-native),
+    border-color 160ms var(--ease-native);
 }
 
 .catalogo-chip:hover,
 .catalogo-chip:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
-  color: #fff;
-  transform: scale(1.03);
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: var(--chip, rgba(245, 245, 247, 0.1));
+  color: var(--text, #f5f5f7);
 }
 
 .catalogo-chip.is-active {
   background: #fff;
-  border-color: transparent;
-  color: #0a0a0a;
+  border-color: #fff;
+  color: #000;
+  font-weight: 600;
 }
 
 /* ── El scroll de la rueda en escritorio ─────────────────────────────
@@ -1355,6 +1390,167 @@ body {
    pasa a ser suyo, y la vista que va debajo deja de reservarlo: si no, entre el
    reproductor y el primer riel quedaba el doble de aire que en cualquier otra
    pantalla. */
+
+/* ── Acerca del canal, cuando no hay guía ────────────────────────────
+   Es lo que ocupa el panel de detalle en la mayoría de los casos: casi ninguna
+   lista M3U pública trae EPG. */
+.livetv-acerca {
+  display: grid;
+  gap: clamp(12px, 1.6vh, 18px);
+}
+
+.livetv-acerca-texto {
+  margin: 0;
+  font-size: clamp(13px, 0.98vw, 16px);
+  line-height: 1.55;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.livetv-acerca-datos {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--line, rgba(245, 245, 247, 0.14));
+}
+
+/* Cada fila es dato a la izquierda, valor a la derecha. El fondo del contenedor
+   asoma por el `gap` de 1px y hace de separador: una línea por fila sin
+   tener que dibujar bordes y luego quitarle el de la última. */
+.livetv-acerca-datos > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  background: var(--bg-card, #101012);
+}
+
+.livetv-acerca-datos dt {
+  font-size: clamp(11px, 0.8vw, 13px);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft, rgba(245, 245, 247, 0.46));
+}
+
+.livetv-acerca-datos dd {
+  margin: 0;
+  font-size: clamp(13px, 0.95vw, 15px);
+  font-weight: 500;
+  text-align: right;
+  color: var(--text, #f5f5f7);
+}
+
+.livetv-acerca-nota {
+  margin: 0;
+  font-size: clamp(11px, 0.82vw, 13px);
+  color: var(--faint, rgba(245, 245, 247, 0.28));
+}
+
+/* ── La guía de canales del reproductor ──────────────────────────────
+   Asoma por abajo sobre el vídeo, así que su fondo tiene que apoyar el texto
+   sin tapar la imagen: degradado, no panel opaco. */
+.guia {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 20;
+  padding: clamp(16px, 2.4vh, 28px) 0 clamp(96px, 13vh, 150px);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 30%, rgba(0, 0, 0, 0.6) 70%, transparent);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  animation: cc-entrar 220ms var(--ease, ease) both;
+}
+
+.guia-cabecera {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: clamp(10px, 1.4vh, 16px);
+  font-size: clamp(11px, 0.82vw, 14px);
+  color: var(--soft, rgba(245, 245, 247, 0.46));
+}
+
+.guia-tira {
+  display: flex;
+  gap: clamp(10px, 1vw, 16px);
+  overflow-x: auto;
+  padding: 6px 0 10px;
+  scroll-snap-type: x proximity;
+}
+
+.guia-canal {
+  flex: 0 0 clamp(140px, 13vw, 200px);
+  width: clamp(140px, 13vw, 200px);
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  scroll-snap-align: center;
+}
+
+.guia-canal-arte {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio-tarjeta, 12px);
+  overflow: hidden;
+  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
+  transition: transform 200ms var(--ease, ease), box-shadow 200ms var(--ease, ease);
+}
+
+.guia-canal-arte img {
+  max-width: 68%;
+  max-height: 68%;
+  object-fit: contain;
+}
+
+.guia-canal-arte b {
+  font-size: clamp(18px, 1.8vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: rgba(255, 255, 255, 0.34);
+}
+
+.guia-canal-arte em {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-style: normal;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.guia-canal p {
+  margin: 0;
+  font-size: clamp(12px, 0.9vw, 15px);
+  font-weight: 500;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El sintonizado y el enfocado usan el mismo realce que las tarjetas del
+   resto de la app: crecer y rodearse de blanco. */
+.guia-canal.is-active .guia-canal-arte,
+.guia-canal:hover .guia-canal-arte,
+.guia-canal:focus-visible .guia-canal-arte,
+[data-input="dpad"] .guia-canal:focus .guia-canal-arte {
+  transform: scale(1.05);
+  box-shadow: var(--foco-borde, 0 0 0 4px #fff), var(--foco-sombra, 0 20px 44px rgba(0, 0, 0, 0.7));
+}
+
+.guia-canal.is-active p,
+.guia-canal:hover p {
+  color: var(--text, #f5f5f7);
+}
 
 /* ── Ajustes ─────────────────────────────────────────────────────────
    Su encabezado era un `<h1>` suelto con clases propias: el único de la app

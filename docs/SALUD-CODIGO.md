@@ -32,7 +32,38 @@ anidamiento y número de condicionales por archivo.
 
 ---
 
-## Los tres hotspots, calculados
+## Corrección: el panel sí traía la lista, y yo me equivoqué
+
+El panel de CodeScene —no el PDF— sí publica los hotspots por archivo. Con esa
+lista delante, **mi identificación del peor archivo era incorrecta**:
+
+| Archivo | Salud | Olores que marca CodeScene | Commits |
+|---|---|---|---|
+| **`epg.ts`** | **7,65** | Bumpy Road · Many Conditionals · Complex Method · Complex Conditional | 6 |
+| `fullscreen-player.tsx` | 8,29 | Bumpy Road · Complex Method · Large Method | 9 |
+| `stream-player.tsx` | 8,64 | Bumpy Road · Complex Method · Large Method | 9 |
+| `m3u.ts` | 8,75 | Many Conditionals · Complex Method | 19 |
+| `tmdb.ts` | 8,92 | Many Conditionals · Complex Method | 7 |
+| `dashboard.tsx` | 9,69 | Complex Method | 27 |
+| `catalog.ts` | 9,69 | Complex Method | 5 |
+
+Yo había apostado por `title-detail.tsx` como el 7,3, razonando que era el
+archivo más largo y más anidado. **Era `epg.ts`**, que tiene la mitad de líneas.
+
+La lección importa para la próxima vez: el modelo de CodeScene **no premia que
+un archivo sea corto**. `epg.ts` tenía 157 líneas y la peor nota del proyecto
+porque `parseXmltv` metía dos bucles con expresiones regulares, cada uno con
+sus condicionales dentro, en una sola función — el patrón que llaman *Bumpy
+Road*: varios «baches» de lógica anidada seguidos. Mi métrica casera medía
+tamaño y profundidad máxima, y eso no lo detecta.
+
+Dicho esto, partir `title-detail.tsx` no fue trabajo perdido: **ya no aparece
+en la lista de hotspots**, y `dashboard.tsx` cerró en 9,69 (Healthy) con 261
+LoC después de sacarle el conmutador de vistas.
+
+---
+
+## Los tres hotspots que yo había calculado (y por qué fallé)
 
 Medido el 21 de agosto de 2026 sobre 63 commits de historia:
 
@@ -43,10 +74,10 @@ Medido el 21 de agosto de 2026 sobre 63 commits de historia:
 | 3 | `components/stream-player.tsx` | 386 | 8 | 11 | 638 |
 | 4 | `components/catalog/title-detail.tsx` | **466** | **14** | 7 | 336 |
 
-`title-detail.tsx` aparece cuarto por índice pero era **casi con seguridad el
-7,3 del informe**: un solo componente de 388 líneas con catorce niveles de
-anidamiento. El índice lo subestima porque se toca poco… precisamente porque da
-miedo tocarlo.
+De aquí salió mi apuesta equivocada. La métrica casera mide **tamaño y
+profundidad máxima**, y ninguna de las dos ve el patrón que de verdad hunde la
+nota: varias secciones de lógica anidada seguidas dentro de una misma función,
+aunque cada una sea poco profunda.
 
 Funciones por encima de 50 líneas encontradas:
 
@@ -117,6 +148,14 @@ métricas de código y el más caro cuando alguien se va.
 Cómo se comprobó que no se rompió nada: `npm run verify` (42 pruebas) más la
 auditoría de Playwright sobre las 7 pantallas a 1920 y a 390 px.
 
+### Fase 1b — Hecha, ya con la lista real ✅
+
+| Qué | Resultado |
+|---|---|
+| **`epg.ts` (7,65)**: `parseXmltv` partido en `indexarCanales` + `indexarProgramas` + `leerPrograma`, y el desfase horario fuera de `parseXmltvTime` | Se ataca el *Bumpy Road* directamente: cada función hace un trabajo |
+| **`epg.ts` no tenía ni una prueba** | 12 pruebas, incluidas las rarezas reales: entidades XML, sufijo `@SD` del id, desfase horario y ausencia de él |
+| **`fullscreen-player.tsx` (8,29)**: la guía de canales sale a `player/guia-canales.tsx` con su propio efecto de scroll | 351 → 307 líneas, y una preocupación menos en el componente |
+
 ### Fase 2 — Lo siguiente, por orden de retorno
 
 1. **Extraer los hooks de `dashboard.tsx`.** Sigue siendo el hotspot número
@@ -128,9 +167,9 @@ auditoría de Playwright sobre las 7 pantallas a 1920 y a 390 px.
 
    Objetivo: por debajo de 150 líneas.
 
-2. **`fullscreen-player.tsx`: partir `onKeyDown` (202 líneas).** Un mapa de
-   `tecla → acción` en lugar de una cadena de `if`. Es la función más larga que
-   queda en el proyecto.
+2. **`stream-player.tsx` (8,64)** y lo que queda de `fullscreen-player.tsx`
+   (8,29). Los dos marcan *Large Method*: el componente entero. El siguiente
+   corte natural es sacar los controles y el Cast a sus propias piezas.
 
 3. **Unificar la clasificación de URLs.** `claseDeEmision` y `claseDeUrl` hacen
    lo mismo. Una sola función, un solo juego de pruebas.
