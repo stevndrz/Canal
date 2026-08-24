@@ -66,6 +66,17 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
   {
     // El «VIMEOS» de las webs latinas (vimeus.com): el que mejor funciona y
     // con doblaje latino. Solo películas: su ruta de series responde 404.
+    //
+    // Verificado 2026-08-24: /e/movie?tmdb=… → 200; series probadas sin
+    // éxito en TODAS las variantes (/e/tv, /e/tv?tmdb&season&episode,
+    // /e/series, /e/tv/{id}, /tv, /e/show) → 404. Mientras no publiquen la
+    // ruta real, `tv` queda vacío y en series el primero es VidSrc.
+    //
+    // NOTA sobre «Vimeos» (vimeos.net, el que usan sitios como lamovie.org):
+    // sus embeds son `embed-{hash}.html` con un código OPACO por
+    // título/episodio resuelto en su backend — no aceptan tmdb/season/
+    // episode, así que es imposible construirlos por plantilla. Sin
+    // integración posible como proveedor automático.
     id: "vimeus",
     movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
     tv: "",
@@ -84,6 +95,21 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     movie: "https://player.videasy.to/movie/{tmdbId}",
     tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: true,
+  },
+  {
+    // Cuarto y quinto: refuerzo para SERIES (verificados 2026-08-24, HTTP 200
+    // con GOT T1E1 en tv y película en movie). Sin parámetro de idioma
+    // verificado: el selector de audio/subs vive dentro de su propio player.
+    id: "vidlink",
+    movie: "https://vidlink.pro/movie/{tmdbId}",
+    tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}",
+    spanishSubtitles: false,
+  },
+  {
+    id: "multiembed",
+    movie: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1",
+    tv: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1&season={season}&episode={episode}",
+    spanishSubtitles: false,
   },
 ];
 

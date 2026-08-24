@@ -348,7 +348,10 @@
 .rail-strip {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: clamp(212px, 17.4vw, 330px);
+  /* Columna relativa a la CAJA FLUIDA (max-w-[1700px] menos px-12 → ~1604px
+     en pantallas grandes). Divisor 6: seis fichas enteras visibles en
+     escritorio ancho, cinco en portátiles y el piso de 150px protege móvil. */
+  grid-auto-columns: clamp(150px, calc((min(100vw, 1740px) - 96px) / 6), 250px);
   gap: clamp(14px, 1.1vw, 22px);
   overflow-x: auto;
   overscroll-behavior-inline: contain;
@@ -388,17 +391,22 @@
   transition: opacity 200ms var(--ease), transform 200ms var(--ease);
 }
 
+/* Dentro del padding del contenedor (px-4…lg:px-12): flotan sobre las
+   fichas pero JAMÁS se recortan contra el borde del viewport. */
 .rail-arrow-left {
-  left: calc(var(--margen) - 22px);
+  left: 8px;
 }
 
 .rail-arrow-right {
-  right: 10px;
+  right: 8px;
 }
 
-.rail:hover .rail-arrow.can-prev,
-.rail:hover .rail-arrow.can-next,
-.rail-arrow:focus-visible {
+/* Visibles siempre que haya hacia dónde ir.
+   ⚠️ Las clases can-prev/can-next las pone RailScroller en el CONTENEDOR
+   (.rail-scroll-shell), nunca en el botón: durante una tanda apuntamos al
+   combo equivocado y las flechas parecían no existir en ninguna dirección. */
+.rail-scroll-shell.can-prev .rail-arrow-left,
+.rail-scroll-shell.can-next .rail-arrow-right {
   opacity: 1;
 }
 
@@ -581,10 +589,10 @@
 
 .hero {
   position: relative;
-  display: flex;
-  align-items: flex-end;
-  min-height: min(78vh, 760px);
-  padding: clamp(28px, 6vh, 80px) var(--margen) clamp(24px, 4vh, 56px);
+  /* Fluido: ocupa el viewport que haya (mínimo 70vh) y el contenido se
+     ancla abajo; la caja de texto (max-w-[1700px]) manda los márgenes. */
+  min-height: 70vh;
+  padding: clamp(24px, 5vh, 64px) 0 clamp(24px, 5vh, 48px);
   overflow: hidden;
   isolation: isolate;
 }
@@ -592,15 +600,11 @@
 /*
    La imagen no termina: **se disuelve**.
 
-   Antes acababa en un borde recto y debajo empezaba el negro, que es lo que
-   delata que hay una foto pegada sobre un fondo. Con una máscara de opacidad
-   el propio píxel de la imagen se va apagando, así que no hay borde que ver —
-   es lo que hace la app de Apple TV, y la diferencia entre «una web con una
-   foto» y «una portada».
-
-   Van dos máscaras multiplicadas: una vertical, que apaga el pie, y una
-   horizontal, que aclara el lado del texto. `mask-composite: intersect` es lo
-   que las combina; sin él solo se aplicaría la última. */
+   La máscara vive ahora como estilo EN LÍNEA en el componente
+   (hero-destacado.tsx): `linear-gradient(to bottom, #000 60%, transparent
+   100%)`. Antes había aquí dos máscaras multiplicadas (vertical + lateral)
+   con mask-composite; se retiraron para que exista una sola fuente de
+   verdad y el fundido sea exactamente el especificado. */
 .hero-arte {
   position: absolute;
   inset: 0;
@@ -609,61 +613,26 @@
   height: 100%;
   object-fit: cover;
   object-position: center 18%;
-
-  --disolver-abajo: linear-gradient(
-    180deg,
-    #000 0%,
-    #000 42%,
-    rgba(0, 0, 0, 0.85) 62%,
-    rgba(0, 0, 0, 0.35) 84%,
-    transparent 100%
-  );
-  --disolver-lado: linear-gradient(
-    90deg,
-    rgba(0, 0, 0, 0.55) 0%,
-    rgba(0, 0, 0, 0.85) 26%,
-    #000 55%
-  );
-
-  -webkit-mask-image: var(--disolver-abajo), var(--disolver-lado);
-  mask-image: var(--disolver-abajo), var(--disolver-lado);
-  -webkit-mask-composite: source-in;
-  mask-composite: intersect;
 }
 
-/* Dos degradados, no una capa gris encima.
-   El vertical apoya el texto contra el borde inferior y funde el hero con el
-   primer riel; el horizontal oscurece solo el lado donde vive el texto. Una
-   capa uniforme apagaría la ilustración entera, que es justo lo que hay que
-   enseñar. */
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  /* Ahora que la imagen se disuelve sola, esto solo asegura contraste bajo el
-     texto. Antes tenía que oscurecer mucho para tapar el corte recto. */
-  background: linear-gradient(
-    100deg,
-    rgba(0, 0, 0, 0.72) 0%,
-    rgba(0, 0, 0, 0.3) 45%,
-    transparent 75%
-  );
-}
+/* El degradado del hero vive como overlay explícito en el componente
+   (hero-destacado.tsx): una sola capa, sin dobles fundidos. La sección de
+   debajo entra con -mt-12 sobre su borde, cubriendo la costura. */
 
+/* El texto vive en la misma caja fluida que los rieles (max-w-[1700px]). */
 .hero-copy {
-  /* Ancho de lectura. A 1920px una sinopsis a todo lo ancho son líneas de 200
-     caracteres que la vista no sabe seguir de vuelta. */
-  max-width: min(56ch, 62%);
   min-width: 0;
 }
 
 .hero-titulo {
   margin: 0;
-  font-size: clamp(34px, 4.6vw, 84px);
-  font-weight: 700;
-  line-height: 1.02;
-  letter-spacing: -0.035em;
+  /* text-3xl md:text-5xl: 30px en móvil, 48px en pantallas grandes. Iba
+     hasta 84px y con el héroe ya acotado se comía la cabecera entera. */
+  font-size: clamp(30px, 3.4vw, 48px);
+  font-weight: 800;
+  max-width: 42rem; /* max-w-2xl */
+  line-height: 1.05;
+  letter-spacing: -0.025em;
   color: #fff;
   text-wrap: balance;
 }
@@ -717,14 +686,16 @@
 }
 
 .hero-sinopsis {
-  margin: clamp(12px, 1.8vh, 22px) 0 0;
-  font-size: clamp(14px, 1.1vw, 19px);
+  margin: 0.75rem 0;
+  font-size: clamp(14px, 1vw, 16px);
   line-height: 1.55;
-  color: var(--muted);
+  color: #d4d4d4; /* neutral-300 */
+  max-width: 36rem; /* max-w-xl */
   /* Tres líneas y el resto en la ficha: la sinopsis completa de una serie
      larga empujaría los botones fuera de la pantalla. */
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

@@ -126,4 +126,10 @@ export interface ResolvedEpisode {
 export interface CatalogSection {
   title: string;
   items: ResolvedCatalogItem[];
+  /**
+   * Enlace a la cuadrilla completa de esta fila (`?tipo=…&genero=…`), cuando la
+   * fila corresponde a un filtro real del catálogo. Las colecciones escritas a
+   * mano no lo traen: su título queda como texto, no como enlace.
+   */
+  href?: string;
 }

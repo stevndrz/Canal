@@ -7,7 +7,7 @@ import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
 import { getCatalogSections } from "@/lib/catalog/catalog";
-import { fetchFiltered, searchCatalogPagina } from "@/lib/catalog/discover";
+import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 export const dynamic = "force-dynamic";
@@ -15,17 +15,31 @@ export const dynamic = "force-dynamic";
 export default async function MoviesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; tipo?: string; genero?: string; pagina?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    tipo?: string;
+    genero?: string;
+    pagina?: string;
+    orden?: string;
+  }>;
 }) {
-  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam } = await searchParams;
+  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam, orden: ordenParam } =
+    await searchParams;
   const query = q?.trim() ?? "";
-  const searching = query.length > 0;
 
-  const tipo: MediaFilter =
-    tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
+  const tipo: MediaFilter = tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
   const generoId = Number(generoParam);
   const genero = Number.isInteger(generoId) && generoId > 0 ? generoId : null;
-  const filtrando = !searching && (tipo !== "todo" || genero !== null);
+
+  /**
+   * Criterio de orden. «Populares» es el cero de la escala: con él la portada
+   * muestra las filas curadas de siempre. Cualquier otro criterio —o un
+   * filtro— cambia la vista a una cuadrilla servida por discover.
+   */
+  const orden: OrdenCatalogo =
+    ordenParam === "top" || ordenParam === "recientes" ? ordenParam : "populares";
+  const filtrando = tipo !== "todo" || genero !== null;
+  const enCuadricula = filtrando || orden !== "populares";
 
   /**
    * La página pedida, acotada.
@@ -36,31 +50,26 @@ export default async function MoviesPage({
    */
   const pagina = Math.min(Math.max(Number(paginaParam) || 1, 1), 500);
 
-  /** URL de otra página, conservando búsqueda y filtros. */
+  /** URL de otra página, conservando filtros y orden. */
   const enlacePagina = (n: number) => {
     const p = new URLSearchParams();
-    if (query) p.set("q", query);
     if (tipo !== "todo") p.set("tipo", tipo);
     if (genero) p.set("genero", String(genero));
+    if (orden !== "populares") p.set("orden", orden);
     if (n > 1) p.set("pagina", String(n));
     const cadena = p.toString();
     return cadena ? `/peliculas?${cadena}` : "/peliculas";
   };
 
-  // Solo se pide lo que se va a pintar: buscando o filtrando no hacen falta las
-  // diez filas del catálogo, que son diez peticiones a TMDB.
-  // Las dos listas de géneros, porque no coinciden: series no tiene Terror y su
-  // Acción es otro id. Se necesitan ambas para saber a qué tipo aplica el
-  // género elegido y para pintar los botones correctos.
-  const [rows, busqueda, generosPeli, generosSerie] = await Promise.all([
-    searching || filtrando ? Promise.resolve([]) : getCatalogSections(),
-    searching
-      ? searchCatalogPagina(query, pagina)
-      : Promise.resolve({ items: [], pagina, totalPaginas: 0 }),
+  // Solo se pide lo que se va a pintar: en modo cuadrilla no hacen falta las
+  // diez filas del catálogo, que son diez peticiones a TMDB. Las dos listas de
+  // géneros sí siempre: no coinciden entre tipos (series no tiene Terror) y
+  // alimentan tanto las píldoras como la validez del filtro aplicado.
+  const [rows, generosPeli, generosSerie] = await Promise.all([
+    enCuadricula ? Promise.resolve([]) : getCatalogSections(),
     fetchGenres("movie"),
     fetchGenres("tv"),
   ]);
-  const results = busqueda.items;
 
   const validos = {
     movie: new Set(generosPeli.map((g) => g.id)),
@@ -69,100 +78,86 @@ export default async function MoviesPage({
   // Con "todo" se ofrecen los de películas, que es el conjunto más completo y
   // el que la gente reconoce; al pasar a Series se cambian por los suyos.
   const generos = tipo === "tv" ? generosSerie : generosPeli;
-  const filtrado = filtrando
-    ? await fetchFiltered(tipo, genero, validos, pagina)
-    : { items: [], pagina, totalPaginas: 0 };
-  const filtrados = filtrado.items;
+  const cuadricula = enCuadricula
+    ? await fetchFiltered(tipo, genero, validos, pagina, orden)
+    : null;
   const tmdbReady = isTmdbConfigured();
 
   /**
-   * El título del hero: el primero de la primera fila **que tenga arte
-   * apaisado**. Sin esa condición salía el primero a secas y, cuando le
-   * faltaba el backdrop, la cabecera quedaba en un rectángulo negro con texto
-   * encima. Buscar uno con arte cuesta nada y no falla nunca.
+   * El héroe rota en cada visita: se elige al azar entre los diez primeros
+   * títulos con arte apaisado de las filas. Mostrar siempre el mismo
+   * convertía la cabecera en un mueble; el sorteo no cuesta ninguna petición
+   * extra — los candidatos ya estaban en `rows`.
    *
-   * Solo aparece en el catálogo, no al buscar ni al filtrar: ahí la respuesta
-   * a lo que se ha pedido son los resultados, y una cabecera de 78vh de otra
-   * película los empujaría fuera de la pantalla.
+   * Solo aparece en modo filas: en una cuadrilla la respuesta a lo pedido son
+   * los resultados, y una cabecera de 70vh los empujaría fuera.
    */
-  const destacado = rows.flatMap((fila) => fila.items).find((item) => item.backdrop) ?? null;
+  const candidatos = rows.flatMap((fila) => fila.items).filter((item) => item.backdrop).slice(0, 10);
+  // eslint-disable-next-line react-hooks/purity -- RSC: corre una vez por request.
+  const destacado = candidatos.length > 0 ? candidatos[Math.floor(Math.random() * candidatos.length)] : null;
+
+  /** El contenido bajo el buscador: filas curadas o cuadrilla + paginación. */
+  const contenido = cuadricula ? (
+    cuadricula.items.length > 0 ? (
+      <>
+        <CatalogGrid items={cuadricula.items} />
+        <Paginador pagina={cuadricula.pagina} totalPaginas={cuadricula.totalPaginas} href={enlacePagina} />
+      </>
+    ) : (
+      <EstadoVacio
+        Icono={SearchX}
+        titulo="Nada con esos filtros"
+        detalle="Prueba con otro género o cambia el tipo."
+      />
+    )
+  ) : rows.length > 0 ? (
+    <CatalogRows sections={rows} />
+  ) : (
+    <EstadoVacio
+      Icono={Clapperboard}
+      titulo="Tu catálogo está vacío"
+      detalle={
+        tmdbReady
+          ? "TMDB no respondió desde el servidor: revisa la consola de `next dev` y tu conexión. Reintenta recargando."
+          : "Añade títulos en src/data/catalog.json, o configura TMDB_API_KEY."
+      }
+    />
+  );
 
   return (
-    // `.app-shell` y `.screen`, las mismas piezas que usa el resto de la
-    // aplicación. Esta ruta vive fuera del App Shell —conserva sus URLs por
-    // título— pero eso no tiene por qué notarse: antes pintaba su propio fondo
-    // y su propia barra, y al entrar aquí la navegación desaparecía.
-    <div className="app-shell">
+    <div className="app-shell bg-black">
       <TopNav />
 
       {destacado && <HeroDestacado item={destacado} />}
 
       {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
-          borde y lo reserva ella. */}
+          borde y lo reserva ella. La caja centrada (max-w-7xl) vive dentro de
+          CatalogSearch y contiene buscador, orden, píldoras y carruseles. */}
       <div className={`screen tv-safe ${destacado ? "has-hero" : ""}`}>
-        <CatalogSearch query={query} />
+        {/* La búsqueda es reactiva en el cliente: mientras hay consulta,
+            sustituye a estos hijos servidos por el servidor; al vaciar el
+            campo, vuelven sin recargar nada. */}
+        <CatalogSearch initialQuery={query} orden={orden} conHero={Boolean(destacado)}>
+          {!tmdbReady && (
+            <p className="catalogo-aviso">
+              <Info aria-hidden="true" />
+              <span>
+                Falta <code>TMDB_API_KEY</code>: se ven solo los títulos escritos a mano en{" "}
+                <code>src/data/catalog.json</code>.
+              </span>
+            </p>
+          )}
 
-        {!tmdbReady && (
-          <p className="catalogo-aviso">
-            <Info aria-hidden="true" />
-            <span>
-              Falta <code>TMDB_API_KEY</code>: se ven solo los títulos escritos a mano en{" "}
-              <code>src/data/catalog.json</code>.
-            </span>
-          </p>
-        )}
-
-        {!searching && (
-          <CatalogFilters tipo={tipo} genero={genero} generos={generos} generosValidos={validos} />
-        )}
-
-        {filtrando ? (
-          filtrados.length > 0 ? (
-            <>
-              <CatalogGrid items={filtrados} />
-              <Paginador
-                pagina={filtrado.pagina}
-                totalPaginas={filtrado.totalPaginas}
-                href={enlacePagina}
-              />
-            </>
-          ) : (
-            <EstadoVacio
-              Icono={SearchX}
-              titulo="Nada con esos filtros"
-              detalle="Prueba con otro género o cambia el tipo."
-            />
-          )
-        ) : searching ? (
-          results.length > 0 ? (
-            <>
-              <section className="section-heading">
-                <h2>Resultados para «{query}»</h2>
-              </section>
-              <CatalogGrid items={results} />
-              <Paginador
-                pagina={busqueda.pagina}
-                totalPaginas={busqueda.totalPaginas}
-                href={enlacePagina}
-              />
-            </>
-          ) : (
-            <EstadoVacio
-              Icono={SearchX}
-              titulo={`Sin resultados para «${query}»`}
-              detalle="Prueba con menos palabras, o con el título original."
-              accion={{ href: "/peliculas", texto: "Volver al catálogo" }}
-            />
-          )
-        ) : rows.length > 0 ? (
-          <CatalogRows sections={rows} />
-        ) : (
-          <EstadoVacio
-            Icono={Clapperboard}
-            titulo="Tu catálogo está vacío"
-            detalle="Añade títulos en src/data/catalog.json, o configura TMDB_API_KEY."
+          <CatalogFilters
+            tipo={tipo}
+            genero={genero}
+            generos={generos}
+            generosValidos={validos}
+            orden={orden}
           />
-        )}
+
+          {contenido}
+        </CatalogSearch>
       </div>
     </div>
   );

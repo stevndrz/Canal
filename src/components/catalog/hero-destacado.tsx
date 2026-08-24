@@ -35,18 +35,52 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
   ].filter(Boolean) as string[];
 
   return (
-    <section className="hero" aria-labelledby="hero-titulo">
+    <section
+      className="hero w-full relative bg-black min-h-[70vh] flex flex-col justify-end pb-12"
+      aria-labelledby="hero-titulo"
+    >
       {arte && (
         // `<img>` y no `next/image`: el arte de TMDB ya viene dimensionado y
         // esta imagen es la primera que se ve, así que se pide sin diferir.
+        //
+        // Máscara de transparencia: el propio píxel de la imagen se apaga en
+        // el tramo final (60%→100%), así el banner se disuelve en el fondo
+        // sin que exista ningún borde recto que cortar.
         // eslint-disable-next-line @next/next/no-img-element
-        <img className="hero-arte" src={arte} alt="" fetchPriority="high" />
+        <img
+          className="hero-arte"
+          src={arte}
+          alt=""
+          fetchPriority="high"
+          style={{
+            WebkitMaskImage:
+              "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
+            maskImage:
+              "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
+          }}
+        />
       )}
 
-      <div className="hero-copy">
-        <h1 className="hero-titulo" id="hero-titulo">
-          {item.title}
-        </h1>
+      {/* Degradado a NEGRO PURO (#000), el mismo tono del fondo de la página:
+          era neutral-950 (#0a0a0a) y esa diferencia de 10 valores era la
+          línea horizontal entre el banner y el buscador. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none"
+      />
+
+      {/* Capa extra de fundido en la base: asegura negro sólido en los
+          últimos 128px, donde va a entrar solapada la caja del buscador. */}
+      <div
+        aria-hidden="true"
+        className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-black pointer-events-none"
+      />
+
+      <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 lg:px-12">
+        <div className="hero-copy relative z-10 pt-28 pb-20">
+          <h1 className="hero-titulo text-3xl md:text-5xl font-extrabold max-w-2xl" id="hero-titulo">
+            {item.title}
+          </h1>
 
         {item.tagline && <p className="hero-lema">{item.tagline}</p>}
 
@@ -62,7 +96,11 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
           ))}
         </div>
 
-        {item.overview && <p className="hero-sinopsis">{item.overview}</p>}
+        {item.overview && (
+          <p className="hero-sinopsis text-neutral-300 text-sm md:text-base max-w-xl line-clamp-3 my-3">
+            {item.overview}
+          </p>
+        )}
 
         <div className="hero-acciones">
           <Link href={ficha} className="primary" data-nav="button">
@@ -73,6 +111,7 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
             <Info aria-hidden="true" />
             Más info
           </Link>
+        </div>
         </div>
       </div>
     </section>

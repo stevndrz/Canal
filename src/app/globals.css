@@ -714,20 +714,44 @@ html[data-player="on"] body {
    Y debajo del vídeo había… nada. Había sitio de sobra para la sinopsis, el
    reparto y la ficha técnica, que es lo que se mira justo después de darle a
    reproducir. */
+/* Altura del hero de ficha, compartida con el reproductor: ambos la consultan
+   para que hero + vídeo quepan juntos en el primer viewport de cualquier
+   dispositivo. */
+:root {
+  /* El hero se queda con menos de la mitad del viewport para cederle el
+     resto al reproductor, que es lo primero que se quiere ver entero. */
+  --ficha-hero-h: clamp(380px, 42vh, 520px);
+}
+
 .ficha-portada {
   position: relative;
   background-size: cover;
   background-position: center 15%;
-  padding-top: calc(var(--topbar-h) + clamp(20px, 3vh, 40px));
-  padding-bottom: clamp(20px, 3vh, 40px);
+  /* Altura MÍNIMA, no fija: con título largos o pantallas bajas, el bloque
+     de datos crece; si la altura fuera fija, el texto desbordado quedaba
+     pintado por debajo, debajo del reproductor. */
+  min-height: var(--ficha-hero-h);
+  padding-top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
+  padding-bottom: clamp(16px, 3vh, 40px);
 }
 
-/* El velo va sobre el fondo, no sobre el contenido. */
+/* El velo va sobre el fondo, no sobre el contenido. Arranca ya ligeramente
+   oscurecido (8%) en vez de transparente: con imágenes muy claras o muy
+   oscuras, empezar en 0 hace que el punto donde "aparece" el degradado se
+   note como un salto; una base tenue lo disimula en cualquier paleta. */
 .ficha-portada::before {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 30%, #000 100%);
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.08) 0%,
+    rgba(0, 0, 0, 0.2) 42%,
+    rgba(0, 0, 0, 0.5) 70%,
+    rgba(0, 0, 0, 0.85) 88%,
+    #000 98%
+  );
 }
 
 .ficha-cabecera {
@@ -851,15 +875,25 @@ html[data-player="on"] body {
 }
 
 .ficha-cuerpo {
-  width: min(1200px, 100%);
+  /* Columna más ancha: el reproductor aprovecha mejor el horizontal en
+     pantallas grandes en vez de quedar acotado a 1200px. */
+  width: min(1440px, 100%);
   margin-inline: auto;
-  padding: clamp(20px, 3vh, 36px) var(--margen) clamp(40px, 6vh, 80px);
+  padding: clamp(12px, 2vh, 24px) var(--margen) clamp(40px, 6vh, 80px);
 }
 
 .ficha-reproductor {
-  width: min(100%, 116vh);
+  /* Ancho derivado de la altura libre bajo el hero (100vh − hero − aire para
+     el padding superior y la barra de servidores), de modo que el marco 16:9
+     entre completo en el primer pantallazo. Piso de 420px: en ventanas bajas
+     prefiere verse grande con un poco de scroll antes que diminuto. */
+  width: min(
+    100%,
+    116vh,
+    max(calc((100vh - var(--ficha-hero-h) - 110px) * 16 / 9), 420px)
+  );
   margin-inline: auto;
-  margin-bottom: clamp(24px, 4vh, 48px);
+  margin-bottom: clamp(14px, 2vh, 28px);
 }
 
 /* Vídeo y selector como una sola pieza: bordes redondeados solo por fuera, y

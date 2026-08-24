@@ -53,6 +53,7 @@ export function CatalogRows({ sections }: { sections: CatalogSection[] }) {
         <MediaRail
           key={section.title}
           title={section.title}
+          href={section.href}
           items={section.items.map(catalogToCard)}
           onOpen={(c) => abrir(router, c)}
           posterMode

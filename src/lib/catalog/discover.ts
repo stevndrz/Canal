@@ -1,5 +1,5 @@
 import { fetchList, fetchPagina, searchTitles, type TmdbListEntry } from "./tmdb";
-import type { MediaType, ResolvedCatalogItem } from "./types";
+import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
 /**
  * Filas del catálogo servidas por TMDB.
@@ -26,11 +26,16 @@ const GENRE = {
   animacion: 16,
 } as const;
 
+/** Criterio de orden del catálogo, elegible desde la interfaz. */
+export type OrdenCatalogo = "populares" | "top" | "recientes";
+
 interface RowSpec {
   title: string;
   path: string;
   /** Tipo que se asume cuando la respuesta no trae `media_type` (discover). */
   mediaType: MediaType;
+  /** Id de género de la fila, para armar el enlace a su cuadrilla completa. */
+  generoId?: number;
 }
 
 /** Solo títulos con cierto respaldo de votos: evita rellenar con lo irrelevante. */
@@ -39,6 +44,26 @@ const TV_BASE = "sort_by=popularity.desc&vote_count.gte=100&include_adult=false"
 /** El cine hispano tiene menos votos que el de Hollywood; si no, sale casi vacío. */
 const ES_MOVIE_BASE = "sort_by=popularity.desc&vote_count.gte=50&include_adult=false";
 const ES_TV_BASE = "sort_by=popularity.desc&vote_count.gte=20&include_adult=false";
+
+/**
+ * Base de discover por criterio y tipo.
+ *
+ * «Recientes» exige un piso de votos: por fecha pura TMDB devuelve montones de
+ * títulos sin estrenar y sin datos que arruinan la cuadrícula. El de series usa
+ * su propio campo de fecha (`first_air_date`), que el endpoint de TV no comparte
+ * con el de películas.
+ */
+const ORDEN_BASES: Record<OrdenCatalogo, { movie: string; tv: string }> = {
+  populares: { movie: MOVIE_BASE, tv: TV_BASE },
+  top: {
+    movie: "sort_by=vote_average.desc&vote_count.gte=400&include_adult=false",
+    tv: "sort_by=vote_average.desc&vote_count.gte=200&include_adult=false",
+  },
+  recientes: {
+    movie: "sort_by=primary_release_date.desc&vote_count.gte=60&include_adult=false",
+    tv: "sort_by=first_air_date.desc&vote_count.gte=25&include_adult=false",
+  },
+};
 
 const CATALOG_ROWS: RowSpec[] = [
   // Lo primero que se ve: lo más taquillero y comentado del mundo esta semana.
@@ -49,26 +74,31 @@ const CATALOG_ROWS: RowSpec[] = [
     title: "Para toda la familia",
     path: `/discover/movie?with_genres=${GENRE.familia}&${MOVIE_BASE}`,
     mediaType: "movie",
+    generoId: GENRE.familia,
   },
   {
     title: "Acción",
     path: `/discover/movie?with_genres=${GENRE.accion}&${MOVIE_BASE}`,
     mediaType: "movie",
+    generoId: GENRE.accion,
   },
   {
     title: "Comedia",
     path: `/discover/movie?with_genres=${GENRE.comedia}&${MOVIE_BASE}`,
     mediaType: "movie",
+    generoId: GENRE.comedia,
   },
   {
     title: "Animación",
     path: `/discover/movie?with_genres=${GENRE.animacion}&${MOVIE_BASE}`,
     mediaType: "movie",
+    generoId: GENRE.animacion,
   },
   {
     title: "Terror",
     path: `/discover/movie?with_genres=${GENRE.terror}&${MOVIE_BASE}`,
     mediaType: "movie",
+    generoId: GENRE.terror,
   },
   // Al final: garantía de audio en español, no escaparate principal.
   {
@@ -128,20 +158,18 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
   };
 }
 
-export interface DiscoverSection {
-  title: string;
-  items: ResolvedCatalogItem[];
-}
-
 /**
  * Todas las filas, en paralelo: una petición por fila y cada una cacheada un
  * día. Las que vengan vacías (sin clave, o TMDB caído) se descartan en vez de
  * dejar un hueco con título y nada debajo.
  */
-export async function fetchCatalogRows(): Promise<DiscoverSection[]> {
+export async function fetchCatalogRows(): Promise<CatalogSection[]> {
   const rows = await Promise.all(
     CATALOG_ROWS.map(async (row) => ({
       title: row.title,
+      // Enlace a la cuadrilla completa del género/tipo de la fila: los títulos
+      // de las filas son clicables y llevan a «todas las de Acción», etc.
+      href: `/peliculas?tipo=${row.mediaType}${row.generoId ? `&genero=${row.generoId}` : ""}`,
       items: (await fetchList(row.path, row.mediaType)).map(toCatalogItem),
     }))
   );
@@ -171,7 +199,9 @@ export async function fetchFiltered(
    * navega a ella y se descarta al salir. El catálogo entero son cientos de
    * miles de fichas, y almacenarlas obligaría a mantenerlas al día.
    */
-  pagina = 1
+  pagina = 1,
+  /** Criterio de orden; por defecto el de siempre, popularidad. */
+  orden: OrdenCatalogo = "populares"
 ): Promise<PaginaCatalogo> {
   /**
    * El género solo se manda al tipo donde existe. Sin esto, pedir "Terror" en
@@ -192,17 +222,17 @@ export async function fetchFiltered(
   };
 
   if (tipo === "movie") {
-    const { entradas, totalPaginas } = await pedir("movie", MOVIE_BASE);
+    const { entradas, totalPaginas } = await pedir("movie", ORDEN_BASES[orden].movie);
     return { items: entradas.map(toCatalogItem), pagina, totalPaginas };
   }
   if (tipo === "tv") {
-    const { entradas, totalPaginas } = await pedir("tv", TV_BASE);
+    const { entradas, totalPaginas } = await pedir("tv", ORDEN_BASES[orden].tv);
     return { items: entradas.map(toCatalogItem), pagina, totalPaginas };
   }
 
   const [pelis, series] = await Promise.all([
-    pedir("movie", MOVIE_BASE),
-    pedir("tv", TV_BASE),
+    pedir("movie", ORDEN_BASES[orden].movie),
+    pedir("tv", ORDEN_BASES[orden].tv),
   ]);
 
   // Intercalado uno a uno: ambas listas ya vienen ordenadas por popularidad.
