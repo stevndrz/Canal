@@ -214,14 +214,6 @@ export function Dashboard({
     return () => window.clearTimeout(id);
   }, [view, focusFirst]);
 
-  const pickCategory = useCallback(
-    (next: string) => {
-      setCategory(next);
-      navigate("canales");
-    },
-    [navigate],
-  );
-
   const patchSettings = useCallback(
     (patch: Partial<PlaybackSettings>) => setSettings((current) => ({ ...current, ...patch })),
     [],
@@ -293,7 +285,6 @@ export function Dashboard({
           onSearchChange={setSearch}
           onSelect={select}
           onTune={tune}
-          onPickCategory={pickCategory}
           onPatchSettings={patchSettings}
         />
       </section>

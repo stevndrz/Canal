@@ -50,7 +50,6 @@ export type ViewId =
   | "favoritos"
   | "buscar"
   | "fuente"
-  | "categorias"
   | "ajustes"
   | "player";
 

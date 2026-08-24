@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { AjustesView } from "@/components/views/ajustes-view";
 import { BuscarView } from "@/components/views/buscar-view";
-import { CategoriasView } from "@/components/views/categorias-view";
 import { FavoritosView } from "@/components/views/favoritos-view";
 import { FuenteView } from "@/components/views/fuente-view";
 import { HomeView } from "@/components/views/home-view";
@@ -45,7 +44,6 @@ export interface VistaActivaProps {
   onSearchChange: (texto: string) => void;
   onSelect: (canal: Channel) => void;
   onTune: (canal: Channel) => void;
-  onPickCategory: (categoria: string) => void;
   onPatchSettings: (patch: Partial<PlaybackSettings>) => void;
 }
 
@@ -114,9 +112,6 @@ export function VistaActiva(props: VistaActivaProps) {
 
     case "fuente":
       return <FuenteView />;
-
-    case "categorias":
-      return <CategoriasView channels={props.channels} onPick={props.onPickCategory} />;
 
     case "ajustes":
       return (

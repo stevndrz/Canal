@@ -1,4 +1,4 @@
-import { Clapperboard, Heart, House, LayoutGrid, Link2, Search, Settings, Tv, type LucideIcon } from "lucide-react";
+import { Clapperboard, Heart, House, Link2, Search, Settings, Tv, type LucideIcon } from "lucide-react";
 import type { ViewId } from "@/lib/types";
 
 /**
@@ -36,7 +36,6 @@ export const NAV_ITEMS: NavItem[] = [
   { kind: "view", key: "fuente", label: "Mi enlace", Icon: Link2 },
   { kind: "view", key: "favoritos", label: "Favoritos", Icon: Heart },
   { kind: "view", key: "buscar", label: "Buscar", Icon: Search },
-  { kind: "view", key: "categorias", label: "Categorías", Icon: LayoutGrid },
   { kind: "view", key: "ajustes", label: "Ajustes", Icon: Settings },
 ];
 

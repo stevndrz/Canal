@@ -44,6 +44,7 @@ export async function resolveItem(item: CatalogItem): Promise<ResolvedCatalogIte
     year: tmdb?.year ?? null,
     rating: tmdb?.rating ?? null,
     originalLanguage: tmdb?.originalLanguage ?? null,
+    imdbId: item.imdbId ?? tmdb?.imdbId ?? null,
     seasons: tmdb?.seasons ?? seasonsFromOverrides(item),
     tagline: tmdb?.tagline ?? "",
     duracion: tmdb?.duracion ?? null,

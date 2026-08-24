@@ -82,7 +82,5 @@ export function serverConfig() {
 
     /** Secreto de Pusher, solo para firmar canales privados en la ruta de auth. */
     pusherSecret: process.env.PUSHER_SECRET || "",
-
-
   };
 }

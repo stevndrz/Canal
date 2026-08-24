@@ -926,6 +926,13 @@ html[data-player="on"] body {
   border: 0;
 }
 
+/* El Servidor 2 (enlace directo de Debrid) se reproduce en un <video> propio:
+   mismas medidas que el iframe, que es exactamente el hueco que ocupa. */
+.ficha-marco video {
+  width: 100%;
+  height: 100%;
+}
+
 /* La barra de servidores, al pie del vídeo. */
 .servidores {
   display: flex;

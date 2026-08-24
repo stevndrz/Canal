@@ -1,10 +1,12 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info, Users } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import type { EmbedProvider } from "@/lib/catalog/providers";
-import type { PlaybackSource } from "@/lib/catalog/types";
+import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
+import type { MediaType, PlaybackSource } from "@/lib/catalog/types";
+import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -14,25 +16,25 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
 });
 
 /**
- * El reproductor de una ficha, en sus tres formas posibles.
+ * El reproductor de una ficha.
  *
- * Cuál sale depende de la fuente, y las tres son distintas de verdad:
+ * - **Enlace propio** (`manual`): un `<video>` nuestro con Ver en familia.
+ * - **Catálogo de TMDB** (`embed`): la lista de servidores la arma la ruta
+ *   `/api/stream`, que combina el iframe de VidSrc (Servidor 1) con el enlace
+ *   directo resuelto vía Magnet/Debrid (Servidor 2).
  *
- *  - **Enlace propio** (`manual`): un `<video>` nuestro. Es el único caso con
- *    Ver en familia, porque es el único donde el tiempo del vídeo está a
- *    nuestro alcance.
- *  - **Proveedor** (`embed`): un `iframe` de otro dominio. Desde aquí no se
- *    puede saber si cargó ni en qué idioma está, de ahí que el cambio de
- *    servidor lo haga la persona con un botón.
- *  - **Sin fuente**: se explica por qué, en vez de dejar un rectángulo negro.
+ * El Servidor 2 se pinta como un `<video>` propio y el 1 como `iframe`; el
+ * cambio entre ellos lo hace la persona con los botones de siempre, porque
+ * desde fuera de cada servidor no hay forma honesta de saber si funciona.
  */
 export function FichaReproductor({
   fuente,
   titulo,
-  embedUrl,
-  providers,
-  activeProvider,
-  onSelectProvider,
+  tmdbId,
+  imdbId,
+  mediaType,
+  temporada,
+  episodio,
   spokenInSpanish,
   sala,
   salaActiva,
@@ -41,10 +43,13 @@ export function FichaReproductor({
 }: {
   fuente: PlaybackSource;
   titulo: string;
-  embedUrl: string | null;
-  providers: EmbedProvider[];
-  activeProvider: EmbedProvider | null;
-  onSelectProvider: (id: string) => void;
+  /** Sin tmdbId no hay catálogo que consultar: solo sirven los enlaces propios. */
+  tmdbId: number | null;
+  /** Id de IMDB, para los servidores que indexan por él (Embed69, VerhdLink). */
+  imdbId: string | null;
+  mediaType: MediaType;
+  temporada: number;
+  episodio: number;
   spokenInSpanish: boolean;
   sala: string;
   salaActiva: string;
@@ -65,7 +70,7 @@ export function FichaReproductor({
     );
   }
 
-  if (!embedUrl) {
+  if (!tmdbId) {
     return (
       <section className="ficha-reproductor">
         <div className="ficha-sin-fuente">
@@ -81,38 +86,178 @@ export function FichaReproductor({
   }
 
   return (
+    // La key reinicia el componente —y con él el servidor elegido— al cambiar
+    // de título o episodio, sin efectos que copien props a estado.
+    <ReproductorCatalogo
+      key={`${tmdbId}|${mediaType}|${temporada}|${episodio}`}
+      titulo={titulo}
+      tmdbId={tmdbId}
+      imdbId={imdbId}
+      mediaType={mediaType}
+      temporada={temporada}
+      episodio={episodio}
+      spokenInSpanish={spokenInSpanish}
+    />
+  );
+}
+
+/**
+ * El reproductor cuando el título viene del catálogo de TMDB.
+ *
+ * Mientras `/api/stream` responde se enseña ya el iframe de VidSrc, armado en
+ * el cliente con las plantillas de siempre: la primera imagen tarda lo mismo
+ * que antes. Cuando llega la lista, todos los servidores quedan como botones;
+ * el activo por defecto es el primero de la lista (un embed, instantáneo), y
+ * el torrent español de Webtor —que tarda más en arrancar— espera a que alguien
+ * lo elija.
+ */
+function ReproductorCatalogo({
+  titulo,
+  tmdbId,
+  imdbId,
+  mediaType,
+  temporada,
+  episodio,
+  spokenInSpanish,
+}: {
+  titulo: string;
+  tmdbId: number;
+  imdbId: string | null;
+  mediaType: MediaType;
+  temporada: number;
+  episodio: number;
+  spokenInSpanish: boolean;
+}) {
+  const servidores = useServidores(tmdbId, titulo, imdbId, mediaType, temporada, episodio);
+  // La elección manual vive y muere con este componente: el padre lo monta con
+  // una key distinta por título/episodio, así que aquí nunca llega una elección
+  // vieja de otro capítulo.
+  const [elegidoId, setElegidoId] = useState<string | null>(null);
+
+  // Fallback inmediato: el mismo iframe de VidSrc que se veía antes de que
+  // existiera esta ruta. Si `/api/stream` falla, es lo que queda en pantalla.
+  const vidSrcUrl = useMemo(() => {
+    const vidsrc = getProviders().find((provider) => provider.id === "vidsrc");
+    return vidsrc
+      ? buildEmbedUrl(vidsrc, mediaType, { tmdbId, season: temporada, episode: episodio })
+      : null;
+  }, [mediaType, tmdbId, temporada, episodio]);
+
+  const activo: ServidorStream | null =
+    servidores.find((servidor) => servidor.id === elegidoId) ??
+    // El primero de la lista es un embed: instantáneo. Webtor (torrent en
+    // español) queda a un clic para quien prefiera esperar el doblaje.
+    servidores[0] ??
+    (vidSrcUrl
+      ? { id: "vidsrc", label: "VidSrc", kind: "embed" as const, url: vidSrcUrl }
+      : null);
+
+  if (!activo) {
+    return (
+      <section className="ficha-reproductor">
+        <div className="player-surface ficha-marco is-cargando" />
+      </section>
+    );
+  }
+
+  return (
     <section className="ficha-reproductor">
       <div className="ficha-conjunto">
         <div className="player-surface ficha-marco">
-          <iframe
-            src={embedUrl}
-            title={titulo}
-            allowFullScreen
-            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-            referrerPolicy="origin"
-          />
+          {activo.id === "vimeus" ? (
+            /* Vimeus es el único que tolera el sandbox —y por tanto el único
+               con los popups bloqueados de verdad—. VidSrc y VideoEasy se
+               niegan a cargar dentro de un frame restringido, así que esos
+               van sin él: si meten popups, el botón «atrás» del navegador
+               sigue siendo la defensa. */
+            <iframe
+              src={activo.url}
+              title={titulo}
+              allowFullScreen
+              allow="autoplay; encrypted-media; fullscreen"
+              referrerPolicy="origin"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+            />
+          ) : (
+            <iframe
+              src={activo.url}
+              title={titulo}
+              allowFullScreen
+              allow="autoplay; encrypted-media; fullscreen"
+              referrerPolicy="origin"
+            />
+          )}
         </div>
 
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
         <ServerPicker
-          providers={providers}
-          activeId={activeProvider?.id ?? ""}
-          onSelect={onSelectProvider}
+          providers={servidores.map((servidor) => ({ id: servidor.id, label: servidor.label }))}
+          activeId={activo.id}
+          onSelect={setElegidoId}
           nota={
             /* Se distingue lo que se sabe con certeza (se rodó en español) de
-               lo que solo se puede pedir (subtítulos), para no prometer un
-               doblaje que quizá no exista. */
+               lo que solo se puede pedir (subtítulos del embed), para no
+               prometer pistas que quizá no existan. */
             spokenInSpanish ? (
               <span className="ficha-marca is-si">Hablada en español</span>
-            ) : activeProvider?.spanishSubtitles ? (
+            ) : (
               <span className="ficha-marca is-quiza">Subtítulos en español</span>
-            ) : null
+            )
           }
         />
       </div>
     </section>
   );
+}
+
+/**
+ * Pide a `/api/stream` los servidores del título: una sola llamada, respuesta
+ * inmediata con la lista completa de embeds.
+ */
+function useServidores(
+  tmdbId: number,
+  titulo: string,
+  imdbId: string | null,
+  mediaType: MediaType,
+  temporada: number,
+  episodio: number
+): ServidorStream[] {
+  const [servidores, setServidores] = useState<ServidorStream[]>([]);
+
+  useEffect(() => {
+    // Cada parámetro por separado: son primitivos y el efecto solo se repite
+    // cuando cambia de verdad el título o el episodio pedido.
+    const controlador = new AbortController();
+    const params = new URLSearchParams({
+      tmdbId: String(tmdbId),
+      title: titulo,
+      type: mediaType,
+      season: String(temporada),
+      episode: String(episodio),
+    });
+    if (imdbId) params.set("imdb", imdbId);
+
+    fetch(`/api/stream?${params}`, { signal: controlador.signal })
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<RespuestaStream>;
+      })
+      .then((data) =>
+        setServidores(
+          (data.servidores ?? []).filter(
+            (servidor) => typeof servidor.url === "string" && /^https?:\/\//i.test(servidor.url)
+          )
+        )
+      )
+      .catch(() => {
+        /* Abortado o la ruta falló: se queda el fallback de VidSrc. */
+      });
+
+    return () => controlador.abort();
+  }, [tmdbId, titulo, imdbId, mediaType, temporada, episodio]);
+
+  return servidores;
 }
 
 /**

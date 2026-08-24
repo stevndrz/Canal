@@ -4,10 +4,17 @@ import type { MediaType, ResolvedCatalogItem } from "./types";
 /**
  * Filas del catálogo servidas por TMDB.
  *
- * El orden de `CATALOG_ROWS` es la prioridad que se ve en pantalla: primero lo
- * hablado en español, que es lo único donde el audio en español está
- * garantizado, y debajo el resto del catálogo internacional. Nada queda fuera:
- * una película en inglés aparece igual, con su título y su sinopsis en español.
+ * El orden de `CATALOG_ROWS` es la prioridad que se ve en pantalla, y manda
+ * una sola idea: **lo grande primero**. La cabecera de la página son los
+ * estrenos que todo el mundo conoce —trending y popular GLOBAL—, no una
+ * selección por idioma: antes las filas de español encabezaban el catálogo y
+ * arriba solo se veían producciones locales con pocos votos, aunque fueran
+ * traducidas. Los títulos, sinopsis e imágenes siguen llegando en español
+ * (`tmdbFetch` pide `language=es-MX` en todas las llamadas); lo único que
+ * cambió es qué películas encabezan.
+ *
+ * Las filas "en español" no desaparecen: garantizan audio en español de
+ * verdad, pero al final del catálogo, donde quien las busca las encuentra.
  */
 
 /** Géneros de TMDB usados abajo (los nombres los devuelve la API en español). */
@@ -34,16 +41,7 @@ const ES_MOVIE_BASE = "sort_by=popularity.desc&vote_count.gte=50&include_adult=f
 const ES_TV_BASE = "sort_by=popularity.desc&vote_count.gte=20&include_adult=false";
 
 const CATALOG_ROWS: RowSpec[] = [
-  {
-    title: "Películas en español",
-    path: `/discover/movie?with_original_language=es&${ES_MOVIE_BASE}`,
-    mediaType: "movie",
-  },
-  {
-    title: "Series en español",
-    path: `/discover/tv?with_original_language=es&${ES_TV_BASE}`,
-    mediaType: "tv",
-  },
+  // Lo primero que se ve: lo más taquillero y comentado del mundo esta semana.
   { title: "Tendencias de la semana", path: "/trending/all/week", mediaType: "movie" },
   { title: "Películas populares", path: `/discover/movie?${MOVIE_BASE}`, mediaType: "movie" },
   { title: "Series populares", path: `/discover/tv?${TV_BASE}`, mediaType: "tv" },
@@ -71,6 +69,17 @@ const CATALOG_ROWS: RowSpec[] = [
     title: "Terror",
     path: `/discover/movie?with_genres=${GENRE.terror}&${MOVIE_BASE}`,
     mediaType: "movie",
+  },
+  // Al final: garantía de audio en español, no escaparate principal.
+  {
+    title: "Películas en español",
+    path: `/discover/movie?with_original_language=es&${ES_MOVIE_BASE}`,
+    mediaType: "movie",
+  },
+  {
+    title: "Series en español",
+    path: `/discover/tv?with_original_language=es&${ES_TV_BASE}`,
+    mediaType: "tv",
   },
 ];
 

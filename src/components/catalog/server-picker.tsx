@@ -3,24 +3,23 @@
 import { useRef } from "react";
 import { MonitorPlay } from "lucide-react";
 import { useGridNavigation } from "@/hooks/use-grid-navigation";
-import type { EmbedProvider } from "@/lib/catalog/providers";
 
 /**
  * Selector de servidor, anclado al pie del reproductor.
  *
  * El cambio es manual, y no por elección estética: el reproductor va dentro de
- * un iframe de otro dominio, así que desde aquí **no se puede saber si cargó,
- * si falló o en qué idioma está**. Un "cambio automático al fallar" tendría que
- * adivinar, y adivinaría mal: el evento `load` se dispara igual cuando el
- * proveedor devuelve una página de error. Un botón visible es honesto y, con un
- * control remoto, más rápido que cualquier detección.
+ * un iframe de otro dominio —o sirve un archivo que aquí no se puede sondear—,
+ * así que desde aquí **no se puede saber si cargó, si falló o en qué idioma
+ * está**. Un "cambio automático al fallar" tendría que adivinar, y adivinaría
+ * mal. Un botón visible es honesto y, con un control remoto, más rápido que
+ * cualquier detección.
  *
  * Va pegado al vídeo y no flotando debajo porque es un control **de ese
  * reproductor**: cuando la imagen no se ve, la mano ya está ahí. Suelto en la
  * página parecía una sección más, y había que buscarlo.
  *
  * Se numeran ("Servidor 1", "Servidor 2") a propósito: quien está delante de la
- * tele no tiene por qué saber qué es VidSrc.
+ * tele no tiene por qué saber qué es VidSrc ni qué es Debrid.
  */
 export function ServerPicker({
   providers,
@@ -29,7 +28,12 @@ export function ServerPicker({
   /** Lo que se sabe del idioma; se muestra en la misma barra. */
   nota,
 }: {
-  providers: EmbedProvider[];
+  /**
+   * Solo hace falta el par de lo visible: id estable y etiqueta. Antes pedía
+   * el proveedor entero de embeds; ahora los servidores pueden venir también
+   * de `/api/stream`, y a este control le da igual de dónde vengan.
+   */
+  providers: { id: string; label: string }[];
   activeId: string;
   onSelect: (id: string) => void;
   nota?: React.ReactNode;
@@ -38,7 +42,6 @@ export function ServerPicker({
   useGridNavigation(listRef, "[data-server]");
 
   if (providers.length < 2) return null;
-
 
   return (
     <div className="servidores">

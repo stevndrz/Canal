@@ -1,9 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
+import { useState } from "react";
 import { TopNav } from "@/components/shell/top-nav";
-import { useAppStore } from "@/store/use-app-store";
 import { normalizeRoomId } from "@/lib/watch-party/sign";
 import { FichaColumnas } from "./ficha-columnas";
 import { FichaEpisodios } from "./ficha-episodios";
@@ -26,7 +24,7 @@ import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib
  * | Pieza | De qué se ocupa |
  * |---|---|
  * | `FichaPortada` | Arte, carátula, título y datos sueltos |
- * | `FichaReproductor` | Las tres formas de reproducir, y Ver en familia |
+ * | `FichaReproductor` | Los servidores (VidSrc/Debrid o enlace propio), y Ver en familia |
  * | `FichaColumnas` | Sinopsis, reparto y ficha técnica |
  * | `FichaEpisodios` | Temporadas y episodios, con su navegación por mando |
  */
@@ -46,28 +44,11 @@ export function TitleDetail({
   const [sala, setSala] = useState("");
   const [salaActiva, setSalaActiva] = useState("");
 
-  const providers = getProviders();
-  const preferredProvider = useAppStore((state) => state.preferredProvider);
-  const setPreferredProvider = useAppStore((state) => state.setPreferredProvider);
-  // El guardado manda si sigue existiendo; si no, el primero de la lista, que
-  // ya viene ordenada poniendo delante los que piden subtítulos en español.
-  const activeProvider =
-    providers.find((provider) => provider.id === preferredProvider) ?? providers[0] ?? null;
-
   // Qué se reproduce ahora mismo: el episodio elegido en series, el título en
   // películas. Los episodios pueden traer su propia fuente (otro doblaje).
   const activeSource: PlaybackSource = isSeries
     ? (selectedEpisode?.source ?? item.source)
     : item.source;
-
-  const embedUrl = useMemo(() => {
-    if (activeSource.kind !== "embed" || !item.tmdbId || !activeProvider) return null;
-    return buildEmbedUrl(activeProvider, item.mediaType, {
-      tmdbId: item.tmdbId,
-      season: selectedSeason,
-      episode: selectedEpisode?.episode ?? 1,
-    });
-  }, [activeSource, item.tmdbId, item.mediaType, selectedSeason, selectedEpisode, activeProvider]);
 
   return (
     <div className="app-shell">
@@ -79,10 +60,11 @@ export function TitleDetail({
         <FichaReproductor
           fuente={activeSource}
           titulo={item.title}
-          embedUrl={embedUrl}
-          providers={providers}
-          activeProvider={activeProvider}
-          onSelectProvider={setPreferredProvider}
+          tmdbId={item.tmdbId ?? null}
+          imdbId={item.imdbId ?? null}
+          mediaType={item.mediaType}
+          temporada={selectedSeason}
+          episodio={selectedEpisode?.episode ?? 1}
           /**
            * Si se rodó en español, el audio se oye en español sin depender de
            * doblajes. Es lo único que se puede afirmar: ningún proveedor

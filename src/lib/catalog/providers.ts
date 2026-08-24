@@ -2,12 +2,17 @@ import type { MediaType } from "./types";
 import { publicConfig } from "@/lib/config";
 
 /**
- * Proveedores de reproducción por iframe.
+ * Proveedores de reproducción por iFrame.
  *
  * En lugar de una plantilla única hay una lista, porque estos servicios fallan
  * a menudo y de forma desigual: el que no tiene una película tiene la
  * siguiente. Poder saltar de uno a otro es la diferencia entre "no funciona" y
  * "pruebo el de al lado".
+ *
+ * ⚠️ Estos dominios ROTAN sin aviso (AutoEmbed desapareció en 2026 y VideoEasy
+ * migró de .net a .to). Si varios servidores fallan a la vez con error de DNS,
+ * comprobar cuáles responden (`curl -I https://dominio/`) y actualizar aquí.
+ * Para apuntar a uno propio sin tocar código existe «Mi servidor» por entorno.
  *
  * Límite que condiciona todo el diseño: **el iframe es de otro dominio, así que
  * desde aquí no se puede ver nada de lo que pasa dentro**. No hay forma de
@@ -28,6 +33,7 @@ export interface EmbedProvider {
    * numeración fija dejaría huecos ("Servidor 2, 3, 4") y parecería roto.
    */
   label: string;
+  /** Vacío en los proveedores que no cubren ese tipo (p.ej. solo películas). */
   movie: string;
   tv: string;
   /**
@@ -42,6 +48,13 @@ export interface EmbedProvider {
 }
 
 /**
+ * Clave pública del generador de embeds de Vimeus, tal cual la comparten los
+ * sitios que lo usan. Si algún día dejan de funcionar sus enlaces, es lo
+ * primero que hay que regenerar desde su web.
+ */
+const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
+
+/**
  * Orden por defecto: delante los que aceptan pedir subtítulos en español.
  *
  * Es la única preferencia de idioma que se puede aplicar de verdad. Qué pista
@@ -51,28 +64,26 @@ export interface EmbedProvider {
  */
 const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
   {
+    // El «VIMEOS» de las webs latinas (vimeus.com): el que mejor funciona y
+    // con doblaje latino. Solo películas: su ruta de series responde 404.
+    id: "vimeus",
+    movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
+    tv: "",
+    spanishSubtitles: false,
+  },
+  {
+    // El alternativo fiable en inglés original, con subtítulos pedibles.
     id: "vidsrc",
     movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
     tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
     spanishSubtitles: true,
   },
   {
-    id: "vidlink",
-    movie: "https://vidlink.pro/movie/{tmdbId}?player=default&sub_lang=es",
-    tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?player=default&sub_lang=es",
+    // Tercero de guardia: limpio, con subtítulos y varios servidores internos.
+    id: "videasy",
+    movie: "https://player.videasy.to/movie/{tmdbId}",
+    tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: true,
-  },
-  {
-    id: "vidfast",
-    movie: "https://vidfast.pro/movie/{tmdbId}?sub=es",
-    tv: "https://vidfast.pro/tv/{tmdbId}/{season}/{episode}?sub=es",
-    spanishSubtitles: true,
-  },
-  {
-    id: "2embed",
-    movie: "https://www.2embed.cc/embed/{tmdbId}",
-    tv: "https://www.2embed.cc/embedtv/{tmdbId}&s={season}&e={episode}",
-    spanishSubtitles: false,
   },
 ];
 
@@ -133,9 +144,19 @@ export interface EmbedTarget {
   tmdbId: number;
   season?: number;
   episode?: number;
+  /**
+   * Id de IMDB (con o sin «tt»), para los proveedores que indexan por él
+   * (Embed69, VerhdLink). Si falta, esas plantillas no pueden armarse.
+   */
+  imdbId?: string | null;
 }
 
-/** URL del iframe para un proveedor concreto, o null si no se puede armar. */
+/**
+ * URL del iframe para un proveedor concreto, o null si no se puede armar.
+ *
+ * Los proveedores que indexan por IMDB necesitan ese id; sin él devuelven
+ * null y el servidor simplemente no aparece en la lista de esa ficha.
+ */
 export function buildEmbedUrl(
   provider: EmbedProvider,
   mediaType: MediaType,
@@ -143,9 +164,11 @@ export function buildEmbedUrl(
 ): string | null {
   const pattern = (mediaType === "movie" ? provider.movie : provider.tv).trim();
   if (!pattern || !target.tmdbId) return null;
+  if (pattern.includes("{imdbId}") && !target.imdbId) return null;
 
   const url = pattern
     .replaceAll("{tmdbId}", String(target.tmdbId))
+    .replaceAll("{imdbId}", encodeURIComponent(target.imdbId ?? ""))
     .replaceAll("{season}", String(target.season ?? 1))
     .replaceAll("{episode}", String(target.episode ?? 1));
 
