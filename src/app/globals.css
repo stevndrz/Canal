@@ -717,7 +717,7 @@ html[data-player="on"] body {
 .ficha-portada {
   position: relative;
   background-size: cover;
-  background-position: center 22%;
+  background-position: center 15%;
   padding-top: calc(var(--topbar-h) + clamp(20px, 3vh, 40px));
   padding-bottom: clamp(20px, 3vh, 40px);
 }
@@ -727,7 +727,7 @@ html[data-player="on"] body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(6, 7, 9, 0.82) 0%, rgba(6, 7, 9, 0.9) 55%, var(--color-app, #09090b) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.6) 30%, #000 100%);
 }
 
 .ficha-cabecera {
