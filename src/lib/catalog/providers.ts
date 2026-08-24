@@ -144,19 +144,9 @@ export interface EmbedTarget {
   tmdbId: number;
   season?: number;
   episode?: number;
-  /**
-   * Id de IMDB (con o sin «tt»), para los proveedores que indexan por él
-   * (Embed69, VerhdLink). Si falta, esas plantillas no pueden armarse.
-   */
-  imdbId?: string | null;
 }
 
-/**
- * URL del iframe para un proveedor concreto, o null si no se puede armar.
- *
- * Los proveedores que indexan por IMDB necesitan ese id; sin él devuelven
- * null y el servidor simplemente no aparece en la lista de esa ficha.
- */
+/** URL del iframe para un proveedor concreto, o null si no se puede armar. */
 export function buildEmbedUrl(
   provider: EmbedProvider,
   mediaType: MediaType,
@@ -164,11 +154,9 @@ export function buildEmbedUrl(
 ): string | null {
   const pattern = (mediaType === "movie" ? provider.movie : provider.tv).trim();
   if (!pattern || !target.tmdbId) return null;
-  if (pattern.includes("{imdbId}") && !target.imdbId) return null;
 
   const url = pattern
     .replaceAll("{tmdbId}", String(target.tmdbId))
-    .replaceAll("{imdbId}", encodeURIComponent(target.imdbId ?? ""))
     .replaceAll("{season}", String(target.season ?? 1))
     .replaceAll("{episode}", String(target.episode ?? 1));
 

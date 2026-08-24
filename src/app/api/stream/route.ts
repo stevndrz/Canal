@@ -6,15 +6,11 @@ import type { ServidorStream } from "@/lib/resolvers/types";
  * Lista de servidores embed para reproducir un título: **responde al
  * instante**, sin esperar ninguna búsqueda.
  *
- * Son plantillas de iFrame (AutoEmbed, VideoEasy, VidSrc…): arrancan ya, y
- * varios traen selector de idioma/servidor dentro del propio reproductor,
- * donde suele estar el doblaje latino. Su cobertura no es perfecta —estrenos
- * muy frescos pueden faltar—, y por eso hay varios: si uno no tiene el
- * título, el siguiente suele tenerlo.
- *
- * El torrent español va aparte (`/api/stream/torrent`): tarda más porque hay
- * que buscarlo en Jackett, así que la ficha lo añade cuando llega sin haberse
- * quedado esperando aquí.
+ * Son plantillas de iFrame (Vimeus, VidSrc, VideoEasy): arrancan ya, y varios
+ * traen selector de idioma/servidor dentro del propio reproductor, donde suele
+ * estar el doblaje latino. Su cobertura no es perfecta —estrenos muy frescos
+ * pueden faltar—, y por eso hay varios: si uno no tiene el título, el
+ * siguiente suele tenerlo.
  */
 export const dynamic = "force-dynamic";
 
@@ -30,14 +26,12 @@ export async function GET(request: Request) {
   const type: MediaType = params.get("type") === "tv" ? "tv" : "movie";
   const season = Number(params.get("season")) || undefined;
   const episode = Number(params.get("episode")) || undefined;
-  // Los proveedores que indexan por IMDB (Embed69, VerhdLink) lo necesitan.
-  const imdbId = params.get("imdb")?.trim() || null;
 
   const servidores: ServidorStream[] = [];
   for (const provider of getProviders()) {
-    const url = buildEmbedUrl(provider, type, { tmdbId, season, episode, imdbId });
+    const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
     if (url) {
-      servidores.push({ id: provider.id, label: provider.label, kind: "embed", url });
+      servidores.push({ id: provider.id, label: provider.label, url });
     }
   }
 

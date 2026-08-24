@@ -166,47 +166,7 @@ html[data-player="on"] body {
   color: var(--soft, rgba(255, 255, 255, 0.5));
 }
 
-/* Categorías: rejilla de fichas. */
-.categoria-rejilla {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(clamp(170px, 15vw, 240px), 1fr));
-  gap: clamp(12px, 1vw, 18px);
-  padding: 0 var(--margen);
-}
-
-.categoria-ficha {
-  min-height: 104px;
-  padding: 20px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: var(--panel-radius, 20px);
-  background: var(--chip, rgba(255, 255, 255, 0.06));
-  color: inherit;
-  text-align: left;
-  display: grid;
-  align-content: center;
-  gap: 8px;
-  cursor: pointer;
-  transition: background 160ms ease, transform 160ms ease;
-}
-
-.categoria-ficha:hover,
-.categoria-ficha:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.14));
-  transform: scale(1.02);
-}
-
-.categoria-ficha strong {
-  font-size: clamp(16px, 1.15vw, 21px);
-  font-weight: 650;
-}
-
-.categoria-ficha em {
-  font-style: normal;
-  font-size: clamp(12px, 0.85vw, 15px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
-}
-
-.mobile-nav-item span {
+/* mobile-nav-item span {
   font-size: 10px;
   line-height: 1.15;
   max-width: 100%;
@@ -926,12 +886,6 @@ html[data-player="on"] body {
   border: 0;
 }
 
-/* El Servidor 2 (enlace directo de Debrid) se reproduce en un <video> propio:
-   mismas medidas que el iframe, que es exactamente el hueco que ocupa. */
-.ficha-marco video {
-  width: 100%;
-  height: 100%;
-}
 
 /* La barra de servidores, al pie del vídeo. */
 .servidores {

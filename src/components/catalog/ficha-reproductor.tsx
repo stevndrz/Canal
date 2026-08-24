@@ -19,19 +19,15 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
  * El reproductor de una ficha.
  *
  * - **Enlace propio** (`manual`): un `<video>` nuestro con Ver en familia.
- * - **Catálogo de TMDB** (`embed`): la lista de servidores la arma la ruta
- *   `/api/stream`, que combina el iframe de VidSrc (Servidor 1) con el enlace
- *   directo resuelto vía Magnet/Debrid (Servidor 2).
- *
- * El Servidor 2 se pinta como un `<video>` propio y el 1 como `iframe`; el
- * cambio entre ellos lo hace la persona con los botones de siempre, porque
- * desde fuera de cada servidor no hay forma honesta de saber si funciona.
+ * - **Catálogo de TMDB** (`embed`): la lista de servidores (embeds) la arma
+ *   la ruta `/api/stream` y el cambio entre ellos lo hace la persona con los
+ *   botones de siempre, porque desde fuera de cada servidor no hay forma
+ *   honesta de saber si funciona.
  */
 export function FichaReproductor({
   fuente,
   titulo,
   tmdbId,
-  imdbId,
   mediaType,
   temporada,
   episodio,
@@ -45,8 +41,6 @@ export function FichaReproductor({
   titulo: string;
   /** Sin tmdbId no hay catálogo que consultar: solo sirven los enlaces propios. */
   tmdbId: number | null;
-  /** Id de IMDB, para los servidores que indexan por él (Embed69, VerhdLink). */
-  imdbId: string | null;
   mediaType: MediaType;
   temporada: number;
   episodio: number;
@@ -92,7 +86,6 @@ export function FichaReproductor({
       key={`${tmdbId}|${mediaType}|${temporada}|${episodio}`}
       titulo={titulo}
       tmdbId={tmdbId}
-      imdbId={imdbId}
       mediaType={mediaType}
       temporada={temporada}
       episodio={episodio}
@@ -106,15 +99,12 @@ export function FichaReproductor({
  *
  * Mientras `/api/stream` responde se enseña ya el iframe de VidSrc, armado en
  * el cliente con las plantillas de siempre: la primera imagen tarda lo mismo
- * que antes. Cuando llega la lista, todos los servidores quedan como botones;
- * el activo por defecto es el primero de la lista (un embed, instantáneo), y
- * el torrent español de Webtor —que tarda más en arrancar— espera a que alguien
- * lo elija.
+ * que antes. Cuando llega la lista, todos los servidores quedan como botones y
+ * el activo por defecto es el primero (un embed, instantáneo).
  */
 function ReproductorCatalogo({
   titulo,
   tmdbId,
-  imdbId,
   mediaType,
   temporada,
   episodio,
@@ -122,13 +112,12 @@ function ReproductorCatalogo({
 }: {
   titulo: string;
   tmdbId: number;
-  imdbId: string | null;
   mediaType: MediaType;
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
 }) {
-  const servidores = useServidores(tmdbId, titulo, imdbId, mediaType, temporada, episodio);
+  const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
   // La elección manual vive y muere con este componente: el padre lo monta con
   // una key distinta por título/episodio, así que aquí nunca llega una elección
   // vieja de otro capítulo.
@@ -145,8 +134,7 @@ function ReproductorCatalogo({
 
   const activo: ServidorStream | null =
     servidores.find((servidor) => servidor.id === elegidoId) ??
-    // El primero de la lista es un embed: instantáneo. Webtor (torrent en
-    // español) queda a un clic para quien prefiera esperar el doblaje.
+    // El primero de la lista: un embed, instantáneo.
     servidores[0] ??
     (vidSrcUrl
       ? { id: "vidsrc", label: "VidSrc", kind: "embed" as const, url: vidSrcUrl }
@@ -218,7 +206,6 @@ function ReproductorCatalogo({
 function useServidores(
   tmdbId: number,
   titulo: string,
-  imdbId: string | null,
   mediaType: MediaType,
   temporada: number,
   episodio: number
@@ -236,8 +223,6 @@ function useServidores(
       season: String(temporada),
       episode: String(episodio),
     });
-    if (imdbId) params.set("imdb", imdbId);
-
     fetch(`/api/stream?${params}`, { signal: controlador.signal })
       .then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -255,7 +240,7 @@ function useServidores(
       });
 
     return () => controlador.abort();
-  }, [tmdbId, titulo, imdbId, mediaType, temporada, episodio]);
+  }, [tmdbId, titulo, mediaType, temporada, episodio]);
 
   return servidores;
 }

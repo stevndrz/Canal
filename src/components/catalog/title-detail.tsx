@@ -61,7 +61,6 @@ export function TitleDetail({
           fuente={activeSource}
           titulo={item.title}
           tmdbId={item.tmdbId ?? null}
-          imdbId={item.imdbId ?? null}
           mediaType={item.mediaType}
           temporada={selectedSeason}
           episodio={selectedEpisode?.episode ?? 1}

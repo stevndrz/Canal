@@ -62,11 +62,6 @@ export interface CatalogItem {
   mediaType: MediaType;
   /** Sin `tmdbId` hay que rellenar título y póster a mano. */
   tmdbId?: number;
-  /**
-   * Id de IMDB («tt…»). Lo resuelve TMDB al abrir la ficha; lo usan los
-   * servidores que indexan por IMDB (Embed69, VerhdLink).
-   */
-  imdbId?: string | null;
   /** Estos tres sobrescriben lo que devuelve TMDB. */
   title?: string;
   poster?: string;

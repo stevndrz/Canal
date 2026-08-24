@@ -21,6 +21,14 @@ import { LiveCardSkeleton } from "@/components/live-card";
  * servidor no existe: con un import normal, la página entera revienta con
  * `ReferenceError: self is not defined` y Vercel devuelve un 500 — es lo que
  * tumbó este mismo diseño la primera vez que se intentó desplegar.
+ *
+ * El reproductor incrustado vive en el shell, no dentro de una vista.
+ *
+ * Antes lo montaba Inicio, así que al pasar a Canales React lo desmontaba, la
+ * conexión se cortaba y el canal se quedaba en silencio. Montado aquí, ocupa el
+ * mismo sitio del árbol en las dos pestañas: React conserva la instancia, el
+ * `<video>` no se recrea y la emisión sigue sin cortarse mientras se busca otro
+ * canal. Es el mismo motivo por el que nunca hay dos reproductores a la vez.
  */
 /**
  * El reproductor incrustado vive en el shell, no dentro de una vista.
