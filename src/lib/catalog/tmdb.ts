@@ -24,6 +24,8 @@ export function tmdbImage(path: string | null | undefined, size: string): string
 
 interface TmdbTitle {
   title?: string;
+  /** Llega solo con `append_to_response=…,external_ids`. */
+  external_ids?: { imdb_id?: string | null };
   original_language?: string;
   name?: string;
   overview?: string;
@@ -117,6 +119,11 @@ export interface TmdbPersona {
 
 export interface TmdbTitleData {
   title: string | null;
+  /**
+   * Id de IMDB («tt…»), que consumen los servidores que indexan por él.
+   * Nunca sale hacia el cliente: es dato interno del servidor.
+   */
+  imdbId: string | null;
   /** Idioma en que se rodó (`es`, `en`…). Ver ResolvedCatalogItem. */
   originalLanguage: string | null;
   overview: string;
@@ -143,7 +150,7 @@ export interface TmdbTitleData {
  * el doble por enseñar quién sale.
  */
 export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<TmdbTitleData | null> {
-  const data = await tmdbFetch<TmdbTitle>(`/${mediaType}/${tmdbId}?append_to_response=credits`);
+  const data = await tmdbFetch<TmdbTitle>(`/${mediaType}/${tmdbId}?append_to_response=credits,external_ids`);
   if (!data) return null;
 
   const date = data.release_date || data.first_air_date || "";
@@ -159,6 +166,7 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
 
   return {
     title: data.title ?? data.name ?? null,
+    imdbId: data.external_ids?.imdb_id ?? null,
     originalLanguage: data.original_language ?? null,
     overview: data.overview ?? "",
     poster: tmdbImage(data.poster_path, POSTER_SIZE),

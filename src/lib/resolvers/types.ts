@@ -4,12 +4,18 @@
  * `process.env`: llega hasta el cliente.
  */
 
-/** Un servidor de reproducción: un iFrame de un proveedor externo. */
+/**
+ * Un servidor de reproducción.
+ *
+ * - `embed` (por omisión): página con reproductor ajeno → iFrame.
+ * - `video`: enlace directo (.mp4/.m3u8) → `<video>` propio, sin anuncios.
+ */
 export interface ServidorStream {
   id: string;
   /** Lo que se lee en el botón ("Servidor 1", "Servidor 2"). */
   label: string;
   url: string;
+  tipo?: "embed" | "video";
 }
 
 /** La respuesta entera de `/api/stream`. */

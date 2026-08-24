@@ -152,7 +152,14 @@ function ReproductorCatalogo({
     <section className="ficha-reproductor">
       <div className="ficha-conjunto">
         <div className="player-surface ficha-marco">
-          {activo.id === "vimeus" ? (
+          {activo.tipo === "video" ? (
+            /* Enlace directo (.mp4/.m3u8) de un addon: reproductor HTML5
+               propio con hls.js — la única vía sin anuncios. */
+            <NativePlayer
+              streams={[{ label: titulo, url: activo.url, type: "auto" }]}
+              title={titulo}
+            />
+          ) : activo.id === "vimeus" ? (
             /* Vimeus es el único que tolera el sandbox —y por tanto el único
                con los popups bloqueados de verdad—. VidSrc y VideoEasy se
                niegan a cargar dentro de un frame restringido, así que esos

@@ -82,5 +82,12 @@ export function serverConfig() {
 
     /** Secreto de Pusher, solo para firmar canales privados en la ruta de auth. */
     pusherSecret: process.env.PUSHER_SECRET || "",
+
+    /**
+     * Manifiestos de addons de Stremio que sirven enlaces directos
+     * (.mp4/.m3u8) sin anuncios, separados por comas. Opcional: sin esta
+     * lista la ficha queda solo con los embeds.
+     */
+    stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
   };
 }
