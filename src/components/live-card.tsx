@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ICONO_CAST, PlayerControls } from "@/components/player/player-controls";
+import { extrasCast, PlayerControls } from "@/components/player/player-controls";
 import { useCast } from "@/hooks/use-cast";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
@@ -86,11 +86,13 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
     videoRef.current = playerRef.current?.video() ?? null;
   }, [channel.streamUrl]);
 
-  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } = useCast(
+  const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } = useCast(
     videoRef,
     channel.streamUrl,
     channel.name,
   );
+
+  const transmision = extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting });
 
   return (
     <section className="live-card" aria-label={`En directo: ${channel.name}`}>
@@ -138,29 +140,16 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
             grandes abajo— es la que hace que se lea como un mando para pasar
             el canal a la tele, que es justo lo que se quería. */}
         <PlayerControls
-        variant="embedded"
-        isPlaying={state.isPlaying}
-        isMuted={state.isMuted}
-        onTogglePlay={() => playerRef.current?.togglePlay()}
-        onToggleMute={() => playerRef.current?.toggleMute()}
-        onPrev={onPrev}
-        onNext={onNext}
-        fullscreen={{ active: false, onToggle: expandir }}
-        big={settings.bigControls}
-        extras={
-          canCast
-            ? [
-                {
-                  id: "cast",
-                  label: isCasting ? "Dejar de transmitir" : "Enviar a la TV",
-                  icon: ICONO_CAST,
-                  active: isCasting,
-                  pressed: isCasting,
-                  onClick: isCasting ? stopCasting : startCasting,
-                },
-              ]
-            : []
-          }
+          variant="embedded"
+          isPlaying={state.isPlaying}
+          isMuted={state.isMuted}
+          onTogglePlay={() => playerRef.current?.togglePlay()}
+          onToggleMute={() => playerRef.current?.toggleMute()}
+          onPrev={onPrev}
+          onNext={onNext}
+          fullscreen={{ active: false, onToggle: expandir }}
+          big={settings.bigControls}
+          extras={transmision}
         />
       </div>
 

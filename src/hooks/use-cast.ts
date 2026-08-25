@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
+ * API privada de WebKit para AirPlay; no existe en lib.dom y solo está en
+ * Safari / iOS. Se declara aquí porque este hook es su único consumidor.
+ */
+declare global {
+  interface Window {
+    WebKitPlaybackTargetAvailabilityEvent?: unknown;
+  }
+}
+
+/**
  * Transmitir el canal a una TV desde el teléfono, cubriendo las tres vías que
  * existen en navegadores, en orden de preferencia:
  *
@@ -12,7 +22,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * 2. **AirPlay** (Safari / iOS): `webkitShowPlaybackTargetPicker`.
  * 3. **Remote Playback API**: respaldo estándar donde exista.
  *
- * Si no hay ninguna disponible, `isAvailable` queda en false y la UI oculta el
+ * Si no hay ninguna disponible, el método queda en `null` y la UI oculta el
  * botón en vez de mostrar algo que no funciona.
  */
 
@@ -20,7 +30,7 @@ const CAST_SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loa
 // Receptor multimedia por defecto de Google: reproduce HLS/MP4 sin registrar app.
 const DEFAULT_RECEIVER_APP_ID = "CC1AD845";
 
-type CastMethod = "gcast" | "airplay" | "remote";
+export type CastMethod = "gcast" | "airplay" | "remote";
 
 interface CastGlobals {
   cast?: {
@@ -153,7 +163,15 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
   // AirPlay: Safari avisa por evento cuándo hay un dispositivo al alcance.
   useEffect(() => {
     const video = videoRef.current as VideoWithAirplay | null;
-    if (!video || typeof video.webkitShowPlaybackTargetPicker !== "function") return;
+    if (!video) return;
+
+    // Señal de que este WebKit sabe de AirPlay: la API de eventos de
+    // disponibilidad y el selector nativo. El botón solo se ofrece si están
+    // las dos; en Chrome ninguna existe y no se pinta nada que no funcione.
+    const conoceAirplay =
+      typeof window.WebKitPlaybackTargetAvailabilityEvent !== "undefined" &&
+      typeof video.webkitShowPlaybackTargetPicker === "function";
+    if (!conoceAirplay) return;
 
     const handleAvailability = (event: Event) => {
       const available = (event as Event & { availability?: string }).availability === "available";
@@ -323,7 +341,8 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
   }, [isCasting, restoreLocalAudio, videoRef]);
 
   return {
-    canCast: method !== null,
+    /** Qué vía hay disponible: la UI la usa para pintar el botón que toca. */
+    castMethod: method,
     isCasting,
     startCasting,
     stopCasting,

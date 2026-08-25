@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast } from "lucide-react";
 import {
-  ICONO_CAST,
+  extrasCast,
   ICONO_GUIA,
   PlayerControls,
 } from "@/components/player/player-controls";
@@ -79,7 +79,7 @@ export function FullscreenPlayer({
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el
   // elemento primero, ambos leen `.current` en el momento de actuar.
-  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+  const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoElRef, channel.streamUrl, channel.name);
 
 
@@ -245,18 +245,7 @@ export function FullscreenPlayer({
               expanded: showGuide,
               onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
             },
-            ...(canCast
-              ? [
-                  {
-                    id: "cast",
-                    label: isCasting ? "Dejar de transmitir" : "Transmitir a la TV",
-                    icon: ICONO_CAST,
-                    active: isCasting,
-                    pressed: isCasting,
-                    onClick: isCasting ? stopCasting : startCasting,
-                  },
-                ]
-              : []),
+            ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
           ]}
         />
 

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
 import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
-import type { MediaType, PlaybackSource } from "@/lib/catalog/types";
+import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
@@ -118,13 +118,31 @@ function ReproductorCatalogo({
       : null;
   }, [mediaType, tmdbId, temporada, episodio]);
 
-  const activo: ServidorStream | null =
-    servidores.find((servidor) => servidor.id === elegidoId) ??
-    // El primero de la lista: un embed, instantáneo.
-    servidores[0] ??
-    (vidSrcUrl
-      ? { id: "vidsrc", label: "VidSrc", tipo: "embed" as const, url: vidSrcUrl }
-      : null);
+  // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
+  // como último recurso el fallback de VidSrc. Memoizado para que la identidad
+  // no cambie con cada render: de ella cuelga la lista que reinicia o no al
+  // reproductor.
+  const activo: ServidorStream | null = useMemo(
+    () =>
+      servidores.find((servidor) => servidor.id === elegidoId) ??
+      servidores[0] ??
+      (vidSrcUrl
+        ? { id: "vidsrc", label: "VidSrc", tipo: "embed" as const, url: vidSrcUrl }
+        : null),
+    [elegidoId, servidores, vidSrcUrl],
+  );
+
+  /**
+   * La lista de streams debe conservar la identidad entre renders. El
+   * reproductor rearranca la emisión cuando cambia el objeto `stream` que
+   * recibe; recrear el array inline en cada render —cuando llega la lista de
+   * servidores, al elegir otro, con cualquier parpadeo— reiniciaba el vídeo
+   * desde cero: el «se repite el reproductor» reportado en televisores.
+   */
+  const streamDirecto = useMemo<ManualStream[]>(
+    () => (activo ? [{ label: titulo, url: activo.url, type: "auto" }] : []),
+    [titulo, activo],
+  );
 
   if (!activo) {
     return (
@@ -141,10 +159,7 @@ function ReproductorCatalogo({
           {activo.tipo === "video" ? (
             /* Enlace directo (.mp4/.m3u8) de un addon: reproductor HTML5
                propio con hls.js — la única vía sin anuncios. */
-            <NativePlayer
-              streams={[{ label: titulo, url: activo.url, type: "auto" }]}
-              title={titulo}
-            />
+            <NativePlayer streams={streamDirecto} title={titulo} />
           ) : activo.id === "vimeus" ? (
             /* Vimeus es el único que tolera el sandbox —y por tanto el único
                con los popups bloqueados de verdad—. VidSrc y VideoEasy se

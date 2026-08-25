@@ -99,18 +99,63 @@ export async function montarMotor(opciones: OpcionesMotor): Promise<MotorMontado
   return montarNativo(opciones);
 }
 
+/**
+ * ¿Toca reproducir HLS sin librería aunque exista MSE?
+ *
+ * AirPlay solo transmite la reproducción **nativa** del `<video>`: si el medio
+ * se alimenta por MSE (hls.js), el selector de Safari aparece pero la tele se
+ * queda en negro. Los WebKit que tienen AirPlay también leen HLS por su cuenta,
+ * así que ahí el flujo va directo al vídeo y hls.js queda reservado para los
+ * navegadores que sí lo necesitan (Chrome, Firefox, Android), donde además es
+ * lo que hace posible Chromecast mandar la URL al receptor.
+ */
+export function prefiereNativoPorAirplay(video: HTMLVideoElement): boolean {
+  return (
+    typeof video.canPlayType === "function" &&
+    video.canPlayType("application/vnd.apple.mpegurl") !== "" &&
+    typeof window.WebKitPlaybackTargetAvailabilityEvent !== "undefined"
+  );
+}
+
+/**
+ * Política única de recuperación de emisiones hls.js, compartida por el motor
+ * de canales y el reproductor de pelis/series.
+ *
+ * Un fallo de red se recarga; uno de medios se recupera UNA sola vez —
+ * llamarlo dos veces seguidas hace que hls.js vacíe el búfer y vuelva a
+ * emitir el mismo fragmento, exactamente el «se repite un trozo y queda en
+ * bucle» que se veía en televisores con MSE defectuoso. Fuera de eso, o al
+ * agotar los intentos, toca abandonar y dejar que cada llamada decida su
+ * último recurso.
+ */
+export const INTENTOS_RECUPERACION = 3;
+
+export interface EstadoRecuperacion {
+  intentos: number;
+  mediosRecuperados: boolean;
+}
+
+export type PlanAnteError = "reintentar-red" | "reintentar-medios" | "abandonar";
+
+export function planAnteErrorFatal(
+  estado: EstadoRecuperacion,
+  tipo: "red" | "medios" | "otro",
+): PlanAnteError {
+  if (tipo === "otro") return "abandonar";
+  if (estado.intentos >= INTENTOS_RECUPERACION) return "abandonar";
+  if (tipo === "medios" && estado.mediosRecuperados) return "abandonar";
+  return tipo === "red" ? "reintentar-red" : "reintentar-medios";
+}
+
 async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
   const Hls = await cargarHls();
   if (o.cancelado()) return vacio();
 
-  if (!Hls.isSupported()) {
-    // Safari reproduce HLS de forma nativa sin necesitar la librería.
-    if (o.video.canPlayType("application/vnd.apple.mpegurl")) {
-      o.video.src = o.url;
-      o.video.addEventListener("loadedmetadata", o.alPoderReproducir, { once: true });
-      return vacio();
-    }
-    o.alFallar();
+  // Sin MSE, o en un WebKit con AirPlay, el HLS va nativo. Ver
+  // `prefiereNativoPorAirplay`.
+  if (!Hls.isSupported() || prefiereNativoPorAirplay(o.video)) {
+    o.video.src = o.url;
+    o.video.addEventListener("loadedmetadata", o.alPoderReproducir, { once: true });
     return vacio();
   }
 
@@ -134,8 +179,32 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
     capLevelToPlayerSize: !o.settings.calidadMaxima,
   });
 
+  /**
+   * Recuperación acotada según la política común (`planAnteErrorFatal`):
+   * abandonar aquí es declarar la señal caída.
+   */
+  const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
   hls.on(Hls.Events.ERROR, (_evento, datos) => {
-    if (datos.fatal) o.alFallar();
+    if (!datos.fatal || o.cancelado()) return;
+    const plan = planAnteErrorFatal(
+      recuperacion,
+      datos.type === Hls.ErrorTypes.NETWORK_ERROR
+        ? "red"
+        : datos.type === Hls.ErrorTypes.MEDIA_ERROR
+          ? "medios"
+          : "otro",
+    );
+    if (plan === "abandonar") {
+      o.alFallar();
+      return;
+    }
+    recuperacion.intentos++;
+    if (plan === "reintentar-medios") {
+      recuperacion.mediosRecuperados = true;
+      hls.recoverMediaError();
+    } else {
+      hls.startLoad();
+    }
   });
   hls.on(Hls.Events.MANIFEST_PARSED, o.alPoderReproducir);
   hls.loadSource(o.url);

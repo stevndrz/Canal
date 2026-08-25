@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import {
+  Airplay,
   Captions,
   Cast,
   Languages,
@@ -18,6 +19,11 @@ import {
 import { useCast } from "@/hooks/use-cast";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import type { ManualStream } from "@/lib/catalog/types";
+import {
+  planAnteErrorFatal,
+  prefiereNativoPorAirplay,
+  type EstadoRecuperacion,
+} from "@/lib/reproduccion/motor";
 
 /**
  * Reproductor nativo para los enlaces propios del catálogo (`manual`).
@@ -29,8 +35,6 @@ import type { ManualStream } from "@/lib/catalog/types";
  * añade barra de progreso (una película sí se busca, un canal en vivo no),
  * selector de pistas de audio y de subtítulos.
  */
-
-const MAX_RECOVERY_ATTEMPTS = 3;
 
 interface AudioTrackOption {
   id: number;
@@ -81,7 +85,7 @@ export const NativePlayer = memo(function NativePlayer({
   const stream = streams[streamIndex] ?? streams[0];
   const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
 
-  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+  const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoRef, stream?.url ?? "", title);
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
 
@@ -93,7 +97,6 @@ export const NativePlayer = memo(function NativePlayer({
     if (!video || !stream?.url) return;
 
     let cancelled = false;
-    let recoveryAttempts = 0;
     setHasError(false);
     setIsLoading(true);
     setAudioTracks([]);
@@ -110,7 +113,9 @@ export const NativePlayer = memo(function NativePlayer({
       setIsLoading(false);
     };
 
-    if (detectKind(stream) === "hls" && !video.canPlayType("application/vnd.apple.mpegurl") && Hls.isSupported()) {
+    // Misma regla que el motor de canales: en los WebKit con AirPlay el HLS
+    // va nativo (ver `prefiereNativoPorAirplay`), hls.js solo para el resto.
+    if (detectKind(stream) === "hls" && !prefiereNativoPorAirplay(video) && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       hlsRef.current = hls;
 
@@ -123,21 +128,37 @@ export const NativePlayer = memo(function NativePlayer({
         setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
       });
 
+      /**
+       * Recuperación acotada según la política común del motor
+       * (`planAnteErrorFatal`). Abandonar NO es rendirse del todo: antes de
+       * dar el enlace por muerto se prueba UNA vía más — entregarlo al
+       * `<video>` tal cual, porque varios televisores leen HLS de forma
+       * nativa aunque su MSE falle; si tampoco puede, `error` cae en
+       * `onNativeError`, que ya enseña el aviso de siempre.
+       */
+      const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (cancelled || !data.fatal) return;
-        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+        const plan = planAnteErrorFatal(
+          recuperacion,
+          data.type === Hls.ErrorTypes.NETWORK_ERROR
+            ? "red"
+            : data.type === Hls.ErrorTypes.MEDIA_ERROR
+              ? "medios"
+              : "otro",
+        );
+        if (plan === "abandonar") {
           hls.destroy();
           hlsRef.current = null;
-          fail();
+          video.src = stream.url;
           return;
         }
-        recoveryAttempts++;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-        else {
-          hls.destroy();
-          hlsRef.current = null;
-          fail();
+        recuperacion.intentos++;
+        if (plan === "reintentar-medios") {
+          recuperacion.mediosRecuperados = true;
+          hls.recoverMediaError();
+        } else {
+          hls.startLoad();
         }
       });
 
@@ -245,8 +266,11 @@ export const NativePlayer = memo(function NativePlayer({
           className="h-full w-full object-contain"
           playsInline
           muted={isMuted}
+          /* Transmitir: sin estos atributos Safari no ofrece AirPlay sobre
+             este vídeo y algunas TVs rechazan el flujo .m3u8 por CORS. */
           x-webkit-airplay="allow"
           crossOrigin="anonymous"
+          disableRemotePlayback={false}
         >
           {subtitles.map((track) => (
             <track
@@ -399,18 +423,31 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {canCast && (
-            <button
-              type="button"
-              onClick={isCasting ? stopCasting : startCasting}
-              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
-              className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-                isCasting ? "bg-sky-500/40" : "bg-white/10"
-              }`}
-            >
-              <Cast aria-hidden="true" className="h-5 w-5" />
-            </button>
-          )}
+        {/* Un botón por vía, no uno genérico: en Android aparece Chromecast
+            y en iOS AirPlay. Si no hay ninguna disponible, ninguno. */}
+        {castMethod === "gcast" && (
+          <button
+            type="button"
+            onClick={isCasting ? stopCasting : startCasting}
+            aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir con Chromecast"}
+            className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+              isCasting ? "bg-sky-500/40" : "bg-white/10"
+            }`}
+          >
+            <Cast aria-hidden="true" className="h-5 w-5" />
+          </button>
+        )}
+
+        {castMethod === "airplay" && (
+          <button
+            type="button"
+            onClick={startCasting}
+            aria-label="Transmitir con AirPlay"
+            className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          >
+            <Airplay aria-hidden="true" className="h-5 w-5" />
+          </button>
+        )}
 
           {canFullscreen && (
             <button

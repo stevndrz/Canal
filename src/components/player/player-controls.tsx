@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import {
+  Airplay,
   Cast,
   List,
   Maximize,
@@ -13,6 +14,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
+import type { CastMethod } from "@/hooks/use-cast";
 
 /**
  * La barra de controles, compartida por el reproductor pequeño de Inicio y el
@@ -166,3 +168,47 @@ export function PlayerControls({
 /** Iconos de los controles ocasionales, para que los dos sitios usen los mismos. */
 export const ICONO_GUIA = <List aria-hidden="true" />;
 export const ICONO_CAST = <Cast aria-hidden="true" />;
+export const ICONO_AIRPLAY = <Airplay aria-hidden="true" />;
+
+/**
+ * Botones de transmisión, compartidos por Inicio y pantalla completa: uno por
+ * vía detectada —Chromecast en Chrome/Android, AirPlay en iOS/Safari—, y sin
+ * ninguno si el hook no encontró soporte. Un solo sitio para que los dos
+ * reproductores se comporten igual.
+ */
+export function extrasCast({
+  metodo,
+  isCasting,
+  startCasting,
+  stopCasting,
+}: {
+  metodo: CastMethod | null;
+  isCasting: boolean;
+  startCasting: () => void;
+  stopCasting: () => void;
+}): PlayerAction[] {
+  return [
+    ...(metodo === "gcast"
+      ? [
+          {
+            id: "chromecast",
+            label: isCasting ? "Dejar de transmitir" : "Transmitir con Chromecast",
+            icon: ICONO_CAST,
+            active: isCasting,
+            pressed: isCasting,
+            onClick: isCasting ? stopCasting : startCasting,
+          },
+        ]
+      : []),
+    ...(metodo === "airplay"
+      ? [
+          {
+            id: "airplay",
+            label: "Transmitir con AirPlay",
+            icon: ICONO_AIRPLAY,
+            onClick: startCasting,
+          },
+        ]
+      : []),
+  ];
+}

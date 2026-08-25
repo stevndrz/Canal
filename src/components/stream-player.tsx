@@ -264,6 +264,11 @@ const StreamPlayer = memo(
           playsInline
           autoPlay
           muted={isMuted}
+          /* Transmitir: sin estos tres atributos Safari no ofrece AirPlay
+             sobre este vídeo y algunas TVs rechazan el flujo .m3u8 por CORS. */
+          crossOrigin="anonymous"
+          x-webkit-airplay="allow"
+          disableRemotePlayback={false}
           style={{ objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain" }}
         />
 
