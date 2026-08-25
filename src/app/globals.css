@@ -81,6 +81,76 @@
   button { cursor: pointer; font: inherit; }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
 
+  /**
+   * Ningún control puede salir con su aspecto NATIVO.
+   *
+   * `color-scheme: dark` es lo único que le dice al navegador que pinte sus
+   * campos oscuros, y hay dos sitios donde no se aplica: los navegadores de
+   * televisor viejos, que no lo soportan, y cualquier escritorio que lo ignore.
+   * Ahí un `<input>` sin reglas propias se dibuja como lo que es —el campo del
+   * sistema— y sobre el negro de la app eso es un RECTÁNGULO BLANCO con el
+   * cursor de escritura dentro. Era exactamente el «cuadro blanco» reportado
+   * en televisor y en PC.
+   *
+   * Estas reglas quitan el dibujo del sistema y dejan el control transparente
+   * y heredando el color del texto: si alguien añade un campo y se olvida de
+   * estilarlo, lo peor que puede pasar es que se vea de menos, nunca una caja
+   * blanca. Al estar en `base`, cualquier componente lo sobrescribe sin pelear.
+   *
+   * `input` va con `:where()` para no tocar los que SÍ quieren su aspecto
+   * nativo —`range`, `checkbox`, `radio`, `color`— y para no sumar
+   * especificidad.
+   */
+  input:where(
+      :not([type]),
+      [type="text"],
+      [type="search"],
+      [type="url"],
+      [type="email"],
+      [type="tel"],
+      [type="number"],
+      [type="password"]
+    ),
+  select,
+  textarea {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+  }
+
+  /* El aspa y la lupa que WebKit mete dentro de `type=search`: son suyas, con
+     su color, y en un campo oscuro cantan. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration,
+  input[type="search"]::-webkit-search-results-button,
+  input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Quitado el aspecto nativo, un `<select>` se queda sin su flecha y ya no se
+     lee como desplegable. Se le devuelve una propia, dibujada, que además es
+     igual en todos los navegadores. */
+  select {
+    padding-inline-end: 26px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' stroke='%23f5f5f7' stroke-opacity='.6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+
+  /* El desplegable del sistema se pinta con los colores del sistema (blanco
+     sobre negro en muchos televisores). No se puede estilar desde fuera, así
+     que al menos las opciones se declaran oscuras. */
+  option {
+    background-color: var(--color-surface-2);
+    color: var(--color-accent);
+  }
+
   a { color: var(--color-accent); text-decoration: none; }
   a:hover { color: var(--muted); }
 }
@@ -602,6 +672,32 @@ html[data-player="on"] body {
 .catalogo-buscador-campo input::-webkit-search-cancel-button {
   -webkit-appearance: none;
   appearance: none;
+}
+
+/* «Ordenar por» del catálogo. Mismo cristal que las píldoras de al lado, con
+   el hueco de la flecha que dibuja la regla base de `select`. */
+.catalogo-orden {
+  flex-shrink: 0;
+  padding: 6px 30px 6px 12px;
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: 999px;
+  background-color: var(--bg-elevated, #1c1c1f);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.catalogo-orden:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  color: var(--text, #f5f5f7);
+}
+
+/* El desplegable no lleva `data-nav`, así que la regla general de foco no le
+   entra: se le pone aquí el suyo, o al tabular no se vería dónde está. */
+.catalogo-orden:focus-visible {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  color: var(--text, #f5f5f7);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
 }
 
 .catalogo-buscador-enviar {

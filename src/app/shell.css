@@ -873,6 +873,39 @@
   padding-top: 0;
 }
 
+/* La píldora de Buscar: el mismo campo que Canales y que el catálogo, para
+   que las tres búsquedas de la app se vean iguales. Que exista es además lo
+   que impide que el navegador pinte su campo nativo — un rectángulo claro con
+   el cursor de escritura — en los que ignoran `color-scheme: dark`. */
+.buscar-campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  min-height: clamp(48px, 4.4vh, 62px);
+  padding: 0 clamp(16px, 1.4vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--chip);
+  cursor: text;
+}
+
+.buscar-campo:focus-within {
+  border-color: var(--line-bright);
+}
+
+.buscar-campo input {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: clamp(15px, 1.15vw, 20px);
+}
+
+.buscar-campo input::placeholder {
+  color: var(--faint);
+}
+
 .search-icon-shell {
   display: grid;
   place-items: center;

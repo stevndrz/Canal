@@ -136,13 +136,17 @@ export function CatalogSearch({
           </label>
         </form>
 
+        {/* El desplegable lleva clase propia y no utilidades sueltas: el hueco
+            de la flecha lo pone la hoja junto con la flecha misma, y con
+            `px-3` de Tailwind —que gana a la regla base— el texto se le
+            montaba encima. */}
         <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-400">
           Ordenar por
           <select
             value={orden}
             onChange={(evento) => cambiarOrden(evento.target.value as OrdenCatalogo)}
             aria-label="Ordenar catálogo"
-            className="shrink-0 rounded-full border border-white/10 bg-neutral-800/80 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="catalogo-orden"
           >
             {ORDENES.map(({ id, label }) => (
               <option key={id} value={id}>

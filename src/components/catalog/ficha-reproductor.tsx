@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
+import { buildEmbedUrl, getProviders, type EmbedProvider } from "@/lib/catalog/providers";
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 
@@ -83,10 +83,11 @@ export function FichaReproductor({
 /**
  * El reproductor cuando el título viene del catálogo de TMDB.
  *
- * Mientras `/api/stream` responde se enseña ya el iframe de VidSrc, armado en
- * el cliente con las plantillas de siempre: la primera imagen tarda lo mismo
- * que antes. Cuando llega la lista, todos los servidores quedan como botones y
- * el activo por defecto es el primero (un embed, instantáneo).
+ * Mientras `/api/stream` responde se enseña ya el iframe del primer proveedor
+ * que cubra el tipo, armado en el cliente con las mismas plantillas: la primera
+ * imagen tarda lo mismo que antes. Cuando llega la lista, todos los servidores
+ * quedan como botones y el activo por defecto es el primero (un embed,
+ * instantáneo) — el mismo que ya se estaba viendo.
  */
 function ReproductorCatalogo({
   titulo,
@@ -109,27 +110,52 @@ function ReproductorCatalogo({
   // vieja de otro capítulo.
   const [elegidoId, setElegidoId] = useState<string | null>(null);
 
-  // Fallback inmediato: el mismo iframe de VidSrc que se veía antes de que
-  // existiera esta ruta. Si `/api/stream` falla, es lo que queda en pantalla.
-  const vidSrcUrl = useMemo(() => {
-    const vidsrc = getProviders().find((provider) => provider.id === "vidsrc");
-    return vidsrc
-      ? buildEmbedUrl(vidsrc, mediaType, { tmdbId, season: temporada, episode: episodio })
+  /**
+   * Respaldo inmediato, mientras `/api/stream` responde y también si falla.
+   *
+   * Es **el primero de la lista que cubra este tipo**, que es exactamente el
+   * que va a llegar como `servidores[0]`. Antes estaba fijado a VidSrc y en
+   * películas eso significaba cargar un frame condenado: aparecía VidSrc, y
+   * décimas después la lista lo sustituía por Vimeus. Dos cargas, un parpadeo,
+   * y con el sandbox de antes la primera era además la pantalla de «Playback
+   * blocked» de VidSrc — lo primero que se veía al abrir una película.
+   */
+  const respaldo = useMemo<ServidorStream | null>(() => {
+    // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
+    // sabe preservar la memoización de un `return` dentro de un bucle y el
+    // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
+    const candidatos = getProviders().map((provider) => ({
+      provider,
+      url: buildEmbedUrl(provider, mediaType, {
+        tmdbId,
+        season: temporada,
+        episode: episodio,
+      }),
+    }));
+    const primero = candidatos.find(
+      (candidato): candidato is { provider: EmbedProvider; url: string } => candidato.url !== null
+    );
+    return primero
+      ? {
+          id: primero.provider.id,
+          label: primero.provider.label,
+          tipo: "embed",
+          url: primero.url,
+          rechazaSandbox: primero.provider.rechazaSandbox,
+        }
       : null;
   }, [mediaType, tmdbId, temporada, episodio]);
 
   // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
-  // como último recurso el fallback de VidSrc. Memoizado para que la identidad
+  // como último recurso el respaldo de arriba. Memoizado para que la identidad
   // no cambie con cada render: de ella cuelga la lista que reinicia o no al
   // reproductor.
   const activo: ServidorStream | null = useMemo(
     () =>
       servidores.find((servidor) => servidor.id === elegidoId) ??
       servidores[0] ??
-      (vidSrcUrl
-        ? { id: "vidsrc", label: "VidSrc", tipo: "embed" as const, url: vidSrcUrl }
-        : null),
-    [elegidoId, servidores, vidSrcUrl],
+      respaldo,
+    [elegidoId, servidores, respaldo],
   );
 
   /**
@@ -161,8 +187,10 @@ function ReproductorCatalogo({
                propio con hls.js — la única vía sin anuncios. */
             <NativePlayer streams={streamDirecto} title={titulo} />
           ) : (
-            /* Sandbox UNIFORME para todos los embeds, no solo para el que lo
-               toleraba. Sin `sandbox`, un iframe externo puede navegar la
+            /* Sandbox por defecto, y sin él SOLO para quien se niega a cargar
+               con él.
+
+               Por qué sandbox: sin él un iframe externo puede navegar la
                ventana entera (`window.top.location = …`), y los guiones de
                publicidad de estos proveedores hacen exactamente eso; en una
                televisión —sin ventanas emergentes— es su única vía. Fue la
@@ -174,16 +202,37 @@ function ReproductorCatalogo({
                llamadas), formularios y presentación: el mínimo para que el
                reproductor del proveedor funcione y pida su propia pantalla
                completa. Niega todo lo demás: navegar la página completa,
-               popups y pointer-lock. Si algún proveedor se negara a
-               renderizar así, se saca de `EMBED_PROVIDERS`: no vale exponer
-               la app entera por uno. */
+               popups y pointer-lock.
+
+               Por qué la excepción: ponerlo a TODOS dejó la app sin películas.
+               VidSrc comprueba el sandbox desde su propia página y, al
+               detectarlo, se va a «Playback blocked — please use iframe
+               without sandbox attribute» en vez de reproducir; en series es
+               el primero que cubre el tipo, así que ninguna serie arrancaba.
+               No es negociable con tokens: la comprobación que usa
+               (`document.domain = document.domain`) está prohibida en
+               cualquier iframe sandboxeado, sin `allow-…` que la habilite.
+               Ver `rechazaSandbox` en `providers.ts` para el detalle
+               verificado.
+
+               Qué se pierde en esa excepción: contra ese proveedor concreto
+               volvemos a depender de la protección del propio navegador, que
+               ya bloquea la navegación del top desde un iframe de otro origen
+               mientras no haya gesto de la persona. Si el bucle de recargas
+               reapareciera con él, la salida es sacarlo de `EMBED_PROVIDERS`
+               —no vale exponer la app entera por un servidor—, y por eso el
+               atributo se decide por proveedor y no a mano en cada sitio. */
             <iframe
               src={activo.url}
               title={titulo}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+              sandbox={
+                activo.rechazaSandbox
+                  ? undefined
+                  : "allow-scripts allow-same-origin allow-forms allow-presentation"
+              }
             />
           )}
         </div>

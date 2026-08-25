@@ -45,6 +45,16 @@ export interface EmbedProvider {
    * salen los subtítulos por defecto.
    */
   spanishSubtitles: boolean;
+  /**
+   * El proveedor **se niega a cargar dentro de un iframe con `sandbox`** y hay
+   * que dárselo sin él.
+   *
+   * No es una preferencia nuestra: su propia página lo comprueba y, si detecta
+   * el atributo, se va a una pantalla de «Playback blocked» en lugar de
+   * reproducir. Ver `ficha-reproductor.tsx` para el porqué de sandboxear por
+   * defecto y qué se pierde al quitarlo.
+   */
+  rechazaSandbox?: boolean;
 }
 
 /**
@@ -84,10 +94,30 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
   },
   {
     // El alternativo fiable en inglés original, con subtítulos pedibles.
+    //
+    // ⚠️ NO TOLERA `sandbox` (verificado 2026-08-25 sobre el HTML que sirve).
+    // Su página trae este guardián en el `<body>`:
+    //
+    //     try { if (window.frameElement.hasAttribute("sandbox")) { r() } return }
+    //     catch (t) {}
+    //     try { document.domain = document.domain }
+    //     catch (t) { if (t.toString().toLowerCase().indexOf("sandbox") != -1) { r() } }
+    //
+    // Asignar `document.domain` está prohibido en CUALQUIER iframe sandboxeado
+    // y el navegador lanza «Assignment is forbidden for sandboxed iframes»: la
+    // palabra «sandbox» aparece en el mensaje, el guardián la reconoce y `r()`
+    // manda el frame a `/asb.html`, que dice literalmente «This player cannot
+    // be loaded inside a restricted (sandboxed) frame. Please use iframe
+    // without sandbox attribute».
+    //
+    // No hay `allow-…` que lo arregle: ningún token del sandbox permite tocar
+    // `document.domain`. O se le da el iframe sin `sandbox`, o este proveedor
+    // no reproduce nunca — y en series es el primero que cubre el tipo.
     id: "vidsrc",
     movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
     tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
     spanishSubtitles: true,
+    rechazaSandbox: true,
   },
   {
     // Tercero de guardia: limpio, con subtítulos y varios servidores internos.
