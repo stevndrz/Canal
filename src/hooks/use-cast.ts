@@ -18,7 +18,9 @@ declare global {
  *
  * 1. **Google Cast** (Chrome de escritorio y Android): se manda la URL del
  *    stream al receptor, así que funciona aunque localmente reproduzcamos con
- *    hls.js/MSE (que no se puede transmitir tal cual).
+ *    hls.js/MSE (que no se puede transmitir tal cual). Con él viajan también
+ *    los subtítulos como pistas de texto del receptor, y el tipo de emisión
+ *    (directo = LIVE; peli/serie = BUFFERED, para poder buscar en ella).
  * 2. **AirPlay** (Safari / iOS): `webkitShowPlaybackTargetPicker`.
  * 3. **Remote Playback API**: respaldo estándar donde exista.
  *
@@ -31,6 +33,40 @@ const CAST_SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loa
 const DEFAULT_RECEIVER_APP_ID = "CC1AD845";
 
 export type CastMethod = "gcast" | "airplay" | "remote";
+
+/** Un subtítulo que puede viajar hasta el receptor de Google Cast. */
+export interface SubtituloCast {
+  url: string;
+  label: string;
+  /** Código BCP 47, ej. "es". */
+  lang: string;
+  porDefecto?: boolean;
+}
+
+/**
+ * Activa (o apaga con `trackId` nulo) la pista de subtítulos en el receptor.
+ *
+ * Las pistas se declaran en el `MediaInfo` antes de `loadMedia`, pero es esta
+ * llamada —sobre la reproducción ya cargada— la que decide cuál se ve. Fallar
+ * aquí no justifica cortar la emisión: solo se apunta en consola.
+ */
+function activarSubtituloEnReceptor(
+  sesionMedia: CastMediaDelReceptor | null | undefined,
+  trackId: number | null,
+): void {
+  const globals = window as unknown as CastGlobals;
+  const media = globals.chrome?.cast?.media;
+  if (!media || !sesionMedia?.editTracksInfo) return;
+  try {
+    sesionMedia.editTracksInfo(
+      new media.EditTracksInfoRequest({ activeTrackIds: trackId == null ? [] : [trackId] }),
+      () => {},
+      () => console.warn("El receptor rechazó la pista de subtítulos"),
+    );
+  } catch {
+    // Receptor sin soporte de pistas de texto: no rompe nada visible.
+  }
+}
 
 interface CastGlobals {
   cast?: {
@@ -46,7 +82,11 @@ interface CastGlobals {
       media: {
         MediaInfo: new (contentId: string, contentType: string) => MediaInfo;
         LoadRequest: new (mediaInfo: MediaInfo) => LoadRequest;
-        StreamType: { LIVE: string };
+        StreamType: { LIVE: string; BUFFERED: string };
+        Track: new (trackId: number, type: string) => CastTrack;
+        TrackType: { TEXT: string };
+        TextTrackType: { SUBTITLES: string };
+        EditTracksInfoRequest: new (info: { activeTrackIds?: number[] }) => CastEditTracksInfo;
       };
     };
   };
@@ -57,14 +97,32 @@ interface MediaInfo {
   contentType: string;
   streamType?: string;
   metadata?: unknown;
+  /** Pistas de texto declaradas antes de `loadMedia`; sin ellas el receptor no ofrece subtítulos. */
+  tracks?: CastTrack[];
 }
 interface LoadRequest {
   media: MediaInfo;
+}
+/** Pista de subtítulo tal y como la quiere el receptor. */
+interface CastTrack {
+  trackContentId?: string;
+  trackContentType?: string;
+  name?: string;
+  language?: string;
+  subtype?: string;
+}
+interface CastEditTracksInfo {
+  activeTrackIds?: number[];
+}
+/** La reproducción concreta dentro de la sesión; es quien activa las pistas. */
+interface CastMediaDelReceptor {
+  editTracksInfo(request: CastEditTracksInfo, ok: () => void, fallo: (error: unknown) => void): void;
 }
 interface CastSession {
   loadMedia(request: LoadRequest): Promise<void>;
   /** `true` detiene también la reproducción en el receptor. */
   endSession(stopCasting: boolean): void;
+  getMediaSession(): CastMediaDelReceptor | null;
 }
 interface CastContext {
   setOptions(options: { receiverApplicationId: string; autoJoinPolicy: string }): void;
@@ -151,7 +209,23 @@ function contentTypeFor(url: string): string {
   return "application/x-mpegurl";
 }
 
-export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, streamUrl: string, channelName: string) {
+/** Identidad estable para los canales que no traen subtítulos. */
+const SIN_SUBTITULOS: SubtituloCast[] = [];
+
+export function useCast(
+  videoRef: React.RefObject<HTMLVideoElement | null>,
+  streamUrl: string,
+  channelName: string,
+  opciones: {
+    /** El directo no se puede buscar en el receptor; una peli sí. */
+    enVivo?: boolean;
+    /** Subtítulos que viajan declarados en el `MediaInfo` del receptor. */
+    subtitulos?: SubtituloCast[];
+    /** Cuál está elegido en nuestra UI; si no hay, el marcado por defecto. */
+    subtituloActivo?: number | null;
+  } = {},
+) {
+  const { enVivo = true, subtitulos = SIN_SUBTITULOS, subtituloActivo = null } = opciones;
   const [method, setMethod] = useState<CastMethod | null>(null);
   const [isCasting, setIsCasting] = useState(false);
   /** Último fallo, en texto para la persona que está delante de la tele. */
@@ -289,9 +363,31 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
 
       try {
         const mediaInfo = new media.MediaInfo(streamUrl, contentTypeFor(streamUrl));
-        mediaInfo.streamType = media.StreamType.LIVE;
+        // El directo es LIVE; una peli o serie va BUFFERED para que el mando
+        // pueda buscar dentro de ella desde el receptor.
+        mediaInfo.streamType = enVivo ? media.StreamType.LIVE : media.StreamType.BUFFERED;
         mediaInfo.metadata = { title: channelName };
+        /**
+         * Los subtítulos viajan como pistas de texto del `MediaInfo`: sin
+         * esto el receptor reproduce la peli muda de letras —el fallo que
+         * se veía en las TVs—. Se activa después la elegida (o la marcada
+         * por defecto); declararlas no basta para que se vean.
+         */
+        if (subtitulos.length > 0) {
+          mediaInfo.tracks = subtitulos.map((subtitulo, indice) => {
+            const pista = new media.Track(indice + 1, media.TrackType.TEXT);
+            pista.trackContentId = subtitulo.url;
+            pista.trackContentType = "text/vtt";
+            pista.name = subtitulo.label;
+            pista.language = subtitulo.lang || undefined;
+            pista.subtype = media.TextTrackType.SUBTITLES;
+            return pista;
+          });
+        }
         await session.loadMedia(new media.LoadRequest(mediaInfo));
+        const elegido =
+          subtituloActivo ?? subtitulos.findIndex((subtitulo) => subtitulo.porDefecto);
+        activarSubtituloEnReceptor(session.getMediaSession(), elegido >= 0 ? elegido + 1 : null);
         // El receptor toma el audio: silenciamos el local para no oír doble.
         if (video) {
           wasMutedRef.current = video.muted;
@@ -324,7 +420,21 @@ export function useCast(videoRef: React.RefObject<HTMLVideoElement | null>, stre
         // El usuario cerró el selector: no hay nada que reportar.
       }
     }
-  }, [method, streamUrl, channelName, videoRef, restoreLocalAudio]);
+  }, [method, streamUrl, channelName, videoRef, restoreLocalAudio, enVivo, subtitulos, subtituloActivo]);
+
+  /**
+   * Cambiar de subtítulo MIENTRAS se emite también llega al receptor: sin
+   * esto, la elección hecha al arrancar quedaría congelada en la tele hasta
+   * volver a transmitir.
+   */
+  useEffect(() => {
+    if (!isCasting || method !== "gcast" || !contextRef.current) return;
+    const elegido = subtituloActivo ?? subtitulos.findIndex((subtitulo) => subtitulo.porDefecto);
+    activarSubtituloEnReceptor(
+      contextRef.current.getCurrentSession()?.getMediaSession(),
+      elegido >= 0 ? elegido + 1 : null,
+    );
+  }, [isCasting, method, subtituloActivo, subtitulos]);
 
   /** Cortar la transmisión y recuperar el vídeo en el teléfono. */
   const stopCasting = useCallback(() => {

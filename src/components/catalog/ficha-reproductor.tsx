@@ -160,12 +160,23 @@ function ReproductorCatalogo({
             /* Enlace directo (.mp4/.m3u8) de un addon: reproductor HTML5
                propio con hls.js — la única vía sin anuncios. */
             <NativePlayer streams={streamDirecto} title={titulo} />
-          ) : activo.id === "vimeus" ? (
-            /* Vimeus es el único que tolera el sandbox —y por tanto el único
-               con los popups bloqueados de verdad—. VidSrc y VideoEasy se
-               niegan a cargar dentro de un frame restringido, así que esos
-               van sin él: si meten popups, el botón «atrás» del navegador
-               sigue siendo la defensa. */
+          ) : (
+            /* Sandbox UNIFORME para todos los embeds, no solo para el que lo
+               toleraba. Sin `sandbox`, un iframe externo puede navegar la
+               ventana entera (`window.top.location = …`), y los guiones de
+               publicidad de estos proveedores hacen exactamente eso; en una
+               televisión —sin ventanas emergentes— es su única vía. Fue la
+               causa del bucle de recargas infinitas en Samsung: abrir una
+               película bastaba para que el landing se recargara una y otra
+               vez sin que el vídeo llegara a arrancar.
+
+               El set permite scripts, same-origin (su almacenamiento y sus
+               llamadas), formularios y presentación: el mínimo para que el
+               reproductor del proveedor funcione y pida su propia pantalla
+               completa. Niega todo lo demás: navegar la página completa,
+               popups y pointer-lock. Si algún proveedor se negara a
+               renderizar así, se saca de `EMBED_PROVIDERS`: no vale exponer
+               la app entera por uno. */
             <iframe
               src={activo.url}
               title={titulo}
@@ -173,14 +184,6 @@ function ReproductorCatalogo({
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
               sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-            />
-          ) : (
-            <iframe
-              src={activo.url}
-              title={titulo}
-              allowFullScreen
-              allow="autoplay; encrypted-media; fullscreen"
-              referrerPolicy="origin"
             />
           )}
         </div>

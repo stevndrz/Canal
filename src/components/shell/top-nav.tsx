@@ -68,6 +68,37 @@ function isActive(item: NavItem, view: ViewId | undefined, pathname: string): bo
 const AJUSTES = NAV_ITEMS.find((item) => item.key === "ajustes");
 const DESTINOS = NAV_ITEMS.filter((item) => item.key !== "ajustes");
 
+/**
+ * La marca —icono de televisión y wordmark— es también un botón hacia el
+ * inicio, como se espera del logo en cualquier aplicación. Se usa en las dos
+ * barras (escritorio/TV y teléfono); hereda el aspecto de las clases que ya
+ * tenía cada una (`profile-cluster` / `mobile-brand`) y `.brand-inicio`
+ * desmonta en shell.css el aspecto nativo del botón.
+ */
+function MarcaInicio({ className, onIr }: { className: string; onIr: () => void }) {
+  return (
+    <button
+      type="button"
+      data-nav="button"
+      className={`${className} brand-inicio`}
+      title="Ir al inicio"
+      aria-label="CanalCasa — ir al inicio"
+      onClick={onIr}
+    >
+      <span className="brand" aria-hidden="true">
+        <Tv strokeWidth={1.5} />
+      </span>
+      {/* En dos líneas. En una sola no cabía junto a siete destinos y se
+          truncaba a "CanalC…"; partido por la mitad entra entero y
+          además ocupa menos ancho, que es lo que la barra necesita. */}
+      <span className="marca" aria-hidden="true">
+        <span>Canal</span>
+        <span>Casa</span>
+      </span>
+    </button>
+  );
+}
+
 export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -141,18 +172,7 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
     <>
       {/* Escritorio y TV */}
       <aside className={`sidebar ${scrolled ? "is-scrolled" : ""}`} aria-label="Secciones" data-nav-chrome>
-        <div className="profile-cluster">
-          <span className="brand" aria-hidden="true">
-            <Tv strokeWidth={1.5} />
-          </span>
-          {/* En dos líneas. En una sola no cabía junto a siete destinos y se
-              truncaba a "CanalC…"; partido por la mitad entra entero y
-              además ocupa menos ancho, que es lo que la barra necesita. */}
-          <span className="marca" aria-label="CanalCasa">
-            <span aria-hidden="true">Canal</span>
-            <span aria-hidden="true">Casa</span>
-          </span>
-        </div>
+        <MarcaInicio className="profile-cluster" onIr={() => irA("home")} />
 
         <nav>{DESTINOS.map((item) => renderItem(item, "nav-item"))}</nav>
 
@@ -174,15 +194,7 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
 
       {/* Teléfono: cabecera arriba… */}
       <header className={`mobile-header ${scrolled ? "is-scrolled" : ""}`} data-nav-chrome>
-        <div className="mobile-brand">
-          <span className="brand" aria-hidden="true">
-            <Tv strokeWidth={1.5} />
-          </span>
-          <span className="marca" aria-label="CanalCasa">
-            <span aria-hidden="true">Canal</span>
-            <span aria-hidden="true">Casa</span>
-          </span>
-        </div>
+        <MarcaInicio className="mobile-brand" onIr={() => irA("home")} />
         <span className="top-clock">{clock}</span>
       </header>
 

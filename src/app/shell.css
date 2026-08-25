@@ -252,6 +252,22 @@
   height: 21px;
 }
 
+/* La marca es un botón que lleva al inicio (top-nav.tsx). Se desmonta el
+   aspecto nativo del botón para que siga viéndose idéntica a la marca de
+   siempre; el radio se conserva para que el anillo de foco no se vea
+   cuadrado al llegar con el mando o el teclado. */
+.brand-inicio {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 12px;
+  text-align: inherit;
+}
+
 /* El monograma. Es lo más grande de la barra a propósito: identifica la app
    de un vistazo desde el sofá. */
 .brand {

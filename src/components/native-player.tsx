@@ -16,7 +16,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCast } from "@/hooks/use-cast";
+import { useCast, type SubtituloCast } from "@/hooks/use-cast";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esIPhone } from "@/lib/dispositivo";
 import type { ManualStream } from "@/lib/catalog/types";
@@ -88,8 +88,31 @@ export const NativePlayer = memo(function NativePlayer({
   const stream = streams[streamIndex] ?? streams[0];
   const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
 
+  /**
+   * Los subtítulos también tienen que verse en la tele al transmitir: sin
+   * pasarlos al hook, el receptor recibe el vídeo mudo de letras. Memoizado
+   * para que la identidad no cambie en cada render (el hook los usa en
+   * efectos).
+   */
+  const subtitulosCast = useMemo<SubtituloCast[]>(
+    () =>
+      subtitles.map((pista) => ({
+        url: pista.url,
+        label: pista.label,
+        lang: pista.srclang,
+        porDefecto: Boolean(pista.default),
+      })),
+    [subtitles],
+  );
+
+  // Película o episodio: BUFFERED en el receptor, con búsqueda. El subtítulo
+  // elegido aquí es el que se activa allí (o el marcado por defecto).
   const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
-    useCast(videoRef, stream?.url ?? "", title);
+    useCast(videoRef, stream?.url ?? "", title, {
+      enVivo: false,
+      subtitulos: subtitulosCast,
+      subtituloActivo: activeSubtitle,
+    });
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
