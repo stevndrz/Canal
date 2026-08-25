@@ -13,9 +13,17 @@ import { serverConfig } from "@/lib/config";
 const TMDB_API = "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 
-/** Se piden ya en el tamaño final: sin optimizador y sin gastar RAM de más. */
-export const POSTER_SIZE = "w342";
-export const BACKDROP_SIZE = "w1280";
+/**
+ * Se piden ya en el tamaño final: sin optimizador y sin gastar RAM de más.
+ *
+ * Póster en `w780` y fondo en `original`: la tarjeta vertical de 240px se
+ * pinta a 480px en pantallas retina, y el héroe ocupa media pantalla — con
+ * tamaños menores el arte se ve borroso justo donde más se mira.
+ */
+export const POSTER_SIZE = "w780";
+export const BACKDROP_SIZE = "original";
+/** Retratos del reparto: doce por ficha; `w780` sería peso muerto. */
+export const PROFILE_SIZE = "w342";
 export const STILL_SIZE = "w300";
 
 export function tmdbImage(path: string | null | undefined, size: string): string | null {
@@ -185,7 +193,7 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
     reparto: (data.credits?.cast ?? []).slice(0, 12).map((persona) => ({
       nombre: persona.name,
       personaje: persona.character ?? "",
-      foto: tmdbImage(persona.profile_path, POSTER_SIZE),
+      foto: tmdbImage(persona.profile_path, PROFILE_SIZE),
     })),
     autoria: autoria.slice(0, 3),
   };

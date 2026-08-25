@@ -21,10 +21,16 @@ const TIPOS: { id: MediaFilter; label: string }[] = [
   { id: "tv", label: "Series" },
 ];
 
-/** Carrusel de píldoras: ocupa el ancho del contenedor, scrollea de lado y
-    esconde la barra del navegador; las píldoras nunca se parten en dos líneas. */
+/** Fila de tipo (Todo / Películas / Series): tres píldoras, siempre centradas. */
+const FILA_TIPOS = "flex flex-wrap items-center justify-center gap-2 py-2 w-full";
+
+/** Píldoras de género. En móvil son un carrusel que scrollea de lado —el
+    patrón que cualquier usuario de Netflix ya tiene en la mano—. Desde `md`
+    dejan de desbordar: fluyen en líneas centradas, así ninguna píldora
+    («Ciencia ficción») muere cortada contra el borde. Sigue siendo navegación
+    por enlaces (`?tipo=…&genero=…`), no estado de cliente. */
 const CARRUSEL =
-  "flex items-center gap-2 overflow-x-auto whitespace-nowrap py-2 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden";
+  "flex items-center gap-2 overflow-x-auto whitespace-nowrap py-2 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:justify-center";
 
 /** Píldora activa/inactiva, con contraste suficiente para leerse a 3 metros. */
 function chip(activo: boolean): string {
@@ -85,7 +91,7 @@ export function CatalogFilters({
 }) {
   return (
     <div className="w-full">
-      <div className={CARRUSEL} role="group" aria-label="Tipo de contenido">
+      <div className={FILA_TIPOS} role="group" aria-label="Tipo de contenido">
         {TIPOS.map(({ id, label }) => (
           <Link key={id} href={href(id, genero, generosValidos, orden)} aria-current={tipo === id ? "true" : undefined} className={chip(tipo === id)}>
             {label}

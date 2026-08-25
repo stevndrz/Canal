@@ -103,8 +103,12 @@ html[data-player="on"] body {
    la carátula y le pone el borde encima en lugar de rodear el botón entero. */
 :focus { outline: none; }
 
-[data-nav]:not(.media-card):focus-visible,
-[data-input="dpad"] [data-nav]:not(.media-card):focus {
+/* Los campos de texto quedan fuera: `:focus-visible` les entra incluso al
+   clicar con ratón (así lo define la spec) y dibujaba un rectángulo blanco
+   alrededor del buscador. El campo ya avisa de su foco con `:focus-within`
+   (borde + halo en `.catalogo-buscador-campo`). */
+[data-nav]:not(.media-card):not(input):focus-visible,
+[data-input="dpad"] [data-nav]:not(.media-card):not(input):focus {
   outline: 3px solid var(--color-accent);
   outline-offset: 3px;
 }

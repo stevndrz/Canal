@@ -22,10 +22,13 @@ export function RailScroller({
   children,
   className,
   ariaLabel,
+  overlay,
 }: {
   children: ReactNode;
   className: string;
   ariaLabel: string;
+  /** Flechas flotando SIEMPRE visibles sobre las fichas (carrusel de pósters). */
+  overlay?: boolean;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [canPrev, setCanPrev] = useState(false);
@@ -60,6 +63,40 @@ export function RailScroller({
       resizeObserver.disconnect();
     };
   }, [update, children]);
+
+  // Modo overlay: el shell es `relative group` y las flechas se pintan por
+  // encima del carril con z-20, ancladas a 8px del borde — sin salirse nunca
+  // del propio carrusel. Las clases Tailwind van aparte de `.rail-arrow` para
+  // no alterar el comportamiento de los rieles de canales.
+  if (overlay) {
+    const flecha =
+      "absolute top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/70 text-white shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-white/30";
+    return (
+      <div className="relative group">
+        <button
+          type="button"
+          className={`${flecha} left-2 ${canPrev ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          onClick={() => scrollByPage(-1)}
+          disabled={!canPrev}
+          aria-label={`Desplazar ${ariaLabel} a la izquierda`}
+        >
+          <ChevronLeft size={24} />
+        </button>
+        <div ref={ref} className={className}>
+          {children}
+        </div>
+        <button
+          type="button"
+          className={`${flecha} right-2 ${canNext ? "opacity-100" : "pointer-events-none opacity-0"}`}
+          onClick={() => scrollByPage(1)}
+          disabled={!canNext}
+          aria-label={`Desplazar ${ariaLabel} a la derecha`}
+        >
+          <ChevronRight size={24} />
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`rail-scroll-shell ${canPrev ? "can-prev" : ""} ${canNext ? "can-next" : ""}`}>

@@ -121,8 +121,12 @@ function ChannelGlassCard({
 }
 
 /**
- * Tarjeta de PÓSTER (catálogo TMDB). Markup original: `.media-card` +
- * `.poster` son el contrato visual con shell.css y aquí sigue mandando.
+ * Tarjeta de PÓSTER (catálogo TMDB) — formato cartelera vertical.
+ *
+ * El arte manda: contenedor 2:3 a sangre y imagen `object-cover` llenándolo
+ * todo, como un póster de cine de verdad y no un vídeo apaisado con letras
+ * debajo. Las utilidades Tailwind pisan el contrato antiguo de shell.css
+ * (`.poster` venía en 16/9): viven en la capa utilities, por encima.
  */
 function PosterCard({
   item,
@@ -155,13 +159,16 @@ function PosterCard({
     <button
       type="button"
       data-nav="tile"
-      className={`media-card ${active ? "is-active" : ""}`}
+      className={`media-card group ${active ? "is-active" : ""}`}
       onClick={() => onOpen(item)}
       onMouseEnter={() => onFocus?.(item)}
       onFocus={() => onFocus?.(item)}
       title={item.title}
     >
-      <div className={`poster ${showArt && !loaded ? "is-loading" : ""}`}>
+      {/* Cartel vertical 2/3: la imagen cubre el marco completo. */}
+      <div
+        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-950 shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
+      >
         {showArt ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -171,19 +178,29 @@ function PosterCard({
             decoding="async"
             onLoad={() => setLoaded(true)}
             onError={() => setFailed(true)}
-            className={`poster-art ${loaded ? "is-loaded" : ""}`}
+            className={`object-cover w-full h-full rounded-xl transition-opacity duration-300 ${
+              loaded ? "opacity-100" : "opacity-0"
+            }`}
           />
         ) : item.mark ? (
-          <span className="poster-mark">{item.mark}</span>
+          <span className="absolute inset-0 grid place-items-center font-mono text-4xl font-bold tracking-widest text-white/30">
+            {item.mark}
+          </span>
         ) : (
-          <Tv size={42} />
+          <span className="absolute inset-0 grid place-items-center text-neutral-600">
+            <Tv size={42} aria-hidden="true" />
+          </span>
         )}
 
-        {item.badge && <span className="cw-badge top-right">{item.badge}</span>}
+        {item.badge && (
+          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-200 ring-1 ring-white/10">
+            {item.badge}
+          </span>
+        )}
 
         {showProgress && (
-          <span className="cw-progress">
-            <span style={{ width: `${progress}%` }} />
+          <span className="absolute inset-x-3 bottom-2 z-10 h-[3px] overflow-hidden rounded-full bg-white/20">
+            <span className="block h-full bg-accent" style={{ width: `${progress}%` }} />
           </span>
         )}
       </div>

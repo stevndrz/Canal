@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Search, SearchX } from "lucide-react";
+import { Search, SearchX, X } from "lucide-react";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import type { OrdenCatalogo } from "@/lib/catalog/discover";
 import { MediaCard } from "@/components/media/media-card";
@@ -48,8 +48,22 @@ export function CatalogSearch({
   const router = useRouter();
   const [valor, setValor] = useState(initialQuery);
   const { resultados, cargando } = useBuscarTitulos(valor);
+  const campo = useRef<HTMLInputElement | null>(null);
 
   const buscando = valor.trim().length > 0;
+
+  /** Borrar la búsqueda y volver al catálogo. También limpia la `?q=` de la
+      URL —si venía de un enlace compartido, recargar no la resucita— sin
+      tocar el resto de filtros: vuelves justo donde estabas. */
+  const limpiar = () => {
+    setValor("");
+    campo.current?.focus();
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("q")) return;
+    params.delete("q");
+    const cadena = params.toString();
+    router.replace(cadena ? `/peliculas?${cadena}` : "/peliculas", { scroll: false });
+  };
 
   const cambiarOrden = (siguiente: OrdenCatalogo) => {
     if (siguiente === orden) return;
@@ -71,22 +85,41 @@ export function CatalogSearch({
         conHero ? "-mt-16" : ""
       }`}
     >
-      {/* Campo y selector comparten fila en pantallas anchas y se apilan en
-          las estrechas, siempre dentro del ancho del contenedor de página. */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between w-full">
+      {/* Todo el bloque de cabecera respira centrado: buscador y orden forman
+          un grupo compacto en el eje, no un campo estirado a la izquierda con
+          el select colgado de la derecha. */}
+      <div className="flex flex-col md:flex-row gap-3 md:gap-4 items-center justify-center w-full">
         <form action="/peliculas" method="get" role="search" className="contents">
-          <label className="catalogo-buscador-campo w-full md:w-96">
+          <label className="catalogo-buscador-campo w-full max-w-xl">
             <span className="sr-only">Buscar películas y series</span>
             <Search aria-hidden="true" />
             <input
+              ref={campo}
               type="search"
               name="q"
               data-nav="input"
               value={valor}
               onChange={(evento) => setValor(evento.target.value)}
+              onKeyDown={(evento) => {
+                if (evento.key === "Escape") limpiar();
+              }}
               placeholder="Buscar película o serie…"
               autoComplete="off"
             />
+            {/* Aspa discreta: solo existe mientras hay texto. Un toque borra
+                la búsqueda y devuelve el catálogo general. */}
+            {buscando && (
+              <button
+                type="button"
+                data-nav="button"
+                onClick={limpiar}
+                aria-label="Borrar búsqueda y volver al catálogo"
+                title="Borrar y volver al catálogo"
+                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                <X size={15} aria-hidden="true" />
+              </button>
+            )}
           </label>
         </form>
 

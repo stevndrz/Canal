@@ -61,17 +61,33 @@ export function MediaRail({
         )}
         {count && <span>{count}</span>}
       </div>
-      <RailScroller className="rail-strip" ariaLabel={title}>
-        {items.map((item) => (
-          <MediaCard
-            key={item.key}
-            item={item}
-            onOpen={onOpen}
-            onFocus={onFocus}
-            posterMode={posterMode}
-            active={activeKey === item.key}
-          />
-        ))}
+      <RailScroller className="rail-strip" ariaLabel={title} overlay={posterMode}>
+        {items.map((item) =>
+          /* El ancho lo pone el CSS del riel (`--carteles` por breakpoint):
+             carteles enteros por pantalla, sin cortes en el borde. La tarjeta
+             se mantiene fluida (100 %) donde no hay carrusel, como en la
+             rejilla de búsqueda. */
+          posterMode ? (
+            <div key={item.key}>
+              <MediaCard
+                item={item}
+                onOpen={onOpen}
+                onFocus={onFocus}
+                posterMode={posterMode}
+                active={activeKey === item.key}
+              />
+            </div>
+          ) : (
+            <MediaCard
+              key={item.key}
+              item={item}
+              onOpen={onOpen}
+              onFocus={onFocus}
+              posterMode={posterMode}
+              active={activeKey === item.key}
+            />
+          )
+        )}
       </RailScroller>
     </section>
   );

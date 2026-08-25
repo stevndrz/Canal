@@ -318,6 +318,12 @@
   contain-intrinsic-size: auto 340px;
 }
 
+/* El riel de pósters es casi el doble de alto que uno de canales (cartel 2:3
+   grande más título): con la estimación de canal la barra salta al pintarlo. */
+.rail.is-poster {
+  contain-intrinsic-size: auto 560px;
+}
+
 .rail-head {
   display: flex;
   align-items: baseline;
@@ -352,12 +358,16 @@
      en pantallas grandes). Divisor 6: seis fichas enteras visibles en
      escritorio ancho, cinco en portátiles y el piso de 150px protege móvil. */
   grid-auto-columns: clamp(150px, calc((min(100vw, 1740px) - 96px) / 6), 250px);
-  gap: clamp(14px, 1.1vw, 22px);
+  /* El hueco entre fichas, también como variable: el cálculo de «carteles
+     enteros» de los carruseles de pósters lo necesita para restar los tramos
+     entre tarjetas y que la cuenta de visibles cierre exacta. */
+  --hueco: clamp(14px, 1.1vw, 22px);
+  gap: var(--hueco);
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   scroll-snap-type: x proximity;
   /* Aire arriba y abajo para que la tarjeta enfocada quepa al crecer sin que
-     el riel la recorte. */
+      el riel la recorte. */
   padding: 10px var(--margen) clamp(18px, 2.4vh, 30px) 0;
   scrollbar-width: none;
 }
@@ -368,6 +378,45 @@
 
 .rail-strip > * {
   scroll-snap-align: start;
+}
+
+/* Carrusel de pósters: en cada dispositivo caben CARTELES ENTEROS, nunca un
+   cartel cortado en el borde. El ancho de cada ficha se reparte el espacio
+   visible menos los huecos entre ellas; el +1px final absorbe el redondeo de
+   subpíxel. El `padding-right` baja a 12px —por debajo del hueco mínimo—
+   porque con el margen grande de los rieles de canales la siguiente carátula
+   asomaba metida en esa zona. Los rieles de canales siguen en grid. */
+.rail.is-poster .rail-strip {
+  display: flex;
+  padding-right: 12px;
+  /* Móvil: dos carteles por pantalla. */
+  --carteles: 2;
+}
+
+.rail.is-poster .rail-strip > * {
+  flex: 0 0
+    calc((100% - (var(--carteles) - 1) * var(--hueco) + 1px) / var(--carteles));
+}
+
+@media (min-width: 640px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 3;
+  }
+}
+
+@media (min-width: 768px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 4;
+  }
+}
+
+/* Escritorio: cinco carteles por fila, grandes — el contenedor de la página
+   (max-w-[1700px]) reparte su ancho entre cinco y en 1920 salen de ~300px,
+   tamaño de cartelera, no de miniatura. */
+@media (min-width: 1024px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 5;
+  }
 }
 
 /* Las flechas del riel. Solo con puntero: con mando se navega por foco y con
@@ -471,6 +520,15 @@
 /* Carátula vertical, para películas y series. */
 .media-card.is-poster .poster {
   aspect-ratio: 2 / 3;
+}
+
+/* El realce del cartel del catálogo. Mismo contrato que `.poster`: crece un
+   pelín y enciende el borde al enfocar, sin mover el texto de debajo. */
+.media-card:hover .poster-frame,
+.media-card:focus-visible .poster-frame,
+[data-input="dpad"] .media-card:focus .poster-frame {
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
 }
 
 /* El realce. Se aplica al `.poster` y no a la tarjeta entera para que el
