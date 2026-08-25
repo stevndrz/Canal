@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useCast } from "@/hooks/use-cast";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { esIPhone } from "@/lib/dispositivo";
 import type { ManualStream } from "@/lib/catalog/types";
 import {
   planAnteErrorFatal,
@@ -81,6 +82,8 @@ export const NativePlayer = memo(function NativePlayer({
   const [audioTracks, setAudioTracks] = useState<AudioTrackOption[]>([]);
   const [activeAudio, setActiveAudio] = useState<number | null>(null);
   const [activeSubtitle, setActiveSubtitle] = useState<number | null>(null);
+  /** Línea de subtítulo activa, para pintarla en la capa propia. */
+  const [subtitleText, setSubtitleText] = useState("");
 
   const stream = streams[streamIndex] ?? streams[0];
   const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
@@ -212,13 +215,56 @@ export const NativePlayer = memo(function NativePlayer({
   }, [stream, retryCount]);
 
   // --- Subtítulos -----------------------------------------------------------
-  // Los <track> se declaran en el JSX; aquí solo se decide cuál se muestra.
+  /**
+   * Los subtítulos se pintan en una capa propia, no los dibuja el navegador.
+   *
+   * El motivo es un fallo real de televisores Samsung (Tizen): su capa nativa
+   * de pistas de texto desaparece cuando la pantalla completa se pide sobre
+   * un contenedor del `<video>` — que es justo como entra aquí a lo grande —,
+   * así que los subtítulos se veían en la ficha y se esfumaban en fullscreen.
+   *
+   * Con `mode = "hidden"` la pista activa sigue avisando por `cuechange` sin
+   * que nadie la dibuje, y el texto activo va a un div nuestro dentro del
+   * contenedor: al ser DOM normal, escala con la pantalla completa en cualquier
+   * aparato. En iPhone no aplica: allí el botón abre el reproductor del
+   * sistema, que pinta él mismo las pistas, así que se dejan en `showing` y la
+   * capa propia se omite para no salir dos veces.
+   */
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    for (let i = 0; i < video.textTracks.length; i++) {
-      video.textTracks[i].mode = i === activeSubtitle ? "showing" : "disabled";
+
+    const pistas = Array.from(video.textTracks);
+    const nativoDelSistema = esIPhone();
+    pistas.forEach((pista, i) => {
+      pista.mode = i === activeSubtitle ? (nativoDelSistema ? "showing" : "hidden") : "disabled";
+    });
+
+    if (activeSubtitle === null || nativoDelSistema) {
+      setSubtitleText("");
+      return;
     }
+
+    const pistaActiva = pistas[activeSubtitle];
+    if (!pistaActiva) {
+      setSubtitleText("");
+      return;
+    }
+
+    const pintar = () => {
+      const activos = pistaActiva.activeCues;
+      setSubtitleText(
+        activos
+          ? Array.from(activos)
+              .map((cue) => (cue as VTTCue).text)
+              .join("\n")
+          : "",
+      );
+    };
+
+    pintar();
+    pistaActiva.addEventListener("cuechange", pintar);
+    return () => pistaActiva.removeEventListener("cuechange", pintar);
   }, [activeSubtitle, subtitles]);
 
   // --- Controles ------------------------------------------------------------
@@ -282,6 +328,16 @@ export const NativePlayer = memo(function NativePlayer({
             />
           ))}
         </video>
+
+        {/* Subtítulos propios: capa DOM dentro de este contenedor, así
+            sobreviven al fullscreen del contenedor en cualquier televisor. */}
+        {subtitleText && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-10 flex justify-center px-[5%]">
+            <span className="whitespace-pre-line rounded-md bg-black/70 px-3 py-1 text-center text-base font-medium leading-snug text-white md:text-lg xl:text-xl">
+              {subtitleText}
+            </span>
+          </div>
+        )}
 
         {/* Fallo al transmitir. Antes solo se escribía en la consola, así que
             desde fuera parecía que el botón simplemente no hacía nada. */}

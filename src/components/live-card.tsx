@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extrasCast, PlayerControls } from "@/components/player/player-controls";
 import { useCast } from "@/hooks/use-cast";
+import { esIPhone } from "@/lib/dispositivo";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -227,16 +228,4 @@ function pedirPantallaCompletaIPhone(video: HTMLVideoElement | null): void {
     return;
   }
   nativo.addEventListener("loadedmetadata", () => nativo.webkitEnterFullscreen?.(), { once: true });
-}
-
-/**
- * ¿Es un iPhone (o un iPod)?
- *
- * Deliberadamente **no** incluye el iPad: ahí la Fullscreen API sí funciona
- * sobre elementos normales, y usar el reproductor del sistema sacrificaría
- * nuestros controles sin ganar nada. Y el iPad moderno se anuncia como
- * "Macintosh", así que buscarlo por nombre tampoco serviría.
- */
-function esIPhone(): boolean {
-  return /iPhone|iPod/.test(navigator.userAgent);
 }
