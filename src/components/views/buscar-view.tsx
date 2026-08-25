@@ -17,8 +17,8 @@ import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
  * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
  *
  * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Se conserva el teclado en pantalla de CanalCasa, que ARVIO no tiene. En
- *     un televisor sin teclado físico, un campo de texto a secas es un
+ *   - Se conserva el teclado en pantalla de CanalCasa, ausente en el origen.
+ *     En un televisor sin teclado físico, un campo de texto a secas es un
  *     callejón sin salida: el mando solo mueve el foco.
  *   - Busca en **dos** orígenes y no en uno. Antes solo recorría la lista M3U,
  *     así que escribir el nombre de una película no daba nada aunque estuviera

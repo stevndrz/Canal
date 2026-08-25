@@ -24,18 +24,17 @@ import {
  * MODIFICADO respecto al original (Apache 2.0 §4b):
  *   - Fuera el sistema de perfiles (avatar, cambio de perfil, nombre): CanalCasa
  *     no tiene cuentas. Ese hueco de la rejilla lo ocupa la marca y el reloj.
- *   - Fuera la marca ARVIO: su logotipo y su nombre quedan fuera de la licencia
- *     (§6). Aquí va el monograma propio.
+ *   - La marca es el monograma propio: ni logotipos ni nombres ajenos.
  *   - Los destinos salen de NAV_ITEMS, que admite tanto vistas del shell como
- *     rutas de Next; ARVIO solo tiene lo primero.
+ *     rutas de Next; el origen solo tenía lo primero.
  *   - Añadido `data-nav` para que use-spatial-nav siga viendo estos botones, y
  *     `data-nav-chrome` en las tres barras: al ser fijas están siempre pegadas
  *     al borde, así que sin marcarlas ganaban cualquier movimiento vertical y
  *     el foco no podía volver al riel de encima.
  *
  * Se conservan intactos sus nombres de clase (.sidebar, .nav-item,
- * .mobile-header, .mobile-bottom-nav…) porque son el contrato con
- * arvio-shell.css: renombrarlos obligaría a tocar 12.000 líneas de CSS.
+ * .mobile-header, .mobile-bottom-nav…) porque son el contrato con el CSS del
+ * shell: renombrarlos obligaría a tocar miles de líneas de estilos.
  *
  * Cuidado con `.sidebar`: pese al nombre es una barra superior fija, no una
  * columna lateral. La rejilla de tres columnas reparte marca | destinos | ajustes.

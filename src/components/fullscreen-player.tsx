@@ -20,13 +20,8 @@ import { useCast } from "@/hooks/use-cast";
 interface FullscreenPlayerProps {
   channel: Channel;
   /**
- * Aquí no hay "Ver en familia", y es a propósito.
- *
- * Sincronizar tiene sentido cuando hay algo que igualar: un tiempo, una pausa,
- * un salto. Una emisión en directo no tiene nada de eso —no se pausa ni se
- * busca— así que dos personas en el mismo canal ya van iguales por definición.
- * La sala vive donde sí puede cumplir: en "Mi enlace"
- * (`src/components/views/fuente-view.tsx`), sobre un `<video>` propio.
+ * Una emisión en directo no se pausa ni se busca, así que aquí no hay barra de
+ * progreso ni controles de tiempo: zapear es el único movimiento posible.
  */
 /** Lista visible: define qué zapea ↑↓ y qué muestra la guía. */
   playlist: Channel[];
@@ -61,8 +56,8 @@ export function FullscreenPlayer({
   // El <video> real vive dentro de StreamPlayer y se expone por método
   // imperativo, no por ref directa: `videoElRef.current` hay que copiarlo a
   // mano en vez de que React lo rellene solo al montar. Tiene que ser
-  // `useLayoutEffect`, no `useEffect`: los hooks de abajo (useCast,
-  // useWatchParty) leen `videoElRef.current` en SU PROPIO useEffect, que se
+  // `useLayoutEffect`, no `useEffect`: los hooks de abajo (useCast)
+  // leen `videoElRef.current` en SU PROPIO useEffect, que se
   // dispara en el mismo commit — con useEffect aquí, el suyo se ejecutaba
   // primero y siempre veía `null`, así que Chromecast/AirPlay nunca se
   // detectaban. useLayoutEffect corre antes que cualquier useEffect del

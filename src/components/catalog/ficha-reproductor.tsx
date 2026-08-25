@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Info, Users } from "lucide-react";
+import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
 import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
 import type { MediaType, PlaybackSource } from "@/lib/catalog/types";
@@ -18,7 +18,7 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
 /**
  * El reproductor de una ficha.
  *
- * - **Enlace propio** (`manual`): un `<video>` nuestro con Ver en familia.
+ * - **Enlace propio** (`manual`): un `<video>` nuestro con controles completos.
  * - **Catálogo de TMDB** (`embed`): la lista de servidores (embeds) la arma
  *   la ruta `/api/stream` y el cambio entre ellos lo hace la persona con los
  *   botones de siempre, porque desde fuera de cada servidor no hay forma
@@ -32,10 +32,6 @@ export function FichaReproductor({
   temporada,
   episodio,
   spokenInSpanish,
-  sala,
-  salaActiva,
-  onSalaChange,
-  onEntrarSala,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -45,21 +41,11 @@ export function FichaReproductor({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
-  sala: string;
-  salaActiva: string;
-  onSalaChange: (valor: string) => void;
-  onEntrarSala: () => void;
 }) {
   if (fuente.kind === "manual") {
     return (
       <section className="ficha-reproductor">
-        <BarraVerEnFamilia
-          sala={sala}
-          salaActiva={salaActiva}
-          onSalaChange={onSalaChange}
-          onEntrar={onEntrarSala}
-        />
-        <NativePlayer streams={fuente.streams} title={titulo} roomId={salaActiva || undefined} />
+        <NativePlayer streams={fuente.streams} title={titulo} />
       </section>
     );
   }
@@ -137,7 +123,7 @@ function ReproductorCatalogo({
     // El primero de la lista: un embed, instantáneo.
     servidores[0] ??
     (vidSrcUrl
-      ? { id: "vidsrc", label: "VidSrc", kind: "embed" as const, url: vidSrcUrl }
+      ? { id: "vidsrc", label: "VidSrc", tipo: "embed" as const, url: vidSrcUrl }
       : null);
 
   if (!activo) {
@@ -250,50 +236,4 @@ function useServidores(
   }, [tmdbId, titulo, mediaType, temporada, episodio]);
 
   return servidores;
-}
-
-/**
- * Entrada a la sala sincronizada. Solo aparece con enlaces propios.
- *
- * Reutiliza las clases de «Mi enlace» (`.fuente-sala`) en vez de las suyas:
- * es el mismo control haciendo lo mismo, y antes se pintaba con utilidades
- * sueltas en verde esmeralda —el único verde de toda la aplicación—, así que
- * la misma función se veía de dos maneras según la pantalla.
- */
-function BarraVerEnFamilia({
-  sala,
-  salaActiva,
-  onSalaChange,
-  onEntrar,
-}: {
-  sala: string;
-  salaActiva: string;
-  onSalaChange: (valor: string) => void;
-  onEntrar: () => void;
-}) {
-  return (
-    <form
-      className="fuente-sala"
-      onSubmit={(evento) => {
-        evento.preventDefault();
-        onEntrar();
-      }}
-    >
-      <Users aria-hidden="true" />
-      <label htmlFor="ficha-sala">Ver en familia</label>
-      <input
-        id="ficha-sala"
-        data-nav="input"
-        value={sala}
-        onChange={(evento) => onSalaChange(evento.target.value)}
-        placeholder="nombre de la sala"
-      />
-      <button type="submit" data-nav="button">
-        {salaActiva ? "Cambiar sala" : "Entrar"}
-      </button>
-      <p>
-        Quien abra esta misma página con el mismo nombre de sala verá la película sincronizada.
-      </p>
-    </form>
-  );
 }

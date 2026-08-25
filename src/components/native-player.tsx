@@ -12,13 +12,11 @@ import {
   Pause,
   Play,
   RefreshCw,
-  Users,
   Volume2,
   VolumeX,
 } from "lucide-react";
 import { useCast } from "@/hooks/use-cast";
 import { useFullscreen } from "@/hooks/use-fullscreen";
-import { useWatchParty } from "@/hooks/use-watch-party";
 import type { ManualStream } from "@/lib/catalog/types";
 
 /**
@@ -60,12 +58,9 @@ function formatTime(seconds: number): string {
 export const NativePlayer = memo(function NativePlayer({
   streams,
   title,
-  roomId,
 }: {
   streams: ManualStream[];
   title: string;
-  /** Sala de Watch Party; vacío = reproducción normal. */
-  roomId?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -89,7 +84,6 @@ export const NativePlayer = memo(function NativePlayer({
   const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoRef, stream?.url ?? "", title);
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
-  const watchParty = useWatchParty(videoRef, roomId);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
 
@@ -210,25 +204,16 @@ export const NativePlayer = memo(function NativePlayer({
   const togglePlay = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    if (video.paused) {
-      video.play().catch(() => {});
-      watchParty.broadcast("play");
-    } else {
-      video.pause();
-      watchParty.broadcast("pause");
-    }
-  }, [watchParty]);
+    if (video.paused) video.play().catch(() => {});
+    else video.pause();
+  }, []);
 
-  const seekTo = useCallback(
-    (time: number) => {
-      const video = videoRef.current;
-      if (!video) return;
-      video.currentTime = time;
-      setCurrentTime(time);
-      watchParty.broadcast("seek");
-    },
-    [watchParty]
-  );
+  const seekTo = useCallback((time: number) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = time;
+    setCurrentTime(time);
+  }, []);
 
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
@@ -414,23 +399,6 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {roomId && (
-            <span
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold ${
-                watchParty.status === "connected"
-                  ? "bg-emerald-500/20 text-emerald-200"
-                  : "bg-white/10 text-white/60"
-              }`}
-            >
-              <Users aria-hidden="true" className="h-4 w-4" />
-              {watchParty.status === "connected"
-                ? `Sala ${roomId}`
-                : watchParty.status === "connecting"
-                  ? "Conectando…"
-                  : "Sala no disponible"}
-            </span>
-          )}
-
           {canCast && (
             <button
               type="button"

@@ -3,12 +3,12 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 
 /**
- * Inter es la tipografía del lenguaje visual que adoptamos de ARVIO.
+ * Inter es la tipografía del lenguaje visual de CanalCasa.
  *
- * Detalle heredado: su CSS la declara en `font-family` pero nunca la carga
- * —no hay `@font-face` ni enlace a Google Fonts en todo el archivo—, así que
- * en su web solo se ve en equipos que ya la tengan instalada. Aquí se carga de
- * verdad y se autoaloja, que además evita la petición a un tercero.
+ * Detalle que hay que cuidar: declararla en `font-family` no basta — sin
+ * `@font-face` o un enlace a Google Fonts solo se ve en equipos que ya la
+ * tengan instalada. Aquí se carga de verdad y se autoaloja, que además evita
+ * la petición a un tercero.
  *
  * Se expone como variable CSS en vez de como clase para que `--font-sans`
  * pueda encadenarla con los respaldos del sistema: si la fuente tarda o falla,

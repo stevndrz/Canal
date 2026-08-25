@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { ResolvedCatalogItem, CatalogSection } from "@/lib/catalog/types";
 import { catalogToCard, type CardItem } from "@/lib/media-item";
@@ -30,35 +31,55 @@ function abrir(router: ReturnType<typeof useRouter>, card: CardItem) {
  * Aquí sí es una rejilla que envuelve, no un carril: una búsqueda devuelve una
  * lista sin orden temático, y obligar a recorrerla en horizontal con un mando
  * sería peor que dejarla fluir en varias líneas.
+ *
+ * `onAbrir` es estable a propósito: una función nueva por render anularía el
+ * `memo` de cada tarjeta y una cuadrilla entera se volvería a pintar por un
+ * cambio que no la afecta.
  */
 export function CatalogGrid({ items }: { items: ResolvedCatalogItem[] }) {
   const router = useRouter();
+  const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
+  const tarjetas = useMemo(() => items.map(catalogToCard), [items]);
   return (
     <div className="grid-results">
-      {items.map((item) => {
-        const card = catalogToCard(item);
-        return (
-          <MediaCard key={card.key} item={card} onOpen={(c) => abrir(router, c)} posterMode />
-        );
-      })}
+      {tarjetas.map((card) => (
+        <MediaCard key={card.key} item={card} onOpen={onAbrir} posterMode />
+      ))}
     </div>
   );
 }
 
 export function CatalogRows({ sections }: { sections: CatalogSection[] }) {
   const router = useRouter();
+  const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
   return (
     <>
       {sections.map((section) => (
-        <MediaRail
-          key={section.title}
-          title={section.title}
-          href={section.href}
-          items={section.items.map(catalogToCard)}
-          onOpen={(c) => abrir(router, c)}
-          posterMode
-        />
+        <FilaCatalogo key={section.title} section={section} onAbrir={onAbrir} />
       ))}
     </>
+  );
+}
+
+/**
+ * Una fila del catálogo. Componente propio para poder derivar las tarjetas con
+ * `useMemo` a nivel de hook: en el cuerpo del `map` del padre eso sería ilegal.
+ */
+function FilaCatalogo({
+  section,
+  onAbrir,
+}: {
+  section: CatalogSection;
+  onAbrir: (card: CardItem) => void;
+}) {
+  const tarjetas = useMemo(() => section.items.map(catalogToCard), [section.items]);
+  return (
+    <MediaRail
+      title={section.title}
+      href={section.href}
+      items={tarjetas}
+      onOpen={onAbrir}
+      posterMode
+    />
   );
 }

@@ -257,7 +257,7 @@ export function Dashboard({
     <div ref={shellRef} className="app-shell">
       {/* La barra desaparece durante la reproducción. Es `position: fixed` con
           z-index 60 y el reproductor va en z-50, así que sin esto flotaría
-          por encima del vídeo. ARVIO hace lo mismo con su `activeStream`. */}
+          por encima del vídeo. */}
       {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
 
       <section className="content">
