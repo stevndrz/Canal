@@ -10,7 +10,6 @@ import {
   Play,
   SkipBack,
   SkipForward,
-  Users,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -25,7 +24,7 @@ import {
  * Tres decisiones de diseño, y ninguna es de gusto:
  *
  * 1. **Jerarquía, no uniformidad.** Antes eran seis círculos idénticos de 58px:
- *    pausar pesaba lo mismo que "ver en familia". Si todo parece igual de
+ *    pausar pesaba lo mismo que un ajuste ocasional. Si todo parece igual de
  *    importante, no lo parece nada. Ahora hay un control primario, unos
  *    secundarios y unos terciarios, y el tamaño lo dice.
  *
@@ -57,7 +56,7 @@ interface PlayerControlsProps {
   onNext: () => void;
   /** Entrar o salir de pantalla completa. Un solo botón, un solo estado. */
   fullscreen: { active: boolean; onToggle: () => void };
-  /** Guía, ver en familia, cast… Lo que no se usa en cada minuto. */
+  /** Guía, cast… Lo que no se usa en cada minuto. */
   extras?: PlayerAction[];
   /** Sube tamaños y saca las etiquetas de los secundarios. */
   big?: boolean;
@@ -148,7 +147,7 @@ export function PlayerControls({
         <button
           type="button"
           data-nav="button"
-          /* `is-mode`: este no se calla nunca. Guía, familia y cast pueden ser
+          /* `is-mode`: este no se calla nunca. Guía y cast pueden ser
              solo icono porque son ocasionales, pero entrar y salir de pantalla
              completa cambia el modo entero de la aplicación, y quien no
              reconozca las cuatro esquinitas se queda sin saber cómo volver. */
@@ -166,5 +165,4 @@ export function PlayerControls({
 
 /** Iconos de los controles ocasionales, para que los dos sitios usen los mismos. */
 export const ICONO_GUIA = <List aria-hidden="true" />;
-export const ICONO_FAMILIA = <Users aria-hidden="true" />;
 export const ICONO_CAST = <Cast aria-hidden="true" />;

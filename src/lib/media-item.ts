@@ -7,8 +7,7 @@ import { channelMark } from "@/lib/channels";
  *
  * CanalCasa maneja dos mundos que no se parecen: `Channel`, que es una señal en
  * vivo con número y categoría, y `ResolvedCatalogItem`, que es una ficha de TMDB
- * con póster y sinopsis. ARVIO tiene un único `MediaItem` porque todo su
- * contenido viene del mismo sitio.
+ * con póster y sinopsis.
  *
  * En vez de forzar esos dos tipos a ser uno —que obligaría a tocar el parser de
  * M3U y el catálogo entero—, ambos se traducen aquí a la forma que la tarjeta

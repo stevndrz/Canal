@@ -14,12 +14,11 @@ import { channelMark } from "@/lib/channels";
  * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
  *
  * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Extraído a su propio archivo; en ARVIO vive dentro de LiveTvScreen.
+ *   - Extraído a su propio archivo; en el origen vive dentro de la pantalla.
  *   - Sin el `IntersectionObserver` que allí dispara la carga perezosa de la
  *     guía por fila: aquí el EPG llega entero con la página, así que no hay
  *     nada que pedir al aparecer.
- *   - Añadidos el número de canal y el monograma de respaldo, que ARVIO no
- *     necesita porque sus canales siempre traen logo.
+ *   - Añadidos el número de canal y el monograma de respaldo.
  */
 function porcentaje(inicio?: number, fin?: number): number | null {
   if (!inicio || !fin || fin <= inicio) return null;

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { TopNav } from "@/components/shell/top-nav";
-import { normalizeRoomId } from "@/lib/watch-party/sign";
 import { FichaColumnas } from "./ficha-columnas";
 import { FichaEpisodios } from "./ficha-episodios";
 import { FichaPortada } from "./ficha-portada";
@@ -24,7 +23,7 @@ import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib
  * | Pieza | De qué se ocupa |
  * |---|---|
  * | `FichaPortada` | Arte, carátula, título y datos sueltos |
- * | `FichaReproductor` | Los servidores (VidSrc/Debrid o enlace propio), y Ver en familia |
+ * | `FichaReproductor` | Los servidores (VidSrc/Debrid o enlace propio) |
  * | `FichaColumnas` | Sinopsis, reparto y ficha técnica |
  * | `FichaEpisodios` | Temporadas y episodios, con su navegación por mando |
  */
@@ -41,8 +40,6 @@ export function TitleDetail({
   const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
     isSeries ? (episodes[0] ?? null) : null,
   );
-  const [sala, setSala] = useState("");
-  const [salaActiva, setSalaActiva] = useState("");
 
   // Qué se reproduce ahora mismo: el episodio elegido en series, el título en
   // películas. Los episodios pueden traer su propia fuente (otro doblaje).
@@ -71,10 +68,6 @@ export function TitleDetail({
            * promete subtítulo.
            */
           spokenInSpanish={item.originalLanguage === "es"}
-          sala={sala}
-          salaActiva={salaActiva}
-          onSalaChange={setSala}
-          onEntrarSala={() => setSalaActiva(normalizeRoomId(sala))}
         />
 
         <FichaColumnas item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />

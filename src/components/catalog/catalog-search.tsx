@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ReactNode, useRef } from "react";
+import { useState, type ReactNode, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search, SearchX, X } from "lucide-react";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import type { OrdenCatalogo } from "@/lib/catalog/discover";
+import type { CardItem } from "@/lib/media-item";
 import { MediaCard } from "@/components/media/media-card";
 import { EstadoVacio } from "./estado-vacio";
 
@@ -51,6 +52,18 @@ export function CatalogSearch({
   const campo = useRef<HTMLInputElement | null>(null);
 
   const buscando = valor.trim().length > 0;
+
+  /**
+   * Abrir una ficha desde los resultados. `useCallback` no es adorno: la
+   * rejilla puede devolver cientos de tarjetas memoizadas y una función nueva
+   * por render —una por pulsación de tecla— las re-renderizaría todas. La
+   * ruta se deriva de la clave (`movie-<id>` / `tv-<id>`) porque la prop que
+   * llega es el tipo base de la tarjeta.
+   */
+  const abrirResultado = useCallback((item: CardItem) => {
+    const [mediaType, ...resto] = item.key.split("-");
+    router.push(`/peliculas/${mediaType}/${resto.join("-")}`);
+  }, [router]);
 
   /** Borrar la búsqueda y volver al catálogo. También limpia la `?q=` de la
       URL —si venía de un enlace compartido, recargar no la resucita— sin
@@ -162,7 +175,7 @@ export function CatalogSearch({
                   key={item.key}
                   item={item}
                   posterMode
-                  onOpen={() => router.push(`/peliculas/${item.mediaType}/${item.id}`)}
+                  onOpen={abrirResultado}
                 />
               ))}
             </div>

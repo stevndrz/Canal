@@ -31,10 +31,6 @@ export const publicConfig = {
    */
   embedPropioPelicula: process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE?.trim() || "",
   embedPropioSerie: process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV?.trim() || "",
-
-  /** Watch Party. Sin estas dos, «Ver en familia» se desactiva sola. */
-  pusherKey: process.env.NEXT_PUBLIC_PUSHER_KEY || "",
-  pusherCluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "mt1",
 } as const;
 
 /**
@@ -79,9 +75,6 @@ export function serverConfig() {
 
     /** Credencial de TMDB. La lee `src/lib/catalog/tmdb.ts`. */
     tmdbCredencial: process.env.TMDB_API_KEY?.trim() || TMDB_POR_DEFECTO,
-
-    /** Secreto de Pusher, solo para firmar canales privados en la ruta de auth. */
-    pusherSecret: process.env.PUSHER_SECRET || "",
 
     /**
      * Manifiestos de addons de Stremio que sirven enlaces directos

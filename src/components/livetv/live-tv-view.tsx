@@ -16,9 +16,9 @@ import { ChannelRow } from "./channel-row";
  * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
  *
  * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Fuera la gestión de listas de reproducción. En ARVIO se añaden y quitan
- *     listas M3U desde la propia pantalla; en CanalCasa la lista se configura
- *     con la variable `M3U_URL` y no hay nada que administrar aquí.
+ *   - Fuera la gestión de listas de reproducción. En el origen se añaden y
+ *     quitan listas M3U desde la propia pantalla; en CanalCasa la lista se
+ *     configura con la variable `M3U_URL` y no hay nada que administrar aquí.
  *   - Fuera el conmutador Lista/Guía y la parrilla EPG: decidido dejarlo para
  *     una tanda posterior.
  *   - Fuera Catch-up, el lanzamiento en VLC y los avisos de Xtream, que
@@ -26,7 +26,7 @@ import { ChannelRow } from "./channel-row";
  *   - Textos en español y filtrado delegado al shell, que ya lo hacía.
  *
  * Se conservan sus nombres de clase al pie de la letra: son el contrato con
- * arvio-shell.css.
+ * el CSS del shell.
  */
 
 /** Cuántas filas se pintan de golpe antes de pedir más al llegar abajo. */
@@ -114,7 +114,7 @@ export function LiveTvView({
 
   // Pintar 500 filas de golpe cuesta cientos de milisegundos en un televisor.
   // Se pintan por lotes y el siguiente entra cuando el centinela del final se
-  // asoma, que es lo mismo que hace ARVIO fila a fila.
+  // asoma: paginación progresiva sin cortes para quien hace scroll.
   useEffect(() => {
     const nodo = centinela.current;
     if (!nodo || typeof IntersectionObserver === "undefined") return undefined;

@@ -2,9 +2,9 @@
    CanalCasa — el armazón visual
    ═══════════════════════════════════════════════════════════════════════════
 
-   Esta hoja sustituye a `arvio-shell.css`, que era una copia literal de 12.704
-   líneas de la que se usaba el 18% (106 de 577 clases). Pesaba 256 KB en
-   producción para pintar unas noventa cosas.
+   Esta hoja es la única fuente de estilos del armazón: sustituyó a una hoja
+   heredada de 12.704 líneas de la que se usaba el 18% (106 de 577 clases),
+   que pesaba 256 KB en producción para pintar unas noventa cosas.
 
    Se conservan **los nombres de clase**, que son el contrato con los
    componentes, y se reescriben las reglas. Eso permitió además absorber los

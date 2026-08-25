@@ -3,11 +3,10 @@
  *
  * Cada ficha se reproduce de una de dos formas:
  *  - `embed`  -> se incrusta el reproductor de un proveedor externo por iframe.
- *               Ese reproductor trae sus propios controles y su propio watch
- *               party, así que aquí no añadimos nada encima.
+ *               Ese reproductor trae sus propios controles, así que aquí no
+ *               añadimos nada encima.
  *  - `manual` -> enlace propio (.mp4 / .m3u8). Solo en este caso usamos el
- *               reproductor nativo con pistas de audio, subtítulos y el
- *               Watch Party sincronizado por Pusher.
+ *               reproductor nativo con pistas de audio y subtítulos.
  */
 
 export type MediaType = "movie" | "tv";

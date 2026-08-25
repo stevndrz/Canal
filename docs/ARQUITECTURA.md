@@ -14,11 +14,11 @@ Toda la aplicación se organiza alrededor de tres orígenes de vídeo distintos,
 que **no son intercambiables**. Casi cada decisión rara del código se explica
 por cuál de los tres se está tocando:
 
-| Origen | Qué es | Cómo se reproduce | Watch Party |
-|---|---|---|---|
-| **Canales** | Lista M3U, señal en directo | `stream-player.tsx` con hls.js o mpegts.js | No: una emisión en vivo ya va sincronizada, no se puede pausar |
-| **Películas** | Catálogo TMDB | `<iframe>` de un proveedor externo | No: el `<video>` está en otro dominio, no se puede leer ni controlar |
-| **Mi enlace** | Un enlace que aporta la persona | `native-player.tsx`, un `<video>` nuestro | **Sí**: es el único sitio donde el tiempo está a nuestro alcance |
+| Origen | Qué es | Cómo se reproduce |
+|---|---|---|
+| **Canales** | Lista M3U, señal en directo | `stream-player.tsx` con hls.js o mpegts.js |
+| **Películas** | Catálogo TMDB | `<iframe>` de un proveedor externo |
+| **Mi enlace** | Un enlace que aporta la persona | `native-player.tsx`, un `<video>` nuestro con controles completos |
 
 ---
 
@@ -30,7 +30,6 @@ src/
 │   ├── layout.tsx            Fuente, metadatos, <html>
 │   ├── page.tsx              Inicio. Server Component: descarga M3U y EPG
 │   ├── peliculas/            Catálogo y ficha de un título
-│   ├── api/pusher/auth/      Firma de canales privados de Pusher
 │   ├── globals.css           Tokens, restablecimientos, foco, pantallas propias
 │   └── shell.css             El armazón visual: barra, rieles, tarjetas, canales
 │
@@ -42,10 +41,10 @@ src/
 │   ├── catalog/              Ficha de película, selector de servidor, buscador
 │   ├── player/               Controles del reproductor
 │   ├── stream-player.tsx     Directo (hls.js / mpegts.js)
-│   ├── native-player.tsx     Enlace propio (<video> nuestro, con Watch Party)
+│   ├── native-player.tsx     Enlace propio (<video> nuestro, audio y subtítulos)
 │   └── fullscreen-player.tsx Pantalla completa
 │
-├── hooks/                    Estado con ciclo de vida (foco, cast, sala, fuentes)
+├── hooks/                    Estado con ciclo de vida (foco, cast, fuentes)
 ├── lib/                      Lógica pura: sin React, sin DOM, sin red donde se pueda
 │   ├── config.ts             ⭐ ÚNICA fuente de configuración
 │   ├── channels.ts           Filtrar, agrupar y numerar canales
@@ -57,8 +56,7 @@ src/
 │   ├── reproduccion/         Qué librería reproduce cada enlace
 │   ├── catalog/              TMDB, proveedores de iframe, catálogo propio
 │   ├── fuente-propia/        Mi enlace: clasificar URLs, leer magnets
-│   └── watch-party/          Firma e identificadores de sala
-└── store/use-app-store.ts    Estado global persistido (favoritos, preferencias)
+│   └── resolvers/            Contrato de /api/stream (tipos compartidos)
 ```
 
 ---

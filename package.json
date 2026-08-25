@@ -17,10 +17,8 @@
     "lucide-react": "^1.31.0",
     "mpegts.js": "^1.8.2",
     "next": "^16.3.1",
-    "pusher-js": "^8.6.0",
     "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "zustand": "^5.0.15"
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",

@@ -29,8 +29,8 @@ const MAX_POR_RIEL = 20;
  * Inicio: la señal en directo arriba, y todo lo demás debajo.
  *
  * El orden es la decisión de producto de esta pantalla. Antes abría con una
- * cabecera de película a pantalla completa, que es lo que hace ARVIO porque su
- * app va de películas. CanalCasa va de televisión en vivo: al entrar tiene que
+ * cabecera de película a pantalla completa, como las apps que van de
+ * películas. CanalCasa va de televisión en vivo: al entrar tiene que
  * haber señal, y el catálogo es una sección más, no la portada.
  *
  * La pantalla completa deja de ser la puerta de entrada y pasa a ser una
