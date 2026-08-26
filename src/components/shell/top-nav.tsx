@@ -128,6 +128,56 @@ function PistaDeCarga() {
   return <span aria-hidden="true" className={`nav-pista ${pending ? "is-pending" : ""}`} />;
 }
 
+/**
+ * Cuánto se espera al router antes de ir por las bravas.
+ *
+ * Medido: con el esqueleto puesto, la URL cambia entre 310 y 390 ms. Dos
+ * segundos y medio dejan sitio de sobra a una navegación normal, incluso lenta,
+ * y son poco para quien ya está mirando un botón que no responde.
+ */
+const RESCATE_MS = 2500;
+
+/**
+ * La red de seguridad: si el router no ha ido, se va a pelo.
+ *
+ * Esto no es elegante y está aquí a propósito. El síntoma —pulsar «Cine y
+ * series» y que no pase absolutamente nada, hasta pulsar otro botón y volver—
+ * no lo he conseguido reproducir en un entorno controlado, y he descartado con
+ * medidas las causas que parecían obvias: el hilo principal no se bloquea
+ * (0 ms congelados), el servidor contesta esa ruta en 2-3 ms en local y en
+ * 540 ms en producción, las imágenes de los logos no estorban, y nada
+ * intercepta el clic. Lo que sí sé es que **cuando la navegación del router
+ * falla, falla en silencio y para siempre**: reproducido cortando la respuesta,
+ * la URL se queda como está y no vuelve a intentarlo nadie.
+ *
+ * Así que en vez de seguir adivinando el mecanismo, se le pone un plazo. Si
+ * pasado ese plazo seguimos exactamente en la misma dirección, se hace una
+ * carga de página normal, que no depende del router, ni del payload RSC, ni
+ * del prefetch — solo de que el servidor conteste, y contesta.
+ *
+ * No se dispara en una navegación sana: para entonces la URL ya cambió y la
+ * comprobación no encuentra motivo. Y respeta las formas de abrir en otra
+ * pestaña, que no son navegaciones de esta.
+ */
+function rescatarSiSeAtasca(href: string, evento: React.MouseEvent) {
+  if (
+    evento.defaultPrevented ||
+    evento.button !== 0 ||
+    evento.metaKey ||
+    evento.ctrlKey ||
+    evento.shiftKey ||
+    evento.altKey
+  ) {
+    return;
+  }
+  const desde = window.location.pathname + window.location.search;
+  window.setTimeout(() => {
+    if (window.location.pathname + window.location.search === desde) {
+      window.location.href = href;
+    }
+  }, RESCATE_MS);
+}
+
 export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -175,6 +225,10 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
           title={label}
           aria-current={active ? "page" : undefined}
           className={`${className} ${active ? "is-active" : ""}`}
+          onClick={(evento) => {
+            setMasAbierto(false);
+            rescatarSiSeAtasca(item.href, evento);
+          }}
         >
           {content}
           {/* Tiene que ir DENTRO del Link: `useLinkStatus` solo funciona en un
