@@ -327,9 +327,7 @@ export const NativePlayer = memo(function NativePlayer({
 
   if (!stream) {
     return (
-      <div className="flex aspect-video items-center justify-center rounded-2xl bg-black text-sm text-white/60">
-        Esta ficha no tiene ningún enlace configurado.
-      </div>
+      <div className="player-sin-enlace">Esta ficha no tiene ningún enlace configurado.</div>
     );
   }
 
@@ -394,18 +392,13 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         {hasError && (
-          <div role="alert" className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/95 p-6 text-center">
-            <p className="text-lg font-bold text-white">No se pudo reproducir</p>
-            <p className="mb-4 mt-1 max-w-sm text-sm text-slate-400">
+          <div role="alert" className="player-fallo">
+            <p className="player-fallo-titulo">No se pudo reproducir</p>
+            <p className="player-fallo-detalle">
               El enlace no respondió. Prueba otra versión o inténtalo de nuevo.
             </p>
-            <button
-              data-nav="button"
-              type="button"
-              onClick={retry}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-            >
-              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+            <button data-nav="button" type="button" onClick={retry} className="player-btn is-primary">
+              <RefreshCw aria-hidden="true" />
               Reintentar
             </button>
           </div>
@@ -413,8 +406,8 @@ export const NativePlayer = memo(function NativePlayer({
       </div>
 
       {/* Barra de progreso: una película sí se busca, un canal en vivo no. */}
-      <div className="flex items-center gap-3 text-xs text-white/70">
-        <span className="w-12 shrink-0 text-right font-mono">{formatTime(currentTime)}</span>
+      <div className="player-barra-tiempo">
+        <span>{formatTime(currentTime)}</span>
         <input
           data-nav="input"
           type="range"
@@ -424,9 +417,8 @@ export const NativePlayer = memo(function NativePlayer({
           value={currentTime}
           onChange={(event) => seekTo(Number(event.target.value))}
           aria-label="Posición de reproducción"
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-emerald-400"
         />
-        <span className="w-12 shrink-0 font-mono">{formatTime(duration)}</span>
+        <span>{formatTime(duration)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -435,9 +427,9 @@ export const NativePlayer = memo(function NativePlayer({
           type="button"
           onClick={togglePlay}
           aria-label={isPlaying ? "Pausar" : "Reproducir"}
-          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="player-btn is-extra"
         >
-          {isPlaying ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
+          {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </button>
 
         <button
@@ -445,24 +437,23 @@ export const NativePlayer = memo(function NativePlayer({
           type="button"
           onClick={toggleMute}
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
-          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="player-btn is-extra"
         >
-          {isMuted ? <VolumeX aria-hidden="true" className="h-5 w-5" /> : <Volume2 aria-hidden="true" className="h-5 w-5" />}
+          {isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
         </button>
 
         {/* Versiones del mismo título (doblajes, calidades) */}
         {streams.length > 1 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Languages aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Languages aria-hidden="true" />
             <span className="sr-only">Versión</span>
             <select
               data-nav="input"
               value={streamIndex}
               onChange={(event) => setStreamIndex(Number(event.target.value))}
-              className="bg-transparent font-semibold focus:outline-none"
             >
               {streams.map((option, index) => (
-                <option key={option.url} value={index} className="bg-slate-900">
+                <option key={option.url} value={index}>
                   {option.label}
                 </option>
               ))}
@@ -472,17 +463,16 @@ export const NativePlayer = memo(function NativePlayer({
 
         {/* Solo aparece si el archivo trae más de una pista de audio */}
         {audioTracks.length > 1 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Languages aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Languages aria-hidden="true" />
             <span className="sr-only">Audio</span>
             <select
               data-nav="input"
               value={activeAudio ?? 0}
               onChange={(event) => selectAudio(Number(event.target.value))}
-              className="bg-transparent font-semibold focus:outline-none"
             >
               {audioTracks.map((track) => (
-                <option key={track.id} value={track.id} className="bg-slate-900">
+                <option key={track.id} value={track.id}>
                   {track.label}
                 </option>
               ))}
@@ -491,8 +481,8 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         {subtitles.length > 0 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Captions aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Captions aria-hidden="true" />
             <span className="sr-only">Subtítulos</span>
             <select
               data-nav="input"
@@ -501,13 +491,12 @@ export const NativePlayer = memo(function NativePlayer({
                 const value = Number(event.target.value);
                 setActiveSubtitle(value < 0 ? null : value);
               }}
-              className="bg-transparent font-semibold focus:outline-none"
             >
-              <option value={-1} className="bg-slate-900">
+              <option value={-1}>
                 Sin subtítulos
               </option>
               {subtitles.map((track, index) => (
-                <option key={track.url} value={index} className="bg-slate-900">
+                <option key={track.url} value={index}>
                   {track.label}
                 </option>
               ))}
@@ -524,11 +513,9 @@ export const NativePlayer = memo(function NativePlayer({
             type="button"
             onClick={isCasting ? stopCasting : startCasting}
             aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir con Chromecast"}
-            className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-              isCasting ? "bg-sky-500/40" : "bg-white/10"
-            }`}
+            className={`player-btn is-extra ${isCasting ? "is-emitiendo" : ""}`}
           >
-            <Cast aria-hidden="true" className="h-5 w-5" />
+            <Cast aria-hidden="true" />
           </button>
         )}
 
@@ -541,11 +528,9 @@ export const NativePlayer = memo(function NativePlayer({
             onClick={isCasting ? stopCasting : startCasting}
             aria-pressed={isCasting}
             aria-label={isCasting ? "Dejar de transmitir con AirPlay" : "Transmitir con AirPlay"}
-            className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-              isCasting ? "bg-sky-500/40" : "bg-white/10"
-            }`}
+            className={`player-btn is-extra ${isCasting ? "is-emitiendo" : ""}`}
           >
-            <Airplay aria-hidden="true" className="h-5 w-5" />
+            <Airplay aria-hidden="true" />
           </button>
         )}
 
@@ -555,12 +540,12 @@ export const NativePlayer = memo(function NativePlayer({
               type="button"
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-              className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              className="player-btn is-extra"
             >
               {isFullscreen ? (
-                <Minimize aria-hidden="true" className="h-5 w-5" />
+                <Minimize aria-hidden="true" />
               ) : (
-                <Maximize aria-hidden="true" className="h-5 w-5" />
+                <Maximize aria-hidden="true" />
               )}
             </button>
           )}
