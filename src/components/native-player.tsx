@@ -29,6 +29,12 @@ import {
 /**
  * Reproductor nativo para los enlaces propios del catálogo (`manual`).
  *
+ * **Todo control lleva `data-nav`.** `useSpatialNav` solo recoge `[data-nav]`
+ * y además hace `preventDefault()` en las cuatro flechas, así que un mando no
+ * puede llegar a nada que no lo lleve — y en un televisor no hay Tab. Sin
+ * estos atributos, esta pantalla era un callejón sin salida: no se podía ni
+ * pausar, ni silenciar, ni salir de pantalla completa.
+ *
  * Solo aquí tiene sentido añadir controles avanzados: en las fichas de tipo
  * `embed` manda el reproductor del proveedor, con sus propios controles.
  *
@@ -369,6 +375,7 @@ export const NativePlayer = memo(function NativePlayer({
             <Cast aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
             <p className="flex-1">{castError}</p>
             <button
+              data-nav="button"
               type="button"
               onClick={dismissCastError}
               aria-label="Cerrar aviso"
@@ -393,6 +400,7 @@ export const NativePlayer = memo(function NativePlayer({
               El enlace no respondió. Prueba otra versión o inténtalo de nuevo.
             </p>
             <button
+              data-nav="button"
               type="button"
               onClick={retry}
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
@@ -408,6 +416,7 @@ export const NativePlayer = memo(function NativePlayer({
       <div className="flex items-center gap-3 text-xs text-white/70">
         <span className="w-12 shrink-0 text-right font-mono">{formatTime(currentTime)}</span>
         <input
+          data-nav="input"
           type="range"
           min={0}
           max={duration || 0}
@@ -422,6 +431,7 @@ export const NativePlayer = memo(function NativePlayer({
 
       <div className="flex flex-wrap items-center gap-2">
         <button
+          data-nav="button"
           type="button"
           onClick={togglePlay}
           aria-label={isPlaying ? "Pausar" : "Reproducir"}
@@ -431,6 +441,7 @@ export const NativePlayer = memo(function NativePlayer({
         </button>
 
         <button
+          data-nav="button"
           type="button"
           onClick={toggleMute}
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
@@ -445,6 +456,7 @@ export const NativePlayer = memo(function NativePlayer({
             <Languages aria-hidden="true" className="h-4 w-4" />
             <span className="sr-only">Versión</span>
             <select
+              data-nav="input"
               value={streamIndex}
               onChange={(event) => setStreamIndex(Number(event.target.value))}
               className="bg-transparent font-semibold focus:outline-none"
@@ -464,6 +476,7 @@ export const NativePlayer = memo(function NativePlayer({
             <Languages aria-hidden="true" className="h-4 w-4" />
             <span className="sr-only">Audio</span>
             <select
+              data-nav="input"
               value={activeAudio ?? 0}
               onChange={(event) => selectAudio(Number(event.target.value))}
               className="bg-transparent font-semibold focus:outline-none"
@@ -482,6 +495,7 @@ export const NativePlayer = memo(function NativePlayer({
             <Captions aria-hidden="true" className="h-4 w-4" />
             <span className="sr-only">Subtítulos</span>
             <select
+              data-nav="input"
               value={activeSubtitle ?? -1}
               onChange={(event) => {
                 const value = Number(event.target.value);
@@ -506,6 +520,7 @@ export const NativePlayer = memo(function NativePlayer({
             y en iOS AirPlay. Si no hay ninguna disponible, ninguno. */}
         {castMethod === "gcast" && (
           <button
+            data-nav="button"
             type="button"
             onClick={isCasting ? stopCasting : startCasting}
             aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir con Chromecast"}
@@ -521,6 +536,7 @@ export const NativePlayer = memo(function NativePlayer({
           /* Encendido mientras emite y sirviendo para cortar, igual que el de
              Chromecast: sin estado, el botón se veía idéntico funcionara o no. */
           <button
+            data-nav="button"
             type="button"
             onClick={isCasting ? stopCasting : startCasting}
             aria-pressed={isCasting}
@@ -535,6 +551,7 @@ export const NativePlayer = memo(function NativePlayer({
 
           {canFullscreen && (
             <button
+              data-nav="button"
               type="button"
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}

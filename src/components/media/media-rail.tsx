@@ -48,6 +48,7 @@ export function MediaRail({
       <div className="rail-head">
         {href ? (
           <Link
+            data-nav="button"
             href={href}
             className="group flex items-center gap-2 hover:text-red-500 transition-colors"
           >

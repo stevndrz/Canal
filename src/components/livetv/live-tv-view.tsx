@@ -155,7 +155,12 @@ export function LiveTvView({
             aria-label="Buscar canal"
           />
           {search && (
-            <button type="button" onClick={() => onSearchChange("")} aria-label="Borrar búsqueda">
+            <button
+              type="button"
+              data-nav="button"
+              onClick={() => onSearchChange("")}
+              aria-label="Borrar búsqueda"
+            >
               <X size={15} />
             </button>
           )}
@@ -199,7 +204,12 @@ export function LiveTvView({
                 Ningún canal coincide con {search.trim() ? `«${search.trim()}»` : "esta categoría"}.
               </p>
               {search.trim() && (
-                <button type="button" className="secondary" onClick={() => onSearchChange("")}>
+                <button
+                  type="button"
+                  data-nav="button"
+                  className="secondary"
+                  onClick={() => onSearchChange("")}
+                >
                   Borrar búsqueda
                 </button>
               )}

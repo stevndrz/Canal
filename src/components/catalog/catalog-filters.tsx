@@ -93,7 +93,13 @@ export function CatalogFilters({
     <div className="w-full">
       <div className={FILA_TIPOS} role="group" aria-label="Tipo de contenido">
         {TIPOS.map(({ id, label }) => (
-          <Link key={id} href={href(id, genero, generosValidos, orden)} aria-current={tipo === id ? "true" : undefined} className={chip(tipo === id)}>
+          <Link
+            key={id}
+            data-nav="button"
+            href={href(id, genero, generosValidos, orden)}
+            aria-current={tipo === id ? "true" : undefined}
+            className={chip(tipo === id)}
+          >
             {label}
           </Link>
         ))}
@@ -101,12 +107,18 @@ export function CatalogFilters({
 
       {generos.length > 0 && (
         <div className={CARRUSEL} role="group" aria-label="Género">
-          <Link href={href(tipo, null, generosValidos, orden)} aria-current={genero === null ? "true" : undefined} className={chip(genero === null)}>
+          <Link
+            data-nav="button"
+            href={href(tipo, null, generosValidos, orden)}
+            aria-current={genero === null ? "true" : undefined}
+            className={chip(genero === null)}
+          >
             Todos los géneros
           </Link>
           {generos.map((g) => (
             <Link
               key={g.id}
+              data-nav="button"
               href={href(tipo, g.id, generosValidos, orden)}
               aria-current={genero === g.id ? "true" : undefined}
               className={chip(genero === g.id)}

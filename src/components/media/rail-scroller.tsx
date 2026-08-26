@@ -54,13 +54,31 @@ export function RailScroller({
     update();
     const onScroll = () => update();
     node.addEventListener("scroll", onScroll, { passive: true });
-    const resizeObserver = new ResizeObserver(update);
-    resizeObserver.observe(node);
+
+    /**
+     * `ResizeObserver` existe desde Chromium 64, y el hardware al que apunta
+     * esta app es MÁS VIEJO que eso: Tizen 4.0 (2018) trae Chromium 56 y
+     * webOS 4.x, 53. Ahí `new ResizeObserver(...)` lanza dentro del efecto, la
+     * excepción sube por el árbol y **se cae el render de cada `MediaRail`**,
+     * o sea, la portada entera en negro.
+     *
+     * `live-tv-view.tsx` ya comprueba el soporte de `IntersectionObserver` de
+     * esta misma manera; aquí faltaba. El respaldo con `resize` de ventana no
+     * detecta que el carril cambie de tamaño sin que lo haga la ventana, pero
+     * cubre el caso real —girar el televisor no existe— y, sobre todo, no
+     * tumba nada.
+     */
+    const observador =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (observador) observador.observe(node);
+    else window.addEventListener("resize", onScroll);
+
     const timer = window.setTimeout(update, 250);
     return () => {
       window.clearTimeout(timer);
       node.removeEventListener("scroll", onScroll);
-      resizeObserver.disconnect();
+      if (observador) observador.disconnect();
+      else window.removeEventListener("resize", onScroll);
     };
   }, [update, children]);
 

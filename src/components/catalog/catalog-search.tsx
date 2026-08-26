@@ -143,6 +143,7 @@ export function CatalogSearch({
         <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-400">
           Ordenar por
           <select
+            data-nav="input"
             value={orden}
             onChange={(evento) => cambiarOrden(evento.target.value as OrdenCatalogo)}
             aria-label="Ordenar catálogo"
