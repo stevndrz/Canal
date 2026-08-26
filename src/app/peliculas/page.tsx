@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
@@ -7,6 +8,7 @@ import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { NavegacionCatalogo } from "@/components/catalog/navegacion-catalogo";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
+import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
@@ -22,19 +24,33 @@ import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
  */
 export const revalidate = 3600;
 
-export default async function MoviesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    q?: string;
-    tipo?: string;
-    genero?: string;
-    pagina?: string;
-    orden?: string;
-  }>;
-}) {
-  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam, orden: ordenParam } =
-    await searchParams;
+/** Lo que la URL trae, ya saneado antes de tocar TMDB. */
+interface Filtro {
+  q?: string;
+  tipo?: string;
+  genero?: string;
+  pagina?: string;
+  orden?: string;
+}
+
+/**
+ * Todo el contenido bajo la barra: héroe, buscador, filtros y catálogo.
+ *
+ * Vive separado de la página para poder streamearse entero. Las doce
+ * peticiones a TMDB que alimenta —diez filas del catálogo, dos listas de
+ * géneros— tardan medio segundo en caliente y hasta tres o más en frío, y
+ * antes bloqueaban el render COMPLETO de la ruta: pulsar «Cine y series» era
+ * mirar un esqueleto todo ese tiempo sin barra ni nada que hacer. Ahora el
+ * armazón llega en el primer fotograma y esto ocupa su lugar en cuanto hay
+ * datos: la API lenta retrasa las carátulas, no el entrar.
+ */
+async function SeccionCatalogo({
+  q,
+  tipo: tipoParam,
+  genero: generoParam,
+  pagina: paginaParam,
+  orden: ordenParam,
+}: Filtro) {
   const query = q?.trim() ?? "";
 
   const tipo: MediaFilter = tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
@@ -135,12 +151,7 @@ export default async function MoviesPage({
   );
 
   return (
-    /* El mando: esta ruta vive fuera del shell, así que monta su propia
-       navegación espacial. Ver `navegacion-catalogo.tsx`. */
-    <NavegacionCatalogo>
-    <div className="app-shell bg-black">
-      <TopNav />
-
+    <>
       {destacado && <HeroDestacado item={destacado} />}
 
       {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
@@ -184,7 +195,31 @@ export default async function MoviesPage({
           {contenido}
         </CatalogSearch>
       </div>
-    </div>
+    </>
+  );
+}
+
+export default async function MoviesPage({ searchParams }: { searchParams: Promise<Filtro> }) {
+  // searchParams está disponible de inmediato: es lo primero que trae la
+  // petición. Lo costoso —las listas de TMDB— queda confinado a
+  // `SeccionCatalogo`, que se streamea debajo del `<Suspense>` mientras la
+  // barra ya está en pantalla.
+  const filtro = await searchParams;
+
+  return (
+    /* El mando: esta ruta vive fuera del shell, así que monta su propia
+       navegación espacial. Ver `navegacion-catalogo.tsx`. */
+    <NavegacionCatalogo>
+      <div className="app-shell bg-black">
+        <TopNav />
+
+        {/* El fallback es el MISMO esqueleto que el del segmento
+            (`loading.tsx`): a quien mira no le puede cambiar la pantalla dos
+            veces por un redibujado del mismo dibujo. */}
+        <Suspense fallback={<EsqueletoCatalogo />}>
+          <SeccionCatalogo {...filtro} />
+        </Suspense>
+      </div>
     </NavegacionCatalogo>
   );
 }

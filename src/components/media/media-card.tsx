@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Tv } from "lucide-react";
 import type { CardItem } from "@/lib/media-item";
 
@@ -11,6 +11,41 @@ interface MediaCardProps {
   /** `true` pinta 2:3 (póster de catálogo); `false`, tarjeta de canal glass. */
   posterMode?: boolean;
   active?: boolean;
+}
+
+/**
+ * El estado del arte de una tarjeta: descargado, fallido, y cómo enterarse.
+ *
+ * La carrera que motiva el `refImg`: el HTML llega con la `<img>` dentro y el
+ * navegador la empieza a bajar de inmediato, pero los handlers de React solo
+ * existen tras hidratar — y en una tele lenta eso tarda segundos. Los pósters
+ * cuya descarga termina antes de entonces no reciben nunca su `load`, `loaded`
+ * queda falso para siempre y la carátula se queda negra «cargando». Preguntar
+ * a la propia imagen (`complete`) cuando el nodo entra en el árbol lo cierra.
+ */
+function useArte(artwork: string | null | undefined) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // La tarjeta se reutiliza al cambiar de riel: sin reiniciar loaded/failed,
+  // el arte nuevo heredaba el estado del anterior y no aparecía.
+  const [artPrevio, setArtPrevio] = useState(artwork);
+  if (artPrevio !== artwork) {
+    setArtPrevio(artwork);
+    setLoaded(false);
+    setFailed(false);
+  }
+
+  const alCargar = useCallback(() => setLoaded(true), []);
+  const alFallar = useCallback(() => setFailed(true), []);
+
+  const refImg = useCallback((imagen: HTMLImageElement | null) => {
+    if (!imagen || !imagen.complete) return;
+    if (imagen.naturalWidth > 0) setLoaded(true);
+    else setFailed(true);
+  }, []);
+
+  return { loaded, failed, refImg, alCargar, alFallar };
 }
 
 /**
@@ -35,19 +70,8 @@ function ChannelGlassCard({
   onFocus?: (item: CardItem) => void;
   active?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
   const artwork = item.backdrop ?? item.poster;
-
-  // La tarjeta se reutiliza al cambiar de riel: sin reiniciar loaded/failed,
-  // el logo nuevo heredaba el estado del anterior y no aparecía.
-  const [artPrevio, setArtPrevio] = useState(artwork);
-  if (artPrevio !== artwork) {
-    setArtPrevio(artwork);
-    setLoaded(false);
-    setFailed(false);
-  }
+  const { loaded, failed, refImg, alCargar, alFallar } = useArte(artwork);
 
   const showArt = Boolean(artwork) && !failed;
   const progress = item.progress ?? 0;
@@ -85,8 +109,9 @@ function ChannelGlassCard({
             alt=""
             loading="lazy"
             decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            ref={refImg}
+            onLoad={alCargar}
+            onError={alFallar}
             className={`h-full w-full p-2 object-contain transition-transform duration-300 group-hover:scale-105 ${
               loaded ? "" : "opacity-0"
             }`}
@@ -150,17 +175,8 @@ function PosterCard({
   onFocus?: (item: CardItem) => void;
   active?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
   const artwork = item.poster;
-
-  const [artPrevio, setArtPrevio] = useState(artwork);
-  if (artPrevio !== artwork) {
-    setArtPrevio(artwork);
-    setLoaded(false);
-    setFailed(false);
-  }
+  const { loaded, failed, refImg, alCargar, alFallar } = useArte(artwork);
 
   const showArt = Boolean(artwork) && !failed;
   const progress = item.progress ?? 0;
@@ -187,8 +203,9 @@ function PosterCard({
             alt=""
             loading="lazy"
             decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            ref={refImg}
+            onLoad={alCargar}
+            onError={alFallar}
             className={`object-cover w-full h-full rounded-xl transition-opacity duration-300 ${
               loaded ? "opacity-100" : "opacity-0"
             }`}
