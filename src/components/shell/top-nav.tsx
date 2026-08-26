@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
@@ -99,6 +100,34 @@ function MarcaInicio({ className, onIr }: { className: string; onIr: () => void 
   );
 }
 
+/**
+ * La señal de que el clic SÍ se registró.
+ *
+ * «Cine y series» es el único destino que no es una vista del shell sino una
+ * ruta de Next, y por tanto el único cuyo clic depende de que el servidor
+ * conteste. Los demás cambian de vista en el mismo fotograma.
+ *
+ * El fallo era este: cuando la petición de esa ruta tarda mucho o se corta —en
+ * producción son diez llamadas a TMDB dentro de una función con límite de
+ * tiempo—, **el router no actualiza la URL y no avisa de nada**. Reproducido
+ * cortando la respuesta: la pantalla se queda en Inicio, quieta y sin un solo
+ * cambio en el DOM. Desde fuera es un botón muerto, y lo natural es volver a
+ * pulsar o probar otro botón, que es justo lo que se estaba haciendo.
+ *
+ * `useLinkStatus` da `pending` **antes de que la historia se actualice**, o sea
+ * en la ventana exacta en la que no había nada. No depende del servidor ni del
+ * prefetch. Y cuando la ruta ya está prefetcheada el estado se salta entero,
+ * así que en el caso bueno no se ve.
+ *
+ * Tamaño fijo y siempre montado, con la animación retrasada 100 ms: así no
+ * mueve la maquetación ni parpadea en una navegación instantánea. Es lo que
+ * recomienda la documentación de esta versión para no meter saltos.
+ */
+function PistaDeCarga() {
+  const { pending } = useLinkStatus();
+  return <span aria-hidden="true" className={`nav-pista ${pending ? "is-pending" : ""}`} />;
+}
+
 export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -148,6 +177,9 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
           className={`${className} ${active ? "is-active" : ""}`}
         >
           {content}
+          {/* Tiene que ir DENTRO del Link: `useLinkStatus` solo funciona en un
+              descendiente suyo. Ver `PistaDeCarga`. */}
+          <PistaDeCarga />
         </Link>
       );
     }

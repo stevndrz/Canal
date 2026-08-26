@@ -736,6 +736,63 @@ html[data-player="on"] body {
   }
 }
 
+/* ── La pista de «te he oído» de la barra ─────────────────────────────
+   Ver `PistaDeCarga` en `top-nav.tsx` para el fallo que resuelve.
+
+   Tres decisiones, y ninguna es de gusto:
+
+   1. **Siempre montada y de tamaño fijo.** Si apareciera y desapareciera, cada
+      clic movería las palabras de la barra. Ocupa su hueco desde el principio
+      y solo cambia de opacidad.
+   2. **La animación empieza a los 100 ms.** Una navegación instantánea no
+      llega a enseñarla, así que en el caso bueno no se ve nada. Es lo que
+      recomienda la documentación de esta versión.
+   3. **Opacidad, no `transform` ni sombras.** Es lo único que una tele vieja
+      compone sin repintar, y esto late una vez por segundo mientras se espera.
+      `margin-left` en vez de `gap`: el `gap` de flex no existe ahí. */
+.nav-pista {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.nav-pista.is-pending {
+  visibility: visible;
+  animation-name: pistaAparece, pistaLate;
+  animation-duration: 200ms, 1s;
+  animation-delay: 100ms, 100ms;
+  animation-timing-function: ease, ease-in-out;
+  animation-iteration-count: 1, infinite;
+  animation-fill-mode: forwards, none;
+}
+
+@keyframes pistaAparece {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pistaLate {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* Quien haya pedido menos movimiento se queda con el punto encendido y quieto:
+   sigue diciendo «te he oído», que es todo lo que tiene que decir. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-pista.is-pending {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 /* ── El riel compacto, lo que le gana a Tailwind ──────────────────────
    Las dos reglas que faltaban de `.rail.is-compacto` (ver `shell.css`), aquí y
    sin capa porque compiten con utilidades de Tailwind —`p-6` y `flex`, que

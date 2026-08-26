@@ -136,6 +136,26 @@ const StreamPlayer = memo(
 
     const streamUrl = channel.streamUrl;
 
+    /**
+     * «Arrancar con sonido» es una preferencia de ARRANQUE, y se lee por `ref`.
+     *
+     * Estaba en las dependencias del efecto que monta el motor, y eso hacía que
+     * **pulsar el botón de silencio rearrancara el canal entero**: el botón
+     * escribe `startUnmuted` en los ajustes, el ajuste cambiaba la dependencia,
+     * el efecto se desmontaba y volvía a montar, y encima del vídeo aparecía
+     * «Sintonizando Canal 3…» durante unos segundos. Silenciar es lo más barato
+     * que se le puede pedir a un reproductor y costaba una reconexión.
+     *
+     * Con la `ref` el efecto ya no depende del valor pero sigue leyendo el
+     * actual en el momento que le toca —el primer `play()`—, que es la única
+     * vez que este ajuste significa algo. Cambiarlo en Ajustes se aplica al
+     * siguiente canal que se sintonice, que es lo que dice su propio nombre.
+     */
+    const quiereSonido = useRef(settings.startUnmuted);
+    useEffect(() => {
+      quiereSonido.current = settings.startUnmuted;
+    }, [settings.startUnmuted]);
+
     const handleRetry = useCallback(() => {
       setRetryCount((n) => n + 1);
     }, []);
@@ -204,7 +224,7 @@ const StreamPlayer = memo(
           .then(() => {
             if (cancelled) return;
             setIsPlaying(true);
-            recuperarSonido(video, settings.startUnmuted, () => !cancelled, setIsMuted);
+            recuperarSonido(video, quiereSonido.current, () => !cancelled, setIsMuted);
           })
           .catch(() => {
             // Ni en silencio se puede: ahí sí no hay nada que enseñar, y el
@@ -353,7 +373,8 @@ const StreamPlayer = memo(
       settings.enableWorker,
       settings.lowLatencyMode,
       settings.liveBufferLatencyChasing,
-      settings.startUnmuted,
+      // `settings.startUnmuted` NO va aquí a propósito: se lee por `ref` arriba.
+      // Con él en la lista, pulsar el botón de silencio rearrancaba el canal.
       // Cambiar "calidad máxima" tiene que rearrancar hls.js: `startLevel` y
       // `capLevelToPlayerSize` solo se leen al construir la instancia.
       settings.calidadMaxima,
