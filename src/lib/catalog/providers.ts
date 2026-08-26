@@ -125,9 +125,19 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     // El relevo de Videasy, también sin puerta (verificado 2026-08-24, HTTP
     // 200 en tv y en movie). Sin parámetro de idioma verificado: el selector
     // de audio/subtítulos vive dentro de su propio reproductor.
+    //
+    // ⚠️ Es el que MÁS anuncios trae de los tres primeros: su paquete carga
+    // `aclib` (AdCash) y tiene `processPopunderQueue`, que abre una pestaña
+    // nueva —y devuelve el foco a la de atrás— como mucho cada 30 s. Por eso
+    // va detrás de Videasy, que no lleva nada de eso.
+    //
+    // Los parámetros salen de su propio paquete (`searchParams.get(…)`), no
+    // de suponer: `autoplay=true` arranca sin que nadie toque el vídeo —clave
+    // con un mando— y `poster=false` se salta la carátula, que es un clic
+    // menos dentro del marco y por tanto un popunder menos.
     id: "vidlink",
-    movie: "https://vidlink.pro/movie/{tmdbId}",
-    tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}",
+    movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
+    tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",
     spanishSubtitles: false,
   },
   {

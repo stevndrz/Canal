@@ -142,6 +142,21 @@ function ReproductorCatalogo({
    * Basta con comparar contra el activo.
    */
   const [avisarPara, setAvisarPara] = useState<string | null>(null);
+  /**
+   * Si el mando puede entrar dentro del vídeo del proveedor.
+   *
+   * Empieza en `false`, y ese es el detalle que quita los pop-ups. Los
+   * popunder de estos servidores —vidlink carga AdCash y tiene un
+   * `processPopunderQueue`— necesitan un **gesto de la persona DENTRO del
+   * marco**: sin gesto, el navegador bloquea `window.open` él solo. Con un
+   * mando no hay puntero, así que si el foco nunca cruza al iframe, no hay
+   * clic dentro, y sin clic dentro no hay pestaña que se abra.
+   *
+   * No es una jaula: el botón de al lado se lo entrega cuando de verdad hace
+   * falta —pausar, buscar, cambiar de calidad— y entonces sí es cosa suya.
+   */
+  const [marcoAbierto, setMarcoAbierto] = useState(false);
+  const marcoRef = useRef<HTMLIFrameElement | null>(null);
 
   /**
    * Respaldo inmediato, mientras `/api/stream` responde y también si falla.
@@ -228,6 +243,20 @@ function ReproductorCatalogo({
    * que se puede hacer: preguntar en vez de adivinar.
    */
   const servidorActivoId = activo?.id;
+
+  /** Cada servidor empieza cerrado: cambiar de uno no hereda el permiso. */
+  const [servidorDelPermiso, setServidorDelPermiso] = useState<string | null>(null);
+  const abierto = marcoAbierto && servidorDelPermiso === servidorActivoId;
+
+  const abrirMarco = useCallback(() => {
+    if (!servidorActivoId) return;
+    setServidorDelPermiso(servidorActivoId);
+    setMarcoAbierto(true);
+    // El foco se entrega en el mismo gesto: con un mando, si no se mueve solo,
+    // la persona se queda pulsando flechas sin que pase nada.
+    requestAnimationFrame(() => marcoRef.current?.focus());
+  }, [servidorActivoId]);
+
   useEffect(() => {
     if (!servidorActivoId) return;
     const reloj = setTimeout(
@@ -304,9 +333,14 @@ function ReproductorCatalogo({
               // Un marco nuevo por servidor: cambiar solo el `src` deja dentro
               // el historial del anterior, y con él su bucle de recargas.
               key={activo.id}
+              ref={marcoRef}
               src={activo.url}
               title={titulo}
               onLoad={alCargarMarco}
+              /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta
+                 los pop-ups: sin gesto dentro del marco, el navegador ya
+                 bloquea `window.open` por su cuenta. Ver `marcoAbierto`. */
+              tabIndex={abierto ? 0 : -1}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
@@ -322,6 +356,26 @@ function ReproductorCatalogo({
             deja ni rastro fuera—. Quien está delante lo ve en un segundo, así
             que se le pregunta en vez de adivinar. Es lo único que cubre TODOS
             los modos de fallo, incluidos los que aún no conocemos. */}
+        {/* Entregar el mando al reproductor del proveedor, a propósito.
+
+            Mientras no se pulse, el foco no entra en el marco y sus popunder
+            se quedan sin el gesto que necesitan para abrir pestañas. Cuando
+            de verdad hace falta pausar o buscar, esto lo cede — y al cambiar
+            de servidor vuelve a cerrarse solo. */}
+        {!abierto && (
+          <div className="ficha-aviso">
+            <span>El mando maneja esta página; el vídeo arranca solo.</span>
+            <button
+              type="button"
+              data-nav="button"
+              className="ficha-aviso-accion"
+              onClick={abrirMarco}
+            >
+              Usar los controles del servidor
+            </button>
+          </div>
+        )}
+
         {(ofrecerCambio || descartados.length > 0) && (
           <div className="ficha-aviso" role="status">
             <span>
