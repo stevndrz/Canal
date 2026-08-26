@@ -15,6 +15,7 @@ import StreamPlayer, {
 import { stepChannel } from "@/lib/channels";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useReloj } from "@/hooks/use-reloj";
 import { useCast } from "@/hooks/use-cast";
 
 interface FullscreenPlayerProps {
@@ -28,7 +29,6 @@ interface FullscreenPlayerProps {
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
   onExit: () => void;
-  clock: string;
 }
 
 /* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
@@ -45,7 +45,6 @@ export function FullscreenPlayer({
   settings,
   onTune,
   onExit,
-  clock,
 }: FullscreenPlayerProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,6 +74,18 @@ export function FullscreenPlayer({
    * respaldo a `documentElement` cuando el contenedor lo rechaza.
    */
   const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
+
+  /**
+   * El reloj vive AQUÍ, que es el único sitio donde se pinta.
+   *
+   * Estaba en `Dashboard` y bajaba como prop. `useReloj` cambia cada 20
+   * segundos, así que **re-renderizaba el árbol entero de la aplicación** —
+   * hasta unas 200 tarjetas en Inicio— para actualizar un dato que en esa
+   * vista no lee nadie. En una tele vieja ese era el tirón periódico al
+   * navegar con el mando. `TopNav` ya tenía el suyo aislado de la misma
+   * manera.
+   */
+  const clock = useReloj();
 
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el

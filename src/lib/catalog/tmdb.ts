@@ -16,12 +16,23 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p";
 /**
  * Se piden ya en el tamaño final: sin optimizador y sin gastar RAM de más.
  *
- * Póster en `w780` y fondo en `original`: la tarjeta vertical de 240px se
- * pinta a 480px en pantallas retina, y el héroe ocupa media pantalla — con
- * tamaños menores el arte se ve borroso justo donde más se mira.
+ * Medido con `curl` sobre imágenes reales de TMDB, no a ojo:
+ *
+ *     póster    w342  →   43 KB      w780 →  171 KB      original → 1,35 MB
+ *     fondo     w780  →   43 KB     w1280 →  173 KB      original → 1,24 MB
+ *
+ * `w780` para una tarjeta de 180-240px era pedir cuatro veces lo necesario:
+ * `w342` cubre incluso pantallas de doble densidad. Y no es solo red — un
+ * `w780` son 780×1170 px, o sea unos **3,6 MB de RGBA en memoria** una vez
+ * descodificado. Inicio llega a pintar 200 pósters, y un televisor tiene 1-1,5
+ * GB de RAM para todo.
+ *
+ * El fondo en `original` era peor: **1,24 MB**, y es justo la imagen que marca
+ * el LCP de `/peliculas` (el héroe la pide con `fetchPriority="high"`) y el
+ * fondo de cada ficha. `w1280` llena una pantalla 1080p de sobra.
  */
-export const POSTER_SIZE = "w780";
-export const BACKDROP_SIZE = "original";
+export const POSTER_SIZE = "w342";
+export const BACKDROP_SIZE = "w1280";
 /** Retratos del reparto: doce por ficha; `w780` sería peso muerto. */
 export const PROFILE_SIZE = "w342";
 export const STILL_SIZE = "w300";

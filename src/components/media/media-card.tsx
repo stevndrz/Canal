@@ -61,7 +61,14 @@ function ChannelGlassCard({
       onClick={() => onOpen(item)}
       onMouseEnter={() => onFocus?.(item)}
       onFocus={() => onFocus?.(item)}
-      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-neutral-900/60 p-6 text-left shadow-lg backdrop-blur-md transition-all duration-300 hover:border-white/20 ${
+      /* Fondo plano y no `backdrop-blur`: esta clase la lleva CADA tarjeta de
+         canal —hasta 120 en Inicio—, y `backdrop-filter` obliga al compositor
+         a copiar el fondo, desenfocarlo y recomponer en cada fotograma en que
+         algo se mueva encima. En la GPU de un televisor es de lo más caro que
+         hay, y a tres metros el resultado es indistinguible de un negro al
+         85 %. Y `transition-all` transicionaba TODA propiedad animable,
+         incluidas las que fuerzan maquetación; aquí solo hacen falta dos. */
+      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-neutral-900/85 p-6 text-left shadow-lg transition-[border-color,transform] duration-300 hover:border-white/20 ${
         active ? "border-white/30" : "border-white/10"
       }`}
     >

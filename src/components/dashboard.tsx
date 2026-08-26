@@ -8,7 +8,6 @@ import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, canalDeArranque, filterChannels } from "@/lib/channels";
 import { desempaquetarCanales, type PaqueteCanales } from "@/lib/canales-empaquetados";
-import { useReloj } from "@/hooks/use-reloj";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
@@ -113,7 +112,6 @@ export function Dashboard({
   useRemoteInput();
 
   // La hora es lo primero que se busca en un televisor.
-  const clock = useReloj();
 
   const tuned = useMemo(
     () => channels.find((channel) => channel.id === tunedId) ?? channels[0] ?? null,
@@ -315,7 +313,6 @@ export function Dashboard({
           channel={tuned}
           playlist={visible.length > 0 ? visible : channels}
           settings={settings}
-          clock={clock}
           onTune={(next) => {
             setTunedId(next.id);
             recents.push(next.id);

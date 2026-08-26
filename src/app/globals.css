@@ -1587,9 +1587,12 @@ body {
   inset: auto 0 0;
   z-index: 20;
   padding: clamp(16px, 2.4vh, 28px) 0 clamp(96px, 13vh, 150px);
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 30%, rgba(0, 0, 0, 0.6) 70%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  /* Degradado opaco, SIN `backdrop-filter`.
+     Este panel se abre ENCIMA del vídeo en reproducción, que es el peor sitio
+     posible para un desenfoque de fondo: obliga a copiar y desenfocar una
+     imagen que cambia 25-30 veces por segundo. El degradado ya oscurece lo que
+     hay detrás, que es para lo que estaba. */
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.97) 30%, rgba(0, 0, 0, 0.82) 70%, transparent);
   animation: cc-entrar 220ms var(--ease, ease) both;
 }
 
