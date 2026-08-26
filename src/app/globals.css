@@ -1771,6 +1771,92 @@ html[data-player="on"] body {
   color: var(--text, #f5f5f7);
 }
 
+/* La flecha de la píldora que abre el panel de géneros. */
+.catalogo-chip-flecha {
+  width: 1em;
+  height: 1em;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+/* ── El panel de géneros ─────────────────────────────────────────────────
+   Los veintiún géneros iban sueltos en la cabecera, partidos en dos líneas
+   centradas: veintiuna paradas de mando seguidas, y bajar desde una línea a
+   la otra caía donde quisiera la geometría. Aquí son una rejilla, que es lo
+   que `use-spatial-nav` sabe recorrer en dos ejes, y se ven todos a la vez.
+
+   Fondo OPACO y no `backdrop-filter`: es la lección de la tanda de
+   optimización —el desenfoque obliga al compositor a copiar el fondo y
+   rehacerlo en cada fotograma, y en la GPU de un televisor es de lo más caro
+   que hay—. A tres metros no se distingue. */
+.genero-velo {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--margen);
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.genero-panel {
+  width: min(1100px, 100%);
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: clamp(20px, 2.4vw, 36px);
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: var(--radio-panel, 18px);
+  background: var(--bg-card, #101012);
+  box-shadow: var(--sombra, 0 16px 40px rgba(0, 0, 0, 0.5));
+}
+
+.genero-panel-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(16px, 2vh, 26px);
+}
+
+.genero-panel-cabecera h2 {
+  margin: 0;
+  font-size: clamp(19px, 1.6vw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.genero-panel-cerrar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  cursor: pointer;
+}
+
+.genero-panel-cerrar svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Columnas que se llenan solas: en un televisor caben seis, en un teléfono
+   dos, y en ningún caso queda una fila coja al final. */
+.genero-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 12vw, 200px), 1fr));
+  gap: 10px;
+}
+
+/* Dentro del panel las píldoras ocupan su celda entera: una rejilla de cajas
+   iguales se recorre con el mando mejor que una de anchos distintos. */
+.genero-rejilla .catalogo-chip {
+  justify-content: center;
+  width: 100%;
+}
+
 .catalogo-chip.is-active {
   background: #fff;
   border-color: #fff;
@@ -2284,4 +2370,12 @@ body {
   font-size: clamp(13px, 0.95vw, 16px);
   line-height: 1.45;
   color: var(--text, #ededed);
+}
+
+/* El encabezado de Cine y series vive DENTRO de la caja del buscador, que ya
+   pone sus propios márgenes laterales: sin esto heredaría el `padding` de
+   `.section-heading`, pensado para encabezados a sangre, y quedaría desalineado
+   con el buscador que tiene justo debajo. */
+.catalogo-encabezado {
+  padding: 0 0 clamp(4px, 0.8vh, 10px);
 }

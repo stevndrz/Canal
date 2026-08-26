@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { GeneroPanel } from "./genero-panel";
 import type { TmdbGenre } from "@/lib/catalog/tmdb";
 import type { OrdenCatalogo } from "@/lib/catalog/discover";
 
 /**
  * Filtros del catálogo: tipo y género.
  *
- * Los géneros van en un carrusel horizontal deslizable —son más de los que
- * caben en una línea y el scroll horizontal de una fila de píldoras es un
- * patrón que cualquier usuario de Netflix ya tiene en la mano—. Sigue siendo
- * navegación por enlaces (`?tipo=…&genero=…`), no estado de cliente: se puede
- * compartir, el botón atrás deshace y funciona sin JavaScript.
+ * Cuatro paradas de foco en total: tres píldoras de tipo y una que abre el
+ * panel de géneros. Los veintiún géneros estaban aquí sueltos, partidos en dos
+ * líneas centradas, y con la cabecera entera eso pedía ~26 pulsaciones de
+ * mando antes de llegar al contenido. Ver `genero-panel.tsx`.
+ *
+ * Todo sigue siendo navegación por enlaces (`?tipo=…&genero=…`), no estado de
+ * cliente: se puede compartir, el botón atrás deshace y funciona sin
+ * JavaScript.
  */
 export type MediaFilter = "todo" | "movie" | "tv";
 
@@ -21,16 +25,8 @@ const TIPOS: { id: MediaFilter; label: string }[] = [
   { id: "tv", label: "Series" },
 ];
 
-/** Fila de tipo (Todo / Películas / Series): tres píldoras, siempre centradas. */
+/** Tipo y género en una sola línea centrada: cuatro píldoras y ya está. */
 const FILA_TIPOS = "flex flex-wrap items-center justify-center gap-2 py-2 w-full";
-
-/** Píldoras de género. En móvil son un carrusel que scrollea de lado —el
-    patrón que cualquier usuario de Netflix ya tiene en la mano—. Desde `md`
-    dejan de desbordar: fluyen en líneas centradas, así ninguna píldora
-    («Ciencia ficción») muere cortada contra el borde. Sigue siendo navegación
-    por enlaces (`?tipo=…&genero=…`), no estado de cliente. */
-const CARRUSEL =
-  "flex items-center gap-2 overflow-x-auto whitespace-nowrap py-2 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:justify-center";
 
 /** Píldora activa/inactiva, con contraste suficiente para leerse a 3 metros. */
 /**
@@ -94,7 +90,7 @@ export function CatalogFilters({
 }) {
   return (
     <div className="w-full">
-      <div className={FILA_TIPOS} role="group" aria-label="Tipo de contenido">
+      <div className={FILA_TIPOS} role="group" aria-label="Filtros del catálogo">
         {TIPOS.map(({ id, label }) => (
           <Link
             key={id}
@@ -106,31 +102,15 @@ export function CatalogFilters({
             {label}
           </Link>
         ))}
-      </div>
 
-      {generos.length > 0 && (
-        <div className={CARRUSEL} role="group" aria-label="Género">
-          <Link
-            data-nav="button"
-            href={href(tipo, null, generosValidos, orden)}
-            aria-current={genero === null ? "true" : undefined}
-            className={chip(genero === null)}
-          >
-            Todos los géneros
-          </Link>
-          {generos.map((g) => (
-            <Link
-              key={g.id}
-              data-nav="button"
-              href={href(tipo, g.id, generosValidos, orden)}
-              aria-current={genero === g.id ? "true" : undefined}
-              className={chip(genero === g.id)}
-            >
-              {g.name}
-            </Link>
-          ))}
-        </div>
-      )}
+        {generos.length > 0 && (
+          <GeneroPanel
+            generos={generos}
+            activo={genero}
+            hrefDe={(id) => href(tipo, id, generosValidos, orden)}
+          />
+        )}
+      </div>
     </div>
   );
 }

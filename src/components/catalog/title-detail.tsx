@@ -7,6 +7,7 @@ import { FichaEpisodios } from "./ficha-episodios";
 import { FichaPortada } from "./ficha-portada";
 import { FichaReproductor } from "./ficha-reproductor";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
+import { NavegacionCatalogo } from "./navegacion-catalogo";
 
 /**
  * La ficha de un título: portada, reproductor, datos y —si es serie—
@@ -51,6 +52,9 @@ export function TitleDetail({
     : item.source;
 
   return (
+    /* El mando: la ficha también vive fuera del shell. Ver
+       `navegacion-catalogo.tsx`. */
+    <NavegacionCatalogo>
     <div className="app-shell">
       <TopNav />
 
@@ -87,6 +91,7 @@ export function TitleDetail({
         )}
       </div>
     </div>
+    </NavegacionCatalogo>
   );
 }
 

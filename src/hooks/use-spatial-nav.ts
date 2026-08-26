@@ -231,6 +231,18 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 
+      /**
+       * Un diálogo abierto manda sobre todo esto.
+       *
+       * Mientras hay un `role="dialog"` con el foco dentro, las teclas son
+       * suyas: sus flechas las mueve su propia rejilla y su Atrás lo cierra.
+       * Sin esta guarda pasaban las dos cosas a la vez —el foco se movía dos
+       * veces por pulsación, porque el diálogo y este hook lo empujaban cada
+       * uno por su lado— y Atrás cerraba el diálogo **y** salía de la sección
+       * entera de un tirón. Se vio con el panel de géneros del catálogo.
+       */
+      if (target?.closest?.('[role="dialog"]')) return;
+
       // Atrás se atiende siempre, incluso con el foco desactivado: es lo que
       // saca del reproductor en un televisor. Escribiendo en un campo,
       // Retroceso borra una letra y no debe salir de la pantalla.

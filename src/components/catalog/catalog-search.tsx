@@ -35,6 +35,7 @@ export function CatalogSearch({
   initialQuery = "",
   orden = "populares",
   conHero = false,
+  titulo,
   children,
 }: {
   /** Consulta previa si la URL traía `?q=`: el campo arranca ya escrita. */
@@ -44,6 +45,15 @@ export function CatalogSearch({
   /** Hay banner encima: el bloque entra -mt-16 sobre su zona difuminada
       (h-32 fundiéndose a negro puro), cubriendo toda la costura. */
   conHero?: boolean;
+  /**
+   * El nombre de la sección, encima del buscador.
+   *
+   * Va aquí y no en la página porque tiene que compartir la caja centrada con
+   * el buscador y las píldoras; puesto fuera queda desalineado con todo lo que
+   * lleva debajo. Y encima del campo, no debajo: primero se dice dónde estás y
+   * después se ofrece buscar.
+   */
+  titulo?: ReactNode;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -98,6 +108,8 @@ export function CatalogSearch({
         conHero ? "-mt-16" : ""
       }`}
     >
+      {titulo}
+
       {/* Todo el bloque de cabecera respira centrado: buscador y orden forman
           un grupo compacto en el eje, no un campo estirado a la izquierda con
           el select colgado de la derecha. */}

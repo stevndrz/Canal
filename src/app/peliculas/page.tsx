@@ -4,6 +4,7 @@ import { HeroDestacado } from "@/components/catalog/hero-destacado";
 import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
+import { NavegacionCatalogo } from "@/components/catalog/navegacion-catalogo";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
 import { getCatalogSections } from "@/lib/catalog/catalog";
@@ -134,6 +135,9 @@ export default async function MoviesPage({
   );
 
   return (
+    /* El mando: esta ruta vive fuera del shell, así que monta su propia
+       navegación espacial. Ver `navegacion-catalogo.tsx`. */
+    <NavegacionCatalogo>
     <div className="app-shell bg-black">
       <TopNav />
 
@@ -146,7 +150,19 @@ export default async function MoviesPage({
         {/* La búsqueda es reactiva en el cliente: mientras hay consulta,
             sustituye a estos hijos servidos por el servidor; al vaciar el
             campo, vuelven sin recargar nada. */}
-        <CatalogSearch initialQuery={query} orden={orden} conHero={Boolean(destacado)}>
+        <CatalogSearch
+          initialQuery={query}
+          orden={orden}
+          conHero={Boolean(destacado)}
+          /* La página no tenía ningún título propio, y eso era parte de por
+             qué se leía como «solo pelis»: lo único que la nombraba era la
+             barra de arriba, que además decía «Películas». */
+          titulo={
+            <section className="section-heading catalogo-encabezado">
+              <h2>Cine y series</h2>
+            </section>
+          }
+        >
           {!tmdbReady && (
             <p className="catalogo-aviso">
               <Info aria-hidden="true" />
@@ -169,5 +185,6 @@ export default async function MoviesPage({
         </CatalogSearch>
       </div>
     </div>
+    </NavegacionCatalogo>
   );
 }

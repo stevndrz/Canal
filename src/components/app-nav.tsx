@@ -32,7 +32,11 @@ export type NavItem = ViewNavItem | LinkNavItem;
 export const NAV_ITEMS: NavItem[] = [
   { kind: "view", key: "home", label: "Inicio", Icon: House },
   { kind: "view", key: "canales", label: "Canales", Icon: Tv },
-  { kind: "link", key: "peliculas", href: "/peliculas", label: "Películas", Icon: Clapperboard },
+  /* «Cine y series» y no «Películas»: la sección trae las dos cosas, y el
+     nombre viejo hacía pensar que las series estaban en otro sitio. La ruta
+     sigue siendo /peliculas para no romper enlaces ni el `?vista=` de vuelta
+     al shell. */
+  { kind: "link", key: "peliculas", href: "/peliculas", label: "Cine y series", Icon: Clapperboard },
   { kind: "view", key: "fuente", label: "Mi enlace", Icon: Link2 },
   { kind: "view", key: "favoritos", label: "Favoritos", Icon: Heart },
   { kind: "view", key: "buscar", label: "Buscar", Icon: Search },
