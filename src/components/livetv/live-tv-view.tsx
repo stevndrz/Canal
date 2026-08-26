@@ -5,6 +5,11 @@ import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
+import {
+  calcularVentana,
+  ventanaCambio,
+  type Ventana,
+} from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
 
 /**
@@ -31,6 +36,15 @@ import { ChannelRow } from "./channel-row";
 
 /** Cuántas filas se pintan de golpe antes de pedir más al llegar abajo. */
 const LOTE = 60;
+
+/** El `gap` de `.livetv-rows` en `shell.css`. Cuenta para el alto de fila. */
+const HUECO_FILA = 4;
+
+/**
+ * Antes de medir nada se monta todo, que es el comportamiento de siempre.
+ * `calcularVentana` recorta en cuanto hay una fila de la que sacar el alto.
+ */
+const VENTANA_INICIAL: Ventana = { desde: 0, hasta: LOTE, huecoArriba: 0, huecoAbajo: 0 };
 
 function hora(millis?: number): string {
   if (!millis) return "";
@@ -94,6 +108,8 @@ export function LiveTvView({
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   const [pintadas, setPintadas] = useState(LOTE);
   const centinela = useRef<HTMLDivElement | null>(null);
+  const contenedorFilas = useRef<HTMLDivElement | null>(null);
+  const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
 
   const recuentos = useMemo(() => {
     const mapa = new Map<string, number>();
@@ -130,7 +146,68 @@ export function LiveTvView({
     return () => observador.disconnect();
   }, [visible.length]);
 
-  const filas = visible.slice(0, pintadas);
+  /**
+   * El lote sigue mandando cuántas filas EXISTEN; la ventana, cuántas se
+   * montan de verdad.
+   *
+   * Son dos cosas distintas y las dos hacen falta. El lote evita pedirle a la
+   * tele que calcule 7.822 posiciones de golpe al abrir la pantalla. La
+   * ventana evita que, tras bajar un rato, esas 7.822 filas se queden montadas
+   * para siempre: eran ~141.000 nodos y 15.650 elementos `[data-nav]`, y
+   * `use-spatial-nav` los recorre **en cada pulsación de flecha del mando**
+   * llamando a `getBoundingClientRect()`.
+   */
+  const enLote = useMemo(() => visible.slice(0, pintadas), [visible, pintadas]);
+  const filas = useMemo(
+    () => enLote.slice(ventana.desde, ventana.hasta),
+    [enLote, ventana.desde, ventana.hasta],
+  );
+
+  /**
+   * Recalcular la ventana al desplazarse.
+   *
+   * El alto de fila se mide de la primera montada en vez de codificarlo: es
+   * `clamp()` contra el viewport, así que en un televisor no vale lo mismo que
+   * en un teléfono. Mientras no haya nada que medir, `calcularVentana` devuelve
+   * la lista entera — el comportamiento de antes, que es el seguro.
+   *
+   * `requestAnimationFrame` para no hacer un `setState` por cada evento de
+   * desplazamiento, y `ventanaCambio` para no repintar cuando los índices no se
+   * han movido.
+   */
+  useEffect(() => {
+    const contenedor = contenedorFilas.current;
+    if (!contenedor) return undefined;
+
+    let pendiente = 0;
+    const recalcular = () => {
+      pendiente = 0;
+      const primera = contenedor.firstElementChild as HTMLElement | null;
+      const altoFila = primera ? primera.getBoundingClientRect().height + HUECO_FILA : 0;
+      const siguiente = calcularVentana({
+        desplazamiento: window.scrollY,
+        alto: window.innerHeight,
+        inicioLista: contenedor.getBoundingClientRect().top + window.scrollY,
+        altoFila,
+        total: enLote.length,
+      });
+      setVentana((actual) => (ventanaCambio(actual, siguiente) ? siguiente : actual));
+    };
+
+    const alDesplazar = () => {
+      if (pendiente) return;
+      pendiente = requestAnimationFrame(recalcular);
+    };
+
+    recalcular();
+    window.addEventListener("scroll", alDesplazar, { passive: true });
+    window.addEventListener("resize", alDesplazar);
+    return () => {
+      if (pendiente) cancelAnimationFrame(pendiente);
+      window.removeEventListener("scroll", alDesplazar);
+      window.removeEventListener("resize", alDesplazar);
+    };
+  }, [enLote.length]);
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
   const progreso = canal ? porcentaje(canal.currentStart, canal.currentEnd) : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
@@ -191,8 +268,12 @@ export function LiveTvView({
           <div className="livetv-list-head">
             <h3>{category}</h3>
             <span>
-              {filas.length < visible.length
-                ? `${filas.length} de ${visible.length.toLocaleString("es-GT")}`
+              {/* Cuenta el LOTE, no la ventana. Lo que le importa a quien mira
+                  es cuántos canales hay disponibles para recorrer, no cuántas
+                  filas están montadas ahora mismo en el DOM — eso es un
+                  detalle de implementación que cambia con el desplazamiento. */}
+              {enLote.length < visible.length
+                ? `${enLote.length} de ${visible.length.toLocaleString("es-GT")}`
                 : visible.length.toLocaleString("es-GT")}
             </span>
           </div>
@@ -216,7 +297,13 @@ export function LiveTvView({
             </div>
           ) : (
             <>
-              <div className="livetv-rows">
+              {/* Los huecos ocupan el sitio de las filas que no se montan.
+                  Sin ellos la barra de desplazamiento mediría solo lo pintado
+                  y daría tirones al bajar. */}
+              {ventana.huecoArriba > 0 && (
+                <div style={{ height: ventana.huecoArriba }} aria-hidden="true" />
+              )}
+              <div className="livetv-rows" ref={contenedorFilas}>
                 {filas.map((item) => (
                   <ChannelRow
                     key={item.id}
@@ -229,6 +316,9 @@ export function LiveTvView({
                   />
                 ))}
               </div>
+              {ventana.huecoAbajo > 0 && (
+                <div style={{ height: ventana.huecoAbajo }} aria-hidden="true" />
+              )}
               <div ref={centinela} aria-hidden="true" />
             </>
           )}
