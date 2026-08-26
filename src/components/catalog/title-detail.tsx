@@ -62,7 +62,7 @@ export function TitleDetail({
   return (
     /* El mando: la ficha también vive fuera del shell. Ver
        `navegacion-catalogo.tsx`. */
-    <NavegacionCatalogo>
+    <NavegacionCatalogo subirAlAbrir>
     <div className="app-shell">
       <TopNav />
 

@@ -1803,23 +1803,43 @@ html[data-player="on"] body {
    que hay—. A tres metros no se distingue. */
 .genero-velo {
   position: fixed;
+  /* Las cuatro por separado además del atajo: `inset` es de Chromium 87 y el
+     parque de televisores empieza en 53. Sin ellas, ahí el velo no cubriría
+     nada y el panel caería donde estuviera en el flujo de la página. */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 70;
   display: grid;
   place-items: center;
   padding: var(--margen);
-  background: rgba(0, 0, 0, 0.72);
+  /* Casi negro del todo. Un 72% sobre una página que ya ES negra no se ve, y
+     un velo que no se ve no dice que lo de detrás está desactivado: el panel
+     parecía flotar suelto en mitad de la página. */
+  background: rgba(0, 0, 0, 0.88);
 }
 
+/**
+ * El panel tiene que verse COMO un panel.
+ *
+ * Estaba en `--bg-card` (#101012) con un borde al 14% sobre una página negra:
+ * a tres metros —y en una captura— sus bordes no existen, así que lo que se
+ * lee no es «un cuadro centrado» sino «unos chips sueltos en mitad de la
+ * pantalla». Se levanta al gris de los elementos elevados, el borde sube al
+ * 22% y la sombra se hace grande de verdad: son los tres recursos que separan
+ * una superficie de su fondo, y aquí hacían falta los tres.
+ */
 .genero-panel {
   width: min(1100px, 100%);
   max-height: 82vh;
   overflow-y: auto;
   padding: clamp(20px, 2.4vw, 36px);
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border: 1px solid rgba(245, 245, 247, 0.22);
   border-radius: var(--radio-panel, 18px);
-  background: var(--bg-card, #101012);
-  box-shadow: var(--sombra, 0 16px 40px rgba(0, 0, 0, 0.5));
+  background: var(--bg-elevated, #1c1c1f);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
 }
 
 .genero-panel-cabecera {
@@ -1832,6 +1852,7 @@ html[data-player="on"] body {
 
 .genero-panel-cabecera h2 {
   margin: 0;
+  color: var(--text, #f5f5f7);
   font-size: clamp(19px, 1.6vw, 28px);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -1867,6 +1888,8 @@ html[data-player="on"] body {
 .genero-rejilla .catalogo-chip {
   justify-content: center;
   width: 100%;
+  /* Sobre el gris del panel, el borde al 14% del chip se pierde. */
+  border-color: rgba(245, 245, 247, 0.2);
 }
 
 .catalogo-chip.is-active {
