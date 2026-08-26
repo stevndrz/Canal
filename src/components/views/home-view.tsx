@@ -5,6 +5,7 @@ import type { Channel } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
 import { groupByCategory } from "@/lib/channels";
+import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
 
 interface HomeViewProps {
@@ -20,10 +21,17 @@ interface HomeViewProps {
   sinHueco?: boolean;
 }
 
-/** Cuántas categorías de canales se ofrecen antes de mandar a Canales. */
-const MAX_GRUPOS = 6;
-/** Un riel más largo que esto no lo recorre nadie; para eso está Canales. */
-const MAX_POR_RIEL = 20;
+/**
+ * Cuántas categorías se ofrecen antes de mandar a Canales, y cuántos canales
+ * lleva cada riel.
+ *
+ * Salen de `QUE_SE_PINTA` porque **son también los canales que el servidor
+ * manda en el HTML**: el recorte de la portada se calcula con estos dos
+ * números, así que subirlos aquí sin subirlos allí dejaría rieles a medias
+ * hasta que llegara el resto de la lista.
+ */
+const MAX_GRUPOS = QUE_SE_PINTA.grupos;
+const MAX_POR_RIEL = QUE_SE_PINTA.porGrupo;
 
 /**
  * Inicio: la señal en directo arriba, y todo lo demás debajo.

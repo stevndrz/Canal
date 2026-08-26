@@ -5,6 +5,7 @@ import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
+import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import {
   calcularVentana,
   ventanaCambio,
@@ -34,8 +35,14 @@ import { ChannelRow } from "./channel-row";
  * el CSS del shell.
  */
 
-/** Cuántas filas se pintan de golpe antes de pedir más al llegar abajo. */
-const LOTE = 60;
+/**
+ * Cuántas filas se pintan de golpe antes de pedir más al llegar abajo.
+ *
+ * Sale de `QUE_SE_PINTA` porque **es también lo que el servidor manda en el
+ * HTML**: subirlo aquí sin subirlo allí dejaría la lista corta hasta que
+ * llegara el resto de la lista. Un solo número, un solo sitio.
+ */
+const LOTE = QUE_SE_PINTA.lote;
 
 /** El `gap` de `.livetv-rows` en `shell.css`. Cuenta para el alto de fila. */
 const HUECO_FILA = 4;
@@ -57,8 +64,16 @@ function porcentaje(inicio?: number, fin?: number): number | null {
 }
 
 interface LiveTvViewProps {
-  /** Todos los canales; alimenta los recuentos de cada categoría. */
-  channels: Channel[];
+  /**
+   * Cuántos canales tiene cada categoría en la lista COMPLETA.
+   *
+   * Viene contado del servidor en vez de recorrer los canales aquí: el HTML
+   * solo trae los que se pintan al abrir (ver `canales-empaquetados.ts`), así
+   * que contar sobre lo recibido diría «Deportes 20» durante el primer segundo.
+   */
+  recuentos: Map<string, number>;
+  /** Total de la lista completa. Es el número grande de la cabecera. */
+  totalCanales: number;
   /** Los que pasan el filtro actual de categoría y búsqueda. */
   visible: Channel[];
   tuned: Channel | null;
@@ -78,7 +93,8 @@ interface LiveTvViewProps {
 }
 
 export function LiveTvView({
-  channels,
+  recuentos,
+  totalCanales,
   visible,
   tuned,
   favorites,
@@ -110,14 +126,6 @@ export function LiveTvView({
   const centinela = useRef<HTMLDivElement | null>(null);
   const contenedorFilas = useRef<HTMLDivElement | null>(null);
   const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
-
-  const recuentos = useMemo(() => {
-    const mapa = new Map<string, number>();
-    for (const channel of channels) {
-      mapa.set(channel.category, (mapa.get(channel.category) ?? 0) + 1);
-    }
-    return mapa;
-  }, [channels]);
 
   // Cambiar de categoría o buscar reinicia el recorte durante el render: con un
   // efecto se pintaría un fotograma con las filas de la categoría anterior.
@@ -208,6 +216,20 @@ export function LiveTvView({
       window.removeEventListener("resize", alDesplazar);
     };
   }, [enLote.length]);
+  /**
+   * Cuántos canales hay bajo el filtro actual, incluidos los que aún no han
+   * llegado.
+   *
+   * Sin esto, mientras el HTML solo trae el primer lote, la cabecera diría
+   * «60» a secas: parecería que la categoría entera son sesenta canales. Con
+   * una búsqueda escrita no hay forma de saberlo sin la lista completa, y ahí
+   * se cuenta lo que hay —que es además cuando antes llega el resto.
+   */
+  const totalDelFiltro = Math.max(
+    visible.length,
+    search.trim() ? 0 : category === "Todas" ? totalCanales : (recuentos.get(category) ?? 0),
+  );
+
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
   const progreso = canal ? porcentaje(canal.currentStart, canal.currentEnd) : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
@@ -218,7 +240,7 @@ export function LiveTvView({
         <div className="livetv-heading">
           <h2>Canales</h2>
           <span>
-            {channels.length.toLocaleString("es-GT")} canales · {categories.length - 1} categorías
+            {totalCanales.toLocaleString("es-GT")} canales · {categories.length - 1} categorías
           </span>
         </div>
 
@@ -259,7 +281,7 @@ export function LiveTvView({
               }}
             >
               <span>{nombre}</span>
-              <em>{(nombre === "Todas" ? channels.length : (recuentos.get(nombre) ?? 0)).toLocaleString("es-GT")}</em>
+              <em>{(nombre === "Todas" ? totalCanales : (recuentos.get(nombre) ?? 0)).toLocaleString("es-GT")}</em>
             </button>
           ))}
         </nav>
@@ -272,9 +294,9 @@ export function LiveTvView({
                   es cuántos canales hay disponibles para recorrer, no cuántas
                   filas están montadas ahora mismo en el DOM — eso es un
                   detalle de implementación que cambia con el desplazamiento. */}
-              {enLote.length < visible.length
-                ? `${enLote.length} de ${visible.length.toLocaleString("es-GT")}`
-                : visible.length.toLocaleString("es-GT")}
+              {enLote.length < totalDelFiltro
+                ? `${enLote.length} de ${totalDelFiltro.toLocaleString("es-GT")}`
+                : totalDelFiltro.toLocaleString("es-GT")}
             </span>
           </div>
 

@@ -36,6 +36,13 @@ export interface VistaActivaProps {
   recentChannels: Channel[];
   catalog: CatalogSection[];
   categories: string[];
+  /**
+   * Cuántos canales tiene cada categoría en la lista COMPLETA, y cuántos hay en
+   * total. No se cuentan sobre `channels` porque `channels` puede ser todavía
+   * el recorte que vino en el HTML. Ver `dashboard.tsx`.
+   */
+  recuentos: Map<string, number>;
+  totalCanales: number;
   category: string;
   search: string;
   settings: PlaybackSettings;
@@ -73,7 +80,8 @@ export function VistaActiva(props: VistaActivaProps) {
       return (
         <LiveTvView
           sinHueco
-          channels={props.channels}
+          recuentos={props.recuentos}
+          totalCanales={props.totalCanales}
           visible={props.visible}
           tuned={props.tuned}
           favorites={props.favorites.ids}
@@ -119,7 +127,7 @@ export function VistaActiva(props: VistaActivaProps) {
           <AjustesView
             settings={props.settings}
             onChange={props.onPatchSettings}
-            channelCount={props.channels.length}
+            channelCount={props.totalCanales}
             favoriteCount={props.favorites.ids.size}
             onClearFavorites={props.favorites.clear}
             onRefresh={() => router.refresh()}

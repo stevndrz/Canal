@@ -1,18 +1,22 @@
 import { Dashboard } from "@/components/dashboard";
-import { loadM3uPlaylist } from "@/lib/m3u";
-import { fetchEpg, getEpgEntry } from "@/lib/epg";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import type { CatalogSection } from "@/lib/catalog/types";
-import { empaquetarCanales } from "@/lib/canales-empaquetados";
-import { serverConfig } from "@/lib/config.server";
+import {
+  QUE_SE_PINTA,
+  posicionesIniciales,
+  recortarPaquete,
+  type PaqueteCanales,
+} from "@/lib/canales-empaquetados";
+import { paqueteDeCanales } from "@/lib/lista-canales";
+import { publicConfig } from "@/lib/config";
+import { normalizeChannelName } from "@/lib/text";
 
 /**
  * Se queda DINÁMICA, y conviene decir por qué para que nadie lo intente otra
  * vez pensando que es una mejora gratis.
  *
  * `revalidate` parece la respuesta obvia —nada aquí depende de quién pide la
- * página— y ahorraría volver a serializar los canales en cada visita. Pero
- * choca con dos cosas del código actual:
+ * página— pero choca con dos cosas del código actual:
  *
  *  1. `m3u.ts` descarga con `cache: "no-store"` a propósito: la caché de datos
  *     de Next descarta respuestas de más de 2 MB y estas listas las superan.
@@ -20,15 +24,53 @@ import { serverConfig } from "@/lib/config.server";
  *  2. `Dashboard` lee `useSearchParams()` para el `?vista=`, que exige una
  *     frontera de Suspense para poder prerenderizar.
  *
- *  Y sobre todo: cachear el HTML ahorra trabajo al SERVIDOR, no al televisor.
- *  Los 2,27 MB se seguirían descargando e interpretando igual, que es lo que
- *  de verdad se nota desde el sofá. Primero se recorta lo que se manda; volver
- *  aquí después, cuando el HTML pese poco, sí tendrá sentido.
+ * Y además cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor. Lo
+ * que de verdad se nota desde el sofá es cuántos bytes hay que descargar e
+ * interpretar antes de ver algo, y eso es lo que ataca el recorte de abajo: la
+ * parte cacheable de esta página ya no es el HTML, es `/api/canales`.
  */
 export const dynamic = "force-dynamic";
 
+/**
+ * Mandarlo todo en el HTML, como antes.
+ *
+ * Es la marcha atrás sin revertir commits: `CANALES_EN_HTML=todos` y la página
+ * vuelve a serializar los 7.822 canales. Está aquí porque el recorte cambia
+ * cómo llegan los datos a las dos pantallas principales, y en un despliegue en
+ * producción conviene poder deshacerlo en un minuto, no en un redespliegue.
+ */
+function mandarlosTodos(): boolean {
+  return process.env.CANALES_EN_HTML === "todos";
+}
+
+/**
+ * Solo los canales que la primera pantalla pinta de verdad.
+ *
+ * Medido: el HTML llevaba 7.822 canales —1,88 MB de payload— para pintar unos
+ * 200. El resto llega por `/api/canales`, que sí se puede cachear en el borde.
+ * Ver `canales-empaquetados.ts` para qué se conserva del paquete completo (las
+ * categorías y sus recuentos, para que los contadores no mientan mientras
+ * tanto) y por qué los `id` no se mueven (los favoritos son ids).
+ */
+function loJusto(paquete: PaqueteCanales): PaqueteCanales {
+  if (mandarlosTodos()) return paquete;
+
+  // El canal preferido viaja aunque esté en el puesto 5.000: si no, la app
+  // abriría con otro y ya no se corregiría, porque cuando llega la lista
+  // completa hay uno sintonizado desde hace rato.
+  const buscado = normalizeChannelName(publicConfig.canalInicial);
+  const preferido = paquete.canales.findIndex(
+    ([nombre]) => normalizeChannelName(nombre) === buscado,
+  );
+
+  return recortarPaquete(
+    paquete,
+    posicionesIniciales(paquete, { ...QUE_SE_PINTA, ademas: preferido >= 0 ? [preferido] : [] }),
+  );
+}
+
 export default async function HomePage() {
-  const { channels: parsedChannels, epgUrl } = await loadM3uPlaylist();
+  const { paquete } = await paqueteDeCanales();
 
   // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
   // envuelto porque son peticiones a TMDB: si la clave falta o la API se cae,
@@ -41,48 +83,5 @@ export default async function HomePage() {
     catalog = [];
   }
 
-  // La guía de programación es opcional: si la lista M3U no referencia
-  // ninguna y no hay EPG_URL configurada, la app funciona igual, solo sin
-  // horarios.
-  const resolvedEpgUrl = serverConfig().epgUrl || epgUrl;
-  const epg = resolvedEpgUrl ? await fetchEpg(resolvedEpgUrl) : null;
-  // Server Component: corre una vez por request en el servidor, no en cada
-  // re-render de un componente cliente, así que Date.now() es seguro aquí.
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now();
-
-  /**
-   * Los campos de guía se **añaden solo si existen**, en lugar de asignarse
-   * siempre con `?? ""` o dejarlos en `undefined`.
-   *
-   * No es cosmético. Esta lista se serializa entera dentro del HTML, y React
-   * codifica una propiedad presente con valor `undefined` como el texto
-   * literal `"$undefined"`. Con tres campos de guía por canal eso eran unos
-   * 90 bytes × 7.822 = **700 KB de decir "aquí no hay nada"**. Sin guía
-   * configurada, que es el caso por defecto, las cinco claves desaparecen.
-   */
-  const conGuia = parsedChannels.map((channel) => {
-    const entry = epg ? getEpgEntry(epg, "", channel.name, now) : null;
-    if (!entry) return channel;
-
-    const base = { ...channel };
-    if (entry.current?.title) base.currentProgram = entry.current.title;
-    if (entry.next?.title) base.nextProgram = entry.next.title;
-    if (entry.current?.start !== undefined) base.currentStart = entry.current.start;
-    if (entry.current?.stop !== undefined) base.currentEnd = entry.current.stop;
-    if (entry.next?.start !== undefined) base.nextStart = entry.next.start;
-    return base;
-  });
-
-  /**
-   * Empaquetado antes de cruzar al navegador.
-   *
-   * Ni `id` ni `number` viajan: el primero es la posición y el segundo lo
-   * recalculaba el cliente de todas formas nada más recibirlo. La categoría va
-   * como índice a una tabla de doce entradas en vez de repetir la cadena 7.822
-   * veces, y cada canal es una tupla en lugar de un objeto — porque casi la
-   * mitad del payload eran los nombres de las claves. Ver
-   * `canales-empaquetados.ts` para el desglose medido.
-   */
-  return <Dashboard paquete={empaquetarCanales(conGuia)} catalog={catalog} />;
+  return <Dashboard paquete={loJusto(paquete)} catalog={catalog} />;
 }

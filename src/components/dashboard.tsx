@@ -1,13 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import { CATEGORY_ORDER, canalDeArranque, filterChannels } from "@/lib/channels";
-import { desempaquetarCanales, type PaqueteCanales } from "@/lib/canales-empaquetados";
+import {
+  desempaquetarCanales,
+  recuentosDe,
+  type PaqueteCanales,
+} from "@/lib/canales-empaquetados";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
@@ -80,13 +84,50 @@ export function Dashboard({
   const shellRef = useRef<HTMLDivElement | null>(null);
 
   /**
+   * El resto de la lista, cuando llega.
+   *
+   * El HTML solo trae los ~200 canales que Inicio y Canales pintan al abrir
+   * (ver `posicionesIniciales`). Los otros 7.600 se piden aquí, ya con la
+   * primera pantalla dibujada, a una ruta que **sí** se cachea en el borde.
+   *
+   * Mientras no llegue, la app funciona: se ve la tele, se navega, se abre la
+   * ficha de un canal. Lo único que se queda corto es buscar y las categorías
+   * de más abajo, y se arregla solo en cuanto entra.
+   */
+  const [completo, setCompleto] = useState<PaqueteCanales | null>(null);
+  const datos = completo ?? paquete;
+
+  useEffect(() => {
+    // Sin recorte, el HTML ya traía todo (`CANALES_EN_HTML=todos`).
+    if (!paquete.recorte) return undefined;
+    // `fetch` es de Chromium 42 y el parque objetivo empieza en 53, pero si
+    // alguna tele aún más vieja llega hasta aquí, se queda con sus 200 canales
+    // en vez de reventar dentro de un efecto y tumbar el shell entero.
+    if (typeof fetch === "undefined") return undefined;
+
+    let vivo = true;
+    fetch("/api/canales")
+      .then((respuesta) => (respuesta.ok ? respuesta.json() : null))
+      .then((lista: PaqueteCanales | null) => {
+        // En transición: reconstruir 7.822 objetos y repintar la lista no puede
+        // colarse por delante de lo que esté haciendo quien está mirando.
+        if (vivo && lista?.canales?.length) startTransition(() => setCompleto(lista));
+      })
+      .catch(() => {});
+
+    return () => {
+      vivo = false;
+    };
+  }, [paquete]);
+
+  /**
    * Una sola pasada: reconstruye los objetos Y numera al estilo IPTV.
    *
    * Antes eran dos recorridos de 7.822 elementos: el servidor mandaba `id` y
    * `number`, y aquí `withChannelNumbers` clonaba los 7.822 objetos enteros
    * solo para reescribir el número que acababa de llegar.
    */
-  const channels = useMemo(() => desempaquetarCanales(paquete), [paquete]);
+  const channels = useMemo(() => desempaquetarCanales(datos), [datos]);
 
   // Arranca en Inicio, no en pantalla completa.
   //
@@ -132,13 +173,20 @@ export function Dashboard({
     [recents.ids, channels],
   );
 
+  /**
+   * Las categorías y sus recuentos salen del paquete, no de los canales.
+   *
+   * Es lo que deja que la columna diga «Deportes 1.240» desde el primer
+   * fotograma, aunque de Deportes solo hayan viajado veinte canales. Y de paso
+   * quita dos recorridos de 7.822 elementos que se rehacían en cada cambio de
+   * la lista: son doce números que el servidor ya tenía contados.
+   */
   const categories = useMemo(
-    () => [
-      "Todas",
-      ...CATEGORY_ORDER.filter((item) => channels.some((channel) => channel.category === item)),
-    ],
-    [channels],
+    () => ["Todas", ...CATEGORY_ORDER.filter((item) => datos.categorias.includes(item))],
+    [datos],
   );
+
+  const recuentos = useMemo(() => recuentosDe(datos), [datos]);
 
   const navigate = useCallback((next: ViewId) => {
     setView(next);
@@ -296,6 +344,8 @@ export function Dashboard({
           recentChannels={recentChannels}
           catalog={catalog}
           categories={categories}
+          recuentos={recuentos}
+          totalCanales={datos.total}
           category={category}
           search={search}
           settings={settings}

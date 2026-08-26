@@ -51,9 +51,11 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `TMDB_API_KEY`       | Credencial propia de TMDB. Hay una de reserva en el código       |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+| `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 
-Todas se declaran en un solo sitio, [`src/lib/config.ts`](src/lib/config.ts):
-ningún otro archivo lee `process.env`.
+Las que llevan credencial viven en [`src/lib/config.server.ts`](src/lib/config.server.ts),
+con `import "server-only"`, para que no puedan cruzar al navegador ni por
+accidente; las públicas, en [`src/lib/config.ts`](src/lib/config.ts).
 
 ---
 
@@ -127,7 +129,7 @@ Canal/
 │   │   ├── layout.tsx          # Layout raíz con metadata
 │   │   ├── page.tsx            # Canales en vivo (SSR, dynamic)
 │   │   ├── peliculas/          # Catálogo TMDB y la ficha de cada título
-│   │   └── api/                # `buscar` y `stream`: lo que no puede ir al cliente
+│   │   └── api/                # `canales`, `buscar` y `stream`: lo que no va en el HTML
 │   ├── components/
 │   │   ├── stream-player.tsx   # Reproductor de canales (hls.js / mpegts.js)
 │   │   ├── native-player.tsx   # Reproductor de enlaces directos, con controles
@@ -140,6 +142,8 @@ Canal/
 │   ├── hooks/                  # Navegación con mando, pantalla completa, cast…
 │   └── lib/
 │       ├── m3u.ts              # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       ├── lista-canales.ts    # La lista lista para el cable, memorizada por descarga
+│       ├── canales-empaquetados.ts # Cómo viajan los canales, y el recorte de la portada
 │       ├── types.ts            # Tipo `Channel` compartido
 │       ├── catalog/            # TMDB, proveedores de reproducción, descubrimiento
 │       ├── reproduccion/       # Qué motor reproduce cada enlace, cast, bucles
@@ -156,9 +160,17 @@ tiene pruebas; los componentes se quedan con el estado y el DOM. Las trampas de
 la cascada CSS están en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 No hay `db/` ni `DATABASE_URL`: todo el estado vive en memoria del servidor (por
-request) y en `localStorage` del navegador para los favoritos. Sí hay `api/`, con
-dos rutas que existen solo para no sacar la credencial de TMDB al navegador:
-`/api/buscar` (búsqueda de títulos) y `/api/stream` (servidores de una ficha).
+request) y en `localStorage` del navegador para los favoritos. Sí hay `api/`:
+
+- `/api/buscar` y `/api/stream` existen para no sacar la credencial de TMDB al
+  navegador.
+- `/api/canales` sirve la lista completa. **El HTML de la portada solo lleva los
+  ~200 canales que se pintan al abrir**; el resto llega por aquí, ya con la
+  primera pantalla dibujada y desde una respuesta que sí se cachea en el borde.
+  Con eso la portada pasó de 376 KB a 58 KB comprimidos. El porqué y el cómo
+  están en [`src/lib/canales-empaquetados.ts`](src/lib/canales-empaquetados.ts);
+  lo importante es que **el `id` de cada canal no cambia**, porque los favoritos
+  guardados son ids.
 
 ---
 
