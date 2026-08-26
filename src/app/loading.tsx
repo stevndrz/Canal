@@ -22,14 +22,23 @@ export default function Cargando() {
           <div className="esqueleto-directo is-loading" />
         </div>
 
-        {/* Dos rieles bastan para insinuar la forma; ocho serían ocho
-            elementos animándose a la vez en una GPU de televisor. */}
+        {/**
+         * Dos rieles bastan para insinuar la forma, y **solo el bloque grande
+         * brilla**.
+         *
+         * `.is-loading` anima `background-position`, que es un repintado por
+         * fotograma. Uno cuesta nada; quince a la vez —dos títulos y doce
+         * tarjetas— es justo el tipo de adorno que hace que una tele vieja se
+         * arrastre, y encima mientras está armando la pantalla de verdad. Las
+         * tarjetas se quedan en relleno plano: a tres metros no se distingue,
+         * y hacen el mismo trabajo, que es reservar el sitio.
+         */}
         {[0, 1].map((riel) => (
           <div className="esqueleto-riel" key={riel}>
-            <div className="esqueleto-titulo is-loading" />
+            <div className="esqueleto-titulo" />
             <div className="esqueleto-fila">
               {[0, 1, 2, 3, 4, 5].map((tarjeta) => (
-                <div className="esqueleto-tarjeta is-loading" key={tarjeta} />
+                <div className="esqueleto-tarjeta" key={tarjeta} />
               ))}
             </div>
           </div>

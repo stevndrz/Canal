@@ -1634,6 +1634,12 @@ html[data-player="on"] body {
   padding: 0 var(--margen);
 }
 
+/* Relleno plano, sin animación: ver el comentario de `loading.tsx`. */
+.esqueleto-titulo,
+.esqueleto-tarjeta {
+  background: var(--bg-card, #101012);
+}
+
 .esqueleto-titulo {
   width: clamp(140px, 16vw, 260px);
   height: clamp(18px, 1.5vw, 26px);
