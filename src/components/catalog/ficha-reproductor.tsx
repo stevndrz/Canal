@@ -4,7 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import { buildEmbedUrl, getProviders, type EmbedProvider } from "@/lib/catalog/providers";
+import {
+  buildEmbedUrl,
+  getProviders,
+  ordenarParaTelevisor,
+  type EmbedProvider,
+} from "@/lib/catalog/providers";
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
@@ -20,13 +25,14 @@ const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
 /**
  * Lo mismo, para los proveedores con puerta antirrobot.
  *
- * Mucho menos, porque de esos ya se sabe CÓMO fallan: la puerta se recarga
- * sola y el marco no arranca nunca. Esperar doce segundos a algo que no va a
+ * Cuatro segundos: de esos ya se sabe CÓMO fallan —la puerta se recarga sola
+ * y el marco no arranca nunca—, así que se baja a lo justo para no cortarle
+ * el arranque a una tele lenta que sí iba a cargar. Esperar doce segundos a algo que no va a
  * pasar es justo lo que se sentía como «se queda cargando». El bucle no se
  * puede ver desde fuera —vive en un marco nieto—, pero sí se puede acortar la
  * espera hasta la salida.
  */
-const ESPERA_CON_PUERTA_MS = 6_000;
+const ESPERA_CON_PUERTA_MS = 4_000;
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -52,6 +58,7 @@ export function FichaReproductor({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -61,6 +68,8 @@ export function FichaReproductor({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  /** Lo decide el servidor con el `User-Agent`; ver `respaldo`. */
+  enTelevisor: boolean;
 }) {
   if (fuente.kind === "manual") {
     return (
@@ -96,6 +105,7 @@ export function FichaReproductor({
       temporada={temporada}
       episodio={episodio}
       spokenInSpanish={spokenInSpanish}
+      enTelevisor={enTelevisor}
     />
   );
 }
@@ -116,6 +126,7 @@ function ReproductorCatalogo({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
 }: {
   titulo: string;
   tmdbId: number;
@@ -123,6 +134,7 @@ function ReproductorCatalogo({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  enTelevisor: boolean;
 }) {
   const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
   // La elección manual vive y muere con este componente: el padre lo monta con
@@ -183,7 +195,8 @@ function ReproductorCatalogo({
     // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
     // sabe preservar la memoización de un `return` dentro de un bucle y el
     // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
-    const candidatos = getProviders().map((provider) => ({
+    const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+    const candidatos = lista.map((provider) => ({
       provider,
       url: buildEmbedUrl(provider, mediaType, {
         tmdbId,
@@ -206,9 +219,10 @@ function ReproductorCatalogo({
           tipo: "embed",
           url: primero.url,
           puertaAntirrobot: primero.provider.puertaAntirrobot,
+          subtitulos: primero.provider.spanishSubtitles,
         }
       : null;
-  }, [mediaType, tmdbId, temporada, episodio]);
+  }, [mediaType, tmdbId, temporada, episodio, enTelevisor]);
 
   // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
   // como último recurso el respaldo de arriba. Memoizado para que la identidad
@@ -415,7 +429,11 @@ function ReproductorCatalogo({
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
         <ServerPicker
-          providers={servidores.map((servidor) => ({ id: servidor.id, label: servidor.label }))}
+          providers={servidores.map((servidor) => ({
+            id: servidor.id,
+            label: servidor.label,
+            subtitulos: servidor.subtitulos,
+          }))}
           activeId={activo.id}
           onSelect={setElegidoId}
           nota={

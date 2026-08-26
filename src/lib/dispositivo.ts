@@ -13,3 +13,24 @@ export function esIPhone(): boolean {
   return /iPhone|iPod/.test(navigator.userAgent);
 }
 
+/**
+ * ¿Es el navegador de un televisor?
+ *
+ * Se decide con el `User-Agent` para poder hacerlo en el SERVIDOR: la ficha
+ * elige un servidor de respaldo en el primer render, y corregirlo al hidratar
+ * llegaría tarde —el marco ya habría empezado a cargar—.
+ *
+ * Para qué se usa: en un televisor, VidSrc deja de ir primero. Su puerta de
+ * Cloudflare Turnstile necesita un navegador moderno, y el de una Samsung Tizen
+ * no lo es; cuando la puerta falla se recarga sola, sin fin. Ahí sus subtítulos
+ * no están realmente disponibles —no hay vídeo que subtitular—, así que lo
+ * honesto es arrancar en uno que reproduzca y dejar VidSrc a un botón,
+ * etiquetado, para quien quiera intentarlo (a veces pasa).
+ *
+ * Un falso positivo no rompe nada: como mucho reordena los servidores.
+ */
+export function esTelevisorUA(userAgent: string): boolean {
+  return /Tizen|Web0S|WebOS|SmartTV|Smart-TV|HbbTV|NetCast|VIDAA|BRAVIA|AppleTV|GoogleTV|Android TV|CrKey|Roku|PhilipsTV|AFT[A-Z]/i.test(
+    userAgent,
+  );
+}

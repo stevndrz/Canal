@@ -22,6 +22,8 @@ export interface ServidorStream {
    * puede detectar desde fuera, así que la ficha ofrece antes la salida.
    */
   puertaAntirrobot?: boolean;
+  /** Trae subtítulos en español. Se enseña en el botón: es lo que se busca. */
+  subtitulos?: boolean;
 }
 
 /** La respuesta entera de `/api/stream`. */

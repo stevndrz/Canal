@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TitleDetail } from "@/components/catalog/title-detail";
 import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catalog";
 import type { MediaType } from "@/lib/catalog/types";
+import { esTelevisorUA } from "@/lib/dispositivo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +33,16 @@ export default async function TitlePage({
 
   const episodes = mediaType === "tv" ? await resolveSeason(item, selectedSeason) : [];
 
+  // Aquí y no en el cliente: el respaldo de la ficha se elige en el primer
+  // render, y corregirlo al hidratar llegaría tarde. Ver `esTelevisorUA`.
+  const enTelevisor = esTelevisorUA((await headers()).get("user-agent") ?? "");
+
   return (
-<TitleDetail item={resolved} episodes={episodes} selectedSeason={selectedSeason} />
+    <TitleDetail
+      item={resolved}
+      episodes={episodes}
+      selectedSeason={selectedSeason}
+      enTelevisor={enTelevisor}
+    />
   );
 }

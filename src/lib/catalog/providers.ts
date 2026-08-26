@@ -37,12 +37,19 @@ export interface EmbedProvider {
   movie: string;
   tv: string;
   /**
-   * Si la URL admite pedir subtítulos en español.
+   * Si el proveedor entrega subtítulos en español DE VERDAD.
    *
-   * Solo está verificado en VidSrc (`ds_lang=es`, documentado y probado). En el
-   * resto es el parámetro que publican ellos, sin poder comprobar el efecto
-   * desde fuera del iframe: si alguno lo ignora, no rompe nada, simplemente
-   * salen los subtítulos por defecto.
+   * Ojo con este campo: ahora se enseña en el botón del servidor, así que ya
+   * no es una nota interna — es una promesa a quien está delante. Solo va a
+   * `true` lo comprobado.
+   *
+   * - **VidSrc**: sí. `ds_lang=es`, documentado por ellos y probado.
+   * - **Videasy**: NO, aunque antes estuviera marcado que sí. Era el
+   *   parámetro que publican, sin comprobar; en la práctica no los trae, y su
+   *   paquete apenas menciona subtítulos (4 veces en 722 KB). Marcarlo mandaba
+   *   a la gente a un servidor sin subtítulos con la etiqueta puesta.
+   * - **Vidlink**: no por sí solo. Acepta `sub_file`, pero es para que le
+   *   pases TÚ la URL de un `.vtt`, y aquí no hay ninguno que pasarle.
    */
   spanishSubtitles: boolean;
   /**
@@ -135,7 +142,8 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     id: "videasy",
     movie: "https://player.videasy.to/movie/{tmdbId}",
     tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
-    spanishSubtitles: true,
+    // Estaba en `true` sin comprobar. No los trae: ver el campo arriba.
+    spanishSubtitles: false,
   },
   {
     // El relevo de Videasy, también sin puerta (verificado 2026-08-24, HTTP
@@ -218,6 +226,26 @@ export function getProviders(): EmbedProvider[] {
     ...provider,
     label: provider.id === "propio" ? "Mi servidor" : `Servidor ${++numero}`,
   }));
+}
+
+/**
+ * Reordena dejando al final los proveedores con puerta antirrobot.
+ *
+ * SOLO para televisores. En un teléfono o un ordenador esas puertas se pasan
+ * solas y VidSrc va delante, con sus subtítulos, como debe. En un televisor la
+ * puerta no pasa y el marco se recarga sin fin: ahí sus subtítulos no existen
+ * de verdad, porque no llega a haber vídeo.
+ *
+ * Se ordenan, no se quitan, y la ficha etiqueta cuál trae subtítulos para que
+ * la elección se vea. Quitarlos en silencio fue el error de la vez anterior.
+ */
+export function ordenarParaTelevisor<T extends { puertaAntirrobot?: boolean }>(
+  proveedores: T[],
+): T[] {
+  return [
+    ...proveedores.filter((proveedor) => !proveedor.puertaAntirrobot),
+    ...proveedores.filter((proveedor) => proveedor.puertaAntirrobot),
+  ];
 }
 
 export interface EmbedTarget {

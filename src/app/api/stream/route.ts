@@ -1,4 +1,5 @@
-import { getProviders, buildEmbedUrl } from "@/lib/catalog/providers";
+import { getProviders, buildEmbedUrl, ordenarParaTelevisor } from "@/lib/catalog/providers";
+import { esTelevisorUA } from "@/lib/dispositivo";
 import { fetchTitle } from "@/lib/catalog/tmdb";
 import { fuentesDirectas, stremioActivo } from "@/lib/resolvers/stremio";
 import type { MediaType } from "@/lib/catalog/types";
@@ -31,8 +32,15 @@ export async function GET(request: Request) {
   const season = Number(params.get("season")) || undefined;
   const episode = Number(params.get("episode")) || undefined;
 
+  /**
+   * En un televisor, los de puerta antirrobot van los últimos. Ver
+   * `ordenarParaTelevisor`: allí está el porqué y lo que cuesta.
+   */
+  const enTelevisor = esTelevisorUA(request.headers.get("user-agent") ?? "");
+  const proveedores = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+
   const servidores: ServidorStream[] = [];
-  for (const provider of getProviders()) {
+  for (const provider of proveedores) {
     const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
     if (url) {
       servidores.push({
@@ -40,6 +48,7 @@ export async function GET(request: Request) {
         label: provider.label,
         url,
         puertaAntirrobot: provider.puertaAntirrobot,
+        subtitulos: provider.spanishSubtitles,
       });
     }
   }

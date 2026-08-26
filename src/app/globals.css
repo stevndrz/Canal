@@ -1040,6 +1040,22 @@ html[data-player="on"] body {
   background: var(--chip-focus, rgba(245, 245, 247, 0.2));
 }
 
+/* La marca «Subtítulos» dentro del botón de servidor: es lo que se busca. */
+.servidor-marca {
+  display: block;
+  margin-top: 3px;
+  font-size: clamp(10px, 0.62vw, 12px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green, #30d158);
+}
+
+.servidor.is-active .servidor-marca {
+  color: inherit;
+  opacity: 0.75;
+}
+
 /* La barra de servidores, al pie del vídeo. */
 .servidores {
   display: flex;

@@ -36,11 +36,13 @@ describe("orden de los proveedores", () => {
     }
   });
 
-  it("VidSrc es el único de los primeros con subtítulos declarados", () => {
-    const conSubtitulos = getProviders()
-      .filter((p) => p.spanishSubtitles)
-      .map((p) => p.id);
-    expect(conSubtitulos).toContain("vidsrc");
+  it("SOLO VidSrc se anuncia con subtítulos: la etiqueta es una promesa", () => {
+    // Se enseña en el botón del servidor, así que marcar de más manda a la
+    // gente a un servidor sin subtítulos creyendo que los tiene. Videasy
+    // estuvo marcado sin comprobar y no los trae.
+    expect(getProviders().filter((p) => p.spanishSubtitles).map((p) => p.id)).toEqual([
+      "vidsrc",
+    ]);
   });
 
   it("queda marcado que VidSrc trae puerta: de ahí la espera corta de la ficha", () => {
