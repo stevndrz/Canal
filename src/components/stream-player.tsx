@@ -64,6 +64,13 @@ const StreamPlayer = memo(
     const [streamError, setStreamError] = useState(false);
     const [needsUserGesture, setNeedsUserGesture] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
+    /**
+     * Entre pulsar un canal y el primer fotograma no había nada: negro y
+     * silencio, sin ninguna pista de si el mando había hecho caso. En una
+     * lista de 7.822 canales, donde muchos tardan o no responden, eso es la
+     * diferencia entre esperar y volver a pulsar OK cuatro veces.
+     */
+    const [sintonizando, setSintonizando] = useState(true);
 
     const streamUrl = channel.streamUrl;
 
@@ -82,6 +89,7 @@ const StreamPlayer = memo(
       let cancelled = false;
       setStreamError(false);
       setNeedsUserGesture(false);
+      setSintonizando(true);
       video.muted = !settings.startUnmuted;
       setIsMuted(!settings.startUnmuted);
 
@@ -180,9 +188,23 @@ const StreamPlayer = memo(
       const handleNativeError = () => handleFatalError();
       video.addEventListener("error", handleNativeError);
 
+      /**
+       * Se quita el aviso en cuanto hay **imagen**, no en cuanto hay datos.
+       *
+       * `playing` es el evento que de verdad significa «se está viendo algo»;
+       * `loadeddata` va detrás por si un televisor no dispara el primero al
+       * arrancar en silencio, que pasa. Los dos apuntan a lo mismo y el
+       * `setState` es idempotente, así que sobra con que llegue uno.
+       */
+      const yaSeVe = () => setSintonizando(false);
+      video.addEventListener("playing", yaSeVe);
+      video.addEventListener("loadeddata", yaSeVe);
+
       return () => {
         cancelled = true;
         video.removeEventListener("error", handleNativeError);
+        video.removeEventListener("playing", yaSeVe);
+        video.removeEventListener("loadeddata", yaSeVe);
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;
@@ -271,6 +293,16 @@ const StreamPlayer = memo(
           disableRemotePlayback={false}
           style={{ objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain" }}
         />
+
+        {/* Se rinde ante cualquiera de los otros dos avisos: si hay que
+            activar el sonido o la señal falló, «Sintonizando…» ya no es
+            verdad y taparía el botón que hay que pulsar. */}
+        {sintonizando && !streamError && !needsUserGesture && (
+          <div className="player-sintonizando" role="status">
+            <span className="player-anillo" aria-hidden="true" />
+            <p>Sintonizando {channel.name}…</p>
+          </div>
+        )}
 
         {needsUserGesture && !streamError && (
           <div

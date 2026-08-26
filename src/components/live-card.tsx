@@ -122,14 +122,12 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
             </span>
           </div>
 
-          {state.streamError && (
-            <div className="live-card-aviso">
-              <p>Este canal no está respondiendo.</p>
-              <button type="button" data-nav="button" onClick={() => playerRef.current?.retry()}>
-                Reintentar
-              </button>
-            </div>
-          )}
+          {/* Aquí había un segundo «Este canal no está responde» con su propio
+              botón Reintentar, pintado ENCIMA del «Sin señal» que `StreamPlayer`
+              ya dibuja a pantalla completa dentro de este mismo marco. Eran dos
+              mensajes distintos del mismo fallo y dos botones que hacían lo
+              mismo, y con el mando había que pasar por los dos. Manda el del
+              reproductor, que es quien sabe qué pasó. */}
         </div>
 
         {/* Dentro del marco, no fuera.

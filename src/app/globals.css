@@ -237,7 +237,7 @@ html[data-player="on"] body {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* mobile-nav-item span {
@@ -364,29 +364,7 @@ html[data-player="on"] body {
 .live-card-meta {
   flex-shrink: 0;
   font-size: clamp(11px, 0.85vw, 15px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
-}
-
-.live-card-aviso {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 14px;
-  background: rgba(0, 0, 0, 0.72);
-  text-align: center;
-  padding: 20px;
-}
-
-.live-card-aviso button {
-  min-height: 44px;
-  padding: 0 20px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.12));
-  color: inherit;
-  cursor: pointer;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Dónde vive la barra de controles ────────────────────────────────
@@ -651,7 +629,7 @@ html[data-player="on"] body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .catalogo-buscador-campo input {
@@ -665,7 +643,7 @@ html[data-player="on"] body {
 }
 
 .catalogo-buscador-campo input::placeholder {
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
@@ -1010,7 +988,7 @@ html[data-player="on"] body {
   margin: 0;
   padding: clamp(10px, 1vw, 14px) clamp(14px, 1.4vw, 22px);
   border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  color: var(--soft, rgba(245, 245, 247, 0.46));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   font-size: clamp(13px, 0.92vw, 15px);
   line-height: 1.5;
 }
@@ -1153,7 +1131,7 @@ html[data-player="on"] body {
 
 .ficha-sin-fuente svg { width: 32px; height: 32px; opacity: 0.5; }
 .ficha-sin-fuente p { margin: 0; font-weight: 650; }
-.ficha-sin-fuente span { max-width: 44ch; font-size: 0.9em; color: var(--soft, rgba(255,255,255,0.5)); }
+.ficha-sin-fuente span { max-width: 44ch; font-size: 0.9em; color: var(--soft, rgba(245, 245, 247, 0.56)); }
 
 .ficha-seccion {
   margin-bottom: clamp(28px, 4.5vh, 56px);
@@ -1226,7 +1204,7 @@ html[data-player="on"] body {
 
 .ficha-persona span {
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1284,7 +1262,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.45);
   font-size: 13px;
   font-weight: 700;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .ficha-episodio-arte img { width: 100%; height: 100%; object-fit: cover; }
@@ -1293,7 +1271,7 @@ html[data-player="on"] body {
 .ficha-episodio-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ficha-episodio-texto span {
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1305,7 +1283,7 @@ html[data-player="on"] body {
   border: 1px dashed var(--line, rgba(255, 255, 255, 0.18));
   border-radius: 14px;
   text-align: center;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Paginador ───────────────────────────────────────────────────────
@@ -1363,7 +1341,7 @@ html[data-player="on"] body {
 .paginador-hueco {
   min-width: 24px;
   text-align: center;
-  color: var(--faint, rgba(245, 245, 247, 0.28));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Estados vacíos y avisos ─────────────────────────────────────────
@@ -1404,6 +1382,143 @@ html[data-player="on"] body {
 
 .estado-vacio .secondary {
   margin-top: 8px;
+}
+
+/* ── «Sintonizando…» ──────────────────────────────────────────────────
+   Encima del vídeo mientras no hay primer fotograma.
+
+   Gira con `transform`, no con `background-position` ni `box-shadow`: es la
+   única propiedad que un navegador de televisor viejo puede animar en el
+   compositor, sin volver a maquetar ni repintar en cada fotograma. Un
+   esqueleto con brillo aquí costaría caro justo cuando la CPU está montando
+   el motor de vídeo. */
+.player-sintonizando {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.player-sintonizando p {
+  margin: 0;
+  max-width: 30ch;
+  font-size: clamp(13px, 1vw, 16px);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.player-anillo {
+  width: clamp(30px, 3vw, 44px);
+  height: clamp(30px, 3vw, 44px);
+  border: 3px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-top-color: var(--text, #f5f5f7);
+  border-radius: 999px;
+  animation: cc-giro 0.9s linear infinite;
+}
+
+@keyframes cc-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sin movimiento, el anillo se queda quieto pero sigue estando: es la marca
+   de que algo está pasando, y el texto de al lado lo dice igual. */
+@media (prefers-reduced-motion: reduce) {
+  .player-anillo {
+    animation: none;
+  }
+}
+
+/* ── Pantallas de mensaje: 404 y error ────────────────────────────────
+   `error.tsx` y `not-found.tsx` viven fuera del armazón —no hay barra ni
+   reproductor cuando se pintan—, así que centran su estado vacío en la
+   ventana en vez de apoyarse en el `.content` de las vistas. */
+.pantalla-mensaje {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: var(--margen) 0;
+}
+
+/**
+ * A pantalla completa, `.estado-vacio` se queda corto.
+ *
+ * Sus medidas están pensadas para un panel dentro de una lista, con contenido
+ * alrededor que le da escala. Solo, en 1920 × 1080 y a tres metros, era un
+ * recuadro de 490 px con texto de 15 px perdido en negro: se lee desde el
+ * escritorio y no se lee desde el sofá, que es donde se usa esta app.
+ */
+.pantalla-mensaje .estado-vacio {
+  min-width: min(620px, 88vw);
+  gap: 14px;
+  padding: clamp(40px, 7vh, 92px) clamp(28px, 4vw, 76px);
+}
+
+.pantalla-mensaje .estado-vacio > svg {
+  width: clamp(40px, 3.6vw, 64px);
+  height: clamp(40px, 3.6vw, 64px);
+}
+
+.pantalla-mensaje .estado-vacio-titulo {
+  font-size: clamp(23px, 2.4vw, 44px);
+}
+
+.pantalla-mensaje .estado-vacio-detalle {
+  font-size: clamp(15px, 1.2vw, 22px);
+}
+
+.pantalla-mensaje .secondary {
+  min-height: clamp(48px, 3.6vw, 64px);
+  padding: 0 clamp(22px, 2vw, 38px);
+  font-size: clamp(15px, 1.15vw, 21px);
+}
+
+/* ── Esqueleto de carga ───────────────────────────────────────────────
+   Reserva el sitio de lo que está por llegar. Todo hereda `.is-loading`, que
+   es el único brillo de la app; aquí solo se dan las medidas.
+
+   Las alturas están puestas a ojo contra las piezas de verdad: no tienen que
+   coincidir al píxel, tienen que evitar que la pantalla pegue un salto cuando
+   el contenido las sustituya. */
+.esqueleto-barra {
+  height: var(--topbar-h);
+  border-bottom: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+}
+
+.esqueleto-directo {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  border-radius: var(--radio-panel);
+}
+
+.esqueleto-riel {
+  margin-top: clamp(20px, 3.4vh, 40px);
+  padding: 0 var(--margen);
+}
+
+.esqueleto-titulo {
+  width: clamp(140px, 16vw, 260px);
+  height: clamp(18px, 1.5vw, 26px);
+  border-radius: 8px;
+}
+
+.esqueleto-fila {
+  display: flex;
+  gap: clamp(8px, 0.9vw, 16px);
+  margin-top: clamp(10px, 1.4vh, 18px);
+  overflow: hidden;
+}
+
+.esqueleto-tarjeta {
+  flex: 0 0 clamp(120px, 13vw, 200px);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radio-tarjeta);
 }
 
 .catalogo-aviso {
@@ -1562,7 +1677,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(245, 245, 247, 0.46));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .livetv-acerca-datos dd {
@@ -1576,7 +1691,7 @@ body {
 .livetv-acerca-nota {
   margin: 0;
   font-size: clamp(11px, 0.82vw, 13px);
-  color: var(--faint, rgba(245, 245, 247, 0.28));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── La guía de canales del reproductor ──────────────────────────────
@@ -1603,7 +1718,7 @@ body {
   gap: 16px;
   padding-bottom: clamp(10px, 1.4vh, 16px);
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(245, 245, 247, 0.46));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .guia-tira {
@@ -1788,7 +1903,7 @@ body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-campo input,
@@ -1915,7 +2030,7 @@ body {
 .fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fuente-fila-texto span {
   font-size: clamp(11px, 0.8vw, 13px);
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1931,7 +2046,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.55));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-quitar {
@@ -1940,7 +2055,7 @@ body {
   border: 0;
   border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12));
   background: transparent;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   cursor: pointer;
 }
 
@@ -1995,7 +2110,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .ficha-tecnica dd {

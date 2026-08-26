@@ -32,12 +32,18 @@ export const metadata: Metadata = {
   },
 };
 
-/** App instalable y a pantalla completa; sin zoom accidental con el mando. */
+/**
+ * App instalable y a pantalla completa.
+ *
+ * **El zoom se queda habilitado.** Antes había `maximumScale: 1` y
+ * `userScalable: false` «para que el mando no hiciera zoom sin querer», y eso
+ * era resolver un problema que no existe —un mando no hace pellizco— a cambio
+ * de uno que sí: en el teléfono impedía ampliar la pantalla a quien lo
+ * necesita para leer. Un televisor ignora estas dos claves de todas formas.
+ */
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: "#09090b",
   colorScheme: "dark",
   /**
