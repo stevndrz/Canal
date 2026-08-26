@@ -3,17 +3,34 @@
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
-import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
+import type { Channel, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
-import { CATEGORY_ORDER, canalDeArranque, filterChannels } from "@/lib/channels";
+import {
+  CATEGORY_ORDER,
+  canalDeArranque,
+  canalesDeCasa,
+  filterChannels,
+} from "@/lib/channels";
+import {
+  claveDeCanal,
+  estaCaido,
+  ordenarPorSalud,
+  registrarExito,
+  registrarFallo,
+  type MemoriaCaidos,
+} from "@/lib/canales-caidos";
 import {
   desempaquetarCanales,
   recuentosDe,
   type PaqueteCanales,
 } from "@/lib/canales-empaquetados";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
-import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
+import {
+  usePersistedJson,
+  usePersistedRecents,
+  usePersistedSet,
+} from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
 import { VistaActiva } from "@/components/vista-activa";
 import { LiveCardSkeleton } from "@/components/live-card";
@@ -142,13 +159,52 @@ export function Dashboard({
     vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
   );
   const [lastView, setLastView] = useState<ViewId>("home");
+  /**
+   * El último canal que se estaba viendo, para abrir ahí la próxima vez.
+   *
+   * No puede leerse en el primer render —`localStorage` no existe en el
+   * servidor— así que el arranque es el de siempre y el efecto de abajo lo
+   * corrige en cuanto llega. Se guarda el nombre además del id porque el id es
+   * posicional: ver `UltimoCanal`.
+   */
+  const [ultimo, guardarUltimo] = usePersistedJson("canalcasa:ultimo", { id: 0, nombre: "" });
   const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
+  /** Para no pisar al canal que la persona haya elegido mientras esto llegaba. */
+  const arranqueAplicado = useRef(false);
   const [category, setCategory] = useState("Todas");
   const [search, setSearch] = useState("");
-  const [settings, setSettings] = useState<PlaybackSettings>(DEFAULT_PLAYBACK);
+  /**
+   * Los ajustes se guardan en el aparato.
+   *
+   * Estaban en un `useState` a secas, así que cada recarga los devolvía a
+   * fábrica: alguien ponía «controles grandes» y al cerrar la app se perdía.
+   * Es lo que separa una web de la tele de casa — se configura una vez.
+   */
+  const [settings, patchSettings] = usePersistedJson("canalcasa:ajustes", DEFAULT_PLAYBACK);
+
+  /**
+   * Qué canales han dejado de responder EN ESTE APARATO.
+   *
+   * De 7.822, muchos no responden nunca. El reproductor ya lo sabía y no lo
+   * apuntaba en ningún sitio, así que se tropezaba con los mismos muertos una
+   * y otra vez. Ver `canales-caidos.ts` para las tres reglas: dos fallos
+   * seguidos, se olvidan a los siete días y se apartan sin esconderse.
+   */
+  const [caidos, guardarCaidos] = usePersistedJson<{ mapa: MemoriaCaidos }>(
+    "canalcasa:caidos",
+    { mapa: {} },
+  );
 
   const favorites = usePersistedSet("canalcasa:favorites");
   const recents = usePersistedRecents("canalcasa:recents");
+
+  useEffect(() => {
+    if (arranqueAplicado.current || !ultimo.nombre || channels.length === 0) return;
+    arranqueAplicado.current = true;
+    const destino = canalDeArranque(channels, ultimo);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (destino) setTunedId(destino);
+  }, [ultimo, channels]);
 
   useRemoteInput();
 
@@ -159,10 +215,67 @@ export function Dashboard({
     [channels, tunedId],
   );
 
-  /** Lista visible: alimenta la lista de Canales, la búsqueda y el zapping. */
+  /**
+   * Lista visible: alimenta la lista de Canales, la búsqueda y el zapping.
+   *
+   * Los que han dejado de responder bajan al final, sin desaparecer. También
+   * afecta al zapeo, y eso es la mitad de la gracia: con el mando dejas de
+   * pasar por los muertos.
+   */
   const visible = useMemo(
-    () => filterChannels(channels, { search, category }),
-    [channels, search, category],
+    () =>
+      ordenarPorSalud(
+        filterChannels(channels, { search, category }),
+        caidos.mapa,
+        // eslint-disable-next-line react-hooks/purity -- el reloj decide qué ha caducado
+        Date.now(),
+      ),
+    [channels, search, category, caidos],
+  );
+
+  /**
+   * Los canales de la casa: los que se ven de cajón, arriba del todo.
+   *
+   * Ver `publicConfig.canalesDeCasa`. Salen igual en la tele, en el teléfono y
+   * en el PC sin que nadie configure nada en su aparato.
+   */
+  const deLaCasa = useMemo(() => canalesDeCasa(channels), [channels]);
+
+  /**
+   * Los que están apartados ahora mismo, para poder marcarlos en la lista.
+   *
+   * Se calcula una vez aquí y no en cada fila: `estaCaido` mira el reloj y con
+   * 7.822 filas eso serían 7.822 comprobaciones por render.
+   */
+  const idsCaidos = useMemo(() => {
+    if (Object.keys(caidos.mapa).length === 0) return new Set<number>();
+    // eslint-disable-next-line react-hooks/purity -- el reloj decide qué ha caducado
+    const ahora = Date.now();
+    const marcados = new Set<number>();
+    for (const canal of channels) {
+      if (estaCaido(caidos.mapa, claveDeCanal(canal.streamUrl), ahora)) marcados.add(canal.id);
+    }
+    return marcados;
+  }, [channels, caidos]);
+
+  /**
+   * Lo que el reproductor va aprendiendo de cada canal.
+   *
+   * Llega del `onStateChange` de `StreamPlayer`, que es quien de verdad sabe
+   * si arrancó o si dio error.
+   */
+  const anotarSalud = useCallback(
+    (canalId: number, funciona: boolean) => {
+      const canal = channels.find((item) => item.id === canalId);
+      if (!canal?.streamUrl) return;
+      const clave = claveDeCanal(canal.streamUrl);
+      guardarCaidos((actual) => ({
+        mapa: funciona
+          ? registrarExito(actual.mapa, clave)
+          : registrarFallo(actual.mapa, clave, Date.now()),
+      }));
+    },
+    [channels, guardarCaidos],
   );
 
   const recentChannels = useMemo(
@@ -205,8 +318,12 @@ export function Dashboard({
     (channel: Channel) => {
       setTunedId(channel.id);
       recents.push(channel.id);
+      // Con esto la app abre la próxima vez donde la dejaste. Y se marca como
+      // aplicado para que lo guardado no vuelva a sobrescribir una elección.
+      arranqueAplicado.current = true;
+      guardarUltimo({ id: channel.id, nombre: channel.name });
     },
-    [recents],
+    [recents, guardarUltimo],
   );
 
   /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */
@@ -228,6 +345,20 @@ export function Dashboard({
       if (destino) select(destino);
     },
     [tunedId, visible, channels, select],
+  );
+
+  /**
+   * Recordar el silencio, pero solo si lo pidió una persona.
+   *
+   * El reproductor se silencia solo al arrancar —es la única forma de que
+   * ningún navegador bloquee la reproducción— y vuelve a subir el sonido si
+   * puede. Guardar cada uno de esos cambios escribiría ruido y acabaría
+   * dejando la app muda para siempre en cuanto un arranque saliera torcido.
+   * Aquí solo llegan los toques al botón de sonido.
+   */
+  const recordarSilencio = useCallback(
+    (mudo: boolean) => patchSettings({ startUnmuted: !mudo }),
+    [patchSettings],
   );
 
   const handleBack = useCallback(() => {
@@ -281,11 +412,6 @@ export function Dashboard({
     return () => window.clearTimeout(id);
   }, [view, focusFirst]);
 
-  const patchSettings = useCallback(
-    (patch: Partial<PlaybackSettings>) => setSettings((current) => ({ ...current, ...patch })),
-    [],
-  );
-
   if (channels.length === 0) {
     return (
       <div className="grid h-dvh place-items-center px-8 text-center">
@@ -331,6 +457,8 @@ export function Dashboard({
               onExpand={tune}
               onNext={() => zap(1)}
               onPrev={() => zap(-1)}
+              onSilencio={recordarSilencio}
+              onSalud={anotarSalud}
             />
           </div>
         )}
@@ -343,6 +471,8 @@ export function Dashboard({
           favorites={favorites}
           recentChannels={recentChannels}
           catalog={catalog}
+          deLaCasa={deLaCasa}
+          idsCaidos={idsCaidos}
           categories={categories}
           recuentos={recuentos}
           totalCanales={datos.total}
@@ -367,6 +497,7 @@ export function Dashboard({
             setTunedId(next.id);
             recents.push(next.id);
           }}
+          onSilencio={recordarSilencio}
           onExit={() => navigate(lastView === "player" ? "home" : lastView)}
         />
       )}

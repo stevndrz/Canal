@@ -30,6 +30,8 @@ interface FullscreenPlayerProps {
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
   onExit: () => void;
+  /** La persona ha tocado el botón de sonido. Ver `recordarSilencio`. */
+  onSilencio?: (mudo: boolean) => void;
 }
 
 /* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
@@ -46,6 +48,7 @@ export function FullscreenPlayer({
   settings,
   onTune,
   onExit,
+  onSilencio,
 }: FullscreenPlayerProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -323,6 +326,7 @@ export function FullscreenPlayer({
           }}
           onToggleMute={() => {
             playerRef.current?.toggleMute();
+            onSilencio?.(!state.isMuted);
             wake();
           }}
           onPrev={() => zap(-1)}

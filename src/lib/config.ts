@@ -33,6 +33,23 @@ export const publicConfig = {
   canalInicial: process.env.NEXT_PUBLIC_CANAL_INICIAL || "Canal 7",
 
   /**
+   * Los canales de la casa: los que se ven de cajón.
+   *
+   * Salen los primeros en Canales y tienen su propio riel en Inicio, **en
+   * cualquier aparato y sin configurar nada en él**. Es lo que de verdad
+   * resuelve «que estén en la tele, en mi PC y en el teléfono de mi mamá»: se
+   * cambian aquí una vez, no en cada dispositivo.
+   *
+   * Se emparejan por NOMBRE con `normalizeChannelName`, no por id: el id es la
+   * posición en la lista y se mueve en cuanto la M3U cambia de tamaño; el
+   * nombre no. Los que no aparezcan en la lista de hoy simplemente no salen.
+   */
+  canalesDeCasa: (process.env.NEXT_PUBLIC_CANALES_CASA || "Canal 3, Canal 7, Guatevision")
+    .split(",")
+    .map((nombre) => nombre.trim())
+    .filter(Boolean),
+
+  /**
    * Proveedor de reproducción propio, que se antepone a los de la lista.
    * Sirve para apuntar a un servidor propio sin recompilar. Las plantillas
    * admiten `{tmdbId}`, `{season}` y `{episode}`.

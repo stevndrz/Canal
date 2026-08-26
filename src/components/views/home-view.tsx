@@ -13,6 +13,14 @@ interface HomeViewProps {
   tuned: Channel | null;
   favorites: Set<number>;
   recents: Channel[];
+  /**
+   * Los canales que se ven de cajón, con su propio riel el primero de todos.
+   *
+   * Es lo que resuelve «que estén en la tele, en mi PC y en el teléfono de mi
+   * mamá» sin sincronizar nada: se configuran una vez en el despliegue y
+   * aparecen igual en todos los aparatos. Ver `publicConfig.canalesDeCasa`.
+   */
+  deLaCasa: Channel[];
   catalog: CatalogSection[];
   /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta de arriba. */
   onSelect: (channel: Channel) => void;
@@ -49,6 +57,7 @@ export function HomeView({
   tuned,
   favorites,
   recents,
+  deLaCasa,
   catalog,
   onSelect,
   onOpenTitle,
@@ -81,6 +90,13 @@ export function HomeView({
        encabezado. Aquí lo primero es la tarjeta en directo, y sin hueco su
        cabecera se metía debajo de la barra de navegación. */
     <div className={sinHueco ? "screen sin-hueco" : "screen"}>
+      <MediaRail
+        title="La casa"
+        items={deLaCasa.map((channel) => channelToCard(channel))}
+        onOpen={abrirCanal}
+        activeKey={tunedKey}
+      />
+
       <MediaRail
         title="Seguir viendo"
         items={recents.map((channel) => channelToCard(channel))}

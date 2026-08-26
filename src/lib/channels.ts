@@ -90,18 +90,65 @@ export function channelMark(channel: Channel) {
 }
 
 /**
- * Nombre del canal con el que abre la aplicación.
+ * Los canales de la casa, en el orden configurado.
  *
- * Se configura con `NEXT_PUBLIC_CANAL_INICIAL` (ver `src/lib/config.ts`).
- * Es una preferencia, no una garantía: si ese canal no está en la lista de hoy
- * se cae al primero, que tras el orden por importancia de `m3u.ts` ya es el más
- * relevante.
+ * Ver `publicConfig.canalesDeCasa`. Se buscan por nombre normalizado, así que
+ * aguantan que la lista cambie de orden o de tamaño, y los que no estén en la
+ * lista de hoy simplemente no salen.
  */
+export function canalesDeCasa(channels: Channel[]): Channel[] {
+  if (channels.length === 0) return [];
+  const porNombre = new Map(channels.map((canal) => [normalizeChannelName(canal.name), canal]));
+  return publicConfig.canalesDeCasa
+    .map((nombre) => porNombre.get(normalizeChannelName(nombre)))
+    .filter((canal): canal is Channel => Boolean(canal));
+}
 
-/** El canal sintonizado al arrancar: el preferido si está, si no el primero. */
-export function canalDeArranque(channels: Channel[]): number | null {
+/**
+ * El último canal que se estaba viendo, tal y como se guarda.
+ *
+ * Se guarda el nombre **además** del id, y no es paranoia: el id es la
+ * posición en la lista (ver `canales-empaquetados.ts`), así que en cuanto la
+ * lista M3U cambie de tamaño el id guardado apunta a otro canal. Con el nombre
+ * se puede comprobar antes de usarlo.
+ */
+export interface UltimoCanal {
+  id: number;
+  nombre: string;
+}
+
+/**
+ * El canal con el que abre la aplicación, por orden de preferencia:
+ *
+ * 1. **El último que se estaba viendo**, si sigue siendo el mismo canal. Es lo
+ *    que hace una tele, y lo que la app no hacía: abría siempre en el mismo
+ *    sitio por lejos que te hubieras ido.
+ * 2. El configurado en `NEXT_PUBLIC_CANAL_INICIAL`.
+ * 3. El primero de los canales de la casa que esté en la lista.
+ * 4. El primero de todos, que tras el orden de `m3u.ts` ya es el más relevante.
+ */
+export function canalDeArranque(
+  channels: Channel[],
+  ultimo?: UltimoCanal | null,
+): number | null {
   if (channels.length === 0) return null;
+
+  if (ultimo?.nombre) {
+    const esperado = normalizeChannelName(ultimo.nombre);
+    // Primero donde estaba: en el caso normal —la lista no ha cambiado— esto
+    // acierta sin recorrer 7.822 canales.
+    const enSuSitio = channels[ultimo.id - 1];
+    if (enSuSitio && normalizeChannelName(enSuSitio.name) === esperado) return enSuSitio.id;
+    // Se movió de sitio: se busca por nombre antes de rendirse.
+    const movido = channels.find((canal) => normalizeChannelName(canal.name) === esperado);
+    if (movido) return movido.id;
+    // Ya no está en la lista: se cae a lo de siempre en vez de abrir en un
+    // canal cualquiera que hoy ocupe esa posición.
+  }
+
   const buscado = normalizeChannelName(publicConfig.canalInicial);
-  const preferido = channels.find((channel) => normalizeChannelName(channel.name) === buscado);
-  return (preferido ?? channels[0]).id;
+  const preferido = channels.find((canal) => normalizeChannelName(canal.name) === buscado);
+  if (preferido) return preferido.id;
+
+  return (canalesDeCasa(channels)[0] ?? channels[0]).id;
 }

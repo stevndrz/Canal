@@ -74,6 +74,21 @@ interface LiveTvViewProps {
   recuentos: Map<string, number>;
   /** Total de la lista completa. Es el número grande de la cabecera. */
   totalCanales: number;
+  /**
+   * Los canales que se ven de cajón, los primeros de «Todas».
+   *
+   * Solo ahí: dentro de una categoría concreta o con una búsqueda escrita,
+   * subirlos sería contestar otra pregunta distinta de la que se hizo.
+   */
+  deLaCasa: Channel[];
+  /**
+   * Los que han dejado de responder en este aparato.
+   *
+   * Se marcan, **no se esconden**: estos canales resucitan constantemente y
+   * quien quiera probar uno lo tiene al final de su lista. Ver
+   * `canales-caidos.ts`.
+   */
+  idsCaidos: Set<number>;
   /** Los que pasan el filtro actual de categoría y búsqueda. */
   visible: Channel[];
   tuned: Channel | null;
@@ -95,6 +110,8 @@ interface LiveTvViewProps {
 export function LiveTvView({
   recuentos,
   totalCanales,
+  deLaCasa,
+  idsCaidos,
   visible,
   tuned,
   favorites,
@@ -165,7 +182,31 @@ export function LiveTvView({
    * `use-spatial-nav` los recorre **en cada pulsación de flecha del mando**
    * llamando a `getBoundingClientRect()`.
    */
-  const enLote = useMemo(() => visible.slice(0, pintadas), [visible, pintadas]);
+  /**
+   * Los canales de la casa, arriba del todo.
+   *
+   * Solo en «Todas» y sin búsqueda escrita: si alguien ha pedido Deportes o ha
+   * escrito «bbc», subirle el Canal 3 es contestar otra pregunta. Y se quitan
+   * de su sitio original para que no salgan dos veces.
+   *
+   * **Manda sobre el apartado de los canales caídos, y es a propósito.** Si
+   * Guatevisión no responde hoy, sigue siendo el canal que siempre se ve: lo
+   * último que quiere nadie es tener que buscarlo entre 7.822 para comprobar
+   * si ya volvió. Se queda en su sitio con su marca de «sin señal», que es
+   * información suficiente. Los demás sí bajan al final.
+   */
+  const conLaCasaDelante = useMemo(() => {
+    if (category !== "Todas" || search.trim() || deLaCasa.length === 0) return visible;
+    const suyos = new Set(deLaCasa.map((canal) => canal.id));
+    const presentes = deLaCasa.filter((canal) => visible.some((item) => item.id === canal.id));
+    if (presentes.length === 0) return visible;
+    return [...presentes, ...visible.filter((canal) => !suyos.has(canal.id))];
+  }, [visible, deLaCasa, category, search]);
+
+  const enLote = useMemo(
+    () => conLaCasaDelante.slice(0, pintadas),
+    [conLaCasaDelante, pintadas],
+  );
   const filas = useMemo(
     () => enLote.slice(ventana.desde, ventana.hasta),
     [enLote, ventana.desde, ventana.hasta],
@@ -331,6 +372,7 @@ export function LiveTvView({
                     key={item.id}
                     channel={item}
                     favorite={favorites.has(item.id)}
+                    caido={idsCaidos.has(item.id)}
                     selected={canal?.id === item.id}
                     onFocus={() => setSeleccionado(item.id)}
                     onPlay={() => sintonizar(item)}

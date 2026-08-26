@@ -43,6 +43,10 @@ export interface VistaActivaProps {
    */
   recuentos: Map<string, number>;
   totalCanales: number;
+  /** Los canales que se ven de cajón. Ver `publicConfig.canalesDeCasa`. */
+  deLaCasa: Channel[];
+  /** Los que han dejado de responder en este aparato. Ver `canales-caidos.ts`. */
+  idsCaidos: Set<number>;
   category: string;
   search: string;
   settings: PlaybackSettings;
@@ -70,6 +74,7 @@ export function VistaActiva(props: VistaActivaProps) {
           tuned={props.tuned}
           favorites={props.favorites.ids}
           recents={props.recentChannels}
+          deLaCasa={props.deLaCasa}
           catalog={props.catalog}
           onSelect={props.onSelect}
           onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
@@ -82,6 +87,8 @@ export function VistaActiva(props: VistaActivaProps) {
           sinHueco
           recuentos={props.recuentos}
           totalCanales={props.totalCanales}
+          deLaCasa={props.deLaCasa}
+          idsCaidos={props.idsCaidos}
           visible={props.visible}
           tuned={props.tuned}
           favorites={props.favorites.ids}

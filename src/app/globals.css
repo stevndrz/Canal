@@ -2414,3 +2414,28 @@ body {
 .catalogo-encabezado {
   padding: 0 0 clamp(4px, 0.8vh, 10px);
 }
+
+/* ── Canales que han dejado de responder ─────────────────────────────────
+   Se apagan y se etiquetan, pero siguen enteros y pulsables: la lista IPTV
+   resucita canales continuamente, y esconderlos en silencio ya fue un error
+   antes en este proyecto. Ver `canales-caidos.ts`. */
+.livetv-row.is-caido .livetv-row-logo,
+.livetv-row.is-caido .livetv-row-copy {
+  opacity: 0.55;
+}
+
+.livetv-row.is-caido:focus-within .livetv-row-logo,
+.livetv-row.is-caido:focus-within .livetv-row-copy {
+  opacity: 1;
+}
+
+.livetv-caido {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 69, 58, 0.4);
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  color: var(--red, #ff453a);
+}

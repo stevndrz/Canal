@@ -51,6 +51,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `TMDB_API_KEY`       | Credencial propia de TMDB. Hay una de reserva en el código       |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 
 Las que llevan credencial viven en [`src/lib/config.server.ts`](src/lib/config.server.ts),
@@ -160,7 +161,19 @@ tiene pruebas; los componentes se quedan con el estado y el DOM. Las trampas de
 la cascada CSS están en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 No hay `db/` ni `DATABASE_URL`: todo el estado vive en memoria del servidor (por
-request) y en `localStorage` del navegador para los favoritos. Sí hay `api/`:
+request) y en `localStorage` del navegador. Lo que cada aparato recuerda:
+
+| Clave | Qué guarda |
+|---|---|
+| `canalcasa:ajustes` | Los Ajustes de reproducción |
+| `canalcasa:ultimo` | El último canal visto, con su nombre para poder verificarlo |
+| `canalcasa:caidos` | Qué canales han dejado de responder — ver [`canales-caidos.ts`](src/lib/canales-caidos.ts) |
+| `canalcasa:favorites` · `canalcasa:recents` · `canalcasa:fuentes` | Favoritos, historial y «Mi enlace» |
+
+Lo compartido entre aparatos NO va por ahí: va por configuración
+(`NEXT_PUBLIC_CANALES_CASA`), que se cambia en un sitio y aparece en todos.
+
+Sí hay `api/`:
 
 - `/api/buscar` y `/api/stream` existen para no sacar la credencial de TMDB al
   navegador.

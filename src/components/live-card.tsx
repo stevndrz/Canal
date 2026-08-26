@@ -38,9 +38,31 @@ interface LiveCardProps {
   /** Cambiar de canal sin salir de Inicio. */
   onNext: () => void;
   onPrev: () => void;
+  /**
+   * La persona ha tocado el botón de sonido.
+   *
+   * Solo eso: el reproductor se silencia y se desilencia solo al arrancar, y
+   * guardar aquellos cambios escribiría ruido. Ver `recordarSilencio`.
+   */
+  onSilencio?: (mudo: boolean) => void;
+  /**
+   * Si este canal ha llegado a dar imagen o ha fallado.
+   *
+   * Es lo único que se puede saber de verdad sobre la salud de un canal, y lo
+   * sabe el reproductor. Ver `canales-caidos.ts`.
+   */
+  onSalud?: (canalId: number, funciona: boolean) => void;
 }
 
-export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCardProps) {
+export function LiveCard({
+  channel,
+  settings,
+  onExpand,
+  onNext,
+  onPrev,
+  onSilencio,
+  onSalud,
+}: LiveCardProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [state, setState] = useState<StreamPlayerState>({
@@ -123,7 +145,14 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
             ref={playerRef}
             channel={channel}
             settings={settings}
-            onStateChange={setState}
+            onStateChange={(siguiente) => {
+              setState(siguiente);
+              // Solo los dos extremos interesan: dio error, o llegó a sonar.
+              // Los estados intermedios (silenciado, pausado) no dicen nada de
+              // si el canal está vivo.
+              if (siguiente.streamError) onSalud?.(channel.id, false);
+              else if (siguiente.isPlaying && !state.isPlaying) onSalud?.(channel.id, true);
+            }}
           />
 
           <div className="live-card-top">
@@ -158,7 +187,10 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
           isPlaying={state.isPlaying}
           isMuted={state.isMuted}
           onTogglePlay={() => playerRef.current?.togglePlay()}
-          onToggleMute={() => playerRef.current?.toggleMute()}
+          onToggleMute={() => {
+            playerRef.current?.toggleMute();
+            onSilencio?.(!state.isMuted);
+          }}
           onPrev={onPrev}
           onNext={onNext}
           fullscreen={{ active: false, onToggle: expandir }}

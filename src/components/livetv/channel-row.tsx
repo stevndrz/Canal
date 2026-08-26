@@ -34,6 +34,14 @@ function hora(millis?: number): string {
 interface ChannelRowProps {
   channel: Channel;
   favorite: boolean;
+  /**
+   * Ha dejado de responder en este aparato.
+   *
+   * Se apaga un poco y lleva una marca, pero **sigue siendo pulsable**: estos
+   * canales resucitan constantemente y esconder cosas en silencio ya fue un
+   * error antes en este proyecto. Ver `canales-caidos.ts`.
+   */
+  caido?: boolean;
   selected: boolean;
   onFocus: () => void;
   onPlay: () => void;
@@ -43,6 +51,7 @@ interface ChannelRowProps {
 function ChannelRowBase({
   channel,
   favorite,
+  caido,
   selected,
   onFocus,
   onPlay,
@@ -54,7 +63,7 @@ function ChannelRowBase({
 
   return (
     <article
-      className={`livetv-row row-virtual ${selected ? "is-selected" : ""}`}
+      className={`livetv-row row-virtual ${selected ? "is-selected" : ""} ${caido ? "is-caido" : ""}`}
       onMouseEnter={onFocus}
       onFocus={onFocus}
     >
@@ -77,6 +86,7 @@ function ChannelRowBase({
           <span className="livetv-row-title">
             <strong>{channel.name}</strong>
             <i className="livetv-quality">{channel.number}</i>
+            {caido && <i className="livetv-caido" title="No respondió las últimas veces">sin señal</i>}
           </span>
 
           {channel.currentProgram ? (
