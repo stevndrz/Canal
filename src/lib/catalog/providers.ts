@@ -70,6 +70,20 @@ export interface EmbedProvider {
    * en un televisor estos proveedores van los últimos.
    */
   puertaAntirrobot?: boolean;
+  /**
+   * El proveedor **dice** cuándo no tiene un título, con un estado HTTP.
+   *
+   * Es la única pregunta que se le puede hacer a un embed desde fuera y
+   * obtener una respuesta honesta. Comprobado con curl contra catorce ids
+   * reales: Vimeus responde 404 (`<h1>Not Found</h1>`) y Vidlink 500 cuando no
+   * lo tienen, y 200 cuando sí. Videasy y VidSrc devuelven 200 en los dos
+   * casos —resuelven en el cliente— y Multiembed contesta 403 de Cloudflare,
+   * que habla de quien pregunta y no del título.
+   *
+   * Solo se marca lo verificado: descartar un servidor por una suposición
+   * sería peor que el problema que esto arregla.
+   */
+  compruebaPorEstado?: boolean;
 }
 
 /**
@@ -123,6 +137,9 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
     tv: "",
     spanishSubtitles: false,
+    // Responde 404 con `<h1>Not Found</h1>` cuando no tiene la película, y
+    // por eso ya no hace falta que nadie vea ese «Not Found» dentro del marco.
+    compruebaPorEstado: true,
   },
   {
     // El de los SUBTÍTULOS (`ds_lang=es`, verificado) y el primero en series.
@@ -163,6 +180,8 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
     tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",
     spanishSubtitles: false,
+    // Responde 500 cuando no lo tiene.
+    compruebaPorEstado: true,
   },
   {
     id: "multiembed",
@@ -270,4 +289,60 @@ export function buildEmbedUrl(
 
   // Solo http(s): evita que una plantilla mal escrita acabe en javascript:
   return /^https?:\/\//i.test(url) ? url : null;
+}
+
+/**
+ * Los servidores embed de un título, sin numerar.
+ *
+ * Vivía repetido en `/api/stream` y hacía falta también en la ficha, que es
+ * quien decide **qué se ve en el primer fotograma**. Dos copias de esta lista
+ * es exactamente cómo se acaba enseñando un servidor distinto del que dice el
+ * botón.
+ *
+ * Sin numerar a propósito: las etiquetas se ponen después de descartar los que
+ * no tienen el título (ver `disponibilidad.ts`), o quedarían huecos —«Servidor
+ * 1, 3, 4»— que parecen botones rotos.
+ */
+export function servidoresEmbed(
+  mediaType: MediaType,
+  target: EmbedTarget,
+  enTelevisor: boolean,
+): ServidorEmbed[] {
+  const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+  return lista.flatMap((provider) => {
+    const url = buildEmbedUrl(provider, mediaType, target);
+    return url
+      ? [{
+          id: provider.id,
+          label: provider.label,
+          url,
+          puertaAntirrobot: provider.puertaAntirrobot,
+          subtitulos: provider.spanishSubtitles,
+          compruebaPorEstado: provider.compruebaPorEstado,
+        }]
+      : [];
+  });
+}
+
+/** Lo que `servidoresEmbed` devuelve, con la etiqueta aún provisional. */
+export interface ServidorEmbed {
+  id: string;
+  label: string;
+  url: string;
+  puertaAntirrobot?: boolean;
+  subtitulos?: boolean;
+  compruebaPorEstado?: boolean;
+}
+
+/**
+ * «Servidor 1, 2, 3…» de corrido, después de todos los descartes.
+ *
+ * El proveedor propio conserva su nombre: quien lo configura sabe cuál es y
+ * llamarlo «Servidor 2» lo escondería entre los demás.
+ */
+export function numerarServidores<T extends { id: string; label: string }>(servidores: T[]): T[] {
+  let numero = 0;
+  return servidores.map((servidor) =>
+    servidor.id === "propio" ? servidor : { ...servidor, label: `Servidor ${++numero}` },
+  );
 }

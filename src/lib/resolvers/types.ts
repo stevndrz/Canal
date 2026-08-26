@@ -24,6 +24,12 @@ export interface ServidorStream {
   puertaAntirrobot?: boolean;
   /** Trae subtítulos en español. Se enseña en el botón: es lo que se busca. */
   subtitulos?: boolean;
+  /**
+   * Este proveedor responde con un estado HTTP distinto cuando NO tiene el
+   * título, así que se le puede preguntar antes de ofrecerlo. Ver
+   * `lib/catalog/disponibilidad.ts` para la tabla de lo comprobado.
+   */
+  compruebaPorEstado?: boolean;
 }
 
 /** La respuesta entera de `/api/stream`. */

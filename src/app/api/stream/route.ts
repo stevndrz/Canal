@@ -1,10 +1,11 @@
-import { getProviders, buildEmbedUrl, ordenarParaTelevisor } from "@/lib/catalog/providers";
+import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
 import { esTelevisorUA } from "@/lib/dispositivo";
 import { fetchTitle } from "@/lib/catalog/tmdb";
 import { fuentesDirectas, stremioActivo } from "@/lib/resolvers/stremio";
 import type { MediaType } from "@/lib/catalog/types";
 import type { ServidorStream } from "@/lib/resolvers/types";
 import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
+import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
 
 /**
  * Lista de servidores para reproducir un título: **responde al instante**,
@@ -46,29 +47,19 @@ export async function GET(request: Request) {
    * `ordenarParaTelevisor`: allí está el porqué y lo que cuesta.
    */
   const enTelevisor = esTelevisorUA(request.headers.get("user-agent") ?? "");
-  const proveedores = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+  const candidatos = servidoresEmbed(type, { tmdbId, season, episode }, enTelevisor);
 
-  const servidores: ServidorStream[] = [];
-  for (const provider of proveedores) {
-    const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
-    if (url) {
-      servidores.push({
-        id: provider.id,
-        label: provider.label,
-        url,
-        puertaAntirrobot: provider.puertaAntirrobot,
-        subtitulos: provider.spanishSubtitles,
-      });
-    }
-  }
-
-  // Numeración de corrido DESPUÉS del filtro: los proveedores que no cubren
-  // este tipo (solo-películas…) no deben dejar huecos que parezcan botones
-  // rotos.
-  let numero = 0;
-  for (const servidor of servidores) {
-    if (servidor.id !== "propio") servidor.label = `Servidor ${++numero}`;
-  }
+  /**
+   * Fuera los que ya han dicho que no tienen este título.
+   *
+   * Antes se ofrecían igual y quien estuviera delante se encontraba el «Not
+   * Found» del proveedor dentro del marco. Ver `disponibilidad.ts`: solo se
+   * pregunta a los que responden con un estado que ya se comprobó qué
+   * significa, y si la pregunta falla el servidor se conserva.
+   */
+  const servidores: ServidorStream[] = numerarServidores(
+    await servidoresConElTitulo(candidatos),
+  );
 
   // --- Servidores «Directo»: enlaces sin anuncios vía addons Stremio -------
   if (stremioActivo()) {

@@ -59,6 +59,7 @@ export function FichaReproductor({
   episodio,
   spokenInSpanish,
   enTelevisor,
+  servidoresIniciales,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -70,6 +71,11 @@ export function FichaReproductor({
   spokenInSpanish: boolean;
   /** Lo decide el servidor con el `User-Agent`; ver `respaldo`. */
   enTelevisor: boolean;
+  /**
+   * Los servidores que **ya se comprobó** que tienen el título, calculados en
+   * el servidor antes de pintar. Ver `lib/catalog/disponibilidad.ts`.
+   */
+  servidoresIniciales?: ServidorStream[];
 }) {
   if (fuente.kind === "manual") {
     return (
@@ -106,6 +112,7 @@ export function FichaReproductor({
       episodio={episodio}
       spokenInSpanish={spokenInSpanish}
       enTelevisor={enTelevisor}
+      servidoresIniciales={servidoresIniciales}
     />
   );
 }
@@ -127,6 +134,7 @@ function ReproductorCatalogo({
   episodio,
   spokenInSpanish,
   enTelevisor,
+  servidoresIniciales,
 }: {
   titulo: string;
   tmdbId: number;
@@ -135,8 +143,16 @@ function ReproductorCatalogo({
   episodio: number;
   spokenInSpanish: boolean;
   enTelevisor: boolean;
+  servidoresIniciales?: ServidorStream[];
 }) {
-  const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
+  const servidores = useServidores(
+    tmdbId,
+    titulo,
+    mediaType,
+    temporada,
+    episodio,
+    servidoresIniciales,
+  );
   // La elección manual vive y muere con este componente: el padre lo monta con
   // una key distinta por título/episodio, así que aquí nunca llega una elección
   // vieja de otro capítulo.
@@ -192,6 +208,12 @@ function ReproductorCatalogo({
    * televisor.
    */
   const respaldo = useMemo<ServidorStream | null>(() => {
+    // Si el servidor ya mandó la lista comprobada, no hay nada que adivinar:
+    // su primero es un servidor que TIENE el título. Adivinar aquí es lo que
+    // hacía que en una película sin Vimeus se viera su «Not Found» hasta que
+    // respondiera `/api/stream`.
+    if (servidoresIniciales && servidoresIniciales.length > 0) return servidoresIniciales[0];
+
     // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
     // sabe preservar la memoización de un `return` dentro de un bucle y el
     // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
@@ -222,7 +244,7 @@ function ReproductorCatalogo({
           subtitulos: primero.provider.spanishSubtitles,
         }
       : null;
-  }, [mediaType, tmdbId, temporada, episodio, enTelevisor]);
+  }, [mediaType, tmdbId, temporada, episodio, enTelevisor, servidoresIniciales]);
 
   // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
   // como último recurso el respaldo de arriba. Memoizado para que la identidad
@@ -374,30 +396,38 @@ function ReproductorCatalogo({
           )}
         </div>
 
-        {/* La salida honesta.
+        {/* Acciones, no lecciones.
 
-            Dentro de un iframe de otro dominio no se puede saber si el vídeo
-            arrancó: ni si el reproductor del proveedor dio error, ni si su
-            puerta antirrobot está dando vueltas en un marco anidado —que no
-            deja ni rastro fuera—. Quien está delante lo ve en un segundo, así
-            que se le pregunta en vez de adivinar. Es lo único que cubre TODOS
-            los modos de fallo, incluidos los que aún no conocemos. */}
-        {/* UNA sola barra al pie del vídeo, no dos apiladas.
+            Aquí se explicaba en un párrafo qué proveedor traía subtítulos y
+            cuál se recargaba en los televisores. Era información verdadera y
+            en el sitio equivocado: quien está mirando una pantalla que no
+            arranca no quiere leer sobre servidores, quiere pasar al siguiente.
+            Los subtítulos ya se ven donde toca —la insignia de cada botón del
+            selector de abajo— y aquí solo quedan los mandos.
 
-            En un televisor cada barra empuja hacia abajo lo de después, y la
-            salida —que es lo urgente cuando el marco no arranca— acababa fuera
-            de pantalla. Un mensaje, el más pertinente, y los mandos que hagan
-            falta al lado. */}
+            **«Probar otro servidor» se queda, y es necesario.** La
+            comprobación del servidor (`disponibilidad.ts`) solo cubre «no
+            tengo ese título». Los otros fallos —que lo tenga pero su
+            reproductor dé error, o que su puerta antirrobot dé vueltas en un
+            marco nieto— siguen sin poder verse desde fuera de un iframe ajeno
+            (medido: 14 navegaciones reales, 1 evento `load`). Es lo único que
+            cubre TODOS los modos de fallo, incluidos los que aún no
+            conocemos.
+
+            UNA sola barra al pie del vídeo, no dos apiladas: en un televisor
+            cada barra empuja hacia abajo lo de después, y la salida acababa
+            fuera de pantalla. */}
+        {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
+            siempre un texto de relleno para que no quedara una caja vacía, y
+            la respuesta correcta es no pintar la caja. */}
+        {(descartados.length > 0 || (ofrecerCambio && activo) || !abierto) && (
         <div className="ficha-aviso" role="status">
-          <span>
-            {descartados.length > 0
-              ? `Se ${descartados.length === 1 ? "saltó" : "saltaron"} ${descartados.length} servidor${descartados.length === 1 ? "" : "es"} que no cargaba${descartados.length === 1 ? "" : "n"}.`
-              : ofrecerCambio
-                ? activo?.puertaAntirrobot
-                  ? "Este servidor trae los subtítulos, pero en un televisor a veces se queda recargándose."
-                  : "¿Sigue sin verse nada?"
-                : "El mando maneja esta página; el vídeo arranca solo."}
-          </span>
+          {descartados.length > 0 && (
+            <span>
+              Se {descartados.length === 1 ? "saltó" : "saltaron"} {descartados.length}{" "}
+              servidor{descartados.length === 1 ? "" : "es"}.
+            </span>
+          )}
 
           {/* La salida primero: cuando hace falta, es lo que se busca. */}
           {ofrecerCambio && activo && (
@@ -425,6 +455,7 @@ function ReproductorCatalogo({
             </button>
           )}
         </div>
+        )}
 
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
@@ -461,9 +492,11 @@ function useServidores(
   titulo: string,
   mediaType: MediaType,
   temporada: number,
-  episodio: number
+  episodio: number,
+  /** Lo que ya calculó el servidor: se parte de ahí en vez de de una lista vacía. */
+  iniciales: ServidorStream[] = [],
 ): ServidorStream[] {
-  const [servidores, setServidores] = useState<ServidorStream[]>([]);
+  const [servidores, setServidores] = useState<ServidorStream[]>(iniciales);
 
   useEffect(() => {
     // Cada parámetro por separado: son primitivos y el efecto solo se repite

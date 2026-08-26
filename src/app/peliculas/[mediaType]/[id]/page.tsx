@@ -4,6 +4,8 @@ import { TitleDetail } from "@/components/catalog/title-detail";
 import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catalog";
 import type { MediaType } from "@/lib/catalog/types";
 import { esTelevisorUA } from "@/lib/dispositivo";
+import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
+import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
 
 /**
  * Esta SÍ se queda dinámica, y no por descuido: lee `headers()` para saber si
@@ -43,12 +45,38 @@ export default async function TitlePage({
   // render, y corregirlo al hidratar llegaría tarde. Ver `esTelevisorUA`.
   const enTelevisor = esTelevisorUA((await headers()).get("user-agent") ?? "");
 
+  /**
+   * Los servidores que de verdad tienen el título, **antes de pintar nada**.
+   *
+   * Es lo que hace que el primer fotograma ya sea un servidor que lo tiene, en
+   * vez de enseñar el «Not Found» de Vimeus un segundo y corregirlo cuando
+   * responda `/api/stream`. Ver `disponibilidad.ts` para qué se pregunta y por
+   * qué solo a dos proveedores.
+   *
+   * El coste de tiempo es cero: esta página ya espera a TMDB más arriba, y las
+   * comprobaciones salen todas en paralelo con un tope de 2,5 s. Si alguna
+   * falla, su servidor se conserva.
+   */
+  const tmdbId = resolved.tmdbId ?? null;
+  const servidoresIniciales = tmdbId
+    ? numerarServidores(
+        await servidoresConElTitulo(
+          servidoresEmbed(
+            mediaType as MediaType,
+            { tmdbId, season: selectedSeason, episode: 1 },
+            enTelevisor,
+          ),
+        ),
+      )
+    : [];
+
   return (
     <TitleDetail
       item={resolved}
       episodes={episodes}
       selectedSeason={selectedSeason}
       enTelevisor={enTelevisor}
+      servidoresIniciales={servidoresIniciales}
     />
   );
 }

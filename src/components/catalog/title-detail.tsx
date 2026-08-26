@@ -8,6 +8,7 @@ import { FichaPortada } from "./ficha-portada";
 import { FichaReproductor } from "./ficha-reproductor";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 import { NavegacionCatalogo } from "./navegacion-catalogo";
+import type { ServidorStream } from "@/lib/resolvers/types";
 
 /**
  * La ficha de un título: portada, reproductor, datos y —si es serie—
@@ -33,12 +34,19 @@ export function TitleDetail({
   episodes,
   selectedSeason,
   enTelevisor,
+  servidoresIniciales,
 }: {
   item: ResolvedCatalogItem;
   episodes: ResolvedEpisode[];
   selectedSeason: number;
   /** Lo decide el servidor con el `User-Agent`. Ver la página de la ficha. */
   enTelevisor: boolean;
+  /**
+   * Los servidores ya comprobados en el servidor, para que el primer
+   * fotograma no sea el «Not Found» de un proveedor que no tiene el título.
+   * Ver `lib/catalog/disponibilidad.ts`.
+   */
+  servidoresIniciales?: ServidorStream[];
 }) {
   const isSeries = item.mediaType === "tv";
   const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
@@ -69,6 +77,7 @@ export function TitleDetail({
           temporada={selectedSeason}
           episodio={selectedEpisode?.episode ?? 1}
           enTelevisor={enTelevisor}
+          servidoresIniciales={servidoresIniciales}
           /**
            * Si se rodó en español, el audio se oye en español sin depender de
            * doblajes. Es lo único que se puede afirmar: ningún proveedor
