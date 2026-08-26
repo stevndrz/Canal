@@ -518,11 +518,16 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         {castMethod === "airplay" && (
+          /* Encendido mientras emite y sirviendo para cortar, igual que el de
+             Chromecast: sin estado, el botón se veía idéntico funcionara o no. */
           <button
             type="button"
-            onClick={startCasting}
-            aria-label="Transmitir con AirPlay"
-            className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+            onClick={isCasting ? stopCasting : startCasting}
+            aria-pressed={isCasting}
+            aria-label={isCasting ? "Dejar de transmitir con AirPlay" : "Transmitir con AirPlay"}
+            className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+              isCasting ? "bg-sky-500/40" : "bg-white/10"
+            }`}
           >
             <Airplay aria-hidden="true" className="h-5 w-5" />
           </button>

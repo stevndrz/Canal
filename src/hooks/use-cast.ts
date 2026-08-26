@@ -1,6 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  describirErrorCast,
+  esCancelacion,
+  esHls,
+  formatoHls,
+  tipoDeContenido,
+} from "@/lib/reproduccion/cast";
 
 /**
  * API privada de WebKit para AirPlay; no existe en lib.dom y solo está en
@@ -79,18 +86,26 @@ interface CastGlobals {
   chrome?: {
     cast?: {
       AutoJoinPolicy: { ORIGIN_SCOPED: string };
-      media: {
-        MediaInfo: new (contentId: string, contentType: string) => MediaInfo;
-        LoadRequest: new (mediaInfo: MediaInfo) => LoadRequest;
-        StreamType: { LIVE: string; BUFFERED: string };
-        Track: new (trackId: number, type: string) => CastTrack;
-        TrackType: { TEXT: string };
-        TextTrackType: { SUBTITLES: string };
-        EditTracksInfoRequest: new (info: { activeTrackIds?: number[] }) => CastEditTracksInfo;
-      };
+      media: CastMediaApi;
     };
   };
   __onGCastApiAvailable?: (isAvailable: boolean) => void;
+}
+
+/** El espacio de nombres `chrome.cast.media`, solo con lo que se usa aquí. */
+interface CastMediaApi {
+  MediaInfo: new (contentId: string, contentType: string) => MediaInfo;
+  LoadRequest: new (mediaInfo: MediaInfo) => LoadRequest;
+  StreamType: { LIVE: string; BUFFERED: string };
+  Track: new (trackId: number, type: string) => CastTrack;
+  TrackType: { TEXT: string };
+  TextTrackType: { SUBTITLES: string };
+  EditTracksInfoRequest: new (info: { activeTrackIds?: number[] }) => CastEditTracksInfo;
+  /** Metadatos con forma; un objeto suelto no la tiene. */
+  GenericMediaMetadata?: new () => CastMetadata;
+  /** Enums de HLS; no están en SDK viejos, de ahí el `?`. Ver `formatoHls` en `lib/reproduccion/cast.ts`. */
+  HlsSegmentFormat?: Record<string, string>;
+  HlsVideoSegmentFormat?: Record<string, string>;
 }
 
 interface MediaInfo {
@@ -99,6 +114,13 @@ interface MediaInfo {
   metadata?: unknown;
   /** Pistas de texto declaradas antes de `loadMedia`; sin ellas el receptor no ofrece subtítulos. */
   tracks?: CastTrack[];
+  /** Contenedor de los fragmentos HLS. Ver `formatoHls` en `lib/reproduccion/cast.ts`. */
+  hlsSegmentFormat?: string;
+  hlsVideoSegmentFormat?: string;
+}
+/** Metadatos con `metadataType`, que es lo que el receptor sabe leer. */
+interface CastMetadata {
+  title?: string;
 }
 interface LoadRequest {
   media: MediaInfo;
@@ -135,6 +157,8 @@ interface CastContext {
 
 interface VideoWithAirplay extends HTMLVideoElement {
   webkitShowPlaybackTargetPicker?: () => void;
+  /** `true` mientras la imagen va a un AirPlay. WebKit lo mantiene al día. */
+  webkitCurrentPlaybackTargetIsWireless?: boolean;
 }
 
 let castSdkPromise: Promise<boolean> | null = null;
@@ -190,25 +214,6 @@ function discardSession(context: CastContext): void {
   }
 }
 
-/** Cerrar el selector de pantallas no es un error que merezca avisar. */
-function isCancellation(error: unknown): boolean {
-  const code = (error as { code?: string })?.code ?? String(error ?? "");
-  return /cancel/i.test(code);
-}
-
-/**
- * Tipo de contenido para el receptor. Casi toda la lista es HLS, pero mandar
- * `x-mpegurl` para un MPD hace que el receptor lo rechace, y ese rechazo es
- * justo lo que dejaba la sesión colgada.
- */
-function contentTypeFor(url: string): string {
-  const path = url.split("?")[0].toLowerCase();
-  if (path.endsWith(".mpd")) return "application/dash+xml";
-  if (path.endsWith(".mp4")) return "video/mp4";
-  if (path.endsWith(".webm")) return "video/webm";
-  return "application/x-mpegurl";
-}
-
 /** Identidad estable para los canales que no traen subtítulos. */
 const SIN_SUBTITULOS: SubtituloCast[] = [];
 
@@ -252,12 +257,29 @@ export function useCast(
       setMethod((current) => (available ? "airplay" : current === "airplay" ? null : current));
     };
 
+    /**
+     * Si la imagen está yendo de verdad a un AirPlay.
+     *
+     * Sin esto, `isCasting` solo lo movía Google Cast y en AirPlay se quedaba
+     * en `false` para siempre: el botón no se encendía, no aparecía forma de
+     * cortar la transmisión y la pantalla quedaba EXACTAMENTE igual antes y
+     * después de elegir la tele. Aunque AirPlay estuviera funcionando, desde
+     * fuera no había manera de saberlo — que es justo lo que se reportó como
+     * «salen los dispositivos pero no los manda».
+     */
+    const handleWireless = () => setIsCasting(Boolean(video.webkitCurrentPlaybackTargetIsWireless));
+
     video.addEventListener("webkitplaybacktargetavailabilitychanged", handleAvailability);
+    video.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", handleWireless);
+    handleWireless();
     // Algunos WebKit no emiten el evento hasta que hay media; ofrecerlo igual es
     // preferible a esconder el botón en un iPhone que sí tiene AirPlay.
     setMethod((current) => current ?? "airplay");
 
-    return () => video.removeEventListener("webkitplaybacktargetavailabilitychanged", handleAvailability);
+    return () => {
+      video.removeEventListener("webkitplaybacktargetavailabilitychanged", handleAvailability);
+      video.removeEventListener("webkitcurrentplaybacktargetiswirelesschanged", handleWireless);
+    };
   }, [videoRef]);
 
   // Google Cast.
@@ -315,8 +337,18 @@ export function useCast(
         // Algunos navegadores lo rechazan si el media usa MSE: no es un error real.
       });
 
+    // Igual que en AirPlay: sin escuchar la conexión, `isCasting` no se movía
+    // nunca por esta vía y el botón no daba ninguna señal de estar emitiendo.
+    const alConectar = () => setIsCasting(true);
+    const alDesconectar = () => setIsCasting(false);
+    video.remote.addEventListener("connect", alConectar);
+    video.remote.addEventListener("disconnect", alDesconectar);
+    setIsCasting(video.remote.state === "connected");
+
     return () => {
       if (cancelId !== undefined) video.remote?.cancelWatchAvailability(cancelId).catch(() => {});
+      video.remote?.removeEventListener("connect", alConectar);
+      video.remote?.removeEventListener("disconnect", alDesconectar);
     };
   }, [videoRef, streamUrl]);
 
@@ -354,7 +386,7 @@ export function useCast(
         if (!session) return;
       } catch (error) {
         // Cerrar el selector no es un fallo: no hay nada que avisar.
-        if (isCancellation(error)) return;
+        if (esCancelacion(error)) return;
         // Una sesión a medias impediría volver a abrir el selector.
         discardSession(context);
         setError("No se pudo conectar con la pantalla. Revisa que esté encendida y en la misma red.");
@@ -362,11 +394,29 @@ export function useCast(
       }
 
       try {
-        const mediaInfo = new media.MediaInfo(streamUrl, contentTypeFor(streamUrl));
+        const contentType = tipoDeContenido(streamUrl);
+        const mediaInfo = new media.MediaInfo(streamUrl, contentType);
         // El directo es LIVE; una peli o serie va BUFFERED para que el mando
         // pueda buscar dentro de ella desde el receptor.
         mediaInfo.streamType = enVivo ? media.StreamType.LIVE : media.StreamType.BUFFERED;
-        mediaInfo.metadata = { title: channelName };
+        // Con HLS hay que decirle el contenedor de los fragmentos o no carga.
+        if (esHls(contentType)) {
+          const formato = formatoHls(media.HlsSegmentFormat, media.HlsVideoSegmentFormat);
+          mediaInfo.hlsSegmentFormat = formato.segmento;
+          mediaInfo.hlsVideoSegmentFormat = formato.video;
+        }
+        /**
+         * Metadatos CON FORMA, no un objeto suelto. `{ title }` a secas no
+         * lleva `metadataType`, y el receptor descarta lo que no reconoce:
+         * el título nunca llegaba a verse en la tele.
+         */
+        if (media.GenericMediaMetadata) {
+          const metadatos = new media.GenericMediaMetadata();
+          metadatos.title = channelName;
+          mediaInfo.metadata = metadatos;
+        } else {
+          mediaInfo.metadata = { title: channelName };
+        }
         /**
          * Los subtítulos viajan como pistas de texto del `MediaInfo`: sin
          * esto el receptor reproduce la peli muda de letras —el fallo que
@@ -403,7 +453,7 @@ export function useCast(
         discardSession(context);
         restoreLocalAudio(video);
         console.warn("No se pudo transmitir con Google Cast:", error);
-        setError("Esa pantalla no pudo abrir este canal. Prueba otra vez o elige otra pantalla.");
+        setError(describirErrorCast(error));
       }
       return;
     }
@@ -439,10 +489,24 @@ export function useCast(
   /** Cortar la transmisión y recuperar el vídeo en el teléfono. */
   const stopCasting = useCallback(() => {
     setError(null);
+    const video = videoRef.current as VideoWithAirplay | null;
+
+    // AirPlay y Remote Playback no se cortan cerrando una sesión nuestra: se
+    // corta desde donde se eligió la pantalla. Sin esto el botón encendido no
+    // tenía forma de apagarse, que es media función que faltaba.
+    if (method === "airplay") {
+      video?.webkitShowPlaybackTargetPicker?.();
+      return;
+    }
+    if (method === "remote" && video?.remote) {
+      void video.remote.prompt().catch(() => {});
+      return;
+    }
+
     if (contextRef.current) discardSession(contextRef.current);
-    restoreLocalAudio(videoRef.current);
+    restoreLocalAudio(video);
     setIsCasting(false);
-  }, [restoreLocalAudio, videoRef]);
+  }, [method, restoreLocalAudio, videoRef]);
 
   // Si la transmisión termina por fuera (se apaga la TV, alguien la corta desde
   // otro móvil), hay que devolver el sonido igualmente.

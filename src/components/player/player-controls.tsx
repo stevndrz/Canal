@@ -203,10 +203,16 @@ export function extrasCast({
     ...(metodo === "airplay"
       ? [
           {
+            // Mismo trato que Chromecast: encendido mientras la imagen va a la
+            // tele, y sirviendo para cortarla. Antes era un botón mudo —ni
+            // cambiaba de aspecto ni podía apagar nada—, así que estuviera
+            // funcionando o no se veía exactamente igual.
             id: "airplay",
-            label: "Transmitir con AirPlay",
+            label: isCasting ? "Dejar de transmitir" : "Transmitir con AirPlay",
             icon: ICONO_AIRPLAY,
-            onClick: startCasting,
+            active: isCasting,
+            pressed: isCasting,
+            onClick: isCasting ? stopCasting : startCasting,
           },
         ]
       : []),
