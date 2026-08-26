@@ -46,16 +46,6 @@ export interface EmbedProvider {
    */
   spanishSubtitles: boolean;
   /**
-   * El proveedor **se niega a cargar dentro de un iframe con `sandbox`** y hay
-   * que dárselo sin él.
-   *
-   * No es una preferencia nuestra: su propia página lo comprueba y, si detecta
-   * el atributo, se va a una pantalla de «Playback blocked» en lugar de
-   * reproducir. Ver `ficha-reproductor.tsx` para el porqué de sandboxear por
-   * defecto y qué se pierde al quitarlo.
-   */
-  rechazaSandbox?: boolean;
-  /**
    * El proveedor esconde su reproductor detrás de una **comprobación
    * antirrobot** (Cloudflare Turnstile y parecidas).
    *
@@ -83,12 +73,25 @@ export interface EmbedProvider {
 const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
 
 /**
- * Orden por defecto: delante los que aceptan pedir subtítulos en español.
+ * El orden es el producto, y manda una sola regla: **delante lo que
+ * reproduce**.
  *
- * Es la única preferencia de idioma que se puede aplicar de verdad. Qué pista
- * de AUDIO tiene cada servidor no lo publica ninguno, así que ordenar por
- * "tiene español latino" sería inventado; lo que sí se sabe con certeza es el
- * idioma original de la película, y eso viene de TMDB.
+ * 1. **Vimeus** encabeza porque es el que trae doblaje latino, y en películas
+ *    es lo que se quiere. Solo cubre películas (su ruta de series da 404), así
+ *    que en series simplemente no aparece y el primero pasa a ser el siguiente.
+ * 2. **Videasy** y **Vidlink** van después: cargan limpios, en película y en
+ *    serie, y sin puerta de por medio. En series son, de hecho, los primeros.
+ * 3. **VidSrc** y **Multiembed** van al FINAL, aunque VidSrc sea el único con
+ *    subtítulos en español verificados. Los dos esconden su reproductor detrás
+ *    de una comprobación antirrobot (`puertaAntirrobot`), y en el navegador de
+ *    un televisor esas comprobaciones no se pasan nunca: la de VidSrc reacciona
+ *    al fallo recargándose, tres `location.reload()` en sus tres caminos de
+ *    error, y deja el marco dando vueltas para siempre. Mientras VidSrc
+ *    encabezó las series —Vimeus no las cubre— CUALQUIER serie abría
+ *    directamente en ese bucle.
+ *
+ * Unos subtítulos que no se pueden ver no valen nada, así que la regla no es
+ * "el que más ofrece" sino "el que arranca".
  */
 const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
   {
@@ -98,7 +101,7 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     // Verificado 2026-08-24: /e/movie?tmdb=… → 200; series probadas sin
     // éxito en TODAS las variantes (/e/tv, /e/tv?tmdb&season&episode,
     // /e/series, /e/tv/{id}, /tv, /e/show) → 404. Mientras no publiquen la
-    // ruta real, `tv` queda vacío y en series el primero es VidSrc.
+    // ruta real, `tv` queda vacío y en series el primero es Videasy.
     //
     // NOTA sobre «Vimeos» (vimeos.net, el que usan sitios como lamovie.org):
     // sus embeds son `embed-{hash}.html` con un código OPACO por
@@ -111,51 +114,33 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     spanishSubtitles: false,
   },
   {
-    // El alternativo fiable en inglés original, con subtítulos pedibles.
-    //
-    // ⚠️ NO TOLERA `sandbox` (verificado 2026-08-25 sobre el HTML que sirve).
-    // Su página trae este guardián en el `<body>`:
-    //
-    //     try { if (window.frameElement.hasAttribute("sandbox")) { r() } return }
-    //     catch (t) {}
-    //     try { document.domain = document.domain }
-    //     catch (t) { if (t.toString().toLowerCase().indexOf("sandbox") != -1) { r() } }
-    //
-    // Asignar `document.domain` está prohibido en CUALQUIER iframe sandboxeado
-    // y el navegador lanza «Assignment is forbidden for sandboxed iframes»: la
-    // palabra «sandbox» aparece en el mensaje, el guardián la reconoce y `r()`
-    // manda el frame a `/asb.html`, que dice literalmente «This player cannot
-    // be loaded inside a restricted (sandboxed) frame. Please use iframe
-    // without sandbox attribute».
-    //
-    // No hay `allow-…` que lo arregle: ningún token del sandbox permite tocar
-    // `document.domain`. O se le da el iframe sin `sandbox`, o este proveedor
-    // no reproduce nunca — y en series es el primero que cubre el tipo.
-    id: "vidsrc",
-    movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
-    tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
-    spanishSubtitles: true,
-    rechazaSandbox: true,
-    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
-    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
-    // Turnstile con tres `location.reload()` en sus caminos de fallo.
-    puertaAntirrobot: true,
-  },
-  {
-    // Tercero de guardia: limpio, con subtítulos y varios servidores internos.
+    // El que sostiene las SERIES, y el segundo en películas: carga limpio,
+    // con subtítulos, varios servidores dentro y sin puerta de por medio.
     id: "videasy",
     movie: "https://player.videasy.to/movie/{tmdbId}",
     tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: true,
   },
   {
-    // Cuarto y quinto: refuerzo para SERIES (verificados 2026-08-24, HTTP 200
-    // con GOT T1E1 en tv y película en movie). Sin parámetro de idioma
-    // verificado: el selector de audio/subs vive dentro de su propio player.
+    // El relevo de Videasy, también sin puerta (verificado 2026-08-24, HTTP
+    // 200 en tv y en movie). Sin parámetro de idioma verificado: el selector
+    // de audio/subtítulos vive dentro de su propio reproductor.
     id: "vidlink",
     movie: "https://vidlink.pro/movie/{tmdbId}",
     tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: false,
+  },
+  {
+    // Subtítulos en español verificados (`ds_lang=es`), pero AL FINAL por su
+    // puerta antirrobot: ver el comentario de orden arriba.
+    id: "vidsrc",
+    movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
+    tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
+    spanishSubtitles: true,
+    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
+    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
+    // Turnstile con tres `location.reload()` en sus caminos de fallo.
+    puertaAntirrobot: true,
   },
   {
     id: "multiembed",
@@ -219,26 +204,6 @@ export function getProviders(): EmbedProvider[] {
     ...provider,
     label: provider.id === "propio" ? "Mi servidor" : `Servidor ${++numero}`,
   }));
-}
-
-/**
- * Reordena dejando al final los proveedores con puerta antirrobot.
- *
- * Solo para televisores: ahí esas puertas no se pasan nunca y su fallo es un
- * bucle de recargas. En un teléfono o un ordenador se pasan solas, así que no
- * se toca nada —VidSrc es además el único con subtítulos en español
- * verificados, y no hay motivo para castigarlo donde funciona—.
- *
- * Se ordenan, no se quitan: si los demás fallan, la persona puede probarlos
- * igual desde los botones.
- */
-export function ordenarParaTelevisor<T extends { puertaAntirrobot?: boolean }>(
-  proveedores: T[],
-): T[] {
-  return [
-    ...proveedores.filter((proveedor) => !proveedor.puertaAntirrobot),
-    ...proveedores.filter((proveedor) => proveedor.puertaAntirrobot),
-  ];
 }
 
 export interface EmbedTarget {

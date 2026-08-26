@@ -31,13 +31,10 @@ export function TitleDetail({
   item,
   episodes,
   selectedSeason,
-  enTelevisor,
 }: {
   item: ResolvedCatalogItem;
   episodes: ResolvedEpisode[];
   selectedSeason: number;
-  /** Lo decide el servidor con el `User-Agent`. Ver la página de la ficha. */
-  enTelevisor: boolean;
 }) {
   const isSeries = item.mediaType === "tv";
   const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
@@ -64,7 +61,6 @@ export function TitleDetail({
           mediaType={item.mediaType}
           temporada={selectedSeason}
           episodio={selectedEpisode?.episode ?? 1}
-          enTelevisor={enTelevisor}
           /**
            * Si se rodó en español, el audio se oye en español sin depender de
            * doblajes. Es lo único que se puede afirmar: ningún proveedor

@@ -73,8 +73,9 @@ describe("registrarCarga", () => {
  * recarga es un iframe anidado dentro suyo —VidSrc esconde ahí su puerta de
  * Turnstile— el evento `load` del nuestro no se dispara: medido, 14
  * navegaciones reales frente a 1 evento visto. Sin cargas que registrar, esta
- * función no puede decir nada, y de ese caso se encargan `ordenarParaTelevisor`
- * y el botón «Probar otro servidor».
+ * función no puede decir nada. De ese caso se encarga el ORDEN de los
+ * proveedores (los de puerta antirrobot van los últimos) y, si aun así ocurre,
+ * el botón «Probar otro servidor».
  */
 describe("lo que esta detección NO puede ver", () => {
   it("sin eventos de carga no hay veredicto posible, por muchas recargas que haya dentro", () => {

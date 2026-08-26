@@ -1,68 +1,76 @@
 import { describe, expect, it } from "vitest";
-import { buildEmbedUrl, getProviders, ordenarParaTelevisor } from "./providers";
-import { esTelevisorUA } from "@/lib/dispositivo";
+import { buildEmbedUrl, getProviders } from "./providers";
 
-describe("ordenarParaTelevisor", () => {
-  it("manda al final a los que tienen puerta antirrobot, sin quitarlos", () => {
-    const lista = [
-      { id: "a", puertaAntirrobot: true },
-      { id: "b", puertaAntirrobot: false },
-      { id: "c", puertaAntirrobot: true },
-      { id: "d", puertaAntirrobot: false },
-    ];
-    expect(ordenarParaTelevisor(lista).map((p) => p.id)).toEqual(["b", "d", "a", "c"]);
+/** Los proveedores que de verdad cubren un tipo, en el orden en que se usan. */
+function paraTipo(tipo: "movie" | "tv") {
+  return getProviders().filter((provider) =>
+    buildEmbedUrl(provider, tipo, { tmdbId: 123192, season: 1, episode: 1 }),
+  );
+}
+
+/**
+ * El orden de los proveedores ES el producto: decide qué se ve al abrir una
+ * ficha, antes de que nadie toque un botón. Estas pruebas lo dejan clavado,
+ * porque el bucle de recargas en televisor fue exactamente esto —VidSrc
+ * encabezando las series— y no un fallo de lógica.
+ */
+describe("orden de los proveedores", () => {
+  it("en PELÍCULAS manda Vimeus: es el del doblaje latino", () => {
+    expect(paraTipo("movie")[0].id).toBe("vimeus");
   });
 
-  it("conserva el orden relativo dentro de cada grupo", () => {
-    const lista = [
-      { id: "1", puertaAntirrobot: false },
-      { id: "2", puertaAntirrobot: false },
-      { id: "3", puertaAntirrobot: false },
-    ];
-    expect(ordenarParaTelevisor(lista).map((p) => p.id)).toEqual(["1", "2", "3"]);
+  it("en SERIES manda Videasy, porque Vimeus no las cubre", () => {
+    // La ruta de series de Vimeus responde 404, así que ni aparece.
+    expect(paraTipo("tv").map((p) => p.id)).not.toContain("vimeus");
+    expect(paraTipo("tv")[0].id).toBe("videasy");
   });
 
-  it("EL CASO REAL: en una serie, VidSrc deja de ser el primero en un televisor", () => {
-    // Sin vimeus (no cubre series), VidSrc encabezaba la lista y su puerta de
-    // Turnstile dejaba el marco recargándose para siempre en un Samsung.
-    const paraSeries = getProviders().filter((p) =>
-      buildEmbedUrl(p, "tv", { tmdbId: 123192, season: 1, episode: 1 }),
-    );
-    expect(paraSeries[0].id).toBe("vidsrc");
+  it("los de puerta antirrobot van los ÚLTIMOS, en película y en serie", () => {
+    for (const tipo of ["movie", "tv"] as const) {
+      const ids = paraTipo(tipo).map((p) => p.id);
+      const conPuerta = paraTipo(tipo)
+        .map((p, i) => ({ i, puerta: Boolean(p.puertaAntirrobot) }))
+        .filter((p) => p.puerta)
+        .map((p) => p.i);
+      const sinPuerta = paraTipo(tipo)
+        .map((p, i) => ({ i, puerta: Boolean(p.puertaAntirrobot) }))
+        .filter((p) => !p.puerta)
+        .map((p) => p.i);
 
-    const enTele = ordenarParaTelevisor(paraSeries);
-    expect(enTele[0].id).not.toBe("vidsrc");
-    expect(enTele[0].puertaAntirrobot).toBeFalsy();
-    // Sigue estando disponible, solo que al final.
-    expect(enTele.map((p) => p.id)).toContain("vidsrc");
-    expect(enTele).toHaveLength(paraSeries.length);
-  });
-});
-
-describe("esTelevisorUA", () => {
-  it("reconoce los televisores del salón", () => {
-    for (const ua of [
-      "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/537.36 Chrome/76 Safari/537.36",
-      "Mozilla/5.0 (Web0S; Linux/SmartTV) AppleWebKit/537.36 Chrome/87 Safari/537.36",
-      "Mozilla/5.0 (Linux; Android 9; AFTKA Build/PS7233) AppleWebKit/537.36",
-      "Mozilla/5.0 (X11; Linux armv7l) AppleWebKit/537.36 Chrome/125 Safari/537.36 CrKey/1.56",
-    ]) {
-      expect(esTelevisorUA(ua), ua).toBe(true);
+      expect(conPuerta.length, `${tipo}: debería haber alguno con puerta`).toBeGreaterThan(0);
+      // Todos los que tienen puerta van después de todos los que no.
+      expect(Math.min(...conPuerta), `${tipo}: ${ids.join(", ")}`).toBeGreaterThan(
+        Math.max(...sinPuerta),
+      );
     }
   });
 
-  it("no confunde un teléfono ni un ordenador con un televisor", () => {
-    for (const ua of [
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1",
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0 Safari/537.36",
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Version/17.0 Safari/605.1.15",
-      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36",
-    ]) {
-      expect(esTelevisorUA(ua), ua).toBe(false);
-    }
+  it("VidSrc NO encabeza las series: eso era el bucle del Samsung", () => {
+    // Su página anida `nextgencloudfabric.com`, cuya puerta de Turnstile
+    // reacciona a cualquier fallo con `location.reload()`. En el navegador de
+    // un televisor no se pasa nunca, así que el marco se recarga sin fin.
+    expect(paraTipo("tv")[0].id).not.toBe("vidsrc");
+    // Pero sigue disponible: en un teléfono funciona y trae subtítulos en español.
+    expect(paraTipo("tv").map((p) => p.id)).toContain("vidsrc");
   });
 
-  it("un User-Agent vacío no es un televisor", () => {
-    expect(esTelevisorUA("")).toBe(false);
+  it("todos siguen ahí: se reordenan, no se quitan", () => {
+    const ids = getProviders().map((p) => p.id);
+    expect(ids).toEqual(["vimeus", "videasy", "vidlink", "vidsrc", "multiembed"]);
+  });
+
+  it("`getProviders` numera sobre la lista COMPLETA, no por tipo", () => {
+    // Documenta el reparto: aquí Vimeus es el 1 aunque no cubra series, y por
+    // eso `/api/stream` renumera después de filtrar y el respaldo de la ficha
+    // se llama «Servidor 1» a mano. Sin esto, en una serie el primer botón
+    // decía «Servidor 2» y parecía que faltaba uno.
+    expect(getProviders().map((p) => p.label)).toEqual([
+      "Servidor 1",
+      "Servidor 2",
+      "Servidor 3",
+      "Servidor 4",
+      "Servidor 5",
+    ]);
+    expect(paraTipo("tv")[0].label).toBe("Servidor 2");
   });
 });

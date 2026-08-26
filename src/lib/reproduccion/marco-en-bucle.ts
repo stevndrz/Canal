@@ -15,10 +15,11 @@
  *
  * Dos cosas que conviene tener claras:
  *
- * 1. **El `sandbox` no lo impide ni lo impidió nunca.** Un iframe sandboxeado
- *    puede recargar su propia `location` sin ningún permiso especial; lo que el
- *    sandbox bloquea es navegar la ventana de ARRIBA. Por eso ponerle sandbox
- *    no arregló el bucle en Samsung: apuntaba a otro mecanismo.
+ * 1. **Esto no se arregla con `sandbox`.** Un iframe sandboxeado puede recargar
+ *    su propia `location` sin ningún permiso especial; lo que el sandbox
+ *    bloquea es navegar la ventana de ARRIBA. Se intentó, no sirvió, y encima
+ *    varios proveedores lo detectaban y se negaban a reproducir. Está
+ *    retirado.
  * 2. **Desde fuera no se puede ver nada del iframe… salvo cuántas veces
  *    carga.** El evento `load` del elemento `<iframe>` se dispara en cada
  *    documento que carga el marco, aunque sea de otro dominio. Es la única

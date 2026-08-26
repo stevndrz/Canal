@@ -4,12 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import {
-  buildEmbedUrl,
-  getProviders,
-  ordenarParaTelevisor,
-  type EmbedProvider,
-} from "@/lib/catalog/providers";
+import { buildEmbedUrl, getProviders, type EmbedProvider } from "@/lib/catalog/providers";
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
@@ -46,7 +41,6 @@ export function FichaReproductor({
   temporada,
   episodio,
   spokenInSpanish,
-  enTelevisor,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -56,8 +50,6 @@ export function FichaReproductor({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
-  /** Lo decide el servidor con el `User-Agent`; ver `respaldo`. */
-  enTelevisor: boolean;
 }) {
   if (fuente.kind === "manual") {
     return (
@@ -93,7 +85,6 @@ export function FichaReproductor({
       temporada={temporada}
       episodio={episodio}
       spokenInSpanish={spokenInSpanish}
-      enTelevisor={enTelevisor}
     />
   );
 }
@@ -114,7 +105,6 @@ function ReproductorCatalogo({
   temporada,
   episodio,
   spokenInSpanish,
-  enTelevisor,
 }: {
   titulo: string;
   tmdbId: number;
@@ -122,7 +112,6 @@ function ReproductorCatalogo({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
-  enTelevisor: boolean;
 }) {
   const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
   // La elección manual vive y muere con este componente: el padre lo monta con
@@ -160,16 +149,15 @@ function ReproductorCatalogo({
    * Es **el primero de la lista que cubra este tipo**, que es exactamente el
    * que va a llegar como `servidores[0]`. Antes estaba fijado a VidSrc y en
    * películas eso significaba cargar un frame condenado: aparecía VidSrc, y
-   * décimas después la lista lo sustituía por Vimeus. Dos cargas, un parpadeo,
-   * y con el sandbox de antes la primera era además la pantalla de «Playback
-   * blocked» de VidSrc — lo primero que se veía al abrir una película.
+   * décimas después la lista lo sustituía por Vimeus: dos cargas y un
+   * parpadeo, con el agravante de que VidSrc es justo el que no arranca en un
+   * televisor.
    */
   const respaldo = useMemo<ServidorStream | null>(() => {
     // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
     // sabe preservar la memoización de un `return` dentro de un bucle y el
     // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
-    const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
-    const candidatos = lista.map((provider) => ({
+    const candidatos = getProviders().map((provider) => ({
       provider,
       url: buildEmbedUrl(provider, mediaType, {
         tmdbId,
@@ -183,13 +171,17 @@ function ReproductorCatalogo({
     return primero
       ? {
           id: primero.provider.id,
-          label: primero.provider.label,
+          // «Servidor 1» y no la etiqueta que trae `getProviders()`: esa numera
+          // sobre la lista COMPLETA, y en series —donde Vimeus no cubre— el
+          // primero disponible se llamaría «Servidor 2». `/api/stream` ya
+          // renumera después de filtrar; esto hace lo mismo para que el
+          // respaldo no cante mientras llega.
+          label: "Servidor 1",
           tipo: "embed",
           url: primero.url,
-          rechazaSandbox: primero.provider.rechazaSandbox,
         }
       : null;
-  }, [mediaType, tmdbId, temporada, episodio, enTelevisor]);
+  }, [mediaType, tmdbId, temporada, episodio]);
 
   // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
   // como último recurso el respaldo de arriba. Memoizado para que la identidad
@@ -217,8 +209,9 @@ function ReproductorCatalogo({
    * nuestro —el caso de VidSrc, que esconde su puerta de Turnstile en un
    * iframe nieto— este evento no se dispara: medido, 14 navegaciones reales
    * frente a 1 evento visto. Esa clase de bucle se evita antes, ordenando los
-   * proveedores (`ordenarParaTelevisor`), y si aun así ocurre lo corta la
-   * persona con el botón de abajo. Este contador no la sustituye.
+   * proveedores —los de puerta antirrobot van los últimos, ver
+   * `providers.ts`— y si aun así ocurre lo corta la persona con el botón de
+   * abajo. Este contador no la sustituye.
    */
   const descartar = useCallback((servidorId: string) => {
     setDescartados((previos) =>
@@ -301,41 +294,12 @@ function ReproductorCatalogo({
                propio con hls.js — la única vía sin anuncios. */
             <NativePlayer streams={streamDirecto} title={titulo} />
           ) : (
-            /* Sandbox por defecto, y sin él SOLO para quien se niega a cargar
-               con él.
-
-               Por qué sandbox: sin él un iframe externo puede navegar la
-               ventana entera (`window.top.location = …`), y los guiones de
-               publicidad de estos proveedores hacen exactamente eso; en una
-               televisión —sin ventanas emergentes— es su única vía. Fue la
-               causa del bucle de recargas infinitas en Samsung: abrir una
-               película bastaba para que el landing se recargara una y otra
-               vez sin que el vídeo llegara a arrancar.
-
-               El set permite scripts, same-origin (su almacenamiento y sus
-               llamadas), formularios y presentación: el mínimo para que el
-               reproductor del proveedor funcione y pida su propia pantalla
-               completa. Niega todo lo demás: navegar la página completa,
-               popups y pointer-lock.
-
-               Por qué la excepción: ponerlo a TODOS dejó la app sin películas.
-               VidSrc comprueba el sandbox desde su propia página y, al
-               detectarlo, se va a «Playback blocked — please use iframe
-               without sandbox attribute» en vez de reproducir; en series es
-               el primero que cubre el tipo, así que ninguna serie arrancaba.
-               No es negociable con tokens: la comprobación que usa
-               (`document.domain = document.domain`) está prohibida en
-               cualquier iframe sandboxeado, sin `allow-…` que la habilite.
-               Ver `rechazaSandbox` en `providers.ts` para el detalle
-               verificado.
-
-               Qué se pierde en esa excepción: contra ese proveedor concreto
-               volvemos a depender de la protección del propio navegador, que
-               ya bloquea la navegación del top desde un iframe de otro origen
-               mientras no haya gesto de la persona. Si el bucle de recargas
-               reapareciera con él, la salida es sacarlo de `EMBED_PROVIDERS`
-               —no vale exponer la app entera por un servidor—, y por eso el
-               atributo se decide por proveedor y no a mano en cada sitio. */
+            /* Sin `sandbox`. Se puso para que los guiones de publicidad no
+               pudieran navegar la ventana entera, y no cumplió: el bucle de
+               recargas que perseguía vive en un marco anidado y se recarga a
+               sí mismo, cosa que el sandbox no impide. Lo único que consiguió
+               fue que los proveedores lo detectaran y se negaran a reproducir
+               («iframe sandbox detected»). Se retira entero. */
             <iframe
               // Un marco nuevo por servidor: cambiar solo el `src` deja dentro
               // el historial del anterior, y con él su bucle de recargas.
@@ -346,11 +310,6 @@ function ReproductorCatalogo({
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
-              sandbox={
-                activo.rechazaSandbox
-                  ? undefined
-                  : "allow-scripts allow-same-origin allow-forms allow-presentation"
-              }
             />
           )}
         </div>

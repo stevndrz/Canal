@@ -16,12 +16,6 @@ export interface ServidorStream {
   label: string;
   url: string;
   tipo?: "embed" | "video";
-  /**
-   * El embed **no carga dentro de un iframe con `sandbox`** y hay que dárselo
-   * sin él (ver `rechazaSandbox` en `providers.ts`). Sin marcar, el iframe va
-   * sandboxeado, que es lo seguro.
-   */
-  rechazaSandbox?: boolean;
 }
 
 /** La respuesta entera de `/api/stream`. */
