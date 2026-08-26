@@ -4,10 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import { buildEmbedUrl, getProviders, type EmbedProvider } from "@/lib/catalog/providers";
+import {
+  buildEmbedUrl,
+  getProviders,
+  ordenarParaTelevisor,
+  type EmbedProvider,
+} from "@/lib/catalog/providers";
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
+
+/**
+ * Cuánto se espera antes de ofrecer el cambio de servidor.
+ *
+ * Suficiente para que un embed lento arranque, poco para no dejar a nadie
+ * mirando una rueda sin saber que hay salida.
+ */
+const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -33,6 +46,7 @@ export function FichaReproductor({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -42,6 +56,8 @@ export function FichaReproductor({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  /** Lo decide el servidor con el `User-Agent`; ver `respaldo`. */
+  enTelevisor: boolean;
 }) {
   if (fuente.kind === "manual") {
     return (
@@ -77,6 +93,7 @@ export function FichaReproductor({
       temporada={temporada}
       episodio={episodio}
       spokenInSpanish={spokenInSpanish}
+      enTelevisor={enTelevisor}
     />
   );
 }
@@ -97,6 +114,7 @@ function ReproductorCatalogo({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
 }: {
   titulo: string;
   tmdbId: number;
@@ -104,6 +122,7 @@ function ReproductorCatalogo({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  enTelevisor: boolean;
 }) {
   const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
   // La elección manual vive y muere con este componente: el padre lo monta con
@@ -111,11 +130,29 @@ function ReproductorCatalogo({
   // vieja de otro capítulo.
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   /**
-   * Servidores que se recargaban a sí mismos sin parar y quedan descartados
-   * para esta ficha. Ver `marco-en-bucle.ts` para el porqué y la medición.
+   * Servidores descartados para esta ficha, por dos vías que se complementan:
+   *
+   * - **Automática**, cuando el marco se recarga solo sin parar
+   *   (`marco-en-bucle.ts`). Solo ve las recargas del marco que montamos
+   *   nosotros; las de un marco anidado dentro suyo son invisibles.
+   * - **A mano**, cuando la persona dice que no se ve. Es la que cubre todo lo
+   *   demás, que es mucho: dentro de un iframe de otro dominio no se puede
+   *   saber si el vídeo arrancó, si el reproductor del proveedor dio error
+   *   —«no se puede reproducir, 232011» y compañía— ni si la puerta antirrobot
+   *   del proveedor está dando vueltas en un marco nieto. La persona lo ve en
+   *   un segundo; el código, nunca.
    */
-  const [enBucle, setEnBucle] = useState<string[]>([]);
+  const [descartados, setDescartados] = useState<string[]>([]);
   const cargas = useRef<ConteoDeCargas | null>(null);
+  /**
+   * Servidor para el que ya toca ofrecer el cambio.
+   *
+   * Se guarda el ID y no un booleano a propósito: así el efecto de abajo no
+   * tiene que apagar nada al cambiar de servidor —lo que sería un `setState`
+   * síncrono dentro de un efecto, con la cascada de renders que eso arrastra—.
+   * Basta con comparar contra el activo.
+   */
+  const [avisarPara, setAvisarPara] = useState<string | null>(null);
 
   /**
    * Respaldo inmediato, mientras `/api/stream` responde y también si falla.
@@ -131,7 +168,8 @@ function ReproductorCatalogo({
     // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
     // sabe preservar la memoización de un `return` dentro de un bucle y el
     // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
-    const candidatos = getProviders().map((provider) => ({
+    const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+    const candidatos = lista.map((provider) => ({
       provider,
       url: buildEmbedUrl(provider, mediaType, {
         tmdbId,
@@ -151,7 +189,7 @@ function ReproductorCatalogo({
           rechazaSandbox: primero.provider.rechazaSandbox,
         }
       : null;
-  }, [mediaType, tmdbId, temporada, episodio]);
+  }, [mediaType, tmdbId, temporada, episodio, enTelevisor]);
 
   // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
   // como último recurso el respaldo de arriba. Memoizado para que la identidad
@@ -160,34 +198,61 @@ function ReproductorCatalogo({
   const activo: ServidorStream | null = useMemo(() => {
     // Un servidor que se recarga en bucle no es una opción: se salta, aunque
     // sea el elegido a mano, porque ahí no se ve nada de todos modos.
-    const sirve = (servidor: ServidorStream) => !enBucle.includes(servidor.id);
+    const sirve = (servidor: ServidorStream) => !descartados.includes(servidor.id);
     const utiles = servidores.filter(sirve);
     const elegido = utiles.find((servidor) => servidor.id === elegidoId);
     const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
     return elegido ?? utiles[0] ?? deRespaldo;
-  }, [elegidoId, servidores, respaldo, enBucle]);
+  }, [elegidoId, servidores, respaldo, descartados]);
 
   /**
-   * Cada vez que el marco carga un documento.
+   * Cada vez que NUESTRO marco carga un documento.
    *
-   * Es la ÚNICA señal que un iframe de otro dominio deja ver desde fuera, y
-   * alcanza: uno normal carga una vez, uno atrapado en el bucle de recargas
-   * de su propio guardián dispara ocho veces en cinco segundos. Al pasarse,
-   * el servidor se descarta y `activo` pasa solo al siguiente — que además
-   * apunta el `src` a otro sitio, con lo que el bucle se corta de raíz en
-   * vez de seguir consumiendo la tele.
+   * Sirve para el proveedor que se recarga a sí mismo: uno sano carga una vez,
+   * uno en bucle dispara ocho veces en cinco segundos, y al pasarse se descarta
+   * y `activo` salta al siguiente — lo que además apunta el `src` a otro sitio
+   * y corta el bucle en seco.
+   *
+   * **Y solo para eso.** Si quien se recarga es un marco ANIDADO dentro del
+   * nuestro —el caso de VidSrc, que esconde su puerta de Turnstile en un
+   * iframe nieto— este evento no se dispara: medido, 14 navegaciones reales
+   * frente a 1 evento visto. Esa clase de bucle se evita antes, ordenando los
+   * proveedores (`ordenarParaTelevisor`), y si aun así ocurre lo corta la
+   * persona con el botón de abajo. Este contador no la sustituye.
    */
+  const descartar = useCallback((servidorId: string) => {
+    setDescartados((previos) =>
+      previos.includes(servidorId) ? previos : [...previos, servidorId],
+    );
+  }, []);
+
+  /**
+   * El reloj de «esto no arranca».
+   *
+   * Se reinicia con cada servidor. No mide si el vídeo va —eso no se puede
+   * saber desde fuera de un iframe ajeno—, solo cuánto lleva la persona
+   * mirando. Pasado ese rato se le ofrece el cambio, que es lo único honesto
+   * que se puede hacer: preguntar en vez de adivinar.
+   */
+  const servidorActivoId = activo?.id;
+  useEffect(() => {
+    if (!servidorActivoId) return;
+    const reloj = setTimeout(
+      () => setAvisarPara(servidorActivoId),
+      ESPERA_ANTES_DE_OFRECER_MS,
+    );
+    return () => clearTimeout(reloj);
+  }, [servidorActivoId]);
+
+  const ofrecerCambio = avisarPara === servidorActivoId;
+
   const alCargarMarco = useCallback(() => {
     const servidorId = activo?.id;
     if (!servidorId) return;
     const veredicto = registrarCarga(cargas.current, servidorId, Date.now());
     cargas.current = veredicto.conteo;
-    if (veredicto.enBucle) {
-      setEnBucle((previos) =>
-        previos.includes(servidorId) ? previos : [...previos, servidorId],
-      );
-    }
-  }, [activo?.id]);
+    if (veredicto.enBucle) descartar(servidorId);
+  }, [activo?.id, descartar]);
 
   /**
    * La lista de streams debe conservar la identidad entre renders. El
@@ -203,16 +268,16 @@ function ReproductorCatalogo({
 
   // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
   // rueda girando para siempre como hacía antes.
-  if (!activo && enBucle.length > 0) {
+  if (!activo && descartados.length > 0) {
     return (
       <section className="ficha-reproductor">
         <div className="ficha-sin-fuente">
           <Info aria-hidden="true" />
           <p>Ningún servidor llegó a cargar</p>
           <span>
-            Todos se quedaron recargándose solos, que es lo que suelen hacer sus
-            comprobaciones antirrobot en el navegador de un televisor. Prueba desde el
-            teléfono, o usa «Mi enlace» con un enlace propio.
+            Se probaron todos. En el navegador de un televisor es lo habitual cuando sus
+            comprobaciones antirrobot no pasan. Prueba desde el teléfono, o usa «Mi enlace»
+            con un enlace propio.
           </span>
         </div>
       </section>
@@ -290,14 +355,32 @@ function ReproductorCatalogo({
           )}
         </div>
 
-        {/* Que el reproductor cambie solo de servidor sin decir nada parece
-            otro fallo. Se avisa de lo que pasó y de que se siguió adelante. */}
-        {enBucle.length > 0 && (
-          <p className="ficha-aviso" role="status">
-            {enBucle.length === 1 ? "Un servidor se quedaba" : `${enBucle.length} servidores se quedaban`}{" "}
-            recargándose sin cargar en este televisor. Se {enBucle.length === 1 ? "saltó" : "saltaron"} y
-            seguimos con el siguiente.
-          </p>
+        {/* La salida honesta.
+
+            Dentro de un iframe de otro dominio no se puede saber si el vídeo
+            arrancó: ni si el reproductor del proveedor dio error, ni si su
+            puerta antirrobot está dando vueltas en un marco anidado —que no
+            deja ni rastro fuera—. Quien está delante lo ve en un segundo, así
+            que se le pregunta en vez de adivinar. Es lo único que cubre TODOS
+            los modos de fallo, incluidos los que aún no conocemos. */}
+        {(ofrecerCambio || descartados.length > 0) && (
+          <div className="ficha-aviso" role="status">
+            <span>
+              {descartados.length > 0
+                ? `Se ${descartados.length === 1 ? "saltó" : "saltaron"} ${descartados.length} servidor${descartados.length === 1 ? "" : "es"} que no cargaba${descartados.length === 1 ? "" : "n"}.`
+                : "¿Sigue sin verse nada?"}
+            </span>
+            {activo && (
+              <button
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion"
+                onClick={() => descartar(activo.id)}
+              >
+                Probar otro servidor
+              </button>
+            )}
+          </div>
         )}
 
         {/* Al pie del vídeo, no suelto en la página: es un control de este

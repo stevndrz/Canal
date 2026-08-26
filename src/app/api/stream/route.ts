@@ -1,4 +1,5 @@
-import { getProviders, buildEmbedUrl } from "@/lib/catalog/providers";
+import { getProviders, buildEmbedUrl, ordenarParaTelevisor } from "@/lib/catalog/providers";
+import { esTelevisorUA } from "@/lib/dispositivo";
 import { fetchTitle } from "@/lib/catalog/tmdb";
 import { fuentesDirectas, stremioActivo } from "@/lib/resolvers/stremio";
 import type { MediaType } from "@/lib/catalog/types";
@@ -31,8 +32,18 @@ export async function GET(request: Request) {
   const season = Number(params.get("season")) || undefined;
   const episode = Number(params.get("episode")) || undefined;
 
+  /**
+   * En un televisor, los proveedores con puerta antirrobot van los últimos.
+   *
+   * Se decide aquí, con la cabecera de la petición, y no en el cliente: si el
+   * orden se corrigiera al hidratar, el marco ya habría empezado a cargar el
+   * proveedor equivocado y el bucle ya estaría en marcha.
+   */
+  const enTelevisor = esTelevisorUA(request.headers.get("user-agent") ?? "");
+  const proveedores = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+
   const servidores: ServidorStream[] = [];
-  for (const provider of getProviders()) {
+  for (const provider of proveedores) {
     const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
     if (url) {
       servidores.push({

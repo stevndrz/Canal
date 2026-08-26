@@ -1001,14 +1001,36 @@ html[data-player="on"] body {
 }
 
 
-/* Aviso al pie del vídeo cuando se saltó un servidor por recargarse solo. */
+/* Aviso al pie del vídeo: «¿sigue sin verse?» y la salida a otro servidor. */
 .ficha-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(10px, 1.2vw, 18px);
   margin: 0;
   padding: clamp(10px, 1vw, 14px) clamp(14px, 1.4vw, 22px);
   border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
   color: var(--soft, rgba(245, 245, 247, 0.46));
   font-size: clamp(13px, 0.92vw, 15px);
   line-height: 1.5;
+}
+
+.ficha-aviso-accion {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 clamp(14px, 1.2vw, 22px);
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: 999px;
+  background: var(--chip, rgba(245, 245, 247, 0.1));
+  color: var(--text, #f5f5f7);
+  font-size: clamp(13px, 0.92vw, 15px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ficha-aviso-accion:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: var(--chip-focus, rgba(245, 245, 247, 0.2));
 }
 
 /* La barra de servidores, al pie del vídeo. */

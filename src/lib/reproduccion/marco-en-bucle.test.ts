@@ -66,3 +66,19 @@ describe("registrarCarga", () => {
     );
   });
 });
+
+/**
+ * El límite de esta detección, escrito como prueba para que no se olvide otra
+ * vez: solo ve las recargas del marco que montamos NOSOTROS. Cuando quien se
+ * recarga es un iframe anidado dentro suyo —VidSrc esconde ahí su puerta de
+ * Turnstile— el evento `load` del nuestro no se dispara: medido, 14
+ * navegaciones reales frente a 1 evento visto. Sin cargas que registrar, esta
+ * función no puede decir nada, y de ese caso se encargan `ordenarParaTelevisor`
+ * y el botón «Probar otro servidor».
+ */
+describe("lo que esta detección NO puede ver", () => {
+  it("sin eventos de carga no hay veredicto posible, por muchas recargas que haya dentro", () => {
+    // Un marco nieto recargándose 14 veces produce UNA sola carga en el nuestro.
+    expect(cargarVeces(1).enBucle).toBe(false);
+  });
+});

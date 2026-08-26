@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TitleDetail } from "@/components/catalog/title-detail";
 import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catalog";
 import type { MediaType } from "@/lib/catalog/types";
+import { esTelevisorUA } from "@/lib/dispositivo";
 
 export const dynamic = "force-dynamic";
 
@@ -31,5 +33,22 @@ export default async function TitlePage({
 
   const episodes = mediaType === "tv" ? await resolveSeason(item, selectedSeason) : [];
 
-  return <TitleDetail item={resolved} episodes={episodes} selectedSeason={selectedSeason} />;
+  /**
+   * Si esto es un televisor se decide AQUÍ, con la cabecera de la petición.
+   *
+   * El reproductor elige un servidor de respaldo en el primer render, antes de
+   * que llegue `/api/stream`. Si esa elección se corrigiera al hidratar, el
+   * marco ya habría empezado a cargar el proveedor con puerta antirrobot y su
+   * bucle de recargas ya estaría en marcha: llega tarde.
+   */
+  const enTelevisor = esTelevisorUA((await headers()).get("user-agent") ?? "");
+
+  return (
+    <TitleDetail
+      item={resolved}
+      episodes={episodes}
+      selectedSeason={selectedSeason}
+      enTelevisor={enTelevisor}
+    />
+  );
 }

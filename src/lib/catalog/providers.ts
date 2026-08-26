@@ -55,6 +55,24 @@ export interface EmbedProvider {
    * defecto y qué se pierde al quitarlo.
    */
   rechazaSandbox?: boolean;
+  /**
+   * El proveedor esconde su reproductor detrás de una **comprobación
+   * antirrobot** (Cloudflare Turnstile y parecidas).
+   *
+   * En un ordenador o un teléfono se pasa sola y no se nota. En el navegador de
+   * un televisor NO se pasa nunca —Turnstile no admite esos motores—, y el
+   * problema es lo que hacen esas puertas al fallar: recargarse. La de VidSrc
+   * trae tres `window.location.reload()`, uno por cada camino de error, así que
+   * el marco se queda dando vueltas para siempre. Es el bucle reportado en un
+   * Samsung.
+   *
+   * Ojo: la puerta vive en un iframe ANIDADO dentro del suyo, así que desde
+   * nuestra página no hay forma de contar esas recargas —el evento `load` de
+   * nuestro iframe no se dispara cuando navega un marco nieto (comprobado: 14
+   * navegaciones reales, 1 evento visto)—. Por eso no se detecta: se evita, y
+   * en un televisor estos proveedores van los últimos.
+   */
+  puertaAntirrobot?: boolean;
 }
 
 /**
@@ -118,6 +136,10 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
     spanishSubtitles: true,
     rechazaSandbox: true,
+    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
+    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
+    // Turnstile con tres `location.reload()` en sus caminos de fallo.
+    puertaAntirrobot: true,
   },
   {
     // Tercero de guardia: limpio, con subtítulos y varios servidores internos.
@@ -140,6 +162,9 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     movie: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1",
     tv: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1&season={season}&episode={episode}",
     spanishSubtitles: false,
+    // También detrás de una comprobación de Cloudflare (verificado: 403 con
+    // reto en película y en serie).
+    puertaAntirrobot: true,
   },
 ];
 
@@ -194,6 +219,26 @@ export function getProviders(): EmbedProvider[] {
     ...provider,
     label: provider.id === "propio" ? "Mi servidor" : `Servidor ${++numero}`,
   }));
+}
+
+/**
+ * Reordena dejando al final los proveedores con puerta antirrobot.
+ *
+ * Solo para televisores: ahí esas puertas no se pasan nunca y su fallo es un
+ * bucle de recargas. En un teléfono o un ordenador se pasan solas, así que no
+ * se toca nada —VidSrc es además el único con subtítulos en español
+ * verificados, y no hay motivo para castigarlo donde funciona—.
+ *
+ * Se ordenan, no se quitan: si los demás fallan, la persona puede probarlos
+ * igual desde los botones.
+ */
+export function ordenarParaTelevisor<T extends { puertaAntirrobot?: boolean }>(
+  proveedores: T[],
+): T[] {
+  return [
+    ...proveedores.filter((proveedor) => !proveedor.puertaAntirrobot),
+    ...proveedores.filter((proveedor) => proveedor.puertaAntirrobot),
+  ];
 }
 
 export interface EmbedTarget {
