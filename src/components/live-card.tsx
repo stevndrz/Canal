@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { extrasCast, PlayerControls } from "@/components/player/player-controls";
 import { useCast } from "@/hooks/use-cast";
 import { esIPhone } from "@/lib/dispositivo";
+import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -81,6 +82,20 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
     onExpand(channel);
   }, [onExpand, channel]);
 
+  /**
+   * Tocar la imagen pausa y reanuda.
+   *
+   * **Sin temporizador**, aunque el doble clic siga llevando a pantalla
+   * completa. Un doble clic son dos clics más el `dblclick`: el primero pausa,
+   * el segundo reanuda —queda como estaba— y después se expande. Esperar 250 ms
+   * a ver si llega el segundo daría un pausado con retardo, y el retardo en un
+   * control tan básico se nota mucho más que el parpadeo que evita.
+   */
+  const alTocar = useCallback((evento: React.MouseEvent) => {
+    if (!esToqueEnElVideo(evento.target)) return;
+    playerRef.current?.togglePlay();
+  }, []);
+
   // El vídeo real vive dentro de StreamPlayer y se expone por método; Cast lo
   // necesita como ref, así que se copia en cuanto existe.
   useEffect(() => {
@@ -103,7 +118,7 @@ export function LiveCard({ channel, settings, onExpand, onNext, onPrev }: LiveCa
           porque es lo que espera cualquiera que venga de un reproductor de
           escritorio; con mando y con el dedo está el botón. */}
       <div className="live-card-marco">
-        <div className="live-card-video" onDoubleClick={expandir}>
+        <div className="live-card-video" onClick={alTocar} onDoubleClick={expandir}>
           <StreamPlayer
             ref={playerRef}
             channel={channel}

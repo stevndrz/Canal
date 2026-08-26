@@ -13,6 +13,7 @@ import StreamPlayer, {
   type StreamPlayerState,
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
+import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useReloj } from "@/hooks/use-reloj";
@@ -138,25 +139,98 @@ export function FullscreenPlayer({
     };
   }, [channel.id, wake]);
 
-  // El mando manda: ↑↓ zapea, OK abre la guía, Atrás sale.
+  /** Tocar la imagen pausa y reanuda, y despierta la barra. */
+  const alTocar = useCallback(
+    (evento: React.MouseEvent) => {
+      if (!esToqueEnElVideo(evento.target)) return;
+      playerRef.current?.togglePlay();
+      wake();
+    },
+    [wake],
+  );
+
+  /**
+   * Recorrer la barra de controles con el mando.
+   *
+   * Es lo que faltaba para que esta pantalla se pudiera usar con un mando de
+   * verdad: `use-spatial-nav` está apagado en el reproductor —a propósito, las
+   * flechas aquí zapean— así que **no había ninguna forma de llegar a la
+   * barra**. Los botones existían y con el mando eran inalcanzables; solo
+   * servían con ratón o con el dedo.
+   *
+   * La primera pulsación entra por el primer botón (Pausar) en vez de por
+   * donde caiga el orden del DOM.
+   */
+  const moverFoco = useCallback(
+    (delta: number) => {
+      wake();
+      const barra = containerRef.current?.querySelector(".player-bar");
+      const botones = barra ? [...barra.querySelectorAll<HTMLElement>("[data-nav]")] : [];
+      if (botones.length === 0) return;
+      const actual = botones.indexOf(document.activeElement as HTMLElement);
+      botones[actual === -1 ? 0 : (actual + delta + botones.length) % botones.length].focus();
+    },
+    [wake],
+  );
+
+  /**
+   * El mando manda:
+   *
+   *   ↑ ↓        cambiar de canal
+   *   ← →        recorrer la barra de controles
+   *   OK         pulsar el botón enfocado; si no hay ninguno, abrir la guía
+   *   ⏯ ⏵ ⏸      reproducir o pausar
+   *   Atrás      salir
+   *
+   * ← y → zapeaban, que era repetir lo que ya hacían ↑ y ↓ y dejaba la barra
+   * sin ninguna tecla que la alcanzara. Y las teclas de reproducción del mando
+   * —que Tizen y webOS sí mandan— no estaban: pausar solo se podía con la
+   * barra espaciadora o con «k», que en un mando de televisor no existen.
+   */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const enLaBarra = (document.activeElement as HTMLElement | null)?.closest(".player-bar");
+
       switch (event.key) {
         case "ArrowUp":
-        case "ArrowLeft":
           event.preventDefault();
           zap(-1);
           return;
         case "ArrowDown":
-        case "ArrowRight":
           event.preventDefault();
           zap(1);
           return;
+        /**
+         * ← y → dependen de si la guía está abierta.
+         *
+         * Con la guía delante, recorren canales: es lo que dice su propia
+         * pista («← → recorrer · OK sintonizar») y lo que hace que la tira de
+         * canales se mueva. Sin ella, llevan el foco por la barra de
+         * controles, que es lo único que no tenía forma de alcanzarse con un
+         * mando.
+         */
+        case "ArrowLeft":
+          event.preventDefault();
+          if (showGuide) zap(-1);
+          else moverFoco(-1);
+          return;
+        case "ArrowRight":
+          event.preventDefault();
+          if (showGuide) zap(1);
+          else moverFoco(1);
+          return;
         case "Enter":
+          // Con un botón enfocado, el navegador ya lo pulsa solo: interceptar
+          // aquí sería robarle el OK al control que la persona acaba de elegir.
+          if (enLaBarra) return;
           event.preventDefault();
           if (showGuide) setShowGuide(false);
           else openGuide();
           return;
+        case "MediaPlayPause":
+        case "MediaPlay":
+        case "MediaPause":
+        case "MediaStop":
         case " ":
         case "k":
           event.preventDefault();
@@ -175,7 +249,20 @@ export function FullscreenPlayer({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zap, showGuide, openGuide, wake]);
+  }, [zap, showGuide, openGuide, wake, moverFoco]);
+
+  /**
+   * Al esconderse la barra, soltar el foco.
+   *
+   * Si no, queda enfocado un botón invisible: la siguiente pulsación de OK
+   * activaría algo que no se está viendo, y la de ← o → seguiría recorriendo
+   * una barra que ya no está.
+   */
+  useEffect(() => {
+    if (showControls) return;
+    const activo = document.activeElement as HTMLElement | null;
+    if (activo?.closest(".player-bar")) activo.blur();
+  }, [showControls]);
 
 
   return (
@@ -183,8 +270,10 @@ export function FullscreenPlayer({
       ref={containerRef}
       className="absolute inset-0 z-20 bg-black"
       onMouseMove={wake}
-      // Doble clic o doble toque: pantalla completa real, como en cualquier
-      // reproductor de escritorio.
+      /* Tocar la imagen pausa y reanuda; el doble toque va a pantalla completa
+         real. Sin temporizador a propósito: el segundo clic deshace el primero
+         y todo queda como estaba antes de expandir. Ver `live-card.tsx`. */
+      onClick={alTocar}
       onDoubleClick={toggleFullscreen}
     >
       <StreamPlayer
@@ -260,9 +349,13 @@ export function FullscreenPlayer({
           ]}
         />
 
+        {/* La pista cambia con el contexto, porque las teclas cambian: con la
+            guía abierta ← → recorren canales, y sin ella llevan el foco por
+            esta misma barra. Una chuleta que miente es peor que ninguna. */}
         <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-soft xl:flex">
           <span>↑↓ cambiar canal</span>
-          <span>OK guía</span>
+          <span>{showGuide ? "← → recorrer" : "← → controles"}</span>
+          <span>{showGuide ? "OK sintonizar" : "OK guía"}</span>
           <span>Atrás salir</span>
         </div>
       </div>

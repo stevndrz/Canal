@@ -91,3 +91,32 @@ export function describirErrorCast(error: unknown): string {
   const detalle = [codigo, fallo?.description].filter(Boolean).join(" · ");
   return detalle ? `${base} (${detalle})` : base;
 }
+
+/**
+ * En qué punto está Google Cast, sin las cadenas del SDK.
+ *
+ * `sin-pantallas` no es «desconectado»: es «Google Cast no tiene nada que
+ * decir aquí», y eso importa porque AirPlay puede estar emitiendo por su
+ * cuenta en ese mismo momento.
+ */
+export type EstadoCast = "sin-pantallas" | "no-conectado" | "conectando" | "conectado";
+
+/**
+ * ¿Sigue habiendo emisión después de un cambio de estado del SDK?
+ *
+ * **`conectado` NO significa que se esté viendo algo en la tele.** Significa
+ * que el teléfono habló con el Chromecast. Confundir las dos cosas es lo que
+ * dejaba el botón inservible: si la conexión se establecía y la carga del
+ * canal fallaba, el botón pasaba a «Dejar de transmitir» sin haber transmitido
+ * nada, y el siguiente toque cerraba una sesión muerta en lugar de volver a
+ * abrir el selector de pantallas. Desde fuera, el botón había dejado de
+ * funcionar y solo recargar la página lo devolvía a la vida.
+ *
+ * Así que la emisión solo se **enciende** cuando `loadMedia` termina bien.
+ * Esta función únicamente decide cuándo se apaga.
+ */
+export function emisionTrasEstado(emitiendo: boolean, estado: EstadoCast): boolean {
+  // Google Cast no manda aquí: no se toca lo que haya puesto AirPlay.
+  if (estado === "sin-pantallas") return emitiendo;
+  return estado === "conectado" ? emitiendo : false;
+}

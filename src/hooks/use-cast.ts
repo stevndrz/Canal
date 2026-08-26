@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   describirErrorCast,
+  emisionTrasEstado,
   esCancelacion,
   esHls,
   formatoHls,
   tipoDeContenido,
+  type EstadoCast,
 } from "@/lib/reproduccion/cast";
 
 /**
@@ -179,6 +181,23 @@ function loadCastSdk(): Promise<boolean> {
       return;
     }
 
+    /**
+     * **Chromecast exige un origen seguro.** Sin él, el SDK carga pero no
+     * descubre ni una pantalla, o la conexión se cae al conectar.
+     *
+     * Merece un aviso en consola y no un fallo mudo, porque es la explicación
+     * de un síntoma desconcertante: la misma app funciona desde
+     * `https://…` y no funciona abierta como `http://192.168.x.x:3000` en la
+     * red de casa. Parece un problema de red y es el protocolo.
+     */
+    if (!window.isSecureContext) {
+      console.warn(
+        "Chromecast necesita https (o localhost). Abierta por http, esta página no podrá transmitir.",
+      );
+      resolve(false);
+      return;
+    }
+
     const timeout = setTimeout(() => resolve(false), 8000);
     globals.__onGCastApiAvailable = (isAvailable: boolean) => {
       clearTimeout(timeout);
@@ -303,10 +322,17 @@ export function useCast(
 
         const syncState = () => {
           const state = context.getCastState();
-          setMethod((current) =>
-            state === framework.CastState.NO_DEVICES_AVAILABLE ? (current === "gcast" ? null : current) : "gcast"
-          );
-          setIsCasting(state === framework.CastState.CONNECTED);
+          const sinPantallas = state === framework.CastState.NO_DEVICES_AVAILABLE;
+          setMethod((current) => (sinPantallas ? (current === "gcast" ? null : current) : "gcast"));
+
+          // Aquí **solo se apaga**; encenderlo es cosa de `loadMedia`. El
+          // porqué, con el fallo que provocaba, está en `emisionTrasEstado`.
+          const estado: EstadoCast = sinPantallas
+            ? "sin-pantallas"
+            : state === framework.CastState.CONNECTED
+              ? "conectado"
+              : "no-conectado";
+          setIsCasting((emitiendo) => emisionTrasEstado(emitiendo, estado));
         };
         syncState();
         context.addEventListener(framework.CastContextEventType.CAST_STATE_CHANGED, syncState);
@@ -389,7 +415,23 @@ export function useCast(
         if (esCancelacion(error)) return;
         // Una sesión a medias impediría volver a abrir el selector.
         discardSession(context);
-        setError("No se pudo conectar con la pantalla. Revisa que esté encendida y en la misma red.");
+        setIsCasting(false);
+        /**
+         * Con el código del SDK, no solo «revisa la red».
+         *
+         * Cuando esto falla casi nunca es que la tele esté apagada: es que el
+         * teléfono y el Chromecast no se ven entre ellos. Pasa con el
+         * aislamiento de clientes del router (muy común en la red de
+         * invitados), con el móvil en 5 GHz y el Chromecast en 2,4 GHz si el
+         * router no reenvía mDNS, y con las VPN activas en el teléfono. El
+         * código lo distingue y se enseña.
+         */
+        setError(
+          `No se pudo conectar con la pantalla. ${describirErrorCast(error)} ` +
+            "Suele ser que el teléfono y el Chromecast no se ven en la red: mira que estén en la " +
+            "misma wifi (no en la de invitados), que el teléfono no tenga una VPN activa y que el " +
+            "router no tenga activado el aislamiento de clientes.",
+        );
         return;
       }
 
@@ -435,6 +477,9 @@ export function useCast(
           });
         }
         await session.loadMedia(new media.LoadRequest(mediaInfo));
+        // Solo AQUÍ se enciende: hay medio cargado en el receptor. Ver la nota
+        // de `syncState`, que es quien lo apaga.
+        setIsCasting(true);
         const elegido =
           subtituloActivo ?? subtitulos.findIndex((subtitulo) => subtitulo.porDefecto);
         activarSubtituloEnReceptor(session.getMediaSession(), elegido >= 0 ? elegido + 1 : null);
@@ -452,6 +497,10 @@ export function useCast(
         // preguntar a qué TV enviar.
         discardSession(context);
         restoreLocalAudio(video);
+        // Sin esto el botón se quedaba en «Dejar de transmitir» sin haber
+        // transmitido nada, y el siguiente toque cerraba una sesión muerta en
+        // vez de volver a preguntar a qué pantalla enviar.
+        setIsCasting(false);
         console.warn("No se pudo transmitir con Google Cast:", error);
         setError(describirErrorCast(error));
       }

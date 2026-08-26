@@ -485,11 +485,30 @@ html[data-player="on"] body {
   flex-shrink: 0;
 }
 
-.player-btn:hover,
-.player-btn:focus-visible {
+.player-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.28);
   transform: scale(1.04);
+}
+
+/**
+ * El botón enfocado se invierte, no se ilumina un poco.
+ *
+ * Con el ratón encima basta con aclarar el fondo: la persona ya sabe dónde
+ * está porque su mano lo ha llevado ahí. Con un mando no: el foco es lo único
+ * que dice dónde estás, y a tres metros un fondo del 20% frente a uno del 8%
+ * son el mismo gris. Invertido —blanco sobre negro— se ve desde el sofá y de
+ * un vistazo, que es lo que hacen los reproductores de televisor.
+ *
+ * El contorno blanco global sigue puesto encima; sobre un botón ya blanco no
+ * estorba y es lo que lo separa del fondo del vídeo.
+ */
+.player-btn:focus-visible,
+[data-input="dpad"] .player-btn:focus {
+  background: var(--text, #f5f5f7);
+  border-color: transparent;
+  color: #0a0a0a;
+  transform: scale(1.06);
 }
 
 /* El primario: más alto, invertido y separado del resto. Es el único control
@@ -504,9 +523,14 @@ html[data-player="on"] body {
   font-weight: 700;
 }
 
+/* El primario ya es blanco, así que no puede invertirse más: se distingue
+   creciendo, y del contorno blanco se encarga la regla global. */
 .player-btn.is-primary:hover,
-.player-btn.is-primary:focus-visible {
+.player-btn.is-primary:focus-visible,
+[data-input="dpad"] .player-btn.is-primary:focus {
   background: #e6e6e6;
+  color: #0a0a0a;
+  transform: scale(1.06);
 }
 
 /* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
@@ -1528,6 +1552,10 @@ html[data-player="on"] body {
   position: absolute;
   inset: 0;
   z-index: 10;
+  /* No tiene nada que pulsar, y tapaba el vídeo entero: mientras se
+     sintonizaba, tocar la imagen para pausar no hacía nada porque el clic se
+     lo quedaba este aviso. Lo encontró la prueba del navegador. */
+  pointer-events: none;
   display: grid;
   place-content: center;
   justify-items: center;

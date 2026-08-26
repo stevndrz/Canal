@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   describirErrorCast,
+  emisionTrasEstado,
   esCancelacion,
   esHls,
   formatoHls,
@@ -83,5 +84,39 @@ describe("describirErrorCast", () => {
 
   it("no deja paréntesis vacíos cuando no hay código", () => {
     expect(describirErrorCast(null)).toBe("No se pudo transmitir a esa pantalla.");
+  });
+});
+
+describe("emisionTrasEstado", () => {
+  it("conectarse NO es estar emitiendo", () => {
+    // El fallo que dejaba el botón muerto: el teléfono habla con el
+    // Chromecast, la carga del canal falla, y el botón se queda diciendo
+    // «Dejar de transmitir» sin haber transmitido nada.
+    expect(emisionTrasEstado(false, "conectado")).toBe(false);
+  });
+
+  it("mientras siga conectado, la emisión que empezó sigue", () => {
+    expect(emisionTrasEstado(true, "conectado")).toBe(true);
+  });
+
+  it("perder la conexión apaga la emisión", () => {
+    expect(emisionTrasEstado(true, "no-conectado")).toBe(false);
+    expect(emisionTrasEstado(true, "conectando")).toBe(false);
+  });
+
+  it("sin pantallas Chromecast no opina: AirPlay puede estar emitiendo", () => {
+    // Este hook cubre las dos vías. Si Google Cast apagara la bandera al no
+    // ver ningún Chromecast, apagaría también el estado de un AirPlay que
+    // está funcionando, y el botón perdería la forma de cortarlo.
+    expect(emisionTrasEstado(true, "sin-pantallas")).toBe(true);
+    expect(emisionTrasEstado(false, "sin-pantallas")).toBe(false);
+  });
+
+  it("desde apagado, ningún estado la enciende sola", () => {
+    // Encenderla es cosa de `loadMedia`, y de nadie más.
+    const estados = ["sin-pantallas", "no-conectado", "conectando", "conectado"] as const;
+    for (const estado of estados) {
+      expect(emisionTrasEstado(false, estado)).toBe(false);
+    }
   });
 });

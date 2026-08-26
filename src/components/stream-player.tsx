@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { RefreshCw, Radio, Volume1 } from "lucide-react";
+import { Play, RefreshCw, Radio } from "lucide-react";
 import { claseDeEmision, montarMotor, type MotorMontado } from "@/lib/reproduccion/motor";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
@@ -46,6 +46,42 @@ interface StreamPlayerProps {
   /** El padre refleja play/mute/error en su propio chrome. */
   onStateChange?: (state: StreamPlayerState) => void;
   className?: string;
+}
+
+/**
+ * Devolver el sonido a un vídeo que ya arrancó en silencio.
+ *
+ * No hay una forma limpia de preguntar «¿puedo sonar?», así que hay dos vías:
+ *
+ * - Donde existe `navigator.userActivation` (Chromium 72+), se pregunta si la
+ *   persona ya ha tocado algo. Si lo ha hecho, quitar el silencio es seguro.
+ * - Donde no —Tizen 4 y 5 son Chromium 56 y 69, y son la mitad del parque—,
+ *   se prueba y se comprueba: si el navegador no lo permitía, **pausa el
+ *   vídeo**. Entonces se vuelve a silenciar y se reanuda. Perder el sonido un
+ *   instante es asumible; quedarse sin imagen, no.
+ */
+function recuperarSonido(
+  video: HTMLVideoElement,
+  quiereSonido: boolean,
+  vivo: () => boolean,
+  setIsMuted: (mudo: boolean) => void,
+): void {
+  if (!quiereSonido || !video.muted) return;
+
+  const activacion = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } })
+    .userActivation;
+  if (activacion && !activacion.hasBeenActive) return;
+
+  video.muted = false;
+  setIsMuted(false);
+  if (activacion) return;
+
+  window.setTimeout(() => {
+    if (!vivo() || !video.paused) return;
+    video.muted = true;
+    setIsMuted(true);
+    void video.play().catch(() => {});
+  }, 400);
 }
 
 const StreamPlayer = memo(
@@ -90,8 +126,21 @@ const StreamPlayer = memo(
       setStreamError(false);
       setNeedsUserGesture(false);
       setSintonizando(true);
-      video.muted = !settings.startUnmuted;
-      setIsMuted(!settings.startUnmuted);
+      /**
+       * **Se arranca SIEMPRE en silencio.**
+       *
+       * Reproducir en silencio lo permiten todos los navegadores sin pedir
+       * nada; reproducir con sonido, ninguno, hasta que la persona haya tocado
+       * algo. Antes se intentaba primero con sonido, y cuando el navegador lo
+       * rechazaba se podía acabar con un cartel de «Activar sonido» tapando el
+       * vídeo: quien abre una app de televisión quiere ver imagen, no leer un
+       * aviso y buscar dónde pulsar.
+       *
+       * El sonido se recupera abajo, en cuanto se sabe que se puede, o con el
+       * botón de la barra, que es donde se busca.
+       */
+      video.muted = true;
+      setIsMuted(true);
 
       if (hlsRef.current) {
         hlsRef.current.destroy();
@@ -124,22 +173,16 @@ const StreamPlayer = memo(
         video
           .play()
           .then(() => {
-            if (!cancelled) setIsPlaying(true);
+            if (cancelled) return;
+            setIsPlaying(true);
+            recuperarSonido(video, settings.startUnmuted, () => !cancelled, setIsMuted);
           })
           .catch(() => {
+            // Ni en silencio se puede: ahí sí no hay nada que enseñar, y el
+            // cartel es lo único que queda. Es el caso raro, no el de siempre.
             if (cancelled) return;
-            video.muted = true;
-            setIsMuted(true);
-            video
-              .play()
-              .then(() => {
-                if (!cancelled) setIsPlaying(true);
-              })
-              .catch(() => {
-                if (cancelled) return;
-                setNeedsUserGesture(true);
-                setIsPlaying(false);
-              });
+            setNeedsUserGesture(true);
+            setIsPlaying(false);
           });
       };
 
@@ -196,7 +239,12 @@ const StreamPlayer = memo(
        * arrancar en silencio, que pasa. Los dos apuntan a lo mismo y el
        * `setState` es idempotente, así que sobra con que llegue uno.
        */
-      const yaSeVe = () => setSintonizando(false);
+      const yaSeVe = () => {
+        setSintonizando(false);
+        // Si al final hay imagen, el cartel de «no se pudo reproducir» ya no
+        // es verdad: antes se quedaba puesto tapando un vídeo que iba bien.
+        setNeedsUserGesture(false);
+      };
       video.addEventListener("playing", yaSeVe);
       video.addEventListener("loadeddata", yaSeVe);
 
@@ -257,13 +305,27 @@ const StreamPlayer = memo(
       else video.requestFullscreen?.();
     }, []);
 
+    /**
+     * El último recurso: ni en silencio se pudo arrancar.
+     *
+     * Ya no es «activar sonido» —eso lo resuelve `recuperarSonido` o el botón
+     * de la barra—, es simplemente reproducir. Se reintenta en silencio, que
+     * es lo que siempre se permite dentro de un gesto; el sonido viene detrás
+     * si procede.
+     */
     const handleEnableSound = useCallback(() => {
       const video = videoRef.current;
       if (!video) return;
       setNeedsUserGesture(false);
-      video.muted = false;
-      setIsMuted(false);
-      video.play().then(() => setIsPlaying(true)).catch(() => setStreamError(true));
+      video.muted = true;
+      setIsMuted(true);
+      video
+        .play()
+        .then(() => {
+          setIsPlaying(true);
+          recuperarSonido(video, true, () => true, setIsMuted);
+        })
+        .catch(() => setStreamError(true));
     }, []);
 
     useImperativeHandle(
@@ -305,35 +367,30 @@ const StreamPlayer = memo(
         )}
 
         {needsUserGesture && !streamError && (
-          <div
-            role="alert"
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-app/92 p-8 text-center backdrop-blur-sm"
-          >
-            <Volume1 aria-hidden="true" strokeWidth={1.5} className="mb-5 h-14 w-14 text-accent" />
-            <p className="mb-2 text-2xl font-semibold tracking-tight">Activar sonido</p>
-            <p className="mb-7 max-w-sm text-[15px] text-muted">
-              El televisor bloqueó el audio al arrancar. Presiona OK para reproducir con sonido.
+          <div role="alert" className="player-fallo">
+            <Play aria-hidden="true" strokeWidth={1.5} className="mb-2 h-12 w-12 text-accent" />
+            <p className="player-fallo-titulo">Toca para reproducir</p>
+            <p className="player-fallo-detalle">
+              Este navegador no deja arrancar el vídeo por su cuenta, ni siquiera en silencio.
             </p>
             <button
               type="button"
               data-nav="button"
               autoFocus
               onClick={handleEnableSound}
-              className="inline-flex min-h-[52px] items-center gap-3 rounded-2xl bg-accent px-8 text-base font-semibold text-accent-on"
+              className="player-btn is-primary"
             >
-              Activar sonido
+              <Play aria-hidden="true" />
+              Reproducir
             </button>
           </div>
         )}
 
         {streamError && (
-          <div
-            role="alert"
-            className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-app/95 p-8 text-center"
-          >
-            <Radio aria-hidden="true" strokeWidth={1.5} className="mb-4 h-12 w-12 text-live" />
-            <p className="mb-2 text-2xl font-semibold tracking-tight">Sin señal</p>
-            <p className="mb-7 max-w-md text-[15px] text-muted">
+          <div role="alert" className="player-fallo">
+            <Radio aria-hidden="true" strokeWidth={1.5} className="mb-2 h-12 w-12 text-live" />
+            <p className="player-fallo-titulo">Sin señal</p>
+            <p className="player-fallo-detalle">
               La fuente no respondió o el formato no es compatible. Suele ser un corte momentáneo
               del proveedor.
             </p>
@@ -342,9 +399,9 @@ const StreamPlayer = memo(
               data-nav="button"
               autoFocus
               onClick={handleRetry}
-              className="inline-flex min-h-[52px] items-center gap-3 rounded-2xl bg-accent px-8 text-base font-semibold text-accent-on"
+              className="player-btn is-primary"
             >
-              <RefreshCw aria-hidden="true" strokeWidth={1.5} className="h-[18px] w-[18px]" />
+              <RefreshCw aria-hidden="true" />
               Reintentar
             </button>
           </div>
