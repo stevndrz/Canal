@@ -736,6 +736,235 @@ html[data-player="on"] body {
   }
 }
 
+/* ── El riel compacto, lo que le gana a Tailwind ──────────────────────
+   Las dos reglas que faltaban de `.rail.is-compacto` (ver `shell.css`), aquí y
+   sin capa porque compiten con utilidades de Tailwind —`p-6` y `flex`, que
+   viven en `@layer utilities`— y una regla sin capa gana a cualquier regla en
+   capa, pase lo que pase con la especificidad. En `shell.css`, que entra en
+   `components`, no hacían absolutamente nada. */
+
+/* El `p-6` de la tarjeta son 24px: casi un cuarto del ancho de una ficha
+   compacta. Ahí el aire sobra, la ficha ya es pequeña de por sí. */
+.rail.is-compacto .media-card {
+  padding: clamp(8px, 0.7vw, 14px);
+}
+
+/* La línea de «CH 102 · Guatemala» se va. No es esconder datos: a 168px no
+   cabe —parte el número en dos renglones y deja la categoría en «Guatema…»—, y
+   media palabra cortada informa menos que el silencio. El nombre del canal se
+   lee entero, que es lo que se busca en una fila de historial; la ficha
+   completa sigue en su riel de siempre. */
+.rail.is-compacto .card-canal-meta {
+  display: none;
+}
+
+/* ── El panel de la emisión: la cabecera del reproductor ──────────────
+   Ver `panel-emision.tsx` para el porqué de cada módulo.
+
+   Dos decisiones que se ven en la tele antes que en el PC:
+
+   1. **Ni un `gap` de flexbox aquí.** Es de Chromium 84 y el parque de la casa
+      va de 53 a 79: en esas teles todos los huecos valdrían cero y el panel
+      saldría con las palabras pegadas. Separación por `margin`, que funciona
+      desde siempre, en vez de sumar cinco respaldos más a `[data-sin-gap]`.
+   2. **`tabular-nums` en todo el panel.** Sin ella el reloj, el `T+` y el
+      porcentaje cambian de ancho a cada segundo y arrastran la fila entera. */
+.panel-emision {
+  /* El mismo margen lateral que usa la pista de teclas de la barra de abajo
+     (`right-[3.35vw]`), para que la cabecera y el pie compartan encuadre.
+
+     No es cosmético: `tv-safe` solo aparta las muescas de iOS —en un navegador
+     de escritorio vale 0—, así que sin esto el panel salía pegado al borde y el
+     módulo de la hora quedaba cortado por la mitad. En un televisor es peor
+     todavía: el overscan se come el primer 3 % de la pantalla, y ahí es donde
+     estaba el estado de la emisión. */
+  padding-left: clamp(14px, 3.35vw, 74px);
+  padding-right: clamp(14px, 3.35vw, 74px);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-emision-fila {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* El estado, en una palabra. Casi todo monocromo: el rojo queda reservado al
+   directo y a los fallos, que es lo único que merece llamar la atención sobre
+   la imagen. */
+.panel-estado {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: clamp(12px, 1.2vw, 22px);
+  padding: 5px clamp(8px, 0.7vw, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  font-size: clamp(11px, 0.8vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.panel-estado-punto {
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--live, #e50914);
+}
+
+.panel-estado.is-vivo {
+  border-color: rgba(229, 9, 20, 0.55);
+  color: #fff;
+}
+
+.panel-estado.is-sin-senal {
+  border-color: rgba(229, 9, 20, 0.55);
+  background: rgba(229, 9, 20, 0.16);
+  color: #fff;
+}
+
+.panel-estado.is-pausa,
+.panel-estado.is-sintonizando {
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.panel-canal {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.panel-canal b {
+  flex-shrink: 0;
+  margin-right: 10px;
+  font-size: clamp(13px, 1vw, 16px);
+  font-weight: 700;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.panel-canal-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(17px, 1.45vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.panel-canal-cat {
+  flex-shrink: 0;
+  margin-left: clamp(8px, 0.8vw, 14px);
+  font-size: clamp(11px, 0.82vw, 13px);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* Los módulos: etiqueta en versalitas arriba, valor abajo, y una línea fina
+   entre uno y otro en vez de píldoras flotando. Es la diferencia entre un
+   instrumento y una fila de botones. */
+.panel-modulos {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  margin-left: clamp(12px, 1.4vw, 28px);
+}
+
+.panel-modulo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: clamp(10px, 1vw, 18px);
+  padding-right: clamp(10px, 1vw, 18px);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.panel-modulo:last-child {
+  padding-right: 0;
+}
+
+.panel-modulo small {
+  font-size: clamp(9px, 0.62vw, 11px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.panel-modulo b {
+  margin-top: 2px;
+  font-size: clamp(13px, 1vw, 16px);
+  font-weight: 600;
+}
+
+/* El programa. Con guía, cuánto lleva; sin ella, una regla que no afirma nada
+   que no se sepa. Nunca desaparece del todo: si apareciera y desapareciera
+   según el canal traiga EPG, la cabecera cambiaría de alto al zapear. */
+.panel-programa {
+  margin-top: clamp(8px, 0.8vw, 14px);
+}
+
+.panel-programa-texto {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: clamp(11px, 0.85vw, 14px);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.panel-programa-texto > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.panel-programa-riel {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.panel-programa-barra {
+  height: 100%;
+  background: var(--live, #e50914);
+}
+
+/* Sin guía la regla se queda, apagada y sin texto: marca el borde inferior de
+   la cabecera y mantiene el alto constante. */
+.panel-programa.is-vacio .panel-programa-riel {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-top: clamp(12px, 1.1vw, 20px);
+}
+
+/* En teléfono no cabe todo en una fila: los módulos bajan y el nombre del
+   canal se queda con el ancho entero, que es el dato que más se mira. */
+@media (max-width: 720px) {
+  .panel-canal {
+    flex: 1 1 100%;
+    order: 2;
+    margin-top: 6px;
+  }
+
+  .panel-modulos {
+    margin-left: auto;
+  }
+
+  .panel-modulo {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
 /* ── Buscador del catálogo ───────────────────────────────────────────
    Campo y botón son hermanos en una fila. Antes el botón iba en absolute
    encima del campo y el campo le reservaba 7rem de padding: en un teléfono
@@ -1658,26 +1887,128 @@ html[data-player="on"] body {
    Las alturas están puestas a ojo contra las piezas de verdad: no tienen que
    coincidir al píxel, tienen que evitar que la pantalla pegue un salto cuando
    el contenido las sustituya. */
+/**
+ * La barra superior, dibujada.
+ *
+ * Era una caja con un borde abajo y nada dentro: sobre negro puro no se
+ * distinguía, así que al navegar la pantalla parecía apagada. Ver
+ * `esqueleto-superior.tsx` para por qué la barra desaparece al navegar.
+ */
 .esqueleto-barra {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(12px, 1.5vw, 28px);
   height: var(--topbar-h);
-  border-bottom: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  padding: 0 var(--margen);
+  border-bottom: 1px solid var(--line, rgba(245, 245, 247, 0.14));
 }
 
-.esqueleto-directo {
-  aspect-ratio: 16 / 9;
+.esqueleto-marca {
+  width: clamp(96px, 9vw, 140px);
+  height: clamp(30px, 2.6vw, 42px);
+  border-radius: 12px;
+}
+
+.esqueleto-destinos {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: clamp(10px, 1.2vw, 24px);
+}
+
+.esqueleto-destinos > span {
+  height: clamp(14px, 1.1vw, 19px);
+  border-radius: 6px;
+}
+
+.esqueleto-reloj {
+  width: clamp(64px, 5vw, 92px);
+  height: clamp(14px, 1.1vw, 19px);
+  border-radius: 6px;
+}
+
+.esqueleto-directo,
+.esqueleto-hero {
   width: 100%;
   border-radius: var(--radio-panel);
 }
 
+.esqueleto-directo {
+  aspect-ratio: 16 / 9;
+}
+
+/* Las mismas medidas que `.hero`, para que al llegar no salte nada. */
+.esqueleto-hero {
+  min-height: 70vh;
+  border-radius: 0;
+}
+
+.esqueleto-catalogo {
+  max-width: 1700px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 2.4vh, 30px) clamp(16px, 3vw, 48px) 0;
+}
+
+.esqueleto-titulo-grande {
+  width: clamp(200px, 20vw, 330px);
+  height: clamp(28px, 2.6vw, 50px);
+  border-radius: 10px;
+}
+
+.esqueleto-buscador {
+  width: min(576px, 100%);
+  height: clamp(44px, 3.6vw, 58px);
+  margin: clamp(14px, 2vh, 26px) auto 0;
+  border-radius: 999px;
+}
+
+.esqueleto-pildoras {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: 10px;
+  margin-top: clamp(14px, 2vh, 26px);
+}
+
+.esqueleto-pildoras > span {
+  height: 44px;
+  border-radius: 999px;
+}
+
 .esqueleto-riel {
   margin-top: clamp(20px, 3.4vh, 40px);
+}
+
+/* Con la caja del catálogo ya puestos los márgenes, repetirlos descuadraría. */
+.app-shell > .content .esqueleto-riel {
   padding: 0 var(--margen);
 }
 
-/* Relleno plano, sin animación: ver el comentario de `loading.tsx`. */
+/**
+ * Relleno plano, sin animación: ver el comentario de `loading.tsx`.
+ *
+ * `--bg-elevated` y no `--bg-card`: sobre negro puro el segundo no se
+ * distingue, que es exactamente por lo que estas pantallas se leían como
+ * apagadas en vez de como cargando. Mismo error que tenía el panel de géneros.
+ */
+.esqueleto-marca,
+.esqueleto-destinos > span,
+.esqueleto-reloj,
 .esqueleto-titulo,
-.esqueleto-tarjeta {
-  background: var(--bg-card, #101012);
+.esqueleto-titulo-grande,
+.esqueleto-buscador,
+.esqueleto-pildoras > span,
+.esqueleto-tarjeta,
+.esqueleto-cartel {
+  background: var(--bg-elevated, #1c1c1f);
+}
+
+.esqueleto-cartel {
+  flex: 0 0 clamp(120px, 13vw, 200px);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radio-tarjeta);
 }
 
 .esqueleto-titulo {
@@ -2439,3 +2770,199 @@ body {
   letter-spacing: 0.02em;
   color: var(--red, #ff453a);
 }
+
+/* ═══ Huecos para navegadores sin `gap` en flexbox ═══════════════════════
+   El `gap` de flexbox es de Chromium 84, y el parque de televisores va de
+   Chromium 53 (webOS 4) a 79 (webOS 6): ahí TODOS los huecos de flex valen
+   cero y los botones se tocan entre sí. `soporte-gap.ts` lo mide al arrancar y
+   marca el documento; aquí se restauran con márgenes.
+
+   **Solo donde se nota**, no en los setenta y siete sitios que usan `gap`: la
+   mayoría son huecos de 4px dentro de una etiqueta que nadie echa de menos, y
+   setenta y siete respaldos serían setenta y siete sitios donde equivocarse.
+
+   `:not(:last-child)` en vez de un margen a todos: sin él, la última pieza
+   empuja el borde derecho y la barra queda descentrada.
+
+   En un navegador moderno este bloque no existe. */
+[data-sin-gap] .player-bar-main > *:not(:last-child),
+[data-sin-gap] .player-bar-extras > *:not(:last-child) {
+  margin-right: clamp(6px, 0.6vw, 12px);
+}
+
+[data-sin-gap] .player-bar > *:not(:last-child) {
+  margin-right: clamp(8px, 0.8vw, 16px);
+}
+
+/* La barra superior: sin esto los seis destinos salen pegados. */
+[data-sin-gap] .sidebar nav > *:not(:last-child),
+[data-sin-gap] .mobile-bottom-nav > *:not(:last-child) {
+  margin-right: clamp(2px, 0.35vw, 8px);
+}
+
+/* Dos valores porque hay dos reglas: `.top-right` suelto separa a
+   `clamp(8px, 0.8vw, 14px)` y dentro de la barra sube a
+   `clamp(10px, 1vw, 20px)`. Un solo respaldo dejaba 14px donde el navegador
+   pone 19, que es un respaldo que casi acierta — lo peor de los dos mundos. */
+[data-sin-gap] .top-right > *:not(:last-child),
+[data-sin-gap] .profile-cluster > *:not(:last-child) {
+  margin-right: clamp(8px, 0.8vw, 14px);
+}
+
+[data-sin-gap] .sidebar > .top-right > *:not(:last-child) {
+  margin-right: clamp(10px, 1vw, 20px);
+}
+
+/* Píldoras del catálogo y de Canales. */
+[data-sin-gap] .livetv-cats > *:not(:last-child) {
+  margin-bottom: 6px;
+}
+
+[data-sin-gap] .catalogo-chip:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* La fila de un canal: el logo pegado al nombre es lo más feo de todo. */
+[data-sin-gap] .livetv-row-main > *:not(:last-child) {
+  margin-right: clamp(10px, 1vw, 18px);
+}
+
+[data-sin-gap] .livetv-row > *:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* Los botones de acción de la ficha y del panel de detalle. */
+[data-sin-gap] .livetv-detail-actions > *:not(:last-child),
+[data-sin-gap] .hero-acciones > *:not(:last-child),
+[data-sin-gap] .ficha-aviso > *:not(:last-child) {
+  margin-right: clamp(8px, 0.9vw, 14px);
+}
+
+/* Un icono pegado a su texto dentro de un botón se lee como una sola palabra
+   rara; es el hueco más pequeño y el que más se nota. */
+[data-sin-gap] .player-btn svg,
+[data-sin-gap] .primary svg,
+[data-sin-gap] .secondary svg {
+  margin-right: 9px;
+}
+
+/* ═══ Casa ═══════════════════════════════════════════════════════════════
+   Los canales que se ven de cajón. NO es un riel, y por eso no comparte nada
+   con `.rail`: un riel dice «hay más si sigues» —flechas, scroll, tarjetas
+   pegadas al margen izquierdo esperando compañía— y aquí son tres, siempre los
+   mismos, y no va a haber un cuarto.
+
+   Centrados y grandes porque es lo primero que se ve al abrir y lo que se pide
+   en voz alta desde el sofá: «pon el tres». */
+.casa {
+  margin-top: clamp(18px, 2.6vh, 34px);
+  padding: 0 var(--margen);
+}
+
+.casa-titulo {
+  margin: 0 0 clamp(10px, 1.4vh, 16px);
+  text-align: center;
+  font-size: clamp(19px, 1.42vw, 27px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+/* Rejilla y no flex: el `gap` de flexbox no existe hasta Chromium 84 y estas
+   teles llegan a 79, así que en la sala las tres tarjetas se tocarían. El de
+   rejilla es de Chromium 66 y aquí sí funciona. Ver `soporte-gap.ts`. */
+.casa-fila {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: clamp(12px, 1.4vw, 26px);
+}
+
+.casa-boton {
+  display: grid;
+  justify-items: center;
+  width: clamp(150px, 15vw, 260px);
+  padding: clamp(12px, 1.2vw, 20px);
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: var(--radio-panel, 18px);
+  background: var(--bg-card, #101012);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-native), transform 160ms var(--ease-native);
+}
+
+/* El canal que está sonando ahora mismo. */
+.casa-boton.is-active {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: var(--bg-elevated, #1c1c1f);
+}
+
+.casa-boton:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+}
+
+/* El foco crece: el mismo gesto que el resto de la app. El contorno blanco lo
+   pone la regla global de `[data-nav]`. */
+.casa-boton:focus-visible,
+[data-input="dpad"] .casa-boton:focus {
+  transform: scale(1.04);
+  border-color: transparent;
+}
+
+/* El logo, con sitio de sobra: son los tres canales que hay que reconocer de
+   un vistazo desde tres metros. */
+.casa-arte {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  margin-bottom: clamp(8px, 1vh, 14px);
+  border-radius: var(--radio-tarjeta, 12px);
+  background: var(--bg-elevated, #1c1c1f);
+  overflow: hidden;
+}
+
+.casa-arte img {
+  max-width: 78%;
+  max-height: 78%;
+  object-fit: contain;
+}
+
+.casa-marca {
+  font-size: clamp(24px, 2.4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.casa-nombre {
+  max-width: 100%;
+  font-size: clamp(14px, 1.05vw, 19px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.casa-numero {
+  margin-top: 2px;
+  font-size: clamp(12px, 0.85vw, 15px);
+  font-variant-numeric: tabular-nums;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* En vertical no caben tres de ese ancho: se reparten el sitio que haya. */
+@media (max-width: 680px) {
+  .casa-fila {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .casa-boton {
+    width: auto;
+    padding: 10px;
+  }
+}
+

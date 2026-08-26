@@ -38,6 +38,19 @@ export interface StreamPlayerState {
   isMuted: boolean;
   streamError: boolean;
   needsUserGesture: boolean;
+  /**
+   * Lo que se está reproduciendo de verdad, para el chrome de sala de control.
+   *
+   * **Nada de esto se inventa ni se estima.** La resolución sale del propio
+   * `<video>`, así que vale con hls.js, con mpegts.js y con el HLS nativo de
+   * Safari por igual. El bitrate solo lo sabe hls.js: cuando manda otro motor
+   * el campo no existe, y quien lo pinta no enseña el módulo en vez de sacar
+   * un hueco vacío.
+   */
+  ancho?: number;
+  alto?: number;
+  /** Bits por segundo de la pista activa. Solo con hls.js. */
+  bitrate?: number;
 }
 
 interface StreamPlayerProps {
@@ -107,6 +120,19 @@ const StreamPlayer = memo(
      * diferencia entre esperar y volver a pulsar OK cuatro veces.
      */
     const [sintonizando, setSintonizando] = useState(true);
+    /**
+     * Lo que se está reproduciendo de verdad. Ver `StreamPlayerState`.
+     *
+     * Se guarda junto y no en tres estados sueltos porque llega junto: los dos
+     * eventos que lo mueven —`resize` del vídeo y el cambio de pista de
+     * hls.js— traen la foto entera, y tres `setState` seguidos serían tres
+     * renders para pintar una sola línea de texto.
+     */
+    const [emision, setEmision] = useState<{
+      ancho?: number;
+      alto?: number;
+      bitrate?: number;
+    }>({});
 
     const streamUrl = channel.streamUrl;
 
@@ -115,8 +141,8 @@ const StreamPlayer = memo(
     }, []);
 
     useEffect(() => {
-      onStateChange?.({ isPlaying, isMuted, streamError, needsUserGesture });
-    }, [isPlaying, isMuted, streamError, needsUserGesture, onStateChange]);
+      onStateChange?.({ isPlaying, isMuted, streamError, needsUserGesture, ...emision });
+    }, [isPlaying, isMuted, streamError, needsUserGesture, emision, onStateChange]);
 
     useEffect(() => {
       const video = videoRef.current;
@@ -126,6 +152,9 @@ const StreamPlayer = memo(
       setStreamError(false);
       setNeedsUserGesture(false);
       setSintonizando(true);
+      // La emisión anterior no dice nada de la nueva: dejar puesta su
+      // resolución enseñaría 1080p mientras arranca un canal que es 480p.
+      setEmision({});
       /**
        * **Se arranca SIEMPRE en silencio.**
        *
@@ -226,6 +255,34 @@ const StreamPlayer = memo(
         }
         hlsRef.current = motor.hls;
         mpegtsRef.current = motor.mpegts;
+
+        /**
+         * El bitrate, cuando hay quien lo sepa.
+         *
+         * Solo hls.js conoce las pistas y cuál está sonando. Con mpegts.js o
+         * con el HLS nativo de Safari no hay de dónde sacarlo, y ahí el campo
+         * se queda sin poner: quien lo pinta esconde el módulo entero en vez
+         * de enseñar un hueco. Antes que un dato inventado, ninguno.
+         *
+         * Se lee de forma defensiva porque `levels` y `currentLevel` no están
+         * en el tipo público que usa este archivo, y porque una versión vieja
+         * de la librería podría no traerlos.
+         */
+        const hls = motor.hls as unknown as {
+          levels?: { bitrate?: number }[];
+          currentLevel?: number;
+          on?: (evento: string, manejador: () => void) => void;
+        } | null;
+        if (!hls?.on) return;
+
+        const leerBitrate = () => {
+          if (cancelled) return;
+          const nivel = hls.levels?.[hls.currentLevel ?? -1];
+          if (nivel?.bitrate) setEmision((actual) => ({ ...actual, bitrate: nivel.bitrate }));
+        };
+        // `hlsLevelSwitched` es el nombre del evento en el bus de hls.js.
+        hls.on("hlsLevelSwitched", leerBitrate);
+        leerBitrate();
       });
 
       const handleNativeError = () => handleFatalError();
@@ -245,6 +302,26 @@ const StreamPlayer = memo(
         // es verdad: antes se quedaba puesto tapando un vídeo que iba bien.
         setNeedsUserGesture(false);
       };
+
+      /**
+       * La resolución real, del propio `<video>`.
+       *
+       * `videoWidth`/`videoHeight` es lo que el elemento está decodificando de
+       * verdad, así que vale igual con hls.js, con mpegts.js y con el HLS
+       * nativo de Safari — no hace falta preguntarle a ninguna librería. El
+       * evento `resize` es justo cuando cambia, que en una emisión adaptativa
+       * pasa cada vez que sube o baja de pista.
+       */
+      const medirImagen = () => {
+        if (cancelled || !video.videoWidth) return;
+        setEmision((actual) =>
+          actual.ancho === video.videoWidth && actual.alto === video.videoHeight
+            ? actual
+            : { ...actual, ancho: video.videoWidth, alto: video.videoHeight },
+        );
+      };
+      video.addEventListener("resize", medirImagen);
+      video.addEventListener("loadedmetadata", medirImagen);
       video.addEventListener("playing", yaSeVe);
       video.addEventListener("loadeddata", yaSeVe);
 
@@ -253,6 +330,8 @@ const StreamPlayer = memo(
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("playing", yaSeVe);
         video.removeEventListener("loadeddata", yaSeVe);
+        video.removeEventListener("resize", medirImagen);
+        video.removeEventListener("loadedmetadata", medirImagen);
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;

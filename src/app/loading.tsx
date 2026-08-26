@@ -12,10 +12,12 @@
  * centrado. Y no monta ni un solo `[data-nav]`: si el mando pudiera enfocar
  * algo de aquí, el foco se perdería al sustituirse por la pantalla de verdad.
  */
+import { EsqueletoSuperior } from "@/components/esqueleto-superior";
+
 export default function Cargando() {
   return (
     <div className="app-shell" aria-busy="true" aria-label="Cargando CanalCasa">
-      <div className="esqueleto-barra" />
+      <EsqueletoSuperior />
 
       <section className="content">
         <div className="live-slot">

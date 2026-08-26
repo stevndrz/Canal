@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { SoporteHuecos } from "@/components/soporte-huecos";
 import "./globals.css";
 
 /**
@@ -58,7 +59,13 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" data-input="pointer" className={inter.variable}>
-      <body>{children}</body>
+      <body>
+        {/* Antes que nada: en los navegadores de televisor el `gap` de flexbox
+            no existe y todos los huecos de la app valen cero. Ver
+            `soporte-gap.ts`. No pinta nada. */}
+        <SoporteHuecos />
+        {children}
+      </body>
     </html>
   );
 }

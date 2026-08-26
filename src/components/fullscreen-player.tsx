@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Cast } from "lucide-react";
 import {
   extrasCast,
   ICONO_GUIA,
   PlayerControls,
 } from "@/components/player/player-controls";
+import { PanelEmision } from "@/components/player/panel-emision";
+import type { EstadoEmision } from "@/lib/telemetria";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -107,6 +109,48 @@ export function FullscreenPlayer({
     needsUserGesture: false,
   });
 
+
+  /**
+   * Desde cuándo se está en ESTE canal.
+   *
+   * Se marca al montar y en cada zapeo, no al empezar a reproducir: lo que se
+   * cuenta es el rato que llevas viendo el canal, y una recarga del stream a
+   * mitad de un partido no lo reinicia.
+   *
+   * El reloj de pared es un sistema externo, así que leerlo es trabajo de un
+   * efecto y no del render —de ahí la excepción de abajo, que es la misma que
+   * ya usa `wake()` unas líneas más allá—. El precio es un render de más al
+   * zapear, en el que el contador enseña un instante el tiempo del canal
+   * anterior; a un segundo de resolución no se ve.
+   */
+  // `undefined` hasta que el efecto la fije: sin marca no hay módulo, que es
+  // justo lo que hace `modulosDeEmision` con un dato ausente. Un cero aquí
+  // sacaría un «T+ 490.000:00:00» en el primer fotograma.
+  const [desde, setDesde] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDesde(Date.now());
+  }, [channel.id]);
+
+  /**
+   * En qué está la emisión, dicho sin inventar nada.
+   *
+   * `sintonizando` no es un adorno: mientras el `<video>` no tenga altura no ha
+   * llegado ni un fotograma, así que decir «EN VIVO» sobre una pantalla negra
+   * sería mentir justo cuando la persona está mirando a ver si funciona.
+   */
+  const estado: EstadoEmision = state.streamError
+    ? "sin-senal"
+    : !state.isPlaying
+      ? "pausa"
+      : state.alto
+        ? "vivo"
+        : "sintonizando";
+
+  const lectura = useMemo(
+    () => ({ ancho: state.ancho, alto: state.alto, bitrate: state.bitrate, desde }),
+    [state.ancho, state.alto, state.bitrate, desde],
+  );
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -286,23 +330,19 @@ export function FullscreenPlayer({
         onStateChange={setState}
       />
 
-      {/* Cabecera */}
+      {/* Cabecera: el panel de la emisión. Ver `panel-emision.tsx`. */}
       <div
-        className={`tv-safe pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-6 bg-gradient-to-b from-black/78 to-transparent py-7 transition-opacity duration-300 ${
+        className={`tv-safe pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/78 to-transparent py-7 transition-opacity duration-300 ${
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex min-w-0 items-center gap-4.5">
-          <span className="flex shrink-0 items-center gap-2.5 text-[13px] font-semibold tracking-[0.16em]">
-            <span className="live-dot h-[7px] w-[7px] rounded-full bg-live" />
-            EN VIVO
-          </span>
-          <span className="truncate text-[22px] font-semibold tracking-tight">
-            {channel.number} · {channel.name}
-          </span>
-          <span className="shrink-0 text-sm text-soft">{channel.category}</span>
-        </div>
-        <span className="shrink-0 font-mono text-sm text-soft">{clock}</span>
+        <PanelEmision
+          channel={channel}
+          estado={estado}
+          lectura={lectura}
+          reloj={clock}
+          activo={showControls}
+        />
       </div>
 
       {/* Controles */}

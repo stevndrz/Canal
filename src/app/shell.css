@@ -351,6 +351,56 @@
   contain-intrinsic-size: auto 560px;
 }
 
+/**
+ * Historial, no oferta.
+ *
+ * «Seguir viendo» y «Tus favoritos» informan de lo que ya hiciste; no están
+ * proponiendo nada, así que no tienen por qué ocupar lo mismo que una sección
+ * que sí. Bajan a dos tercios y su encabezado deja de competir con los
+ * títulos de sección.
+ *
+ * `contain-intrinsic-size` baja con ellos: si el riel encoge y la estimación
+ * no, la barra de desplazamiento pega un salto justo al pintarlo. Fue lo
+ * primero que se rompió al probarlo.
+ */
+.rail.is-compacto {
+  margin-top: clamp(12px, 1.8vh, 22px);
+  contain-intrinsic-size: auto 220px;
+}
+
+.rail.is-compacto .rail-head h3 {
+  font-size: clamp(14px, 1vw, 18px);
+  font-weight: 500;
+  color: var(--soft);
+}
+
+.rail.is-compacto .rail-head {
+  margin-bottom: clamp(6px, 0.9vh, 10px);
+}
+
+/* Las fichas, a dos tercios.
+ *
+ * Se sobreescribe `grid-auto-columns` y no `--carteles`: esa variable solo la
+ * lee el carrusel de pósters (`.rail.is-poster`, que es flex), y los rieles de
+ * canales —que es lo que son «Seguir viendo» y «Tus favoritos»— van en grid,
+ * donde no la mira nadie. Con `--carteles` a solas la fila encogía un 6 %, que
+ * es no encoger.
+ *
+ * Mismo cálculo que el riel normal con el divisor subido de 6 a 9, para que el
+ * ancho siga saliendo de fichas enteras y no de un número inventado. */
+.rail.is-compacto .rail-strip {
+  grid-auto-columns: clamp(104px, calc((min(100vw, 1740px) - 96px) / 9), 168px);
+}
+
+.rail.is-compacto .media-card {
+  font-size: 0.86em;
+}
+
+/* El relleno de la tarjeta y la línea de metadatos se apagan desde
+   `globals.css`, SIN capa: los dos los pone Tailwind (`p-6`, `flex`) en
+   `@layer utilities`, y esta hoja entra en `components`, que va por debajo.
+   Puestas aquí no hacían nada. Ver la nota de capas en `globals.css`. */
+
 .rail-head {
   display: flex;
   align-items: baseline;

@@ -118,7 +118,11 @@ function ChannelGlassCard({
       <strong className="mt-3 truncate font-semibold text-sm text-muted transition-colors group-hover:text-white">
         {item.title}
       </strong>
-      <span className="mt-1 flex items-center gap-1 font-mono text-xs text-muted">
+      {/* `card-canal-meta` no pinta nada por sí sola: existe para que el riel
+          compacto pueda apagar esta línea. A 168px de ancho «CH 102 ·
+          Guatemala» parte el número en dos renglones y trunca la categoría a
+          «Guatema…», que es peor que no decir nada. */}
+      <span className="card-canal-meta mt-1 flex items-center gap-1 font-mono text-xs text-muted">
         {item.metaRight && <span>CH {item.metaRight}</span>}
         {item.metaRight && item.meta && <span aria-hidden="true">·</span>}
         {item.meta && <span className="truncate">{item.meta}</span>}

@@ -7,6 +7,7 @@ import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
 import { groupByCategory } from "@/lib/channels";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
+import { FilaCasa } from "./fila-casa";
 
 interface HomeViewProps {
   channels: Channel[];
@@ -90,14 +91,15 @@ export function HomeView({
        encabezado. Aquí lo primero es la tarjeta en directo, y sin hueco su
        cabecera se metía debajo de la barra de navegación. */
     <div className={sinHueco ? "screen sin-hueco" : "screen"}>
-      <MediaRail
-        title="La casa"
-        items={deLaCasa.map((channel) => channelToCard(channel))}
-        onOpen={abrirCanal}
-        activeKey={tunedKey}
-      />
+      {/* No es un riel: son tres, son siempre los mismos y no va a haber un
+          cuarto. Ver `fila-casa.tsx`. */}
+      <FilaCasa canales={deLaCasa} tunedId={tuned?.id ?? null} onSelect={onSelect} />
 
+      {/* Historial, no oferta: informan, no invitan. De ahí el modo compacto —
+          son un buen recurso cuando hace falta y no tienen por qué ocupar
+          como las secciones que sí están proponiendo algo. */}
       <MediaRail
+        compacto
         title="Seguir viendo"
         items={recents.map((channel) => channelToCard(channel))}
         onOpen={abrirCanal}
@@ -105,6 +107,7 @@ export function HomeView({
       />
 
       <MediaRail
+        compacto
         title="Tus favoritos"
         items={favoriteChannels.map((channel) => channelToCard(channel))}
         onOpen={abrirCanal}
