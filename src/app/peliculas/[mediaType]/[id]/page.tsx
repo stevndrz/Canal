@@ -5,6 +5,12 @@ import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catal
 import type { MediaType } from "@/lib/catalog/types";
 import { esTelevisorUA } from "@/lib/dispositivo";
 
+/**
+ * Esta SÍ se queda dinámica, y no por descuido: lee `headers()` para saber si
+ * quien pide es un televisor y reordenar los servidores en consecuencia (ver
+ * `esTelevisorUA`). Cachear la respuesta serviría el orden equivocado a la
+ * mitad de los dispositivos — y en un Samsung eso es el bucle de recargas.
+ */
 export const dynamic = "force-dynamic";
 
 export default async function TitlePage({

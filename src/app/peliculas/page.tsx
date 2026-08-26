@@ -10,7 +10,16 @@ import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
-export const dynamic = "force-dynamic";
+/**
+ * El catálogo es idéntico para todo el mundo: los filtros y la página van en
+ * la URL, no en la sesión. Con `revalidate` Next guarda el resultado de cada
+ * combinación de parámetros que ya haya visto, en lugar de repetir las diez
+ * llamadas a TMDB en cada visita.
+ *
+ * Una hora: TMDB no cambia sus listas más rápido que eso, y `tmdb.ts` ya
+ * cachea las peticiones sueltas un día.
+ */
+export const revalidate = 3600;
 
 export default async function MoviesPage({
   searchParams,

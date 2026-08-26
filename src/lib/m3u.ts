@@ -10,7 +10,16 @@ import { serverConfig } from "@/lib/config.server";
  * `page.tsx` al numerar) ni datos de EPG (se cruzan aparte, porque la guía es
  * una fuente independiente que puede fallar sin tumbar la lista de canales).
  */
-export type ParsedChannel = Omit<Channel, "id" | "currentProgram" | "nextProgram">;
+/**
+ * Un canal recién interpretado, antes de empaquetarlo.
+ *
+ * Sin `id` —es la posición— y **sin `number`**: este archivo lo rellenaba con
+ * `String(index + 1)` y un comentario que decía «provisional», y el cliente lo
+ * sobrescribía entero al llegar. Eran 30 KB de payload que se descargaban, se
+ * interpretaban y se tiraban. Ahora el número lo pone
+ * `desempaquetarCanales`, una sola vez y en la misma pasada.
+ */
+export type ParsedChannel = Omit<Channel, "id" | "number">;
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
@@ -244,9 +253,6 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
 
     return {
       name,
-      // Provisional: withChannelNumbers() lo reemplaza según la categoría ya
-      // ordenada (101+, 201+...). Aquí solo hace falta que el campo exista.
-      number: String(index + 1),
       category: classifyChannel({
         name,
         group,

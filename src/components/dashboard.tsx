@@ -6,7 +6,8 @@ import dynamic from "next/dynamic";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 import type { CatalogSection } from "@/lib/catalog/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
-import { CATEGORY_ORDER, canalDeArranque, filterChannels, withChannelNumbers } from "@/lib/channels";
+import { CATEGORY_ORDER, canalDeArranque, filterChannels } from "@/lib/channels";
+import { desempaquetarCanales, type PaqueteCanales } from "@/lib/canales-empaquetados";
 import { useReloj } from "@/hooks/use-reloj";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { usePersistedRecents, usePersistedSet } from "@/hooks/use-persisted-set";
@@ -64,17 +65,29 @@ const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
  *   este componente para Atrás y los dígitos de canal directo.
  */
 export function Dashboard({
-  initialChannels,
+  paquete,
   catalog,
 }: {
-  initialChannels: Channel[];
+  /**
+   * Los canales, en formato de transporte. Ver `canales-empaquetados.ts`: no
+   * son objetos porque casi la mitad del payload eran nombres de clave
+   * repetidos 7.822 veces.
+   */
+  paquete: PaqueteCanales;
   catalog: CatalogSection[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const shellRef = useRef<HTMLDivElement | null>(null);
 
-  const channels = useMemo(() => withChannelNumbers(initialChannels), [initialChannels]);
+  /**
+   * Una sola pasada: reconstruye los objetos Y numera al estilo IPTV.
+   *
+   * Antes eran dos recorridos de 7.822 elementos: el servidor mandaba `id` y
+   * `number`, y aquí `withChannelNumbers` clonaba los 7.822 objetos enteros
+   * solo para reescribir el número que acababa de llegar.
+   */
+  const channels = useMemo(() => desempaquetarCanales(paquete), [paquete]);
 
   // Arranca en Inicio, no en pantalla completa.
   //
