@@ -1021,6 +1021,16 @@ html[data-player="on"] body {
 }
 
 
+/* Aviso al pie del vídeo cuando se saltó un servidor por recargarse solo. */
+.ficha-aviso {
+  margin: 0;
+  padding: clamp(10px, 1vw, 14px) clamp(14px, 1.4vw, 22px);
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  color: var(--soft, rgba(245, 245, 247, 0.46));
+  font-size: clamp(13px, 0.92vw, 15px);
+  line-height: 1.5;
+}
+
 /* La barra de servidores, al pie del vídeo. */
 .servidores {
   display: flex;

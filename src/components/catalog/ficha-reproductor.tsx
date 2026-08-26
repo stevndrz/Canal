@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
 import { buildEmbedUrl, getProviders, type EmbedProvider } from "@/lib/catalog/providers";
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
+import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -109,6 +110,12 @@ function ReproductorCatalogo({
   // una key distinta por título/episodio, así que aquí nunca llega una elección
   // vieja de otro capítulo.
   const [elegidoId, setElegidoId] = useState<string | null>(null);
+  /**
+   * Servidores que se recargaban a sí mismos sin parar y quedan descartados
+   * para esta ficha. Ver `marco-en-bucle.ts` para el porqué y la medición.
+   */
+  const [enBucle, setEnBucle] = useState<string[]>([]);
+  const cargas = useRef<ConteoDeCargas | null>(null);
 
   /**
    * Respaldo inmediato, mientras `/api/stream` responde y también si falla.
@@ -150,13 +157,37 @@ function ReproductorCatalogo({
   // como último recurso el respaldo de arriba. Memoizado para que la identidad
   // no cambie con cada render: de ella cuelga la lista que reinicia o no al
   // reproductor.
-  const activo: ServidorStream | null = useMemo(
-    () =>
-      servidores.find((servidor) => servidor.id === elegidoId) ??
-      servidores[0] ??
-      respaldo,
-    [elegidoId, servidores, respaldo],
-  );
+  const activo: ServidorStream | null = useMemo(() => {
+    // Un servidor que se recarga en bucle no es una opción: se salta, aunque
+    // sea el elegido a mano, porque ahí no se ve nada de todos modos.
+    const sirve = (servidor: ServidorStream) => !enBucle.includes(servidor.id);
+    const utiles = servidores.filter(sirve);
+    const elegido = utiles.find((servidor) => servidor.id === elegidoId);
+    const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
+    return elegido ?? utiles[0] ?? deRespaldo;
+  }, [elegidoId, servidores, respaldo, enBucle]);
+
+  /**
+   * Cada vez que el marco carga un documento.
+   *
+   * Es la ÚNICA señal que un iframe de otro dominio deja ver desde fuera, y
+   * alcanza: uno normal carga una vez, uno atrapado en el bucle de recargas
+   * de su propio guardián dispara ocho veces en cinco segundos. Al pasarse,
+   * el servidor se descarta y `activo` pasa solo al siguiente — que además
+   * apunta el `src` a otro sitio, con lo que el bucle se corta de raíz en
+   * vez de seguir consumiendo la tele.
+   */
+  const alCargarMarco = useCallback(() => {
+    const servidorId = activo?.id;
+    if (!servidorId) return;
+    const veredicto = registrarCarga(cargas.current, servidorId, Date.now());
+    cargas.current = veredicto.conteo;
+    if (veredicto.enBucle) {
+      setEnBucle((previos) =>
+        previos.includes(servidorId) ? previos : [...previos, servidorId],
+      );
+    }
+  }, [activo?.id]);
 
   /**
    * La lista de streams debe conservar la identidad entre renders. El
@@ -169,6 +200,24 @@ function ReproductorCatalogo({
     () => (activo ? [{ label: titulo, url: activo.url, type: "auto" }] : []),
     [titulo, activo],
   );
+
+  // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
+  // rueda girando para siempre como hacía antes.
+  if (!activo && enBucle.length > 0) {
+    return (
+      <section className="ficha-reproductor">
+        <div className="ficha-sin-fuente">
+          <Info aria-hidden="true" />
+          <p>Ningún servidor llegó a cargar</p>
+          <span>
+            Todos se quedaron recargándose solos, que es lo que suelen hacer sus
+            comprobaciones antirrobot en el navegador de un televisor. Prueba desde el
+            teléfono, o usa «Mi enlace» con un enlace propio.
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   if (!activo) {
     return (
@@ -223,8 +272,12 @@ function ReproductorCatalogo({
                —no vale exponer la app entera por un servidor—, y por eso el
                atributo se decide por proveedor y no a mano en cada sitio. */
             <iframe
+              // Un marco nuevo por servidor: cambiar solo el `src` deja dentro
+              // el historial del anterior, y con él su bucle de recargas.
+              key={activo.id}
               src={activo.url}
               title={titulo}
+              onLoad={alCargarMarco}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
@@ -236,6 +289,16 @@ function ReproductorCatalogo({
             />
           )}
         </div>
+
+        {/* Que el reproductor cambie solo de servidor sin decir nada parece
+            otro fallo. Se avisa de lo que pasó y de que se siguió adelante. */}
+        {enBucle.length > 0 && (
+          <p className="ficha-aviso" role="status">
+            {enBucle.length === 1 ? "Un servidor se quedaba" : `${enBucle.length} servidores se quedaban`}{" "}
+            recargándose sin cargar en este televisor. Se {enBucle.length === 1 ? "saltó" : "saltaron"} y
+            seguimos con el siguiente.
+          </p>
+        )}
 
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
