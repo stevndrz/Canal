@@ -33,14 +33,17 @@ const CARRUSEL =
   "flex items-center gap-2 overflow-x-auto whitespace-nowrap py-2 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:justify-center";
 
 /** Píldora activa/inactiva, con contraste suficiente para leerse a 3 metros. */
+/**
+ * La píldora de filtro, con la clase que ya existe.
+ *
+ * Antes se armaba aquí con utilidades sueltas, y salía distinta de la que usa
+ * la lista de temporadas de una serie —la misma pieza, dos veces—. La de
+ * `globals.css` además está pensada para un mando: 44px de alto mínimo en vez
+ * de los ~34 que dejaba `py-1.5`, y tipografía que crece con la pantalla en
+ * vez de 14px fijos en un televisor de 1920.
+ */
 function chip(activo: boolean): string {
-  const base = "inline-block shrink-0 rounded-full px-4 py-1.5 text-sm";
-  return (
-    base +
-    (activo
-      ? " bg-white text-black font-semibold shadow-md"
-      : " bg-neutral-800/80 text-neutral-300 hover:bg-neutral-700 hover:text-white transition")
-  );
+  return `catalogo-chip ${activo ? "is-active" : ""}`;
 }
 
 export interface GenerosValidos {

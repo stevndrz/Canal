@@ -208,9 +208,9 @@ export function FullscreenPlayer({
           <span className="truncate text-[22px] font-semibold tracking-tight">
             {channel.number} · {channel.name}
           </span>
-          <span className="shrink-0 text-sm text-zinc-100/50">{channel.category}</span>
+          <span className="shrink-0 text-sm text-soft">{channel.category}</span>
         </div>
-        <span className="shrink-0 font-mono text-sm text-zinc-100/60">{clock}</span>
+        <span className="shrink-0 font-mono text-sm text-soft">{clock}</span>
       </div>
 
       {/* Controles */}
@@ -260,7 +260,7 @@ export function FullscreenPlayer({
           ]}
         />
 
-        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-zinc-100/50 xl:flex">
+        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-soft xl:flex">
           <span>↑↓ cambiar canal</span>
           <span>OK guía</span>
           <span>Atrás salir</span>
@@ -284,13 +284,13 @@ export function FullscreenPlayer({
       {castError && (
         <div className="tv-safe absolute inset-x-0 top-24 z-30 flex items-start gap-2.5 rounded-2xl border border-white/12 bg-app/92 p-4 text-sm backdrop-blur-xl">
           <Cast aria-hidden="true" strokeWidth={1.5} className="mt-0.5 h-4 w-4 shrink-0 text-live" />
-          <p className="flex-1 text-zinc-100/85">{castError}</p>
+          <p className="flex-1 text-muted">{castError}</p>
           <button
             type="button"
             data-nav="button"
             onClick={dismissCastError}
             aria-label="Cerrar aviso"
-            className="shrink-0 rounded-lg px-2 text-zinc-100/50 hover:text-accent"
+            className="shrink-0 rounded-lg px-2 text-soft hover:text-accent"
           >
             ✕
           </button>

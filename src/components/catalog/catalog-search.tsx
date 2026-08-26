@@ -128,7 +128,7 @@ export function CatalogSearch({
                 onClick={limpiar}
                 aria-label="Borrar búsqueda y volver al catálogo"
                 title="Borrar y volver al catálogo"
-                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-colors hover:bg-white/10 hover:text-white"
               >
                 <X size={15} aria-hidden="true" />
               </button>
@@ -140,7 +140,7 @@ export function CatalogSearch({
             de la flecha lo pone la hoja junto con la flecha misma, y con
             `px-3` de Tailwind —que gana a la regla base— el texto se le
             montaba encima. */}
-        <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-400">
+        <label className="flex shrink-0 items-center gap-2 text-sm text-muted">
           Ordenar por
           <select
             data-nav="input"

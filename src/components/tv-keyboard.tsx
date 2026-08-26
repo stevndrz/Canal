@@ -16,10 +16,10 @@ interface TvKeyboardProps {
  */
 export function TvKeyboard({ onKey, onBackspace, onClear }: TvKeyboardProps) {
   const keyClass =
-    "grid aspect-square min-h-[48px] min-w-[44px] flex-1 place-items-center rounded-[13px] border border-hairline bg-white/[0.06] text-lg font-medium text-zinc-200 focus:bg-accent focus:text-accent-on";
+    "grid aspect-square min-h-[48px] min-w-[44px] flex-1 place-items-center rounded-[13px] border border-hairline bg-white/[0.06] text-lg font-medium text-muted focus:bg-accent focus:text-accent-on";
 
   const wideClass =
-    "grid min-h-[48px] flex-[1_1_96px] place-items-center rounded-[13px] border border-hairline bg-white/[0.06] px-4 text-[15px] font-medium text-zinc-200 focus:bg-accent focus:text-accent-on";
+    "grid min-h-[48px] flex-[1_1_96px] place-items-center rounded-[13px] border border-hairline bg-white/[0.06] px-4 text-[15px] font-medium text-muted focus:bg-accent focus:text-accent-on";
 
   return (
     <div className="flex flex-col gap-2">

@@ -311,7 +311,7 @@ const StreamPlayer = memo(
           >
             <Volume1 aria-hidden="true" strokeWidth={1.5} className="mb-5 h-14 w-14 text-accent" />
             <p className="mb-2 text-2xl font-semibold tracking-tight">Activar sonido</p>
-            <p className="mb-7 max-w-sm text-[15px] text-zinc-400">
+            <p className="mb-7 max-w-sm text-[15px] text-muted">
               El televisor bloqueó el audio al arrancar. Presiona OK para reproducir con sonido.
             </p>
             <button
@@ -333,7 +333,7 @@ const StreamPlayer = memo(
           >
             <Radio aria-hidden="true" strokeWidth={1.5} className="mb-4 h-12 w-12 text-live" />
             <p className="mb-2 text-2xl font-semibold tracking-tight">Sin señal</p>
-            <p className="mb-7 max-w-md text-[15px] text-zinc-400">
+            <p className="mb-7 max-w-md text-[15px] text-muted">
               La fuente no respondió o el formato no es compatible. Suele ser un corte momentáneo
               del proveedor.
             </p>

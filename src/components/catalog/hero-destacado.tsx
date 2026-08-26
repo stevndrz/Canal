@@ -97,7 +97,7 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
         </div>
 
         {item.overview && (
-          <p className="hero-sinopsis text-neutral-300 text-sm md:text-base max-w-xl line-clamp-3 my-3">
+          <p className="hero-sinopsis text-muted text-sm md:text-base max-w-xl line-clamp-3 my-3">
             {item.overview}
           </p>
         )}

@@ -291,8 +291,8 @@ export function Dashboard({
       <div className="grid h-dvh place-items-center px-8 text-center">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">No se pudo cargar la lista</h1>
-          <p className="mt-3 text-[15px] text-zinc-400">
-            Revisa la variable <code className="font-mono text-zinc-300">M3U_URL</code> o tu
+          <p className="mt-3 text-[15px] text-muted">
+            Revisa la variable <code className="font-mono text-muted">M3U_URL</code> o tu
             conexión, y vuelve a intentarlo.
           </p>
           <button

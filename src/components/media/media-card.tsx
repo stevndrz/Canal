@@ -68,7 +68,7 @@ function ChannelGlassCard({
          hay, y a tres metros el resultado es indistinguible de un negro al
          85 %. Y `transition-all` transicionaba TODA propiedad animable,
          incluidas las que fuerzan maquetación; aquí solo hacen falta dos. */
-      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-neutral-900/85 p-6 text-left shadow-lg transition-[border-color,transform] duration-300 hover:border-white/20 ${
+      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/85 p-6 text-left shadow-lg transition-[border-color,transform] duration-300 hover:border-white/20 ${
         active ? "border-white/30" : "border-white/10"
       }`}
     >
@@ -92,17 +92,17 @@ function ChannelGlassCard({
             }`}
           />
         ) : item.mark ? (
-          <span className="absolute inset-0 grid place-items-center font-mono text-2xl tracking-widest text-neutral-500">
+          <span className="absolute inset-0 grid place-items-center font-mono text-2xl tracking-widest text-soft">
             {item.mark}
           </span>
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-neutral-600">
+          <span className="absolute inset-0 grid place-items-center text-soft">
             <Tv size={28} aria-hidden="true" />
           </span>
         )}
 
         {item.badge && (
-          <span className="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-200 ring-1 ring-white/10">
+          <span className="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
             {item.badge}
           </span>
         )}
@@ -115,10 +115,10 @@ function ChannelGlassCard({
       </div>
 
       {/* Metadatos técnicos: número + categoría en mono discreto. */}
-      <strong className="mt-3 truncate font-semibold text-sm text-neutral-200 transition-colors group-hover:text-white">
+      <strong className="mt-3 truncate font-semibold text-sm text-muted transition-colors group-hover:text-white">
         {item.title}
       </strong>
-      <span className="mt-1 flex items-center gap-1 font-mono text-xs text-neutral-400">
+      <span className="mt-1 flex items-center gap-1 font-mono text-xs text-muted">
         {item.metaRight && <span>CH {item.metaRight}</span>}
         {item.metaRight && item.meta && <span aria-hidden="true">·</span>}
         {item.meta && <span className="truncate">{item.meta}</span>}
@@ -174,7 +174,7 @@ function PosterCard({
     >
       {/* Cartel vertical 2/3: la imagen cubre el marco completo. */}
       <div
-        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-950 shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
+        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-app shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
       >
         {showArt ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -194,13 +194,13 @@ function PosterCard({
             {item.mark}
           </span>
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-neutral-600">
+          <span className="absolute inset-0 grid place-items-center text-soft">
             <Tv size={42} aria-hidden="true" />
           </span>
         )}
 
         {item.badge && (
-          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-200 ring-1 ring-white/10">
+          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
             {item.badge}
           </span>
         )}
