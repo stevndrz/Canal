@@ -35,7 +35,12 @@ export async function GET(request: Request) {
   for (const provider of getProviders()) {
     const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
     if (url) {
-      servidores.push({ id: provider.id, label: provider.label, url });
+      servidores.push({
+        id: provider.id,
+        label: provider.label,
+        url,
+        puertaAntirrobot: provider.puertaAntirrobot,
+      });
     }
   }
 

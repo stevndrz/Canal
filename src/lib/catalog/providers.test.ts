@@ -10,53 +10,60 @@ function paraTipo(tipo: "movie" | "tv") {
 
 /**
  * El orden de los proveedores ES el producto: decide qué se ve al abrir una
- * ficha, antes de que nadie toque un botón. Estas pruebas lo dejan clavado,
- * porque el bucle de recargas en televisor fue exactamente esto —VidSrc
- * encabezando las series— y no un fallo de lógica.
+ * ficha, antes de que nadie toque un botón. Se fija aquí porque es una
+ * decisión tomada a conciencia —subtítulos por delante de comodidad— y no algo
+ * que deba moverse sin querer.
  */
 describe("orden de los proveedores", () => {
   it("en PELÍCULAS manda Vimeus: es el del doblaje latino", () => {
     expect(paraTipo("movie")[0].id).toBe("vimeus");
   });
 
-  it("en SERIES manda Videasy, porque Vimeus no las cubre", () => {
+  it("en SERIES manda VidSrc, porque Vimeus no las cubre", () => {
     // La ruta de series de Vimeus responde 404, así que ni aparece.
     expect(paraTipo("tv").map((p) => p.id)).not.toContain("vimeus");
-    expect(paraTipo("tv")[0].id).toBe("videasy");
+    expect(paraTipo("tv")[0].id).toBe("vidsrc");
   });
 
-  it("los de puerta antirrobot van los ÚLTIMOS, en película y en serie", () => {
+  it("VidSrc va delante de los demás embeds: es el único con subtítulos", () => {
+    // Vidlink solo pinta los subtítulos que se le pasen en `sub_file`, y
+    // Videasy apenas los toca. Una peli sin subtítulos no sirve, así que
+    // VidSrc va delante aunque traiga puerta antirrobot.
     for (const tipo of ["movie", "tv"] as const) {
       const ids = paraTipo(tipo).map((p) => p.id);
-      const conPuerta = paraTipo(tipo)
-        .map((p, i) => ({ i, puerta: Boolean(p.puertaAntirrobot) }))
-        .filter((p) => p.puerta)
-        .map((p) => p.i);
-      const sinPuerta = paraTipo(tipo)
-        .map((p, i) => ({ i, puerta: Boolean(p.puertaAntirrobot) }))
-        .filter((p) => !p.puerta)
-        .map((p) => p.i);
-
-      expect(conPuerta.length, `${tipo}: debería haber alguno con puerta`).toBeGreaterThan(0);
-      // Todos los que tienen puerta van después de todos los que no.
-      expect(Math.min(...conPuerta), `${tipo}: ${ids.join(", ")}`).toBeGreaterThan(
-        Math.max(...sinPuerta),
-      );
+      expect(ids.indexOf("vidsrc"), tipo).toBeLessThan(ids.indexOf("videasy"));
+      expect(ids.indexOf("vidsrc"), tipo).toBeLessThan(ids.indexOf("vidlink"));
     }
   });
 
-  it("VidSrc NO encabeza las series: eso era el bucle del Samsung", () => {
-    // Su página anida `nextgencloudfabric.com`, cuya puerta de Turnstile
-    // reacciona a cualquier fallo con `location.reload()`. En el navegador de
-    // un televisor no se pasa nunca, así que el marco se recarga sin fin.
-    expect(paraTipo("tv")[0].id).not.toBe("vidsrc");
-    // Pero sigue disponible: en un teléfono funciona y trae subtítulos en español.
-    expect(paraTipo("tv").map((p) => p.id)).toContain("vidsrc");
+  it("VidSrc es el único de los primeros con subtítulos declarados", () => {
+    const conSubtitulos = getProviders()
+      .filter((p) => p.spanishSubtitles)
+      .map((p) => p.id);
+    expect(conSubtitulos).toContain("vidsrc");
   });
 
-  it("todos siguen ahí: se reordenan, no se quitan", () => {
-    const ids = getProviders().map((p) => p.id);
-    expect(ids).toEqual(["vimeus", "videasy", "vidlink", "vidsrc", "multiembed"]);
+  it("queda marcado que VidSrc trae puerta: de ahí la espera corta de la ficha", () => {
+    // `ficha-reproductor.tsx` ofrece antes «Probar otro servidor» cuando el
+    // servidor activo tiene puerta, porque de ese ya se sabe cómo falla.
+    const vidsrc = getProviders().find((p) => p.id === "vidsrc");
+    expect(vidsrc?.puertaAntirrobot).toBe(true);
+  });
+
+  it("el relevo sin puerta sigue disponible detrás", () => {
+    const ids = paraTipo("tv").map((p) => p.id);
+    expect(ids).toContain("videasy");
+    expect(ids).toContain("vidlink");
+  });
+
+  it("todos siguen ahí, en el orden acordado", () => {
+    expect(getProviders().map((p) => p.id)).toEqual([
+      "vimeus",
+      "vidsrc",
+      "videasy",
+      "vidlink",
+      "multiembed",
+    ]);
   });
 
   it("`getProviders` numera sobre la lista COMPLETA, no por tipo", () => {

@@ -1028,6 +1028,13 @@ html[data-player="on"] body {
   cursor: pointer;
 }
 
+/* El secundario de la barra: presente, pero sin competir con la salida. */
+.ficha-aviso-accion.is-suave {
+  background: transparent;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  font-weight: 500;
+}
+
 .ficha-aviso-accion:hover {
   border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
   background: var(--chip-focus, rgba(245, 245, 247, 0.2));

@@ -16,6 +16,12 @@ export interface ServidorStream {
   label: string;
   url: string;
   tipo?: "embed" | "video";
+  /**
+   * El proveedor esconde su reproductor tras una comprobación antirrobot que
+   * en un televisor puede no pasar nunca, dejando el marco recargándose. No se
+   * puede detectar desde fuera, así que la ficha ofrece antes la salida.
+   */
+  puertaAntirrobot?: boolean;
 }
 
 /** La respuesta entera de `/api/stream`. */

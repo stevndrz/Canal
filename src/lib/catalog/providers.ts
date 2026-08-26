@@ -73,35 +73,39 @@ export interface EmbedProvider {
 const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
 
 /**
- * El orden es el producto, y manda una sola regla: **delante lo que
- * reproduce**.
+ * El orden es el producto: decide qué se ve al abrir una ficha.
  *
- * 1. **Vimeus** encabeza porque es el que trae doblaje latino, y en películas
- *    es lo que se quiere. Solo cubre películas (su ruta de series da 404), así
- *    que en series simplemente no aparece y el primero pasa a ser el siguiente.
- * 2. **Videasy** y **Vidlink** van después: cargan limpios, en película y en
- *    serie, y sin puerta de por medio. En series son, de hecho, los primeros.
- * 3. **VidSrc** y **Multiembed** van al FINAL, aunque VidSrc sea el único con
- *    subtítulos en español verificados. Los dos esconden su reproductor detrás
- *    de una comprobación antirrobot (`puertaAntirrobot`), y en el navegador de
- *    un televisor esas comprobaciones no se pasan nunca: la de VidSrc reacciona
- *    al fallo recargándose, tres `location.reload()` en sus tres caminos de
- *    error, y deja el marco dando vueltas para siempre. Mientras VidSrc
- *    encabezó las series —Vimeus no las cubre— CUALQUIER serie abría
- *    directamente en ese bucle.
+ * 1. **Vimeus** encabeza las PELÍCULAS: es el del doblaje latino. Su ruta de
+ *    series da 404, así que en series ni aparece.
+ * 2. **VidSrc** va justo detrás, y en SERIES es el primero. Es el único con
+ *    subtítulos en español de verdad (`ds_lang=es`, verificado): los demás no
+ *    los traen —Vidlink solo pinta los que le pases tú en `sub_file`, y
+ *    Videasy apenas los toca—, y una película sin subtítulos no sirve. Trae
+ *    además menos anuncios que Vidlink.
+ * 3. **Videasy** y **Vidlink** son el relevo cuando VidSrc no da.
+ * 4. **Multiembed**, el último.
  *
- * Unos subtítulos que no se pueden ver no valen nada, así que la regla no es
- * "el que más ofrece" sino "el que arranca".
+ * ⚠️ El precio de tener VidSrc delante, dicho claro: su página anida
+ * `nextgencloudfabric.com`, que esconde el reproductor detrás de una puerta
+ * de Cloudflare Turnstile, y esa puerta reacciona a cualquier fallo
+ * recargándose —tres `location.reload()`, uno por camino de error—. En el
+ * navegador de un televisor Turnstile no siempre pasa, y cuando no pasa el
+ * marco se queda dando vueltas.
+ *
+ * Es una elección consciente: subtítulos a cambio de que a veces haya que
+ * pulsar «Probar otro servidor». Ese bucle NO se puede detectar desde aquí
+ * —vive en un marco nieto y no deja rastro fuera, medido: 14 navegaciones
+ * reales, 1 evento visto—, así que la salida es el botón, y con los
+ * proveedores de puerta se ofrece antes (ver `ESPERA_ANTES_DE_OFRECER_MS`).
  */
-const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
-  {
+const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     // El «VIMEOS» de las webs latinas (vimeus.com): el que mejor funciona y
     // con doblaje latino. Solo películas: su ruta de series responde 404.
     //
     // Verificado 2026-08-24: /e/movie?tmdb=… → 200; series probadas sin
     // éxito en TODAS las variantes (/e/tv, /e/tv?tmdb&season&episode,
     // /e/series, /e/tv/{id}, /tv, /e/show) → 404. Mientras no publiquen la
-    // ruta real, `tv` queda vacío y en series el primero es Videasy.
+    // ruta real, `tv` queda vacío y en series el primero es VidSrc.
     //
     // NOTA sobre «Vimeos» (vimeos.net, el que usan sitios como lamovie.org):
     // sus embeds son `embed-{hash}.html` con un código OPACO por
@@ -114,8 +118,20 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     spanishSubtitles: false,
   },
   {
-    // El que sostiene las SERIES, y el segundo en películas: carga limpio,
-    // con subtítulos, varios servidores dentro y sin puerta de por medio.
+    // El de los SUBTÍTULOS (`ds_lang=es`, verificado) y el primero en series.
+    // Su puerta antirrobot es el precio; ver el comentario de orden arriba.
+    id: "vidsrc",
+    movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
+    tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
+    spanishSubtitles: true,
+    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
+    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
+    // Turnstile con tres `location.reload()` en sus caminos de fallo.
+    puertaAntirrobot: true,
+  },
+  {
+    // El relevo limpio: sin puerta antirrobot y sin librerías de anuncios en
+    // su paquete. Lo que no trae son subtítulos propios, por eso no encabeza.
     id: "videasy",
     movie: "https://player.videasy.to/movie/{tmdbId}",
     tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
@@ -139,18 +155,6 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
     tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",
     spanishSubtitles: false,
-  },
-  {
-    // Subtítulos en español verificados (`ds_lang=es`), pero AL FINAL por su
-    // puerta antirrobot: ver el comentario de orden arriba.
-    id: "vidsrc",
-    movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
-    tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
-    spanishSubtitles: true,
-    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
-    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
-    // Turnstile con tres `location.reload()` en sus caminos de fallo.
-    puertaAntirrobot: true,
   },
   {
     id: "multiembed",

@@ -12,10 +12,21 @@ import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en
 /**
  * Cuánto se espera antes de ofrecer el cambio de servidor.
  *
- * Suficiente para que un embed lento arranque, poco para no dejar a nadie
- * mirando una rueda sin saber que hay salida.
+ * Suficiente para que un embed lento arranque —una tele vieja tarda—, poco
+ * para no dejar a nadie mirando una rueda sin saber que hay salida.
  */
 const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
+
+/**
+ * Lo mismo, para los proveedores con puerta antirrobot.
+ *
+ * Mucho menos, porque de esos ya se sabe CÓMO fallan: la puerta se recarga
+ * sola y el marco no arranca nunca. Esperar doce segundos a algo que no va a
+ * pasar es justo lo que se sentía como «se queda cargando». El bucle no se
+ * puede ver desde fuera —vive en un marco nieto—, pero sí se puede acortar la
+ * espera hasta la salida.
+ */
+const ESPERA_CON_PUERTA_MS = 6_000;
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -194,6 +205,7 @@ function ReproductorCatalogo({
           label: "Servidor 1",
           tipo: "embed",
           url: primero.url,
+          puertaAntirrobot: primero.provider.puertaAntirrobot,
         }
       : null;
   }, [mediaType, tmdbId, temporada, episodio]);
@@ -261,10 +273,10 @@ function ReproductorCatalogo({
     if (!servidorActivoId) return;
     const reloj = setTimeout(
       () => setAvisarPara(servidorActivoId),
-      ESPERA_ANTES_DE_OFRECER_MS,
+      activo?.puertaAntirrobot ? ESPERA_CON_PUERTA_MS : ESPERA_ANTES_DE_OFRECER_MS,
     );
     return () => clearTimeout(reloj);
-  }, [servidorActivoId]);
+  }, [servidorActivoId, activo?.puertaAntirrobot]);
 
   const ofrecerCambio = avisarPara === servidorActivoId;
 
@@ -356,45 +368,49 @@ function ReproductorCatalogo({
             deja ni rastro fuera—. Quien está delante lo ve en un segundo, así
             que se le pregunta en vez de adivinar. Es lo único que cubre TODOS
             los modos de fallo, incluidos los que aún no conocemos. */}
-        {/* Entregar el mando al reproductor del proveedor, a propósito.
+        {/* UNA sola barra al pie del vídeo, no dos apiladas.
 
-            Mientras no se pulse, el foco no entra en el marco y sus popunder
-            se quedan sin el gesto que necesitan para abrir pestañas. Cuando
-            de verdad hace falta pausar o buscar, esto lo cede — y al cambiar
-            de servidor vuelve a cerrarse solo. */}
-        {!abierto && (
-          <div className="ficha-aviso">
-            <span>El mando maneja esta página; el vídeo arranca solo.</span>
+            En un televisor cada barra empuja hacia abajo lo de después, y la
+            salida —que es lo urgente cuando el marco no arranca— acababa fuera
+            de pantalla. Un mensaje, el más pertinente, y los mandos que hagan
+            falta al lado. */}
+        <div className="ficha-aviso" role="status">
+          <span>
+            {descartados.length > 0
+              ? `Se ${descartados.length === 1 ? "saltó" : "saltaron"} ${descartados.length} servidor${descartados.length === 1 ? "" : "es"} que no cargaba${descartados.length === 1 ? "" : "n"}.`
+              : ofrecerCambio
+                ? activo?.puertaAntirrobot
+                  ? "Este servidor trae los subtítulos, pero en un televisor a veces se queda recargándose."
+                  : "¿Sigue sin verse nada?"
+                : "El mando maneja esta página; el vídeo arranca solo."}
+          </span>
+
+          {/* La salida primero: cuando hace falta, es lo que se busca. */}
+          {ofrecerCambio && activo && (
             <button
               type="button"
               data-nav="button"
               className="ficha-aviso-accion"
+              onClick={() => descartar(activo.id)}
+            >
+              Probar otro servidor
+            </button>
+          )}
+
+          {/* Entregar el mando al reproductor ajeno, a propósito. Mientras no
+              se pulse, el foco no entra en el marco y sus popunder se quedan
+              sin el gesto que necesitan para abrir pestañas. */}
+          {!abierto && (
+            <button
+              type="button"
+              data-nav="button"
+              className="ficha-aviso-accion is-suave"
               onClick={abrirMarco}
             >
               Usar los controles del servidor
             </button>
-          </div>
-        )}
-
-        {(ofrecerCambio || descartados.length > 0) && (
-          <div className="ficha-aviso" role="status">
-            <span>
-              {descartados.length > 0
-                ? `Se ${descartados.length === 1 ? "saltó" : "saltaron"} ${descartados.length} servidor${descartados.length === 1 ? "" : "es"} que no cargaba${descartados.length === 1 ? "" : "n"}.`
-                : "¿Sigue sin verse nada?"}
-            </span>
-            {activo && (
-              <button
-                type="button"
-                data-nav="button"
-                className="ficha-aviso-accion"
-                onClick={() => descartar(activo.id)}
-              >
-                Probar otro servidor
-              </button>
-            )}
-          </div>
-        )}
+          )}
+        </div>
 
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
