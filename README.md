@@ -40,6 +40,67 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 
 ---
 
+## ⚙️ Variables de entorno
+
+Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
+
+| Variable             | Para qué                                                        |
+|----------------------|-----------------------------------------------------------------|
+| `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código        |
+| `EPG_URL`            | Guía de programación en XMLTV. Sin ella las filas no dicen qué dan |
+| `TMDB_API_KEY`       | Credencial propia de TMDB. Hay una de reserva en el código       |
+| `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
+| `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+
+Todas se declaran en un solo sitio, [`src/lib/config.ts`](src/lib/config.ts):
+ningún otro archivo lee `process.env`.
+
+---
+
+## 🚫 Películas sin anuncios (`STREMIO_MANIFESTS`)
+
+Los servidores «Servidor 1, 2, 3…» son iFrames de terceros: su reproductor, sus
+anuncios, y desde fuera **no se puede tocar nada de lo que pasa dentro**. Es el
+precio de que sean gratis.
+
+La única salida real no es bloquear sus anuncios, es **no usar su reproductor**.
+Eso es lo que hace `STREMIO_MANIFESTS`: un addon de Stremio es simplemente una
+URL que, dada una película por su id de IMDB, responde con una lista de enlaces
+de vídeo en JSON. Cuando alguno de esos enlaces es un `.mp4`/`.m3u8` directo,
+CanalCasa lo reproduce **en su propio `<video>` con hls.js** y el iFrame ajeno
+deja de existir: sin anuncios, sin sandbox y sin nada de nadie. Aparecen en la
+ficha como botones «Directo · …» junto a los demás.
+
+```bash
+STREMIO_MANIFESTS="https://addon-uno.example,https://addon-dos.example"
+```
+
+La URL es la **base** del addon, la que lleva `/manifest.json` detrás, incluido
+su trozo de configuración si lo tiene. La app pide `{base}/stream/movie/tt….json`.
+
+**El detalle que decide si esto te sirve:** [`stremio.ts`](src/lib/resolvers/stremio.ts)
+descarta todo lo que no sea http(s) directo, y **la mayoría de addons devuelven
+torrents**, que un navegador no puede reproducir. Para que un torrent se
+convierta en enlace directo hace falta un servicio de *debrid* configurado
+dentro de la URL del addon. Sin eso la lista llega vacía y la ficha se queda
+igual que antes, sin avisar.
+
+Por eso existe el comprobador, que aplica **los mismos filtros que la app**:
+
+```bash
+npm run addon -- https://tu-addon.example/con-su-configuracion
+```
+
+Dice cuántos enlaces llegan, cuántos sobreviven al filtro y —lo importante— si
+responden de verdad. Un enlace firmado contra la IP de quien lo pidió da 403
+desde el servidor, y ese fallo de otro modo solo se descubre dándole al play.
+
+> Dos avisos que ahorran tiempo. **Uno:** la petición sale del *servidor*
+> (`/api/stream`), no del navegador; los addons que bloquean IPs de centro de
+> datos fallan igual en Vercel. **Dos:** usa únicamente fuentes autorizadas.
+
+---
+
 ## 🛠️ Scripts disponibles
 
 | Comando            | Descripción                                        |
@@ -50,6 +111,7 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 | `npm run lint`     | Ejecuta ESLint                                     |
 | `npm run typecheck`| Verifica tipos con TypeScript                      |
 | `npm run test`     | Pruebas de la lógica pura (vitest)                 |
+| `npm run addon`    | Comprueba si un addon de Stremio sirve enlaces     |
 | `npm run verify`   | **Los cuatro de golpe.** Lo mismo que corre en CI  |
 
 ---
