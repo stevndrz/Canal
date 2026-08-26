@@ -1,5 +1,5 @@
 import type { MediaType } from "./types";
-import { serverConfig } from "@/lib/config";
+import { serverConfig } from "@/lib/config.server";
 
 /**
  * Cliente mínimo de TMDB.

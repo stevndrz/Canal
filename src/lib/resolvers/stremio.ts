@@ -1,4 +1,4 @@
-import { serverConfig } from "@/lib/config";
+import { serverConfig } from "@/lib/config.server";
 import type { MediaType } from "@/lib/catalog/types";
 import type { ServidorStream } from "./types";
 

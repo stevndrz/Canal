@@ -8,9 +8,10 @@ dist/
 out/
 
 # Entorno
-.env
-.env.local
-.env.*.local
+# Todos los .env, no solo tres: Next lee también `.env.production` y
+# `.env.development`, que las reglas de antes dejaban fuera.
+.env*
+!.env.example
 
 # Archivos del sistema
 .DS_Store

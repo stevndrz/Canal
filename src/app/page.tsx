@@ -4,7 +4,7 @@ import { fetchEpg, getEpgEntry } from "@/lib/epg";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import type { CatalogSection } from "@/lib/catalog/types";
 import type { Channel } from "@/lib/types";
-import { serverConfig } from "@/lib/config";
+import { serverConfig } from "@/lib/config.server";
 
 export const dynamic = "force-dynamic";
 

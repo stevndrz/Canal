@@ -4,6 +4,7 @@ import { fetchTitle } from "@/lib/catalog/tmdb";
 import { fuentesDirectas, stremioActivo } from "@/lib/resolvers/stremio";
 import type { MediaType } from "@/lib/catalog/types";
 import type { ServidorStream } from "@/lib/resolvers/types";
+import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
 
 /**
  * Lista de servidores para reproducir un título: **responde al instante**,
@@ -20,6 +21,14 @@ import type { ServidorStream } from "@/lib/resolvers/types";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  /**
+   * Esta es la ruta que más amplifica de la app: con `STREMIO_MANIFESTS`
+   * configurado, UNA petición entrante dispara una llamada a TMDB más una por
+   * cada manifiesto, todas en paralelo. Sin freno, es el mejor sitio para
+   * hacer daño con el menor esfuerzo.
+   */
+  if (excedeLimite(identificarCliente(request))) return respuestaLimite();
+
   const params = new URL(request.url).searchParams;
 
   const tmdbId = Number(params.get("tmdbId"));

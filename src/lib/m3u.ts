@@ -3,7 +3,7 @@ import { classifyChannel, compareByCategory, priorityRank } from "./categories";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
-import { serverConfig } from "@/lib/config";
+import { serverConfig } from "@/lib/config.server";
 
 /**
  * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
@@ -45,6 +45,18 @@ const M3U_TIMEOUT_MS = 8000;
 /** Cuánto se reutiliza la lista ya interpretada antes de volver a descargarla. */
 const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
 
+/**
+ * Tope de tamaño de la lista.
+ *
+ * El tiempo de espera por sí solo no protege: un origen que responda rápido con
+ * un cuerpo enorme agota la memoria de la función antes de que el reloj sirva
+ * de nada, y `response.text()` no tiene freno. `epg.ts` ya comprueba esto y
+ * bien; aquí faltaba, siendo la descarga más grande de la app.
+ *
+ * 20 MB deja muchísimo margen: la lista por defecto son 1,6 MB.
+ */
+const MAX_M3U_BYTES = 20 * 1024 * 1024;
+
 export function getM3uSourceUrl(): string {
   return serverConfig().m3uUrl;
 }
@@ -59,7 +71,25 @@ async function fetchM3uText(): Promise<string | null> {
       cache: "no-store",
       signal: AbortSignal.timeout(M3U_TIMEOUT_MS),
     });
-    if (response.ok) return await response.text();
+    if (response.ok) {
+      const declarado = Number(response.headers.get("content-length") || 0);
+      if (declarado && declarado > MAX_M3U_BYTES) {
+        console.error(
+          `❌ Lista M3U descartada por tamaño (${Math.round(declarado / 1024 / 1024)} MB) — ${source}`
+        );
+        return null;
+      }
+      // Y otra vez con el cuerpo ya leído: `content-length` puede faltar o
+      // mentir, así que la comprobación de verdad es esta.
+      const texto = await response.text();
+      if (texto.length > MAX_M3U_BYTES) {
+        console.error(
+          `❌ Lista M3U descartada por tamaño (${Math.round(texto.length / 1024 / 1024)} MB) — ${source}`
+        );
+        return null;
+      }
+      return texto;
+    }
     console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
   } catch (error) {
     const reason =

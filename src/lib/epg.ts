@@ -61,6 +61,31 @@ export async function fetchEpg(url: string): Promise<EpgGuide | null> {
 }
 
 async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
+  /**
+   * Solo `https:`.
+   *
+   * Este es el ÚNICO punto de la app donde contenido remoto —el `url-tvg` que
+   * viene dentro del archivo M3U, no una URL que escriba nadie— decide a dónde
+   * sale una petición del servidor. Quien controle esa lista obtiene, si no,
+   * un primitivo de petición saliente desde nuestra función, y los títulos que
+   * devuelva se pintan luego en la guía de canales.
+   *
+   * `EPG_URL` por entorno la elige quien despliega, así que el riesgo real solo
+   * aparece al apuntar `M3U_URL` a una lista pública de la comunidad — que es
+   * exactamente lo que invita a hacer el README.
+   */
+  let destino: URL;
+  try {
+    destino = new URL(url);
+  } catch {
+    console.error(`❌ La URL de la guía EPG no es válida — ${url}`);
+    return null;
+  }
+  if (destino.protocol !== "https:") {
+    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${url}`);
+    return null;
+  }
+
   try {
     const res = await fetch(url, {
       cache: "no-store",
