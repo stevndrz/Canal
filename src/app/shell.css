@@ -184,8 +184,8 @@
   min-width: 0;
 }
 
-/* Acotado a la barra a propósito: `.cw-badge` usa `top-right` como
-   modificador de posición y heredaría este flex. */
+/* Acotado a la barra con `>` a propósito: `top-right` se usa también como
+   modificador de posición, y sin acotar heredaría este flex. */
 .sidebar > .top-right {
   display: flex;
   align-items: center;
@@ -603,58 +603,6 @@
 .media-card:focus-visible > strong,
 [data-input="dpad"] .media-card:focus > strong {
   color: var(--text);
-}
-
-/* La carátula entra con un fundido cuando termina de descargarse: aparecer de
-   golpe sobre el degradado de espera da un parpadeo en cada riel. */
-.poster-art {
-  opacity: 0;
-  transition: opacity 320ms var(--ease);
-}
-
-.poster-art.is-loaded {
-  opacity: 1;
-}
-
-/* Monograma de respaldo: la mayoría de canales de una lista M3U no traen
-   logo, y dos letras identifican mejor que un icono repetido cien veces. */
-.poster-mark {
-  font-size: clamp(26px, 2.6vw, 46px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* Insignia de esquina y barra de progreso, para «continuar viendo». */
-.cw-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--glass-strong);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #fff;
-}
-
-.cw-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.cw-progress > span {
-  display: block;
-  height: 100%;
-  background: #fff;
 }
 
 /* ═══ Hero ══════════════════════════════════════════════════════════════

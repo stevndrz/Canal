@@ -250,19 +250,3 @@ export async function fetchFiltered(
 export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[]> {
   return (await searchTitles(query)).map(toCatalogItem);
 }
-
-/** Igual, pero con el recuento de páginas para poder seguir buscando. */
-export async function searchCatalogPagina(query: string, pagina = 1): Promise<PaginaCatalogo> {
-  const term = query.trim();
-  if (!term) return { items: [], pagina, totalPaginas: 0 };
-  const { entradas, totalPaginas } = await fetchPagina(
-    `/search/multi?query=${encodeURIComponent(term)}&include_adult=false&page=${pagina}`,
-    "movie"
-  );
-  return {
-    // `/search/multi` mezcla personas, que no encajan en ninguna ficha.
-    items: entradas.filter((e) => e.mediaType === "movie" || e.mediaType === "tv").map(toCatalogItem),
-    pagina,
-    totalPaginas,
-  };
-}

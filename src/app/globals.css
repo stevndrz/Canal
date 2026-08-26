@@ -700,26 +700,6 @@ html[data-player="on"] body {
   box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
 }
 
-.catalogo-buscador-enviar {
-  flex-shrink: 0;
-  min-height: 54px;
-  padding: 0 clamp(18px, 1.6vw, 30px);
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0a0a0a;
-  font-size: clamp(14px, 1vw, 17px);
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.catalogo-buscador-enviar:hover,
-.catalogo-buscador-enviar:focus-visible {
-  background: #e6e6e6;
-  transform: scale(1.03);
-}
-
 /* ── Teléfono en horizontal ──────────────────────────────────────────
    No es cuestión de ancho sino de **alto**: girado, un teléfono tiene unos
    890px de ancho —así que las reglas de `max-width: 720px` no entran— pero

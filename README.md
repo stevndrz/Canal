@@ -122,21 +122,43 @@ desde el servidor, y ese fallo de otro modo solo se descubre dándole al play.
 Canal/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css        # Estilos globales y utilidades
-│   │   ├── layout.tsx         # Layout raíz con metadata
-│   │   └── page.tsx           # Página principal (SSR, dynamic)
+│   │   ├── globals.css         # Tokens, restablecimientos y pantallas propias
+│   │   ├── shell.css           # El armazón: barra, rieles, tarjetas, canales
+│   │   ├── layout.tsx          # Layout raíz con metadata
+│   │   ├── page.tsx            # Canales en vivo (SSR, dynamic)
+│   │   ├── peliculas/          # Catálogo TMDB y la ficha de cada título
+│   │   └── api/                # `buscar` y `stream`: lo que no puede ir al cliente
 │   ├── components/
-│   │   ├── dashboard.tsx      # Dashboard: lista de canales, categorías, favoritos
-│   │   └── stream-player.tsx  # Reproductor (hls.js / mpegts.js), carga solo en cliente
+│   │   ├── stream-player.tsx   # Reproductor de canales (hls.js / mpegts.js)
+│   │   ├── native-player.tsx   # Reproductor de enlaces directos, con controles
+│   │   ├── catalog/            # Ficha, servidores, filtros, buscador del catálogo
+│   │   ├── livetv/             # Pestaña de canales: lista, categorías, detalle
+│   │   ├── media/              # Tarjetas y rieles, compartidos por todo
+│   │   ├── player/             # Barra de controles y guía, compartidas
+│   │   ├── shell/              # Barra superior
+│   │   └── views/              # Una por destino: inicio, buscar, favoritos, ajustes…
+│   ├── hooks/                  # Navegación con mando, pantalla completa, cast…
 │   └── lib/
-│       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
-│       └── types.ts           # Tipo `Channel` compartido
+│       ├── m3u.ts              # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       ├── types.ts            # Tipo `Channel` compartido
+│       ├── catalog/            # TMDB, proveedores de reproducción, descubrimiento
+│       ├── reproduccion/       # Qué motor reproduce cada enlace, cast, bucles
+│       ├── resolvers/          # Fuentes directas (addons de Stremio)
+│       └── fuente-propia/      # «Mi enlace»: validar URLs y magnets
+├── scripts/                    # Utilidades sueltas (lista M3U, probar addons)
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
 ```
 
-No hay carpeta `api/`, `db/` ni variables `DATABASE_URL`: todo el estado vive en memoria del servidor (por request) y en `localStorage` del navegador para los favoritos.
+La lógica que se puede razonar sin montar un componente vive en `src/lib` y
+tiene pruebas; los componentes se quedan con el estado y el DOM. Las trampas de
+la cascada CSS están en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+
+No hay `db/` ni `DATABASE_URL`: todo el estado vive en memoria del servidor (por
+request) y en `localStorage` del navegador para los favoritos. Sí hay `api/`, con
+dos rutas que existen solo para no sacar la credencial de TMDB al navegador:
+`/api/buscar` (búsqueda de títulos) y `/api/stream` (servidores de una ficha).
 
 ---
 
@@ -166,24 +188,30 @@ CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes.
 
 ### Navegación con control remoto
 
-| Tecla          | Acción                          |
-|----------------|----------------------------------|
-| `↑` / `↓`      | Cambiar canal en la lista       |
-| `PgUp` / `PgDn`| Salto de 10 canales             |
-| `← / →`        | Cambiar categoría                |
-| `0-9`          | Ir directamente a un canal      |
-| `Espacio` / `K`| Play / Pausa                    |
-| `M`            | Silenciar / Activar sonido      |
-| `F`            | Pantalla completa               |
-| `Enter`        | Marcar/quitar favorito           |
-| `?`            | Mostrar atajos de teclado       |
-| `Esc`          | Cerrar paneles                  |
+Durante la reproducción a pantalla completa
+([`fullscreen-player.tsx`](src/components/fullscreen-player.tsx)):
+
+| Tecla                    | Acción                                    |
+|--------------------------|-------------------------------------------|
+| `↑` `↓` `←` `→`          | Zapear al canal anterior / siguiente      |
+| `Enter` / OK             | Abrir y cerrar la guía de canales         |
+| `Espacio` / `K`          | Play / Pausa                              |
+| `M`                      | Silenciar / activar sonido                |
+| cualquier otra           | Despertar los controles                   |
+
+Fuera del reproductor manda la navegación espacial
+([`use-spatial-nav.ts`](src/hooks/use-spatial-nav.ts)): las flechas mueven el
+foco entre piezas, y `Esc`, `Retroceso` o la tecla Atrás del mando (`GoBack`,
+`BrowserBack`) vuelven atrás.
+
+> Pantalla completa se pide con doble clic sobre el vídeo o con su botón, no
+> con una tecla: `requestFullscreen` solo funciona dentro de un gesto.
 
 ### Buenas prácticas para TV
 
-1. **Foco visible**: Todos los elementos interactivos tienen `focus-visible` con anillo verde.
+1. **Foco visible**: la pieza enfocada se ilumina con un borde **blanco** (`--foco-borde`) y crece un 6%. Es el gesto del televisor, y es uno solo en toda la app.
 2. **Controles del reproductor**: Se auto-ocultan después de 4 segundos para no distraer.
-3. **Tipografía grande**: En pantallas ≥1280px el texto base aumenta a 16px.
+3. **Tipografía fluida**: los tamaños van en `clamp()` contra el viewport, así que crecen solos en un televisor sin necesidad de un salto por resolución.
 4. **Scroll suave**: El canal seleccionado siempre se mantiene visible con `scrollIntoView`.
 5. **Reduced motion**: Respeta `prefers-reduced-motion` para usuarios sensibles.
 
@@ -226,14 +254,20 @@ pantallas propias). El reparto y las trampas de la cascada están en
 
 ## 🧑‍💻 Cómo agregar un atajo de teclado
 
-En `src/components/dashboard.tsx`, dentro del `useEffect` de `handleKeyDown`:
+En [`src/components/fullscreen-player.tsx`](src/components/fullscreen-player.tsx),
+dentro del `switch (event.key)` de `onKeyDown`:
 
 ```ts
-if (e.key === "r" || e.key === "R") {
+case "r":
+case "R":
+  event.preventDefault();
   // Acción para la tecla R
   return;
-}
 ```
+
+Ojo con el `default`, que llama a `wake()`: cualquier tecla no reconocida
+despierta los controles a propósito. Un `case` nuevo que no haga `return` se
+comería también ese comportamiento.
 
 ---
 
