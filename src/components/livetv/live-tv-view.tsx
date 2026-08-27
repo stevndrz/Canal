@@ -117,13 +117,9 @@ export function LiveTvView({
   sinHueco,
 }: LiveTvViewProps) {
   /**
-   * Elegir un canal cambia la señal de arriba y sube a verla.
-   *
-   * Antes saltaba a pantalla completa, y eso convertía explorar la lista en un
-   * viaje de ida: para probar otro canal había que salir del reproductor,
-   * volver a Canales y buscar dónde estabas. Ahora la emisión cambia en la
-   * tarjeta que ya está en esta misma pantalla, y la lista se queda donde
-   * estaba. Ir a pantalla completa sigue siendo una decisión aparte.
+   * Elegir un canal cambia la señal de arriba sin mover la lista. Saltar a
+   * pantalla completa convertía explorar en un viaje de ida: para probar otro
+   * canal había que salir, volver a Canales y buscar dónde estabas.
    */
   const sintonizar = useCallback(
     (canal: Channel) => {
@@ -173,28 +169,19 @@ export function LiveTvView({
   }, [visible.length]);
 
   /**
-   * El lote sigue mandando cuántas filas EXISTEN; la ventana, cuántas se
-   * montan de verdad.
-   *
-   * Son dos cosas distintas y las dos hacen falta. El lote evita pedirle a la
-   * tele que calcule 7.822 posiciones de golpe al abrir la pantalla. La
-   * ventana evita que, tras bajar un rato, esas 7.822 filas se queden montadas
-   * para siempre: eran ~141.000 nodos y 15.650 elementos `[data-nav]`, y
-   * `use-spatial-nav` los recorre **en cada pulsación de flecha del mando**
-   * llamando a `getBoundingClientRect()`.
+   * El lote manda cuántas filas EXISTEN; la ventana, cuántas se montan. Hacen
+   * falta las dos: el lote evita calcular 7.822 posiciones al abrir, y la
+   * ventana evita que tras bajar un rato queden montadas para siempre —eran
+   * ~141.000 nodos y 15.650 `[data-nav]`, que `use-spatial-nav` recorre con
+   * `getBoundingClientRect()` **en cada pulsación de flecha**—.
    */
   /**
-   * Los canales de la casa, arriba del todo.
+   * Los canales de la casa, arriba del todo. Solo en «Todas» y sin búsqueda:
+   * si alguien pidió Deportes, subirle el Canal 3 es contestar otra pregunta.
    *
-   * Solo en «Todas» y sin búsqueda escrita: si alguien ha pedido Deportes o ha
-   * escrito «bbc», subirle el Canal 3 es contestar otra pregunta. Y se quitan
-   * de su sitio original para que no salgan dos veces.
-   *
-   * **Manda sobre el apartado de los canales caídos, y es a propósito.** Si
-   * Guatevisión no responde hoy, sigue siendo el canal que siempre se ve: lo
-   * último que quiere nadie es tener que buscarlo entre 7.822 para comprobar
-   * si ya volvió. Se queda en su sitio con su marca de «sin señal», que es
-   * información suficiente. Los demás sí bajan al final.
+   * **Manda sobre el apartado de los caídos, a propósito**: si Guatevisión no
+   * responde hoy sigue siendo el canal de siempre, y nadie quiere buscarlo
+   * entre 7.822 para ver si volvió. Se queda con su marca de «sin señal».
    */
   const conLaCasaDelante = useMemo(() => {
     if (category !== "Todas" || search.trim() || deLaCasa.length === 0) return visible;

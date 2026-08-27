@@ -11,13 +11,10 @@ import { serverConfig } from "@/lib/config.server";
  * una fuente independiente que puede fallar sin tumbar la lista de canales).
  */
 /**
- * Un canal recién interpretado, antes de empaquetarlo.
- *
- * Sin `id` —es la posición— y **sin `number`**: este archivo lo rellenaba con
- * `String(index + 1)` y un comentario que decía «provisional», y el cliente lo
- * sobrescribía entero al llegar. Eran 30 KB de payload que se descargaban, se
- * interpretaban y se tiraban. Ahora el número lo pone
- * `desempaquetarCanales`, una sola vez y en la misma pasada.
+ * Un canal recién interpretado, antes de empaquetarlo. Sin `id` —es la
+ * posición— y **sin `number`**: se rellenaba aquí y el cliente lo sobrescribía
+ * al llegar, o sea 30 KB que se bajaban, se interpretaban y se tiraban. Ahora
+ * lo pone `desempaquetarCanales` en su misma pasada.
  */
 export type ParsedChannel = Omit<Channel, "id" | "number">;
 
@@ -55,14 +52,10 @@ const M3U_TIMEOUT_MS = 8000;
 const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
 
 /**
- * Tope de tamaño de la lista.
- *
- * El tiempo de espera por sí solo no protege: un origen que responda rápido con
- * un cuerpo enorme agota la memoria de la función antes de que el reloj sirva
- * de nada, y `response.text()` no tiene freno. `epg.ts` ya comprueba esto y
- * bien; aquí faltaba, siendo la descarga más grande de la app.
- *
- * 20 MB deja muchísimo margen: la lista por defecto son 1,6 MB.
+ * Tope de tamaño de la lista. El tiempo de espera solo no protege: un origen
+ * rápido con un cuerpo enorme agota la memoria antes de que el reloj sirva de
+ * nada, y `response.text()` no tiene freno. 20 MB deja margen de sobra — la
+ * lista por defecto son 1,6 MB.
  */
 const MAX_M3U_BYTES = 20 * 1024 * 1024;
 

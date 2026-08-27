@@ -19,16 +19,11 @@ interface Candidate {
 }
 
 /**
- * Un candidato tiene que poder recibir el foco de verdad.
- *
- * `.focus()` sobre un `<div>` corriente no hace nada y no avisa: el motor cree
- * que movió el foco, el foco se queda donde estaba y la navegación se atasca
- * sin ningún error en consola. Pasó exactamente eso al marcar el contenedor de
- * scroll de un carril con `data-nav`: al pulsar abajo desde la barra, ese div
- * enorme ganaba por cercanía y el foco no salía nunca de la barra.
- *
- * En vez de confiar en que nadie vuelva a marcar un elemento no enfocable, se
- * comprueba aquí.
+ * Un candidato tiene que poder recibir el foco de verdad: `.focus()` sobre un
+ * `<div>` corriente no hace nada y no avisa, así que la navegación se atasca
+ * sin un solo error en consola. Pasó al marcar con `data-nav` el contenedor de
+ * scroll de un carril: ese div enorme ganaba por cercanía y el foco no salía
+ * de la barra. Se comprueba aquí en vez de confiar en que no se repita.
  */
 const ENFOCABLES = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "VIDEO"]);
 

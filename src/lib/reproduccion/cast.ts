@@ -1,12 +1,8 @@
 /**
- * Las decisiones puras de transmitir a una TV.
- *
- * Están fuera de `use-cast.ts` por la misma razón que `motor.ts` salió de
- * `stream-player.tsx`: son reglas que se pueden razonar y probar sin montar un
- * componente, sin SDK de Google y sin un Chromecast delante. Que no se pudieran
- * probar es parte de por qué esto se «arregló» dos veces sin arreglarse.
- *
- * Aquí no se toca el DOM ni estado de React.
+ * Las decisiones puras de transmitir a una TV, fuera de `use-cast.ts` por lo
+ * mismo que `motor.ts` salió de `stream-player.tsx`: se pueden probar sin
+ * componente, sin SDK y sin un Chromecast delante. Que no se pudieran probar
+ * es parte de por qué esto se «arregló» dos veces sin arreglarse.
  */
 
 /** Lo que se le declara al receptor sobre un medio HLS. */
@@ -35,17 +31,14 @@ export function esHls(tipoContenido: string): boolean {
 }
 
 /**
- * Contenedor de los fragmentos HLS, para el receptor.
+ * Contenedor de los fragmentos HLS, para el receptor. **La pieza que faltaba
+ * para las listas IPTV**: el receptor de Google (CAF) no adivina el contenedor,
+ * así que con fragmentos MPEG-2 TS —lo que usa casi toda lista IPTV— sin
+ * declarar, la carga falla con `load_failed`. Desde el sofá: sale el selector,
+ * eliges la tele, y no pasa nada.
  *
- * **La pieza que faltaba para las listas IPTV.** El receptor por defecto de
- * Google (CAF) no adivina el contenedor de un HLS: si el manifiesto apunta a
- * fragmentos MPEG-2 TS —lo que usa prácticamente toda lista IPTV— y el emisor
- * no lo declara, la carga falla con `load_failed` y el Chromecast vuelve a su
- * pantalla de fondo. Desde el sofá eso es exactamente lo que se reportó: sale
- * el selector, eliges la tele, y no pasa nada.
- *
- * Los valores viven en enums del SDK, pero no en todas sus versiones; los
- * literales de respaldo son los que el receptor espera de todos modos.
+ * Los enums no están en todas las versiones del SDK; los literales de respaldo
+ * son los que el receptor espera igualmente.
  */
 export function formatoHls(
   enumSegmento?: Record<string, string>,

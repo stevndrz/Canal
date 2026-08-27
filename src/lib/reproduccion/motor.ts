@@ -3,15 +3,13 @@ import type MpegtsType from "mpegts.js";
 
 
 /**
- * Qué librería reproduce cada enlace, y cómo se conecta al `<video>`.
+ * Qué librería reproduce cada enlace, y cómo se conecta al `<video>`. Vivía
+ * dentro del efecto de `stream-player.tsx`, que además llevaba el estado de
+ * React, el autoplay y la limpieza; separado se puede razonar sin montar un
+ * componente.
  *
- * Vivía dentro del efecto de `stream-player.tsx`: sesenta líneas de `if`
- * anidados en medio de un efecto que además gestionaba el estado de React, el
- * autoplay y la limpieza. Separado, se ve de un vistazo qué hace cada motor y
- * se puede razonar sobre él sin montar un componente.
- *
- * Aquí **no se toca estado de React**. Lo que hace falta comunicar sale por
- * las dos devoluciones de llamada: `alPoderReproducir` y `alFallar`.
+ * Aquí **no se toca estado de React**: lo que hay que comunicar sale por
+ * `alPoderReproducir` y `alFallar`.
  */
 
 export type ClaseDeEmision = "hls" | "mpegts" | "flv" | "native";
@@ -32,13 +30,10 @@ export function claseDeEmision(url: string): ClaseDeEmision {
 }
 
 /**
- * `hls.js` y `mpegts.js` se cargan solo cuando hace falta reproducir.
- *
- * Segunda capa de la misma defensa que el `next/dynamic({ ssr: false })` de
- * los componentes: si algo llegara a evaluar este módulo en el servidor pese a
- * esa frontera, un `import` de nivel de módulo tocaría `self` y tumbaría la
- * página igual. Con `await import()` dentro de la función, el servidor nunca
- * llega a evaluarlos. Cada uno se pide una vez: la promesa queda cacheada.
+ * `hls.js` y `mpegts.js` se cargan solo al reproducir. Segunda capa de la misma
+ * defensa que el `next/dynamic({ ssr: false })`: si algo evaluara este módulo
+ * en el servidor, un `import` de nivel de módulo tocaría `self` y tumbaría la
+ * página. Cada uno se pide una vez — la promesa queda cacheada.
  */
 let moduloHls: Promise<typeof HlsType> | null = null;
 let moduloMpegts: Promise<typeof MpegtsType> | null = null;
@@ -100,14 +95,10 @@ export async function montarMotor(opciones: OpcionesMotor): Promise<MotorMontado
 }
 
 /**
- * ¿Toca reproducir HLS sin librería aunque exista MSE?
- *
- * AirPlay solo transmite la reproducción **nativa** del `<video>`: si el medio
- * se alimenta por MSE (hls.js), el selector de Safari aparece pero la tele se
- * queda en negro. Los WebKit que tienen AirPlay también leen HLS por su cuenta,
- * así que ahí el flujo va directo al vídeo y hls.js queda reservado para los
- * navegadores que sí lo necesitan (Chrome, Firefox, Android), donde además es
- * lo que hace posible Chromecast mandar la URL al receptor.
+ * ¿Toca reproducir HLS sin librería aunque exista MSE? AirPlay solo transmite
+ * la reproducción **nativa**: alimentado por MSE, el selector de Safari sale
+ * pero la tele se queda en negro. Los WebKit con AirPlay leen HLS por su
+ * cuenta, así que ahí va directo y hls.js queda para Chrome, Firefox y Android.
  */
 export function prefiereNativoPorAirplay(video: HTMLVideoElement): boolean {
   return (
@@ -118,15 +109,11 @@ export function prefiereNativoPorAirplay(video: HTMLVideoElement): boolean {
 }
 
 /**
- * Política única de recuperación de emisiones hls.js, compartida por el motor
- * de canales y el reproductor de pelis/series.
- *
- * Un fallo de red se recarga; uno de medios se recupera UNA sola vez —
- * llamarlo dos veces seguidas hace que hls.js vacíe el búfer y vuelva a
- * emitir el mismo fragmento, exactamente el «se repite un trozo y queda en
- * bucle» que se veía en televisores con MSE defectuoso. Fuera de eso, o al
- * agotar los intentos, toca abandonar y dejar que cada llamada decida su
- * último recurso.
+ * Política única de recuperación de hls.js, compartida por canales y por
+ * pelis/series. Un fallo de red se recarga; uno de medios se recupera UNA vez
+ * — dos seguidas y hls.js vacía el búfer y reemite el mismo fragmento, que es
+ * el «se repite un trozo y queda en bucle» de los televisores con MSE
+ * defectuoso. Agotados los intentos, abandona y decide quien llama.
  */
 export const INTENTOS_RECUPERACION = 3;
 
@@ -166,14 +153,11 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
      * Con «calidad máxima» se arranca en la mejor pista y se deja de limitar
      * por el tamaño del reproductor.
      *
-     * `startLevel: -1` es el comportamiento normal —empezar bajo y subir
-     * según se mide la conexión—, que con una línea justa evita cortes. Con
-     * fibra esa prudencia se nota como unos segundos borrosos en cada cambio
-     * de canal, y `Infinity` pide directamente la más alta que exista.
-     *
-     * `capLevelToPlayerSize` limita la pista al tamaño en píxeles del
-     * reproductor: ahorra datos, pero en un televisor con el vídeo a media
-     * pantalla impide subir a 1080 aunque la haya.
+     * `startLevel: -1` empieza bajo y sube midiendo la conexión, lo que con
+     * una línea justa evita cortes pero con fibra son unos segundos borrosos
+     * en cada zapeo. Y `capLevelToPlayerSize` ata la pista al tamaño en
+     * píxeles: ahorra datos, pero con el vídeo a media pantalla impide subir a
+     * 1080 aunque la haya.
      */
     startLevel: o.settings.calidadMaxima ? Infinity : -1,
     capLevelToPlayerSize: !o.settings.calidadMaxima,

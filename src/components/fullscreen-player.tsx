@@ -36,11 +36,9 @@ interface FullscreenPlayerProps {
   onSilencio?: (mudo: boolean) => void;
 }
 
-/* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
-   iconos en decidir cuál pulsar es más largo que el de quien ya los reconoce, y
-   que la barra se vaya mientras dudas es justo lo que la hace sentir hostil.
-   Solo aplica en pantalla completa: el reproductor de Inicio lleva sus
-   controles debajo del vídeo, donde no tapan nada, y no los oculta nunca. */
+/* Cinco segundos, no cuatro: que la barra se vaya mientras dudas qué icono
+   pulsar es lo que la hace sentir hostil. Solo en pantalla completa — los
+   controles de Inicio van debajo del vídeo y no se ocultan nunca. */
 const CONTROLS_TIMEOUT = 5000;
 const GUIDE_TIMEOUT = 5000;
 
@@ -82,14 +80,10 @@ export function FullscreenPlayer({
   const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
   /**
-   * El reloj vive AQUÍ, que es el único sitio donde se pinta.
-   *
-   * Estaba en `Dashboard` y bajaba como prop. `useReloj` cambia cada 20
-   * segundos, así que **re-renderizaba el árbol entero de la aplicación** —
-   * hasta unas 200 tarjetas en Inicio— para actualizar un dato que en esa
-   * vista no lee nadie. En una tele vieja ese era el tirón periódico al
-   * navegar con el mando. `TopNav` ya tenía el suyo aislado de la misma
-   * manera.
+   * El reloj vive AQUÍ, el único sitio donde se pinta. En `Dashboard` bajaba
+   * como prop, y como `useReloj` cambia cada 20 segundos **re-renderizaba el
+   * árbol entero** —hasta 200 tarjetas— por un dato que allí no lee nadie. Ese
+   * era el tirón periódico en una tele vieja.
    */
   const clock = useReloj();
 
@@ -111,17 +105,13 @@ export function FullscreenPlayer({
 
 
   /**
-   * Desde cuándo se está en ESTE canal.
+   * Desde cuándo se está en ESTE canal. Se marca al montar y al zapear, no al
+   * empezar a reproducir: cuenta el rato que llevas viendo, y una recarga del
+   * stream a mitad de partido no lo reinicia.
    *
-   * Se marca al montar y en cada zapeo, no al empezar a reproducir: lo que se
-   * cuenta es el rato que llevas viendo el canal, y una recarga del stream a
-   * mitad de un partido no lo reinicia.
-   *
-   * El reloj de pared es un sistema externo, así que leerlo es trabajo de un
-   * efecto y no del render —de ahí la excepción de abajo, que es la misma que
-   * ya usa `wake()` unas líneas más allá—. El precio es un render de más al
-   * zapear, en el que el contador enseña un instante el tiempo del canal
-   * anterior; a un segundo de resolución no se ve.
+   * El reloj es un sistema externo, así que leerlo va en un efecto y no en el
+   * render — de ahí la excepción de abajo. El precio es un render de más al
+   * zapear; a un segundo de resolución no se ve.
    */
   // `undefined` hasta que el efecto la fije: sin marca no hay módulo, que es
   // justo lo que hace `modulosDeEmision` con un dato ausente. Un cero aquí
@@ -197,16 +187,10 @@ export function FullscreenPlayer({
   );
 
   /**
-   * Recorrer la barra de controles con el mando.
-   *
-   * Es lo que faltaba para que esta pantalla se pudiera usar con un mando de
-   * verdad: `use-spatial-nav` está apagado en el reproductor —a propósito, las
-   * flechas aquí zapean— así que **no había ninguna forma de llegar a la
-   * barra**. Los botones existían y con el mando eran inalcanzables; solo
-   * servían con ratón o con el dedo.
-   *
-   * La primera pulsación entra por el primer botón (Pausar) en vez de por
-   * donde caiga el orden del DOM.
+   * Recorrer la barra de controles con el mando. `use-spatial-nav` está apagado
+   * aquí a propósito —las flechas zapean—, así que **no había forma de llegar a
+   * la barra**: los botones existían y solo servían con ratón o con el dedo.
+   * La primera pulsación entra por Pausar, no por donde caiga el DOM.
    */
   const moverFoco = useCallback(
     (delta: number) => {
@@ -229,10 +213,9 @@ export function FullscreenPlayer({
    *   ⏯ ⏵ ⏸      reproducir o pausar
    *   Atrás      salir
    *
-   * ← y → zapeaban, que era repetir lo que ya hacían ↑ y ↓ y dejaba la barra
-   * sin ninguna tecla que la alcanzara. Y las teclas de reproducción del mando
-   * —que Tizen y webOS sí mandan— no estaban: pausar solo se podía con la
-   * barra espaciadora o con «k», que en un mando de televisor no existen.
+   * ← y → zapeaban, repitiendo lo de ↑ y ↓ y dejando la barra inalcanzable. Y
+   * faltaban las teclas de reproducción que Tizen y webOS sí mandan: pausar
+   * pedía espacio o «k», que en un mando no existen.
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -248,13 +231,9 @@ export function FullscreenPlayer({
           zap(1);
           return;
         /**
-         * ← y → dependen de si la guía está abierta.
-         *
-         * Con la guía delante, recorren canales: es lo que dice su propia
-         * pista («← → recorrer · OK sintonizar») y lo que hace que la tira de
-         * canales se mueva. Sin ella, llevan el foco por la barra de
-         * controles, que es lo único que no tenía forma de alcanzarse con un
-         * mando.
+         * ← y → dependen de si la guía está abierta: con ella recorren canales
+         * —lo que dice su propia pista—, y sin ella llevan el foco por la barra
+         * de controles, que es lo que no se podía alcanzar de otra forma.
          */
         case "ArrowLeft":
           event.preventDefault();

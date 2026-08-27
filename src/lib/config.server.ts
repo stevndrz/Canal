@@ -3,22 +3,17 @@ import "server-only";
 /**
  * Lo que NO puede cruzar al navegador, jamás.
  *
- * Vivía junto a `publicConfig` en `config.ts`, y eso era un problema real, no
- * teórico: `providers.ts` importa `publicConfig`, y `ficha-reproductor.tsx`
- * —que es un componente cliente— importa `providers.ts`. El módulo entero
- * cruzaba al grafo del navegador y **solo el tree-shaking decidía qué literal
- * sobrevivía**. En producción el token de TMDB no sobrevivía; en desarrollo
- * SÍ, y aparecía tal cual en los paquetes que sirve `npm run dev`. Como esta
- * app se usa con `next dev` en la red de casa, cualquiera con las herramientas
- * de desarrollo abiertas se lo llevaba.
+ * Vivía junto a `publicConfig` en `config.ts`, y la fuga era real: un
+ * componente cliente importa `providers.ts`, que importa `publicConfig`, así
+ * que el módulo cruzaba al grafo del navegador y **solo el tree-shaking
+ * decidía qué literal sobrevivía**. En producción el token no sobrevivía; con
+ * `next dev` SÍ, y esta app se usa así en la red de casa.
  *
  * Prueba de que la frontera era porosa: `CLAVE_VIMEUS`, del mismo grafo, sí
- * llega al paquete de producción (es inocua —viaja en la URL del iframe— pero
- * demuestra que el módulo cruzaba).
+ * llega al paquete de producción. Es inocua, pero demuestra que cruzaba.
  *
- * El `import "server-only"` de arriba convierte esa fuga en un **error de
- * compilación** en cuanto alguien importe este archivo desde un componente
- * cliente. Ya no depende de que el optimizador tenga un buen día.
+ * El `import "server-only"` convierte esa fuga en un **error de compilación**
+ * en vez de dejarla al criterio del optimizador.
  */
 
 /**
@@ -33,16 +28,14 @@ const M3U_POR_DEFECTO =
 /**
  * **Aquí NO va ninguna credencial de TMDB.**
  *
- * Hubo una escrita a fuego como valor de reserva, «para que la app arranque
- * sin configurar nada», con una nota que decía: si el repositorio deja de ser
- * privado, hay que rotarla. El repositorio **es público**, así que ese token
- * lo podía leer cualquiera. Ya está rotado en TMDB y la clave nueva vive en
- * la variable de entorno, que es su sitio.
+ * Hubo una escrita a fuego como reserva, «para que arranque sin configurar
+ * nada». El repositorio **es público**, así que ese token lo podía leer
+ * cualquiera, y sigue en el historial de git: quitarlo del código no lo
+ * desactiva — hay que regenerarlo en themoviedb.org.
  *
- * Sin `TMDB_API_KEY` la aplicación sigue funcionando: los canales en directo
- * —que es lo que de verdad se usa aquí— no dependen de TMDB, y Cine y series
- * lo dice en pantalla en vez de aparecer vacía sin explicación. Ver
- * `isTmdbConfigured()` en `catalog/tmdb.ts`.
+ * Sin `TMDB_API_KEY` la app sigue funcionando: los canales en directo no
+ * dependen de TMDB, y Cine y series lo dice en pantalla en vez de salir vacía.
+ * Ver `isTmdbConfigured()` en `catalog/tmdb.ts`.
  */
 
 /**

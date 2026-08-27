@@ -17,18 +17,14 @@ import { publicConfig } from "@/lib/config";
 import { normalizeChannelName } from "@/lib/text";
 
 /**
- * Ya no hace falta `dynamic = "force-dynamic"`: bajo `cacheComponents` todas
- * las páginas lo son por defecto —lo que cambia es que el armazón se
- * prerenderiza igual—. Esta portada sigue esperando la lista M3U en cada
- * render a propósito:
+ * Sin `dynamic = "force-dynamic"`: bajo `cacheComponents` sobra, y el armazón
+ * se prerenderiza igual. La portada sigue esperando la M3U en cada render
+ * porque `m3u.ts` descarga con `cache: "no-store"` —la caché de Next descarta
+ * respuestas de más de 2 MB y estas listas las superan—.
  *
- *  1. `m3u.ts` descarga con `cache: "no-store"`: la caché de Next descarta
- *     respuestas de más de 2 MB y estas listas las superan.
- *
- * Y además cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor.
- * Lo que de verdad se nota desde el sofá es cuántos bytes hay que descargar
- * e interpretar antes de ver algo, y eso lo ataca el recorte de abajo: la
- * parte cacheable ya no es el HTML, es `/api/canales`.
+ * Cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor. Lo que se
+ * nota desde el sofá son los bytes que hay que bajar antes de ver algo, y de
+ * eso se ocupa el recorte de abajo: lo cacheable es `/api/canales`.
  */
 
 /**
@@ -44,13 +40,10 @@ function mandarlosTodos(): boolean {
 }
 
 /**
- * Solo los canales que la primera pantalla pinta de verdad.
- *
- * Medido: el HTML llevaba 7.822 canales —1,88 MB de payload— para pintar unos
- * 200. El resto llega por `/api/canales`, que sí se puede cachear en el borde.
- * Ver `canales-empaquetados.ts` para qué se conserva del paquete completo (las
- * categorías y sus recuentos, para que los contadores no mientan mientras
- * tanto) y por qué los `id` no se mueven (los favoritos son ids).
+ * Solo los canales que la primera pantalla pinta. Medido: el HTML llevaba
+ * 7.822 —1,88 MB— para pintar unos 200; el resto llega por `/api/canales`,
+ * cacheable en el borde. Ver `canales-empaquetados.ts` para qué se conserva y
+ * por qué los `id` no se mueven (los favoritos son ids).
  */
 function loJusto(paquete: PaqueteCanales): PaqueteCanales {
   if (mandarlosTodos()) return paquete;
@@ -70,13 +63,9 @@ function loJusto(paquete: PaqueteCanales): PaqueteCanales {
 }
 
 /**
- * Todo lo que depende de datos en vivo: la lista M3U del día y el catálogo de
- * TMDB.
- *
- * Vive detro de un `<Suspense>` para que el armazón de la página —barra de
- * navegación incluida— pueda prerenderizarse en build: quien abre la app ve
- * la barra al instante y este bloque rellena su sitio cuando la red contesta.
- * Antes TODO esperaba a la M3U, hasta pintar nada.
+ * Todo lo que depende de datos en vivo: la M3U del día y el catálogo de TMDB.
+ * Vive dentro de un `<Suspense>` para que el armazón —barra incluida— se
+ * prerenderice en build y se vea al instante; antes TODO esperaba a la M3U.
  */
 async function Portada() {
   const { paquete } = await paqueteDeCanales();
@@ -93,14 +82,11 @@ async function Portada() {
   }
 
   /**
-   * A tarjetas AQUÍ, en el servidor.
-   *
-   * `Dashboard` es de cliente, así que todo lo que se le pase cruza la red
-   * dentro del HTML. Pasándole `CatalogSection[]` viajaban las fichas enteras
-   * de TMDB —sinopsis, reparto, autoría, temporadas, géneros— de los diez
-   * carruseles, y una tarjeta solo pinta título, póster, año y nota. Es la
-   * misma regla que `types.ts` aplica a los canales: si un campo no se pinta,
-   * no se manda.
+   * A tarjetas AQUÍ, en el servidor. `Dashboard` es de cliente, así que todo lo
+   * que se le pase cruza la red dentro del HTML: con `CatalogSection[]`
+   * viajaban las fichas enteras de TMDB —sinopsis, reparto, temporadas— de los
+   * diez carruseles para pintar título, póster, año y nota. Si no se pinta, no
+   * se manda.
    */
   const filas: FilaDeTarjetas[] = catalog.map((seccion) => ({
     title: seccion.title,

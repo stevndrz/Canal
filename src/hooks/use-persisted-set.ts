@@ -79,31 +79,24 @@ export function usePersistedRecents(key: string, limit = 12) {
   );
 
   /**
-   * El objeto, memorizado.
-   *
-   * Devolver `{ ids, push }` a pelo creaba una identidad nueva en CADA render,
-   * y eso viajaba lejos: `select` en `dashboard.tsx` lo lleva en sus
-   * dependencias, así que cambiaba también; con él cambiaba el `onOpen` de las
-   * tarjetas, y el comparador de `memo(MediaCard)` dejaba de acertar. Medido:
-   * sintonizar un canal repintaba 121 tarjetas de canal que no habían
-   * cambiado en nada.
+   * El objeto, memorizado. Devolver `{ ids, push }` a pelo creaba una identidad
+   * nueva en cada render, y eso llegaba lejos: cambiaba `select` en
+   * `dashboard.tsx`, con él el `onOpen` de las tarjetas, y el comparador de
+   * `memo(MediaCard)` dejaba de acertar. Medido: 121 tarjetas repintadas por
+   * sintonizar un canal.
    */
   return useMemo(() => ({ ids, push }), [ids, push]);
 }
 
 /**
- * Cualquier cosa serializable, guardada en el dispositivo.
+ * Cualquier cosa serializable, guardada en el dispositivo. Nace de un fallo:
+ * los Ajustes vivían en un `useState` a secas y **cada recarga los devolvía a
+ * fábrica**.
  *
- * Nace de un fallo, no de una idea: los Ajustes vivían en un `useState` a
- * secas, así que **cada recarga los devolvía a fábrica**. Alguien de la casa
- * ponía «controles grandes» y al cerrar la app se perdía. Lo mismo con el
- * ajuste de imagen y con el motor de vídeo.
- *
- * **Fusiona con el valor inicial al leer**, y eso no es un detalle: un objeto
- * guardado por una versión anterior no tiene las claves que se hayan añadido
- * después. Sin fusionar, `settings.ajusteImagen` llegaría `undefined` y el
- * reproductor recortaría la imagen sin que nadie lo haya pedido — un fallo
- * silencioso que solo aparecería en los aparatos que ya habían guardado algo.
+ * **Fusiona con el valor inicial al leer**, y no es un detalle: lo guardado por
+ * una versión anterior no trae las claves añadidas después, así que
+ * `settings.ajusteImagen` llegaría `undefined` y el reproductor recortaría la
+ * imagen sin que nadie lo pida — y solo en los aparatos que ya guardaron algo.
  */
 export function usePersistedJson<T extends object>(key: string, inicial: T) {
   const [valor, setValor] = useState<T>(inicial);
