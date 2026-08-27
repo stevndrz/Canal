@@ -13,23 +13,13 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 
 /**
- * El canal en directo dentro de Inicio.
+ * El canal en directo dentro de Inicio: la pieza que hace que la app se abra
+ * viendo la tele y no una parrilla.
  *
- * Es la pieza que hace que la app se abra viendo la tele en vez de en una
- * parrilla: al llegar ya hay señal, y la pantalla completa es una decisión de
- * la persona, no la puerta de entrada.
- *
- * Comparte `StreamPlayer` con el reproductor grande, así que la lógica de
- * HLS, MPEG-TS y reintentos es exactamente la misma en los dos sitios. Lo que
- * cambia es el chrome: aquí lo mínimo para saber qué se está viendo, y allí
- * los controles completos.
- *
- * Los dos nunca están montados a la vez —el shell cambia de vista— y eso
- * importa: dos reproductores con el mismo canal serían el doble de ancho de
- * banda y dos audios encima.
- *
- * Aquí no va el reloj: la barra de navegación lo enseña a dos centímetros. En
- * pantalla completa sí, porque allí la barra no está.
+ * Comparte `StreamPlayer` con el reproductor grande, así que HLS, MPEG-TS y
+ * reintentos son idénticos; lo que cambia es el chrome. Nunca están montados
+ * los dos a la vez, y eso importa: serían el doble de ancho de banda y dos
+ * audios. Aquí tampoco va el reloj — la barra lo enseña a dos centímetros.
  */
 interface LiveCardProps {
   channel: Channel;
@@ -74,22 +64,16 @@ export function LiveCard({
   });
 
   /**
-   * Lo que el reproductor le cuenta a esta tarjeta.
+   * Lo que el reproductor le cuenta a esta tarjeta. **Tiene que ser estable**:
+   * con una función en línea se abría un bucle de render sin fin con
+   * `StreamPlayer`, y el planificador quedaba ocupado sin parar, así que la
+   * navegación a «Cine y series» —una transición— **no se confirmaba nunca**
+   * mientras hubiera vídeo. `StreamPlayer` lo blinda por su lado; esto por el
+   * otro.
    *
-   * **Tiene que ser estable.** Aquí había una función en línea, y eso abría un
-   * bucle de render sin fin con `StreamPlayer`: función nueva en cada render →
-   * `memo` fallaba → el efecto que avisa del estado se re-ejecutaba → llamaba
-   * aquí con un objeto nuevo → `setState` nunca descartaba por identidad → otro
-   * render. El coste no era el hilo bloqueado, era el planificador ocupado sin
-   * parar: la navegación de «Cine y series» —una transición, de baja
-   * prioridad— **no llegaba a confirmarse nunca** mientras hubiera vídeo.
-   * `StreamPlayer` ya está blindado por su lado; esto lo cierra por el otro.
-   *
-   * La salud del canal se decide por **flanco**, no por nivel. Antes era
-   * `if (siguiente.streamError)`, una condición sobre el estado actual: con un
-   * canal caído se disparaba en cada vuelta del bucle, y cada disparo escribía
-   * en `localStorage` y reordenaba los 7.822 canales por salud. Ver
-   * `cambioDeSalud`, que además se puede probar sin React.
+   * La salud se decide por **flanco** y no por nivel: como condición sobre el
+   * estado actual, un canal caído disparaba en cada vuelta, y cada disparo
+   * escribía en `localStorage` y reordenaba 7.822 canales. Ver `cambioDeSalud`.
    */
   const previo = useRef<{ canal: number; lectura: StreamPlayerState } | null>(null);
   const alCambiarEstado = useCallback(
@@ -107,25 +91,17 @@ export function LiveCard({
   );
 
   /**
-   * Pantalla completa de verdad, en un solo gesto.
+   * Pantalla completa de verdad, en un solo gesto: `requestFullscreen` **solo
+   * funciona dentro de un gesto**, así que se pide aquí y no tras cambiar de
+   * vista.
    *
-   * `requestFullscreen` **solo funciona dentro de un gesto de la persona**, así
-   * que se pide aquí mismo y no después de cambiar de vista.
+   * ⚠️ **En iPhone NO se cambia de vista.** Cambiar desmonta este reproductor,
+   * el `<video>` al que se acaba de pedir pantalla completa desaparece en el
+   * mismo fotograma y iOS la cancela — se veía el vídeo con la barra de Safari
+   * encima. Y tampoco aportaría nada: `webkitEnterFullscreen` abre el
+   * reproductor del sistema por encima de todo.
    *
-   * ⚠️ **En iPhone NO se cambia de vista.** Es la corrección que costó dos
-   * intentos entender. `onExpand` lleva a la vista `player`, y eso desmonta
-   * este reproductor para montar otro: el `<video>` al que se le acaba de
-   * pedir pantalla completa **desaparece del documento en el mismo
-   * fotograma**, y iOS cancela la pantalla completa al quedarse sin elemento.
-   * El resultado era justo lo que se veía: el vídeo ocupando la ventana y la
-   * barra de Safari encima.
-   *
-   * Además, en iPhone cambiar de vista no aporta nada: `webkitEnterFullscreen`
-   * abre el reproductor del sistema por encima de todo, así que nuestra vista
-   * quedaría detrás sin que nadie la vea.
-   *
-   * En el resto se pide sobre el documento entero —que sobrevive al cambio de
-   * vista— y sí se cambia, para conservar nuestros controles.
+   * En el resto se pide sobre el documento, que sobrevive al cambio de vista.
    */
   const expandir = useCallback(() => {
     if (esIPhone()) {
@@ -250,16 +226,12 @@ export function LiveCardSkeleton() {
 }
 
 /**
- * Pantalla completa en todo lo que no sea un iPhone.
- *
- * Se pide sobre `document.documentElement` y no sobre el contenedor del
- * reproductor porque ese contenedor está a punto de desmontarse: la vista
- * cambia justo después. El documento sobrevive.
+ * Pantalla completa en todo lo que no sea un iPhone. Se pide sobre
+ * `document.documentElement` y no sobre el contenedor del reproductor, que
+ * está a punto de desmontarse.
  *
  * Se **espera** cada intento en vez de lanzarlo y olvidarse: si el navegador
- * lo rechaza hay que enterarse para probar el siguiente. Un `.catch()` que
- * traga el error con un `return` detrás deja sin pantalla completa y sin
- * ninguna pista de por qué.
+ * lo rechaza hay que enterarse para probar el siguiente.
  */
 async function pedirPantallaCompleta(): Promise<void> {
   const raiz = document.documentElement as HTMLElement & {
@@ -280,16 +252,13 @@ async function pedirPantallaCompleta(): Promise<void> {
 }
 
 /**
- * Pantalla completa en iPhone: el reproductor del sistema, y nada más.
+ * Pantalla completa en iPhone: el reproductor del sistema, y nada más. Safari
+ * **no entrega la pantalla a nada que no sea un `<video>`**; desde iOS 26
+ * `requestFullscreen` existe sobre otros elementos pero no esconde las barras,
+ * así que probarlo antes solo estorba.
  *
- * Safari en iPhone **no entrega la pantalla a ningún elemento que no sea un
- * `<video>`**. Desde iOS 26 `requestFullscreen` existe sobre otros elementos,
- * pero no esconde las barras del navegador, así que probarlo primero solo
- * sirve para no llegar nunca a la única vía que sí funciona.
- *
- * Requiere metadatos cargados; si aún no han llegado se espera a ellos en vez
- * de fallar en silencio. El precio de esta vía es que se ven los controles de
- * Apple y no los nuestros; a cambio trae AirPlay.
+ * Requiere metadatos cargados, y si no han llegado se espera en vez de fallar
+ * en silencio. Se ven los controles de Apple y no los nuestros; a cambio, AirPlay.
  */
 function pedirPantallaCompletaIPhone(video: HTMLVideoElement | null): void {
   const nativo = video as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;

@@ -3,12 +3,9 @@ import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
 
 /**
- * Cliente mínimo de TMDB.
- *
- * Todo aquí es opcional por diseño: si TMDB no responde o la clave deja de
- * valer, cada función devuelve `null` (o una lista vacía) y la interfaz se
- * queda con lo que haya en `src/data/catalog.json`. La sección nunca debe
- * romperse por una API externa.
+ * Cliente mínimo de TMDB. Todo es opcional por diseño: sin respuesta o sin
+ * clave válida cada función devuelve `null` o lista vacía y la interfaz se
+ * queda con `src/data/catalog.json`. Nunca un 500 por una API externa.
  */
 
 /**
@@ -21,21 +18,16 @@ const IMAGE_BASE = "https://image.tmdb.org/t/p";
 
 /**
  * Se piden ya en el tamaño final: sin optimizador y sin gastar RAM de más.
- *
- * Medido con `curl` sobre imágenes reales de TMDB, no a ojo:
+ * Medido con `curl` sobre imágenes reales, no a ojo:
  *
  *     póster    w342  →   43 KB      w780 →  171 KB      original → 1,35 MB
  *     fondo     w780  →   43 KB     w1280 →  173 KB      original → 1,24 MB
  *
- * `w780` para una tarjeta de 180-240px era pedir cuatro veces lo necesario:
- * `w342` cubre incluso pantallas de doble densidad. Y no es solo red — un
- * `w780` son 780×1170 px, o sea unos **3,6 MB de RGBA en memoria** una vez
- * descodificado. Inicio llega a pintar 200 pósters, y un televisor tiene 1-1,5
- * GB de RAM para todo.
- *
- * El fondo en `original` era peor: **1,24 MB**, y es justo la imagen que marca
- * el LCP de `/peliculas` (el héroe la pide con `fetchPriority="high"`) y el
- * fondo de cada ficha. `w1280` llena una pantalla 1080p de sobra.
+ * `w780` para una tarjeta de 180-240px era pedir cuatro veces lo necesario, y
+ * no es solo red: son 780×1170 px, o sea **3,6 MB de RGBA en memoria** ya
+ * descodificado. Inicio pinta 200 pósters y un televisor tiene 1-1,5 GB para
+ * todo. El fondo en `original` era peor —1,24 MB— y es justo el LCP de
+ * `/peliculas`; `w1280` llena una pantalla 1080p de sobra.
  */
 export const POSTER_SIZE = "w342";
 export const BACKDROP_SIZE = "w1280";
@@ -103,17 +95,11 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
 }
 
 /**
- * La petición real a TMDB, **cacheada como función** (`use cache`).
- *
- * Bajo `cacheComponents`, `next: { revalidate }` de fetch ya no cachea: lo
- * hace la directiva. La clave de caché incluye la ruta —y la credencial, que
- * entra como argumento para que la caducidad de una clave vieja no sirva las
- * respuestas de la nueva— y el perfil «days» mantiene el criterio de antes:
- * el reparto de una película no cambia cada hora.
- *
- * Rodeando cada llamada está el mismo pacto de siempre: sin clave o con
- * TMDB caída se devuelve null y la interfaz se queda con el catálogo local,
- * nunca un 500.
+ * La petición real a TMDB, **cacheada como función** (`use cache`): bajo
+ * `cacheComponents` el `next: { revalidate }` de fetch ya no cachea, lo hace
+ * la directiva. La credencial entra como argumento para que la caché de una
+ * clave vieja no sirva las respuestas de la nueva, y el perfil «days» mantiene
+ * el criterio de antes: el reparto de una película no cambia cada hora.
  */
 async function tmdbConClave<T>(path: string, credential: string): Promise<T | null> {
   "use cache";
@@ -285,14 +271,12 @@ export interface TmdbListEntry {
 }
 
 /**
- * Convierte un resultado de lista en ficha.
+ * Convierte un resultado de lista en ficha. Estas respuestas **ya traen
+ * título, póster, sinopsis, año y nota**, así que una fila cuesta una petición
+ * en vez de veinte: con diez filas, doscientas menos por visita.
  *
- * Merece la pena porque estas respuestas **ya traen título, póster, sinopsis,
- * año y nota**: pintar una fila cuesta una sola petición en vez de una por
- * ficha. Con diez filas de veinte, son doscientas peticiones menos por visita.
- *
- * `fallbackType` es para `/discover`, que no devuelve `media_type` porque el
- * tipo ya va en la URL; `/trending` y `/search/multi` sí lo mandan y mezclan.
+ * `fallbackType` es para `/discover`, que no manda `media_type` porque el tipo
+ * va en la URL; `/trending` y `/search/multi` sí lo mandan y mezclan.
  */
 function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry | null {
   const mediaType: MediaType =
@@ -320,12 +304,9 @@ function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry
 export interface TmdbPagina {
   entradas: TmdbListEntry[];
   /**
-   * Páginas disponibles, ya acotadas a lo que TMDB sirve de verdad.
-   *
-   * Su API dice `total_pages` en miles, pero **rechaza cualquier página por
-   * encima de 500**: pedir la 501 devuelve un error, no una lista vacía. Sin
-   * acotar aquí, el paginador ofrecería miles de páginas y todas menos las
-   * 500 primeras darían error.
+   * Páginas acotadas a lo que TMDB sirve de verdad: dice `total_pages` en
+   * miles pero **rechaza por encima de 500** con un error, no con una lista
+   * vacía. Sin acotar, el paginador ofrecería miles de páginas rotas.
    */
   totalPaginas: number;
 }
@@ -382,12 +363,9 @@ export interface TmdbGenre {
 }
 
 /**
- * Géneros disponibles para un tipo, ya en español (`tmdbFetch` manda `es-MX`).
- *
- * Hay que pedirlos por separado porque las dos listas NO son la misma, aunque
- * lo parezca: en series no existe Terror, y Acción es 10759 ("Action &
- * Adventure") en vez del 28 de películas. Usar la lista de películas para
- * series devuelve resultados vacíos sin decir por qué.
+ * Géneros de un tipo, ya en español (`tmdbFetch` manda `es-MX`). Se piden por
+ * separado porque las listas NO son la misma: en series no existe Terror y
+ * Acción es 10759 y no 28. Cruzarlas da resultados vacíos sin decir por qué.
  */
 export async function fetchGenres(mediaType: MediaType): Promise<TmdbGenre[]> {
   const data = await tmdbFetch<{ genres?: TmdbGenre[] }>(`/genre/${mediaType}/list`);

@@ -36,29 +36,13 @@ import { VistaActiva } from "@/components/vista-activa";
 import { LiveCardSkeleton } from "@/components/live-card";
 
 /**
- * El reproductor se carga solo en el navegador.
+ * `ssr: false` porque `hls.js`/`mpegts.js` tocan `self` al importarse: con un
+ * import normal la página revienta con `ReferenceError: self is not defined` y
+ * Vercel devuelve un 500. Tumbó el primer despliegue.
  *
- * `hls.js`/`mpegts.js` se evalúan al importarse y tocan `self`, que en el
- * servidor no existe: con un import normal, la página entera revienta con
- * `ReferenceError: self is not defined` y Vercel devuelve un 500 — es lo que
- * tumbó este mismo diseño la primera vez que se intentó desplegar.
- *
- * El reproductor incrustado vive en el shell, no dentro de una vista.
- *
- * Antes lo montaba Inicio, así que al pasar a Canales React lo desmontaba, la
- * conexión se cortaba y el canal se quedaba en silencio. Montado aquí, ocupa el
- * mismo sitio del árbol en las dos pestañas: React conserva la instancia, el
- * `<video>` no se recrea y la emisión sigue sin cortarse mientras se busca otro
- * canal. Es el mismo motivo por el que nunca hay dos reproductores a la vez.
- */
-/**
- * El reproductor incrustado vive en el shell, no dentro de una vista.
- *
- * Antes lo montaba Inicio, así que al pasar a Canales React lo desmontaba, la
- * conexión se cortaba y el canal se quedaba en silencio. Montado aquí, ocupa el
- * mismo sitio del árbol en las dos pestañas: React conserva la instancia, el
- * `<video>` no se recrea y la emisión sigue sin cortarse mientras se busca otro
- * canal. Es el mismo motivo por el que nunca hay dos reproductores a la vez.
+ * Y vive en el shell, no dentro de una vista: montado por Inicio, pasar a
+ * Canales lo desmontaba y la emisión se cortaba. Aquí ocupa el mismo sitio del
+ * árbol en las dos pestañas, así que el `<video>` no se recrea.
  */
 const LiveCard = dynamic(() => import("@/components/live-card").then((m) => m.LiveCard), {
   ssr: false,
@@ -138,42 +122,27 @@ export function Dashboard({
   }, [paquete]);
 
   /**
-   * Una sola pasada: reconstruye los objetos Y numera al estilo IPTV.
-   *
-   * Antes eran dos recorridos de 7.822 elementos: el servidor mandaba `id` y
-   * `number`, y aquí `withChannelNumbers` clonaba los 7.822 objetos enteros
-   * solo para reescribir el número que acababa de llegar.
+   * Una sola pasada: reconstruye los objetos Y numera al estilo IPTV. Antes
+   * eran dos recorridos de 7.822, el segundo clonándolos enteros para
+   * reescribir un número que acababa de llegar.
    */
   const channels = useMemo(() => desempaquetarCanales(datos), [datos]);
 
-  // Arranca en Inicio, no en pantalla completa.
-  //
-  // El vídeo sigue siendo lo primero que se ve, pero dentro de la página: la
-  // tarjeta en directo de Inicio ya trae señal al entrar. La pantalla completa
-  // pasa a ser una decisión —doble clic, Enter o el botón— en vez de la puerta
-  // de entrada, que no dejaba ver el resto de la aplicación sin salir antes.
-  // `?vista=` deja que una ruta de fuera del shell —`/peliculas`— pida una
-  // sección concreta al volver. Sin esto, su barra solo sabía volver a Inicio.
+  // Arranca en Inicio: la pantalla completa es una decisión, no la puerta de
+  // entrada. `?vista=` deja que una ruta de fuera del shell —`/peliculas`—
+  // pida una sección concreta al volver.
   const vistaPedida = searchParams.get("vista") as ViewId | null;
   const [view, setView] = useState<ViewId>(
     vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
   );
 
   /**
-   * La URL manda sobre la vista, **también después de montar**.
+   * La URL manda sobre la vista **también después de montar**: el `useState` de
+   * arriba corre una vez, así que con el componente ya montado un `?vista=`
+   * nuevo —botón Atrás, navegación recuperada— no movía nada.
    *
-   * El inicializador de `useState` de arriba corre UNA vez. Bastaba con que el
-   * componente ya estuviera montado al llegar un `?vista=` nuevo —una
-   * navegación que el router recupera, una vuelta atrás del navegador, un
-   * remontaje— para que la aplicación se quedara donde estaba, normalmente
-   * Inicio, mientras la barra marcaba otro destino. Ninguna clase de
-   * navegación lo corregía después, porque no había nada que mirara el
-   * parámetro una segunda vez.
-   *
-   * Se compara con el parámetro ANTERIOR, no con la vista actual: así solo
-   * reacciona a un cambio real de la URL y no pisa las vistas que se eligen
-   * dentro del shell, que no tocan el parámetro. Es el mismo patrón de ajuste
-   * durante el render que usa `useArte` en `media-card.tsx`.
+   * Se compara con el parámetro ANTERIOR y no con la vista actual, para no
+   * pisar las vistas elegidas dentro del shell, que no tocan la URL.
    */
   const [vistaPrevia, setVistaPrevia] = useState(vistaPedida);
   if (vistaPedida !== vistaPrevia) {
@@ -195,22 +164,13 @@ export function Dashboard({
   const arranqueAplicado = useRef(false);
   const [category, setCategory] = useState("Todas");
   const [search, setSearch] = useState("");
-  /**
-   * Los ajustes se guardan en el aparato.
-   *
-   * Estaban en un `useState` a secas, así que cada recarga los devolvía a
-   * fábrica: alguien ponía «controles grandes» y al cerrar la app se perdía.
-   * Es lo que separa una web de la tele de casa — se configura una vez.
-   */
+  /** Los ajustes se guardan en el aparato: la tele de casa se configura una vez. */
   const [settings, patchSettings] = usePersistedJson("canalcasa:ajustes", DEFAULT_PLAYBACK);
 
   /**
-   * Qué canales han dejado de responder EN ESTE APARATO.
-   *
-   * De 7.822, muchos no responden nunca. El reproductor ya lo sabía y no lo
-   * apuntaba en ningún sitio, así que se tropezaba con los mismos muertos una
-   * y otra vez. Ver `canales-caidos.ts` para las tres reglas: dos fallos
-   * seguidos, se olvidan a los siete días y se apartan sin esconderse.
+   * Qué canales han dejado de responder EN ESTE APARATO. De 7.822, muchos no
+   * responden nunca, y sin apuntarlo el reproductor se tropezaba siempre con
+   * los mismos. Reglas en `canales-caidos.ts`.
    */
   const [caidos, guardarCaidos] = usePersistedJson<{ mapa: MemoriaCaidos }>(
     "canalcasa:caidos",
@@ -230,19 +190,14 @@ export function Dashboard({
 
   useRemoteInput();
 
-  // La hora es lo primero que se busca en un televisor.
-
   const tuned = useMemo(
     () => channels.find((channel) => channel.id === tunedId) ?? channels[0] ?? null,
     [channels, tunedId],
   );
 
   /**
-   * Lista visible: alimenta la lista de Canales, la búsqueda y el zapping.
-   *
-   * Los que han dejado de responder bajan al final, sin desaparecer. También
-   * afecta al zapeo, y eso es la mitad de la gracia: con el mando dejas de
-   * pasar por los muertos.
+   * Lista visible: alimenta Canales, la búsqueda y el zapeo. Los caídos bajan
+   * al final sin desaparecer — con el mando dejas de pasar por los muertos.
    */
   const visible = useMemo(
     () =>
@@ -256,18 +211,14 @@ export function Dashboard({
   );
 
   /**
-   * Los canales de la casa: los que se ven de cajón, arriba del todo.
-   *
-   * Ver `publicConfig.canalesDeCasa`. Salen igual en la tele, en el teléfono y
-   * en el PC sin que nadie configure nada en su aparato.
+   * Los de la casa, arriba del todo: iguales en la tele, el teléfono y el PC
+   * sin configurar nada. Ver `publicConfig.canalesDeCasa`.
    */
   const deLaCasa = useMemo(() => canalesDeCasa(channels), [channels]);
 
   /**
-   * Los que están apartados ahora mismo, para poder marcarlos en la lista.
-   *
-   * Se calcula una vez aquí y no en cada fila: `estaCaido` mira el reloj y con
-   * 7.822 filas eso serían 7.822 comprobaciones por render.
+   * Los apartados ahora mismo. Se calcula una vez aquí y no en cada fila:
+   * `estaCaido` mira el reloj, y serían 7.822 comprobaciones por render.
    */
   const idsCaidos = useMemo(() => {
     if (Object.keys(caidos.mapa).length === 0) return new Set<number>();
@@ -280,12 +231,7 @@ export function Dashboard({
     return marcados;
   }, [channels, caidos]);
 
-  /**
-   * Lo que el reproductor va aprendiendo de cada canal.
-   *
-   * Llega del `onStateChange` de `StreamPlayer`, que es quien de verdad sabe
-   * si arrancó o si dio error.
-   */
+  /** Lo que el reproductor aprende de cada canal, vía `onStateChange`. */
   const anotarSalud = useCallback(
     (canalId: number, funciona: boolean) => {
       const canal = channels.find((item) => item.id === canalId);
@@ -309,12 +255,9 @@ export function Dashboard({
   );
 
   /**
-   * Las categorías y sus recuentos salen del paquete, no de los canales.
-   *
-   * Es lo que deja que la columna diga «Deportes 1.240» desde el primer
-   * fotograma, aunque de Deportes solo hayan viajado veinte canales. Y de paso
-   * quita dos recorridos de 7.822 elementos que se rehacían en cada cambio de
-   * la lista: son doce números que el servidor ya tenía contados.
+   * Las categorías y sus recuentos salen del paquete: así la columna dice
+   * «Deportes 1.240» desde el primer fotograma aunque solo hayan viajado
+   * veinte, y se ahorran dos recorridos de 7.822 elementos por cambio.
    */
   const categories = useMemo(
     () => ["Todas", ...CATEGORY_ORDER.filter((item) => datos.categorias.includes(item))],
@@ -329,30 +272,21 @@ export function Dashboard({
   }, []);
 
   /**
-   * Cambiar de canal sin salir de donde estás.
+   * Cambiar de canal sin salir de donde estás: los rieles de Inicio cambian lo
+   * que suena en la tarjeta de arriba, sin saltar a pantalla completa.
    *
-   * Es lo que hacen los rieles de Inicio: ya se está viendo la tele en la
-   * tarjeta de arriba, así que elegir otro canal cambia lo que suena ahí. Saltar
-   * a pantalla completa por tocar una tarjeta sería quitarle a la persona la
-   * pantalla que estaba mirando.
-   */
-  /**
-   * Depende de `recents.push`, **no del objeto `recents` entero**.
-   *
-   * Sintonizar añade el canal a «Seguir viendo», así que `recents.ids` cambia
-   * en cada zapeo. Con el objeto entero en las dependencias, `select` cambiaba
-   * de identidad con él, y detrás cambiaba el `onOpen` de todas las tarjetas:
-   * el comparador de `memo(MediaCard)` dejaba de acertar y se repintaban las
-   * ~121 tarjetas de canal por un cambio que solo afectaba a una fila.
-   * `push` es estable; `ids` es lo que se mueve, y aquí no se lee.
+   * Depende de `recents.push` y **no del objeto `recents` entero**: `ids`
+   * cambia en cada zapeo, y con el objeto en las dependencias `select` cambiaba
+   * de identidad, y con él el `onOpen` de todas las tarjetas. El comparador de
+   * `memo(MediaCard)` dejaba de acertar y se repintaban 121 tarjetas por un
+   * cambio que afectaba a una fila. Medido: 121 renders pasaron a 1.
    */
   const anotarReciente = recents.push;
   const select = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
       anotarReciente(channel.id);
-      // Con esto la app abre la próxima vez donde la dejaste. Y se marca como
-      // aplicado para que lo guardado no vuelva a sobrescribir una elección.
+      // Marcado como aplicado para que lo guardado no pise esta elección.
       arranqueAplicado.current = true;
       guardarUltimo({ id: channel.id, nombre: channel.name });
     },
@@ -381,13 +315,10 @@ export function Dashboard({
   );
 
   /**
-   * Recordar el silencio, pero solo si lo pidió una persona.
-   *
-   * El reproductor se silencia solo al arrancar —es la única forma de que
-   * ningún navegador bloquee la reproducción— y vuelve a subir el sonido si
-   * puede. Guardar cada uno de esos cambios escribiría ruido y acabaría
-   * dejando la app muda para siempre en cuanto un arranque saliera torcido.
-   * Aquí solo llegan los toques al botón de sonido.
+   * Recordar el silencio solo si lo pidió una persona. El reproductor se
+   * silencia solo al arrancar —única forma de que ningún navegador bloquee la
+   * reproducción—, y guardar eso dejaría la app muda para siempre en cuanto un
+   * arranque saliera torcido. Aquí solo llegan los toques al botón.
    */
   const recordarSilencio = useCallback(
     (mudo: boolean) => patchSettings({ startUnmuted: !mudo }),
@@ -396,8 +327,7 @@ export function Dashboard({
 
   const handleBack = useCallback(() => {
     if (view === "player") {
-      // Igual que el botón "Volver a la guía": si se pidió pantalla completa
-      // real hay que cerrarla antes, o el navegador se queda en fullscreen
+      // Hay que salir del fullscreen del navegador antes, o se queda en él
       // mostrando la navegación por debajo.
       if (typeof document !== "undefined" && document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
@@ -417,10 +347,8 @@ export function Dashboard({
     [channels, tune],
   );
 
-  // El shell scrollea la ventana, pero el reproductor a pantalla completa no
-  // puede: si la página scrollea por debajo, el vídeo se despega del borde
-  // superior al arrastrar. La marca en <html> es lo que globals.css consulta
-  // para volver a bloquear el scroll mientras dura la reproducción.
+  // El vídeo se despega del borde superior si la página scrollea por debajo.
+  // Esta marca en <html> es la que globals.css consulta para bloquearlo.
   useEffect(() => {
     const root = document.documentElement;
     if (view === "player") root.setAttribute("data-player", "on");
@@ -435,10 +363,8 @@ export function Dashboard({
     enabled: view !== "player",
   });
 
-  // Al cambiar de pantalla hay que dejar el foco en algún sitio. Un mando de
-  // televisor no tiene Tab: sin nada enfocado, las flechas no tienen desde
-  // dónde partir y parece que el mando no responde. Se espera un fotograma a
-  // que la vista nueva esté montada.
+  // Un mando no tiene Tab: sin nada enfocado las flechas no tienen desde dónde
+  // partir y parece que no responde. Se espera a que la vista nueva monte.
   useEffect(() => {
     if (view === "player") return undefined;
     const id = window.setTimeout(focusFirst, 60);
@@ -473,14 +399,12 @@ export function Dashboard({
 
   return (
     <div ref={shellRef} className="app-shell">
-      {/* La barra desaparece durante la reproducción. Es `position: fixed` con
-          z-index 60 y el reproductor va en z-50, así que sin esto flotaría
-          por encima del vídeo. */}
+      {/* Fuera durante la reproducción: es `fixed` con z-60 y el reproductor
+          va en z-50, así que si no flotaría por encima del vídeo. */}
       {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
 
       <section className="content">
-        {/* Inicio y Canales comparten la señal en directo. En las demás vistas
-            no se monta: nadie va a Ajustes a ver la tele, y así no se gasta
+        {/* Solo Inicio y Canales: en las demás no se monta, y así no se gasta
             ancho de banda en segundo plano. */}
         {conReproductor && tuned && (
           <div className="live-slot">

@@ -23,14 +23,10 @@ import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en
 const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
 
 /**
- * Lo mismo, para los proveedores con puerta antirrobot.
- *
- * Cuatro segundos: de esos ya se sabe CÓMO fallan —la puerta se recarga sola
- * y el marco no arranca nunca—, así que se baja a lo justo para no cortarle
- * el arranque a una tele lenta que sí iba a cargar. Esperar doce segundos a algo que no va a
- * pasar es justo lo que se sentía como «se queda cargando». El bucle no se
- * puede ver desde fuera —vive en un marco nieto—, pero sí se puede acortar la
- * espera hasta la salida.
+ * Lo mismo, para los proveedores con puerta antirrobot. Cuatro segundos: de
+ * esos ya se sabe cómo fallan, así que se baja a lo justo para no cortarle el
+ * arranque a una tele lenta. Esperar doce a algo que no va a pasar es lo que
+ * se sentía como «se queda cargando».
  */
 const ESPERA_CON_PUERTA_MS = 4_000;
 
@@ -118,13 +114,11 @@ export function FichaReproductor({
 }
 
 /**
- * El reproductor cuando el título viene del catálogo de TMDB.
+ * El reproductor cuando el título viene de TMDB.
  *
- * Mientras `/api/stream` responde se enseña ya el iframe del primer proveedor
- * que cubra el tipo, armado en el cliente con las mismas plantillas: la primera
- * imagen tarda lo mismo que antes. Cuando llega la lista, todos los servidores
- * quedan como botones y el activo por defecto es el primero (un embed,
- * instantáneo) — el mismo que ya se estaba viendo.
+ * Mientras `/api/stream` responde ya se enseña el iframe del primer proveedor
+ * que cubra el tipo, armado en el cliente con las mismas plantillas. Cuando
+ * llega la lista, el activo por defecto es ese mismo, así que no parpadea.
  */
 function ReproductorCatalogo({
   titulo,
@@ -158,54 +152,39 @@ function ReproductorCatalogo({
   // vieja de otro capítulo.
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   /**
-   * Servidores descartados para esta ficha, por dos vías que se complementan:
+   * Servidores descartados para esta ficha, por dos vías:
    *
-   * - **Automática**, cuando el marco se recarga solo sin parar
-   *   (`marco-en-bucle.ts`). Solo ve las recargas del marco que montamos
-   *   nosotros; las de un marco anidado dentro suyo son invisibles.
-   * - **A mano**, cuando la persona dice que no se ve. Es la que cubre todo lo
-   *   demás, que es mucho: dentro de un iframe de otro dominio no se puede
-   *   saber si el vídeo arrancó, si el reproductor del proveedor dio error
-   *   —«no se puede reproducir, 232011» y compañía— ni si la puerta antirrobot
-   *   del proveedor está dando vueltas en un marco nieto. La persona lo ve en
-   *   un segundo; el código, nunca.
+   * - **Automática**, cuando NUESTRO marco se recarga sin parar
+   *   (`marco-en-bucle.ts`); las recargas de un marco anidado son invisibles.
+   * - **A mano**, cuando la persona dice que no se ve. Cubre todo lo demás,
+   *   que es mucho: desde fuera de un iframe ajeno no se sabe si el vídeo
+   *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
+   *   el código, nunca.
    */
   const [descartados, setDescartados] = useState<string[]>([]);
   const cargas = useRef<ConteoDeCargas | null>(null);
   /**
-   * Servidor para el que ya toca ofrecer el cambio.
-   *
-   * Se guarda el ID y no un booleano a propósito: así el efecto de abajo no
-   * tiene que apagar nada al cambiar de servidor —lo que sería un `setState`
-   * síncrono dentro de un efecto, con la cascada de renders que eso arrastra—.
-   * Basta con comparar contra el activo.
+   * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
+   * booleano: así al cambiar de servidor no hay que apagar nada —un `setState`
+   * dentro de un efecto y su cascada—, basta comparar contra el activo.
    */
   const [avisarPara, setAvisarPara] = useState<string | null>(null);
   /**
-   * Si el mando puede entrar dentro del vídeo del proveedor.
+   * Si el mando puede entrar dentro del vídeo del proveedor. Empieza en
+   * `false`, y ese es el detalle que quita los pop-ups: los popunder necesitan
+   * un **gesto DENTRO del marco** o el navegador bloquea `window.open` él
+   * solo. Sin foco cruzado no hay clic dentro, y sin clic no hay pestaña.
    *
-   * Empieza en `false`, y ese es el detalle que quita los pop-ups. Los
-   * popunder de estos servidores —vidlink carga AdCash y tiene un
-   * `processPopunderQueue`— necesitan un **gesto de la persona DENTRO del
-   * marco**: sin gesto, el navegador bloquea `window.open` él solo. Con un
-   * mando no hay puntero, así que si el foco nunca cruza al iframe, no hay
-   * clic dentro, y sin clic dentro no hay pestaña que se abra.
-   *
-   * No es una jaula: el botón de al lado se lo entrega cuando de verdad hace
-   * falta —pausar, buscar, cambiar de calidad— y entonces sí es cosa suya.
+   * No es una jaula: el botón de al lado se lo entrega cuando hace falta.
    */
   const [marcoAbierto, setMarcoAbierto] = useState(false);
   const marcoRef = useRef<HTMLIFrameElement | null>(null);
 
   /**
-   * Respaldo inmediato, mientras `/api/stream` responde y también si falla.
-   *
-   * Es **el primero de la lista que cubra este tipo**, que es exactamente el
-   * que va a llegar como `servidores[0]`. Antes estaba fijado a VidSrc y en
-   * películas eso significaba cargar un frame condenado: aparecía VidSrc, y
-   * décimas después la lista lo sustituía por Vimeus: dos cargas y un
-   * parpadeo, con el agravante de que VidSrc es justo el que no arranca en un
-   * televisor.
+   * Respaldo inmediato mientras `/api/stream` responde, y si falla. Es **el
+   * primero de la lista que cubra este tipo**, o sea el que llegará como
+   * `servidores[0]`. Fijado a VidSrc eran dos cargas y un parpadeo, y encima
+   * VidSrc es justo el que no arranca en un televisor.
    */
   const respaldo = useMemo<ServidorStream | null>(() => {
     // Si el servidor ya mandó la lista comprobada, no hay nada que adivinar:
@@ -261,20 +240,15 @@ function ReproductorCatalogo({
   }, [elegidoId, servidores, respaldo, descartados]);
 
   /**
-   * Cada vez que NUESTRO marco carga un documento.
+   * Cada vez que NUESTRO marco carga un documento. Sirve para el proveedor que
+   * se recarga a sí mismo: uno sano carga una vez, uno en bucle ocho veces en
+   * cinco segundos, y al pasarse se descarta y `activo` salta al siguiente, lo
+   * que corta el bucle en seco.
    *
-   * Sirve para el proveedor que se recarga a sí mismo: uno sano carga una vez,
-   * uno en bucle dispara ocho veces en cinco segundos, y al pasarse se descarta
-   * y `activo` salta al siguiente — lo que además apunta el `src` a otro sitio
-   * y corta el bucle en seco.
-   *
-   * **Y solo para eso.** Si quien se recarga es un marco ANIDADO dentro del
-   * nuestro —el caso de VidSrc, que esconde su puerta de Turnstile en un
-   * iframe nieto— este evento no se dispara: medido, 14 navegaciones reales
-   * frente a 1 evento visto. Esa clase de bucle se evita antes, ordenando los
-   * proveedores —los de puerta antirrobot van los últimos, ver
-   * `providers.ts`— y si aun así ocurre lo corta la persona con el botón de
-   * abajo. Este contador no la sustituye.
+   * **Y solo para eso**: si quien se recarga es un marco ANIDADO —VidSrc y su
+   * puerta de Turnstile— esto no se dispara (medido: 14 navegaciones, 1
+   * evento). Ese caso se evita ordenando los proveedores, y si aun así pasa lo
+   * corta la persona con el botón de abajo.
    */
   const descartar = useCallback((servidorId: string) => {
     setDescartados((previos) =>
@@ -283,12 +257,9 @@ function ReproductorCatalogo({
   }, []);
 
   /**
-   * El reloj de «esto no arranca».
-   *
-   * Se reinicia con cada servidor. No mide si el vídeo va —eso no se puede
-   * saber desde fuera de un iframe ajeno—, solo cuánto lleva la persona
-   * mirando. Pasado ese rato se le ofrece el cambio, que es lo único honesto
-   * que se puede hacer: preguntar en vez de adivinar.
+   * El reloj de «esto no arranca». No mide si el vídeo va —desde fuera de un
+   * iframe ajeno no se puede—, solo cuánto lleva mirando la persona. Pasado
+   * ese rato se le ofrece el cambio: preguntar en vez de adivinar.
    */
   const servidorActivoId = activo?.id;
 

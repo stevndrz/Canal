@@ -62,9 +62,8 @@ interface StreamPlayerProps {
 }
 
 /**
- * Devolver el sonido a un vídeo que ya arrancó en silencio.
- *
- * No hay una forma limpia de preguntar «¿puedo sonar?», así que hay dos vías:
+ * Devolver el sonido a un vídeo que arrancó en silencio. No hay forma limpia de
+ * preguntar «¿puedo sonar?», así que hay dos vías:
  *
  * - Donde existe `navigator.userActivation` (Chromium 72+), se pregunta si la
  *   persona ya ha tocado algo. Si lo ha hecho, quitar el silencio es seguro.
@@ -114,19 +113,15 @@ const StreamPlayer = memo(
     const [needsUserGesture, setNeedsUserGesture] = useState(false);
     const [retryCount, setRetryCount] = useState(0);
     /**
-     * Entre pulsar un canal y el primer fotograma no había nada: negro y
-     * silencio, sin ninguna pista de si el mando había hecho caso. En una
-     * lista de 7.822 canales, donde muchos tardan o no responden, eso es la
-     * diferencia entre esperar y volver a pulsar OK cuatro veces.
+     * Entre pulsar un canal y el primer fotograma no había nada: negro, sin
+     * pista de si el mando hizo caso. Con 7.822 canales, muchos lentos o
+     * muertos, eso es la diferencia entre esperar y pulsar OK cuatro veces.
      */
     const [sintonizando, setSintonizando] = useState(true);
     /**
-     * Lo que se está reproduciendo de verdad. Ver `StreamPlayerState`.
-     *
-     * Se guarda junto y no en tres estados sueltos porque llega junto: los dos
-     * eventos que lo mueven —`resize` del vídeo y el cambio de pista de
-     * hls.js— traen la foto entera, y tres `setState` seguidos serían tres
-     * renders para pintar una sola línea de texto.
+     * Lo que se reproduce de verdad (ver `StreamPlayerState`). Junto y no en
+     * tres estados sueltos porque llega junto, y tres `setState` seguidos
+     * serían tres renders para pintar una línea de texto.
      */
     const [emision, setEmision] = useState<{
       ancho?: number;
@@ -139,17 +134,14 @@ const StreamPlayer = memo(
     /**
      * «Arrancar con sonido» es una preferencia de ARRANQUE, y se lee por `ref`.
      *
-     * Estaba en las dependencias del efecto que monta el motor, y eso hacía que
-     * **pulsar el botón de silencio rearrancara el canal entero**: el botón
-     * escribe `startUnmuted` en los ajustes, el ajuste cambiaba la dependencia,
-     * el efecto se desmontaba y volvía a montar, y encima del vídeo aparecía
-     * «Sintonizando Canal 3…» durante unos segundos. Silenciar es lo más barato
-     * que se le puede pedir a un reproductor y costaba una reconexión.
+     * Estando en las dependencias del efecto que monta el motor, **pulsar
+     * silencio rearrancaba el canal entero**: el botón escribe `startUnmuted`,
+     * cambiaba la dependencia, el efecto se remontaba y salía «Sintonizando
+     * Canal 3…» unos segundos. Lo más barato que se le puede pedir a un
+     * reproductor costaba una reconexión.
      *
-     * Con la `ref` el efecto ya no depende del valor pero sigue leyendo el
-     * actual en el momento que le toca —el primer `play()`—, que es la única
-     * vez que este ajuste significa algo. Cambiarlo en Ajustes se aplica al
-     * siguiente canal que se sintonice, que es lo que dice su propio nombre.
+     * Con la `ref` el efecto no depende del valor pero lee el actual en el
+     * primer `play()`, la única vez que este ajuste significa algo.
      */
     const quiereSonido = useRef(settings.startUnmuted);
     useEffect(() => {
@@ -163,26 +155,20 @@ const StreamPlayer = memo(
     /**
      * El aviso al padre, **sin que el padre pueda provocar un bucle**.
      *
-     * `onStateChange` estaba en las dependencias del efecto de abajo, y eso
-     * abría un ciclo cerrado en cuanto alguien pasaba una función en línea —que
-     * es lo que hacía `live-card.tsx`—:
+     * Con `onStateChange` en las dependencias del efecto de abajo, un padre que
+     * pasara una función en línea —lo que hacía `live-card.tsx`— cerraba el
+     * ciclo: render del padre → función nueva → falla `memo` → cambian las
+     * dependencias → el efecto avisa con un objeto nuevo → `setState` en el
+     * padre → vuelta a empezar.
      *
-     *   el padre renderiza → función nueva → `memo` falla y este componente
-     *   re-renderiza → las dependencias cambian → el efecto corre → llama al
-     *   callback con un objeto NUEVO → el padre hace `setState` y nunca
-     *   descarta por identidad → el padre renderiza → vuelta a empezar.
+     * Cada vuelta es barata, así que nada se congela ni avisa: solo programa
+     * trabajo sin parar en la cola normal, que va por encima de la de
+     * transiciones. Medido: con vídeo montado, un `<Link>` **no llegaba a
+     * confirmarse nunca**; se quedaba encolado hasta que un clic discreto
+     * forzaba el vaciado, y entonces te llevaba a la página equivocada.
      *
-     * Cada vuelta es barata, así que el hilo no se congela y no salta ningún
-     * aviso: lo que hace es programar trabajo sin parar en la cola normal, que
-     * va por encima de la de transiciones. Resultado, medido: la navegación de
-     * un `<Link>` **no llegaba a confirmarse nunca** mientras hubiera vídeo
-     * montado, y se quedaba encolada hasta que un clic discreto forzaba el
-     * vaciado — llevándote entonces a la página equivocada.
-     *
-     * Guardando el callback en una `ref` y sacándolo de las dependencias, el
-     * efecto solo corre cuando cambia algo del vídeo de verdad. Y queda
-     * blindado: ningún consumidor, ni hoy ni mañana, puede volver a abrir el
-     * ciclo pasando una función en línea.
+     * Con el callback en una `ref` el efecto solo corre cuando cambia el vídeo,
+     * y ningún consumidor puede volver a abrir el ciclo.
      */
     const avisar = useRef(onStateChange);
     useEffect(() => {
@@ -205,17 +191,11 @@ const StreamPlayer = memo(
       // resolución enseñaría 1080p mientras arranca un canal que es 480p.
       setEmision({});
       /**
-       * **Se arranca SIEMPRE en silencio.**
-       *
-       * Reproducir en silencio lo permiten todos los navegadores sin pedir
-       * nada; reproducir con sonido, ninguno, hasta que la persona haya tocado
-       * algo. Antes se intentaba primero con sonido, y cuando el navegador lo
-       * rechazaba se podía acabar con un cartel de «Activar sonido» tapando el
-       * vídeo: quien abre una app de televisión quiere ver imagen, no leer un
-       * aviso y buscar dónde pulsar.
-       *
-       * El sonido se recupera abajo, en cuanto se sabe que se puede, o con el
-       * botón de la barra, que es donde se busca.
+       * **Se arranca SIEMPRE en silencio**: es lo único que todos los
+       * navegadores permiten sin un gesto previo. Intentarlo con sonido acaba
+       * en un cartel de «Activar sonido» tapando el vídeo, y quien abre una app
+       * de televisión quiere imagen, no un aviso. El sonido lo recupera
+       * `recuperarSonido` en cuanto se puede, o el botón de la barra.
        */
       video.muted = true;
       setIsMuted(true);
@@ -231,21 +211,6 @@ const StreamPlayer = memo(
       video.removeAttribute("src");
       video.load();
 
-      /**
-       * Arrancar siempre, aunque sea en silencio.
-       *
-       * Antes, si el navegador bloqueaba el autoplay con audio, se tapaba el
-       * vídeo con un cartel de "Activar sonido" y no sonaba **ni se veía** nada
-       * hasta que alguien lo pulsara. Eso es exactamente al revés de lo que
-       * quiere quien abre una app de televisión: la imagen tiene que estar ahí.
-       *
-       * Todos los navegadores permiten el autoplay en silencio, así que ante un
-       * bloqueo se silencia y se reintenta. El botón de sonido de la barra
-       * queda como lo que es: un control, no un peaje.
-       *
-       * El cartel solo sobrevive para el caso raro en que ni siquiera en
-       * silencio se pueda reproducir; ahí sí no hay nada que enseñar.
-       */
       const tryPlay = () => {
         if (cancelled) return;
         video
@@ -306,16 +271,12 @@ const StreamPlayer = memo(
         mpegtsRef.current = motor.mpegts;
 
         /**
-         * El bitrate, cuando hay quien lo sepa.
+         * El bitrate solo lo sabe hls.js. Con mpegts.js o el HLS nativo de
+         * Safari el campo se queda sin poner y quien lo pinta esconde el
+         * módulo: antes ningún dato que uno inventado.
          *
-         * Solo hls.js conoce las pistas y cuál está sonando. Con mpegts.js o
-         * con el HLS nativo de Safari no hay de dónde sacarlo, y ahí el campo
-         * se queda sin poner: quien lo pinta esconde el módulo entero en vez
-         * de enseñar un hueco. Antes que un dato inventado, ninguno.
-         *
-         * Se lee de forma defensiva porque `levels` y `currentLevel` no están
-         * en el tipo público que usa este archivo, y porque una versión vieja
-         * de la librería podría no traerlos.
+         * Lectura defensiva: `levels` y `currentLevel` no están en el tipo
+         * público, y una versión vieja podría no traerlos.
          */
         const hls = motor.hls as unknown as {
           levels?: { bitrate?: number }[];
@@ -338,12 +299,9 @@ const StreamPlayer = memo(
       video.addEventListener("error", handleNativeError);
 
       /**
-       * Se quita el aviso en cuanto hay **imagen**, no en cuanto hay datos.
-       *
-       * `playing` es el evento que de verdad significa «se está viendo algo»;
-       * `loadeddata` va detrás por si un televisor no dispara el primero al
-       * arrancar en silencio, que pasa. Los dos apuntan a lo mismo y el
-       * `setState` es idempotente, así que sobra con que llegue uno.
+       * El aviso se quita con **imagen**, no con datos. `playing` es el que
+       * significa «se ve algo»; `loadeddata` va detrás porque hay teles que no
+       * disparan el primero al arrancar en silencio. Basta con que llegue uno.
        */
       const yaSeVe = () => {
         setSintonizando(false);
@@ -435,12 +393,9 @@ const StreamPlayer = memo(
     }, []);
 
     /**
-     * El último recurso: ni en silencio se pudo arrancar.
-     *
-     * Ya no es «activar sonido» —eso lo resuelve `recuperarSonido` o el botón
-     * de la barra—, es simplemente reproducir. Se reintenta en silencio, que
-     * es lo que siempre se permite dentro de un gesto; el sonido viene detrás
-     * si procede.
+     * Último recurso: ni en silencio arrancó. Ya no va de «activar sonido» sino
+     * de reproducir, así que se reintenta en silencio —lo que siempre se
+     * permite dentro de un gesto— y el sonido viene detrás si procede.
      */
     const handleEnableSound = useCallback(() => {
       const video = videoRef.current;

@@ -4,22 +4,18 @@ import { publicConfig } from "@/lib/config";
 /**
  * Proveedores de reproducción por iFrame.
  *
- * En lugar de una plantilla única hay una lista, porque estos servicios fallan
- * a menudo y de forma desigual: el que no tiene una película tiene la
- * siguiente. Poder saltar de uno a otro es la diferencia entre "no funciona" y
- * "pruebo el de al lado".
- *
- * ⚠️ Estos dominios ROTAN sin aviso (AutoEmbed desapareció en 2026 y VideoEasy
- * migró de .net a .to). Si varios servidores fallan a la vez con error de DNS,
- * comprobar cuáles responden (`curl -I https://dominio/`) y actualizar aquí.
- * Para apuntar a uno propio sin tocar código existe «Mi servidor» por entorno.
+ * Hay una lista y no una plantilla única porque estos servicios fallan a
+ * menudo y de forma desigual: el que no tiene una película tiene la siguiente.
  *
  * Límite que condiciona todo el diseño: **el iframe es de otro dominio, así que
- * desde aquí no se puede ver nada de lo que pasa dentro**. No hay forma de
- * saber si encontró la película, en qué idioma está, ni si dio error: el evento
- * `load` se dispara igual para una página de error. Por eso el cambio de
- * servidor lo hace la persona con un botón y no un detector automático que
- * mentiría. Es también lo que hacen estos mismos sitios en su propia web.
+ * desde aquí no se ve nada de lo que pasa dentro**. Ni si encontró la película,
+ * ni en qué idioma, ni si dio error — el evento `load` se dispara igual para
+ * una página de error. Por eso el cambio de servidor lo hace la persona con un
+ * botón y no un detector automático que mentiría.
+ *
+ * ⚠️ Estos dominios ROTAN sin aviso (AutoEmbed desapareció en 2026, VideoEasy
+ * migró de .net a .to). Si varios fallan a la vez con error de DNS, comprobar
+ * con `curl -I https://dominio/` y actualizar aquí.
  *
  * Marcadores admitidos: {tmdbId} {season} {episode}
  */
@@ -37,51 +33,35 @@ export interface EmbedProvider {
   movie: string;
   tv: string;
   /**
-   * Si el proveedor entrega subtítulos en español DE VERDAD.
+   * Si entrega subtítulos en español DE VERDAD. Se enseña en el botón, así que
+   * no es una nota interna sino una promesa: solo va a `true` lo comprobado.
    *
-   * Ojo con este campo: ahora se enseña en el botón del servidor, así que ya
-   * no es una nota interna — es una promesa a quien está delante. Solo va a
-   * `true` lo comprobado.
-   *
-   * - **VidSrc**: sí. `ds_lang=es`, documentado por ellos y probado.
-   * - **Videasy**: NO, aunque antes estuviera marcado que sí. Era el
-   *   parámetro que publican, sin comprobar; en la práctica no los trae, y su
-   *   paquete apenas menciona subtítulos (4 veces en 722 KB). Marcarlo mandaba
-   *   a la gente a un servidor sin subtítulos con la etiqueta puesta.
-   * - **Vidlink**: no por sí solo. Acepta `sub_file`, pero es para que le
-   *   pases TÚ la URL de un `.vtt`, y aquí no hay ninguno que pasarle.
+   * Solo VidSrc (`ds_lang=es`, probado). Videasy estuvo en `true` por el
+   * parámetro que publican, sin comprobar: no los trae —su paquete menciona
+   * subtítulos 4 veces en 722 KB—. Vidlink acepta `sub_file`, pero es para
+   * pasarle tú un `.vtt`, y aquí no hay ninguno.
    */
   spanishSubtitles: boolean;
   /**
-   * El proveedor esconde su reproductor detrás de una **comprobación
-   * antirrobot** (Cloudflare Turnstile y parecidas).
+   * Esconde el reproductor tras una **comprobación antirrobot** (Turnstile y
+   * parecidas). En PC y teléfono se pasa sola; en un televisor NO se pasa
+   * nunca, y al fallar esas puertas se recargan —la de VidSrc trae tres
+   * `location.reload()`, uno por camino de error—, así que el marco se queda
+   * dando vueltas. Es el bucle reportado en un Samsung.
    *
-   * En un ordenador o un teléfono se pasa sola y no se nota. En el navegador de
-   * un televisor NO se pasa nunca —Turnstile no admite esos motores—, y el
-   * problema es lo que hacen esas puertas al fallar: recargarse. La de VidSrc
-   * trae tres `window.location.reload()`, uno por cada camino de error, así que
-   * el marco se queda dando vueltas para siempre. Es el bucle reportado en un
-   * Samsung.
-   *
-   * Ojo: la puerta vive en un iframe ANIDADO dentro del suyo, así que desde
-   * nuestra página no hay forma de contar esas recargas —el evento `load` de
-   * nuestro iframe no se dispara cuando navega un marco nieto (comprobado: 14
-   * navegaciones reales, 1 evento visto)—. Por eso no se detecta: se evita, y
-   * en un televisor estos proveedores van los últimos.
+   * No se puede detectar: la puerta vive en un iframe ANIDADO, y el `load` del
+   * nuestro no se dispara cuando navega un marco nieto (medido: 14
+   * navegaciones reales, 1 evento visto). Se evita — en televisor van últimos.
    */
   puertaAntirrobot?: boolean;
   /**
-   * El proveedor **dice** cuándo no tiene un título, con un estado HTTP.
+   * El proveedor **dice** con un estado HTTP cuándo no tiene un título — la
+   * única pregunta honesta que admite un embed desde fuera.
    *
-   * Es la única pregunta que se le puede hacer a un embed desde fuera y
-   * obtener una respuesta honesta. Comprobado con curl contra catorce ids
-   * reales: Vimeus responde 404 (`<h1>Not Found</h1>`) y Vidlink 500 cuando no
-   * lo tienen, y 200 cuando sí. Videasy y VidSrc devuelven 200 en los dos
-   * casos —resuelven en el cliente— y Multiembed contesta 403 de Cloudflare,
-   * que habla de quien pregunta y no del título.
-   *
-   * Solo se marca lo verificado: descartar un servidor por una suposición
-   * sería peor que el problema que esto arregla.
+   * Comprobado con curl contra catorce ids reales: Vimeus da 404 y Vidlink
+   * 500 cuando no lo tienen, 200 cuando sí. Videasy y VidSrc dan 200 siempre
+   * (resuelven en cliente) y Multiembed 403 de Cloudflare, que habla de quien
+   * pregunta y no del título. Solo se marca lo verificado.
    */
   compruebaPorEstado?: boolean;
 }
@@ -96,43 +76,25 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
 /**
  * El orden es el producto: decide qué se ve al abrir una ficha.
  *
- * 1. **Vimeus** encabeza las PELÍCULAS: es el del doblaje latino. Su ruta de
- *    series da 404, así que en series ni aparece.
- * 2. **VidSrc** va justo detrás, y en SERIES es el primero. Es el único con
- *    subtítulos en español de verdad (`ds_lang=es`, verificado): los demás no
- *    los traen —Vidlink solo pinta los que le pases tú en `sub_file`, y
- *    Videasy apenas los toca—, y una película sin subtítulos no sirve. Trae
- *    además menos anuncios que Vidlink.
- * 3. **Videasy** y **Vidlink** son el relevo cuando VidSrc no da.
- * 4. **Multiembed**, el último.
+ * 1. **Vimeus** en PELÍCULAS, que es el del doblaje latino. En series no
+ *    aparece: su ruta da 404.
+ * 2. **VidSrc** detrás, y primero en SERIES: el único con subtítulos de
+ *    verdad, y con menos anuncios que Vidlink.
+ * 3. **Videasy** y **Vidlink**, el relevo. 4. **Multiembed**, el último.
  *
- * ⚠️ El precio de tener VidSrc delante, dicho claro: su página anida
- * `nextgencloudfabric.com`, que esconde el reproductor detrás de una puerta
- * de Cloudflare Turnstile, y esa puerta reacciona a cualquier fallo
- * recargándose —tres `location.reload()`, uno por camino de error—. En el
- * navegador de un televisor Turnstile no siempre pasa, y cuando no pasa el
- * marco se queda dando vueltas.
- *
- * Es una elección consciente: subtítulos a cambio de que a veces haya que
- * pulsar «Probar otro servidor». Ese bucle NO se puede detectar desde aquí
- * —vive en un marco nieto y no deja rastro fuera, medido: 14 navegaciones
- * reales, 1 evento visto—, así que la salida es el botón, y con los
- * proveedores de puerta se ofrece antes (ver `ESPERA_ANTES_DE_OFRECER_MS`).
+ * ⚠️ El precio de VidSrc delante es su puerta antirrobot (ver
+ * `puertaAntirrobot`): subtítulos a cambio de que a veces haya que pulsar
+ * «Probar otro servidor», que con estos proveedores se ofrece antes (ver
+ * `ESPERA_ANTES_DE_OFRECER_MS`).
  */
 const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
-    // El «VIMEOS» de las webs latinas (vimeus.com): el que mejor funciona y
-    // con doblaje latino. Solo películas: su ruta de series responde 404.
+    // El «VIMEOS» de las webs latinas (vimeus.com): el del doblaje latino.
+    // Solo películas — verificado 2026-08-24, /e/movie → 200 y las siete
+    // variantes de serie probadas (/e/tv, /e/series, /tv, /e/show…) → 404.
     //
-    // Verificado 2026-08-24: /e/movie?tmdb=… → 200; series probadas sin
-    // éxito en TODAS las variantes (/e/tv, /e/tv?tmdb&season&episode,
-    // /e/series, /e/tv/{id}, /tv, /e/show) → 404. Mientras no publiquen la
-    // ruta real, `tv` queda vacío y en series el primero es VidSrc.
-    //
-    // NOTA sobre «Vimeos» (vimeos.net, el que usan sitios como lamovie.org):
-    // sus embeds son `embed-{hash}.html` con un código OPACO por
-    // título/episodio resuelto en su backend — no aceptan tmdb/season/
-    // episode, así que es imposible construirlos por plantilla. Sin
-    // integración posible como proveedor automático.
+    // Ojo, `vimeos.net` es OTRO sitio: sus embeds llevan un hash opaco por
+    // título resuelto en su backend, así que no se pueden construir por
+    // plantilla y no sirve como proveedor automático.
     id: "vimeus",
     movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
     tv: "",
@@ -148,9 +110,8 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
     tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
     spanishSubtitles: true,
-    // Verificado 2026-08-26 sobre la serie tmdb=123192 que lo destapó: su
-    // página anida `nextgencloudfabric.com`, y ese marco trae la puerta de
-    // Turnstile con tres `location.reload()` en sus caminos de fallo.
+    // Verificado 2026-08-26 con la serie tmdb=123192 que lo destapó: anida
+    // `nextgencloudfabric.com`, y ahí vive la puerta de Turnstile.
     puertaAntirrobot: true,
   },
   {
@@ -163,19 +124,13 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     spanishSubtitles: false,
   },
   {
-    // El relevo de Videasy, también sin puerta (verificado 2026-08-24, HTTP
-    // 200 en tv y en movie). Sin parámetro de idioma verificado: el selector
-    // de audio/subtítulos vive dentro de su propio reproductor.
-    //
-    // ⚠️ Es el que MÁS anuncios trae de los tres primeros: su paquete carga
-    // `aclib` (AdCash) y tiene `processPopunderQueue`, que abre una pestaña
-    // nueva —y devuelve el foco a la de atrás— como mucho cada 30 s. Por eso
-    // va detrás de Videasy, que no lleva nada de eso.
+    // El relevo de Videasy, sin puerta (verificado 2026-08-24, 200 en tv y
+    // movie). Va detrás porque es el que MÁS anuncios trae: carga `aclib`
+    // (AdCash) y `processPopunderQueue`, que abre pestaña cada 30 s.
     //
     // Los parámetros salen de su propio paquete (`searchParams.get(…)`), no
-    // de suponer: `autoplay=true` arranca sin que nadie toque el vídeo —clave
-    // con un mando— y `poster=false` se salta la carátula, que es un clic
-    // menos dentro del marco y por tanto un popunder menos.
+    // de suponer: `autoplay=true` arranca sin tocar el vídeo —clave con un
+    // mando— y `poster=false` se salta un clic, o sea un popunder menos.
     id: "vidlink",
     movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
     tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",
@@ -194,12 +149,7 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
   },
 ];
 
-/**
- * Proveedor propio definido por entorno, que se antepone a la lista.
- *
- * Sirve para apuntar a un servidor propio sin recompilar, y para reaccionar
- * rápido si todos los de arriba caen a la vez.
- */
+/** Proveedor propio por entorno: apuntar a otro servidor sin recompilar. */
 function providerFromEnv(): Omit<EmbedProvider, "label"> | null {
   const movie = publicConfig.embedPropioPelicula;
   const tv = publicConfig.embedPropioSerie;
@@ -222,11 +172,9 @@ function hostOf(template: string): string {
 }
 
 /**
- * Lista disponible, con el proveedor propio delante si lo hay.
- *
- * Se descarta el de la lista fija que apunte al mismo dominio que el propio:
- * si no, quien configure por entorno uno que ya está incluido acaba con dos
- * botones idénticos y probando dos veces lo mismo al fallar algo.
+ * Lista disponible, con el propio delante. Se descarta el de la lista fija que
+ * apunte a su mismo dominio: si no, salen dos botones idénticos y al fallar se
+ * prueba dos veces lo mismo.
  */
 export function getProviders(): EmbedProvider[] {
   const propio = providerFromEnv();

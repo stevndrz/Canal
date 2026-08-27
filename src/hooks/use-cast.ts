@@ -22,19 +22,16 @@ declare global {
 }
 
 /**
- * Transmitir el canal a una TV desde el teléfono, cubriendo las tres vías que
- * existen en navegadores, en orden de preferencia:
+ * Transmitir el canal a una TV, por las tres vías que existen en navegadores y
+ * en orden de preferencia:
  *
- * 1. **Google Cast** (Chrome de escritorio y Android): se manda la URL del
- *    stream al receptor, así que funciona aunque localmente reproduzcamos con
- *    hls.js/MSE (que no se puede transmitir tal cual). Con él viajan también
- *    los subtítulos como pistas de texto del receptor, y el tipo de emisión
- *    (directo = LIVE; peli/serie = BUFFERED, para poder buscar en ella).
- * 2. **AirPlay** (Safari / iOS): `webkitShowPlaybackTargetPicker`.
- * 3. **Remote Playback API**: respaldo estándar donde exista.
+ * 1. **Google Cast** (Chrome, Android): se manda la URL al receptor, así que
+ *    va aunque aquí se reproduzca con hls.js/MSE, que no se puede transmitir.
+ * 2. **AirPlay** (Safari/iOS): `webkitShowPlaybackTargetPicker`.
+ * 3. **Remote Playback API**, donde exista.
  *
- * Si no hay ninguna disponible, el método queda en `null` y la UI oculta el
- * botón en vez de mostrar algo que no funciona.
+ * Sin ninguna, el método queda en `null` y la UI esconde el botón en vez de
+ * enseñar algo que no funciona.
  */
 
 const CAST_SDK_URL = "https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1";
@@ -182,13 +179,10 @@ function loadCastSdk(): Promise<boolean> {
     }
 
     /**
-     * **Chromecast exige un origen seguro.** Sin él, el SDK carga pero no
-     * descubre ni una pantalla, o la conexión se cae al conectar.
-     *
-     * Merece un aviso en consola y no un fallo mudo, porque es la explicación
-     * de un síntoma desconcertante: la misma app funciona desde
-     * `https://…` y no funciona abierta como `http://192.168.x.x:3000` en la
-     * red de casa. Parece un problema de red y es el protocolo.
+     * **Chromecast exige un origen seguro**: sin él el SDK carga pero no
+     * descubre nada. Se avisa en consola porque el síntoma desconcierta —va
+     * por `https://` y no por `http://192.168.x.x:3000`—: parece la red y es
+     * el protocolo.
      */
     if (!window.isSecureContext) {
       console.warn(
@@ -277,14 +271,10 @@ export function useCast(
     };
 
     /**
-     * Si la imagen está yendo de verdad a un AirPlay.
-     *
-     * Sin esto, `isCasting` solo lo movía Google Cast y en AirPlay se quedaba
-     * en `false` para siempre: el botón no se encendía, no aparecía forma de
-     * cortar la transmisión y la pantalla quedaba EXACTAMENTE igual antes y
-     * después de elegir la tele. Aunque AirPlay estuviera funcionando, desde
-     * fuera no había manera de saberlo — que es justo lo que se reportó como
-     * «salen los dispositivos pero no los manda».
+     * Si la imagen va de verdad a un AirPlay. Sin esto `isCasting` solo lo
+     * movía Google Cast y en AirPlay quedaba en `false` para siempre: la
+     * pantalla no cambiaba nada al elegir la tele, ni había cómo cortar. Es lo
+     * reportado como «salen los dispositivos pero no los manda».
      */
     const handleWireless = () => setIsCasting(Boolean(video.webkitCurrentPlaybackTargetIsWireless));
 
@@ -417,14 +407,10 @@ export function useCast(
         discardSession(context);
         setIsCasting(false);
         /**
-         * Con el código del SDK, no solo «revisa la red».
-         *
-         * Cuando esto falla casi nunca es que la tele esté apagada: es que el
-         * teléfono y el Chromecast no se ven entre ellos. Pasa con el
-         * aislamiento de clientes del router (muy común en la red de
-         * invitados), con el móvil en 5 GHz y el Chromecast en 2,4 GHz si el
-         * router no reenvía mDNS, y con las VPN activas en el teléfono. El
-         * código lo distingue y se enseña.
+         * Se enseña el código del SDK, no un «revisa la red»: cuando esto
+         * falla casi nunca es la tele, es que el teléfono y el Chromecast no
+         * se ven —aislamiento de clientes del router, 5 GHz contra 2,4 sin
+         * reenvío de mDNS, una VPN—. El código lo distingue.
          */
         setError(
           `No se pudo conectar con la pantalla. ${describirErrorCast(error)} ` +

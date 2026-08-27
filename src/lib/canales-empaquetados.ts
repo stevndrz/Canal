@@ -4,9 +4,8 @@ import type { Channel } from "@/lib/types";
 /**
  * Cómo viajan los canales del servidor al navegador.
  *
- * La lista se serializa entera dentro del HTML de la portada, y medido sobre
- * el sitio en vivo eso eran **1,88 MB para 7.822 canales**. El desglose por
- * campo dejó claro que la mitad no era información:
+ * La lista se serializa dentro del HTML de la portada: medido sobre el sitio
+ * en vivo, **1,88 MB para 7.822 canales**, y la mitad no era información:
  *
  * | Campo                  | Peso    | Qué era                                |
  * |------------------------|---------|----------------------------------------|
@@ -18,17 +17,13 @@ import type { Channel } from "@/lib/types";
  * | `number`               |  30 KB  | **el cliente lo sobrescribe entero nada más llegar** |
  * | `id`                   |  30 KB  | **es `index + 1`: se deduce de la posición** |
  *
- * Así que el formato de transporte deja de ser un objeto por canal y pasa a ser
- * una tupla: sin nombres de clave, sin lo que se puede deducir y con la
- * categoría como índice a una tabla que viaja una sola vez.
+ * Así que el transporte deja de ser un objeto por canal y pasa a ser una
+ * tupla: sin nombres de clave, sin lo deducible y con la categoría como índice
+ * a una tabla que viaja una vez.
  *
- * `Channel` no cambia. El resto de la app sigue viendo objetos normales; lo
- * único distinto es **lo que cruza el cable**, y `desempaquetarCanales` los
- * reconstruye en una sola pasada — la misma en la que antes se clonaban los
- * 7.822 objetos solo para reescribirles el número.
- *
- * Sobre esto se apoya el segundo recorte, el grande: un paquete **no tiene por
- * qué traer todos los canales**. Ver `recortarPaquete` más abajo.
+ * `Channel` no cambia — solo cambia **lo que cruza el cable**. Encima de esto
+ * va el recorte grande: un paquete no tiene por qué traerlos todos. Ver
+ * `recortarPaquete`.
  */
 
 /** Los datos de guía, que solo existen si hay EPG configurado. */
@@ -52,15 +47,12 @@ export type CanalEmpaquetado = [
 ];
 
 /**
- * Lo que hace falta para reconstruir un canal que **no viaja solo**.
+ * Lo que hace falta para reconstruir un canal que **no viaja solo**: en un
+ * paquete recortado faltan canales por el camino, así que ni la posición ni el
+ * número IPTV se pueden deducir y los dos viajan.
  *
- * En un paquete recortado, la posición ya no se puede deducir del índice del
- * array —faltan canales por el camino— y el número IPTV tampoco se puede
- * contar, por el mismo motivo. Así que los dos viajan.
- *
- * Son dos arrays paralelos a `canales` en vez de dos huecos más en cada tupla
- * porque un recorte son ~200 canales: mil bytes que solo existen en el paquete
- * pequeño, y ni uno en el completo, que es el que pesa.
+ * Arrays paralelos y no dos huecos por tupla: así son mil bytes que solo
+ * existen en el paquete pequeño y ni uno en el completo, que es el que pesa.
  */
 export interface RecorteCanales {
   /** Posición de cada canal dentro de la lista completa. De ahí sale el `id`. */
@@ -141,19 +133,13 @@ function ordenDeCategoria(categoria: string): number {
 }
 
 /**
- * Del lado del navegador: tuplas → `Channel[]`, numerando por el camino.
+ * Del lado del navegador: tuplas → `Channel[]`, numerando por el camino y en
+ * **una sola pasada**. Antes eran dos, y la segunda clonaba los 7.822 objetos
+ * enteros solo para reescribirles el número recién recibido.
  *
- * **Una sola pasada.** Antes eran dos: el servidor mandaba `id` y `number`, y
- * el cliente llamaba a `withChannelNumbers`, que clonaba los 7.822 objetos
- * enteros solo para reescribirles el número que acababa de recibir. Aquí el
- * objeto se construye ya con su `id` (la posición) y su número IPTV
- * (101+, 201+, 301+ por categoría), sin clonar nada.
- *
- * En un paquete recortado la posición y el ordinal no se pueden deducir
- * —faltan canales entre medias— así que vienen dados. **El `id` que sale es el
- * mismo en los dos casos**, y eso no es un detalle: los favoritos y el
- * historial se guardan por `id` en `localStorage`, así que si el recorte
- * cambiara la numeración, cada favorito apuntaría a otro canal.
+ * **El `id` que sale es el mismo con paquete completo y recortado**, y no es un
+ * detalle: favoritos e historial se guardan por `id` en `localStorage`, así que
+ * si el recorte cambiara la numeración cada favorito apuntaría a otro canal.
  */
 export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
   const vistos = new Map<number, number>();
@@ -184,16 +170,12 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
 }
 
 /**
- * Quedarse con unos pocos canales sin perder de vista la lista entera.
+ * Quedarse con unos pocos canales sin perder de vista la lista entera. Es el
+ * recorte grande de peso: el HTML llevaba 7.822 canales para pintar unos 200.
+ * El resto llega por `/api/canales`, cacheable en el borde.
  *
- * Es el cambio grande de peso: el HTML de la portada llevaba los 7.822 canales
- * para pintar unos 200. Con esto lleva solo esos 200 —los que Inicio y Canales
- * pintan de verdad— y el resto llega después por `/api/canales`, que es una
- * respuesta cacheable en el borde en vez de HTML rehecho en cada visita.
- *
- * Lo que **no** se recorta es `categorias`, `cuentas` ni `total`: son doce
- * números y son lo que hace que la columna de categorías siga diciendo
- * «Deportes 1.240» y no «Deportes 12» mientras el resto viaja.
+ * **No** se recortan `categorias`, `cuentas` ni `total`: son doce números, y
+ * son lo que hace que la columna diga «Deportes 1.240» y no «Deportes 12».
  */
 export function recortarPaquete(paquete: PaqueteCanales, posiciones: number[]): PaqueteCanales {
   const buscadas = new Set(
@@ -245,15 +227,12 @@ export interface CanalesQuePintan {
 }
 
 /**
- * Las posiciones que las dos pantallas pintan nada más abrir.
- *
- * Es exactamente lo que hay que mandar en el HTML, ni un canal más: los del
+ * Las posiciones que las dos pantallas pintan al abrir, ni un canal más: el
  * primer lote de Canales y la cabeza de cada riel de Inicio.
  *
  * El orden de los grupos tiene que ser **el mismo que el de `groupByCategory`**
- * o Inicio pediría rieles que no viajaron. Por eso usa `CATEGORY_ORDER.indexOf`
- * en crudo, con su −1 para las categorías desconocidas, en vez del
- * `ordenDeCategoria` de aquí arriba, que las manda al final.
+ * o Inicio pediría rieles que no viajaron; de ahí el `CATEGORY_ORDER.indexOf`
+ * en crudo, con su −1, en vez del `ordenDeCategoria` de arriba.
  */
 export function posicionesIniciales(
   paquete: PaqueteCanales,
