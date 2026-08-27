@@ -31,16 +31,19 @@ const M3U_POR_DEFECTO =
   "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
 
 /**
- * Credencial de TMDB de reserva, para que la app arranque sin configurar nada.
+ * **Aquí NO va ninguna credencial de TMDB.**
  *
- * ⚠️ **Está en el historial de Git para siempre.** Es un token de solo
- * lectura del catálogo público de TMDB —no da acceso a ninguna cuenta ni
- * permite modificar nada— y al no llevar el prefijo `NEXT_PUBLIC_` nunca sale
- * hacia el navegador. Aun así, si este repositorio deja de ser privado hay que
- * rotarlo en TMDB y dejar solo la variable de entorno.
+ * Hubo una escrita a fuego como valor de reserva, «para que la app arranque
+ * sin configurar nada», con una nota que decía: si el repositorio deja de ser
+ * privado, hay que rotarla. El repositorio **es público**, así que ese token
+ * lo podía leer cualquiera. Ya está rotado en TMDB y la clave nueva vive en
+ * la variable de entorno, que es su sitio.
+ *
+ * Sin `TMDB_API_KEY` la aplicación sigue funcionando: los canales en directo
+ * —que es lo que de verdad se usa aquí— no dependen de TMDB, y Cine y series
+ * lo dice en pantalla en vez de aparecer vacía sin explicación. Ver
+ * `isTmdbConfigured()` en `catalog/tmdb.ts`.
  */
-const TMDB_POR_DEFECTO =
-  "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIxOWM5NTFlZDA5ZmNlYWRkOGJiMTUxOTY3ZTNmZTBhZCIsIm5iZiI6MTc4NzExNjQ2My4zMjgsInN1YiI6IjZhODUzYmFmZTAyYzI0YmQ2NjVlZmRkYSIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.2NAHUg6NQAvJsI9zD_-wVaPA1-OU-LN7dCMFlx1ZbqU";
 
 /**
  * Lo que solo existe en el servidor.
@@ -62,7 +65,7 @@ export function serverConfig() {
     epgUrl: process.env.EPG_URL || "",
 
     /** Credencial de TMDB. La lee `src/lib/catalog/tmdb.ts`. */
-    tmdbCredencial: process.env.TMDB_API_KEY?.trim() || TMDB_POR_DEFECTO,
+    tmdbCredencial: process.env.TMDB_API_KEY?.trim() || "",
 
     /**
      * Manifiestos de addons de Stremio que sirven enlaces directos

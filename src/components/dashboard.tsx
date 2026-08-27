@@ -158,6 +158,28 @@ export function Dashboard({
   const [view, setView] = useState<ViewId>(
     vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
   );
+
+  /**
+   * La URL manda sobre la vista, **también después de montar**.
+   *
+   * El inicializador de `useState` de arriba corre UNA vez. Bastaba con que el
+   * componente ya estuviera montado al llegar un `?vista=` nuevo —una
+   * navegación que el router recupera, una vuelta atrás del navegador, un
+   * remontaje— para que la aplicación se quedara donde estaba, normalmente
+   * Inicio, mientras la barra marcaba otro destino. Ninguna clase de
+   * navegación lo corregía después, porque no había nada que mirara el
+   * parámetro una segunda vez.
+   *
+   * Se compara con el parámetro ANTERIOR, no con la vista actual: así solo
+   * reacciona a un cambio real de la URL y no pisa las vistas que se eligen
+   * dentro del shell, que no tocan el parámetro. Es el mismo patrón de ajuste
+   * durante el render que usa `useArte` en `media-card.tsx`.
+   */
+  const [vistaPrevia, setVistaPrevia] = useState(vistaPedida);
+  if (vistaPedida !== vistaPrevia) {
+    setVistaPrevia(vistaPedida);
+    if (vistaPedida && vistaPedida !== "player") setView(vistaPedida);
+  }
   const [lastView, setLastView] = useState<ViewId>("home");
   /**
    * El último canal que se estaba viendo, para abrir ahí la próxima vez.
