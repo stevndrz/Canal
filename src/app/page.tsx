@@ -4,6 +4,8 @@ import { EsqueletoSuperior } from "@/components/esqueleto-superior";
 import { EsqueletoPortada } from "@/components/esqueleto-portada";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import type { CatalogSection } from "@/lib/catalog/types";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
+import { catalogToCard } from "@/lib/media-item";
 import {
   QUE_SE_PINTA,
   posicionesIniciales,
@@ -90,7 +92,23 @@ async function Portada() {
     catalog = [];
   }
 
-  return <Dashboard paquete={loJusto(paquete)} catalog={catalog} />;
+  /**
+   * A tarjetas AQUÍ, en el servidor.
+   *
+   * `Dashboard` es de cliente, así que todo lo que se le pase cruza la red
+   * dentro del HTML. Pasándole `CatalogSection[]` viajaban las fichas enteras
+   * de TMDB —sinopsis, reparto, autoría, temporadas, géneros— de los diez
+   * carruseles, y una tarjeta solo pinta título, póster, año y nota. Es la
+   * misma regla que `types.ts` aplica a los canales: si un campo no se pinta,
+   * no se manda.
+   */
+  const filas: FilaDeTarjetas[] = catalog.map((seccion) => ({
+    title: seccion.title,
+    href: seccion.href,
+    tarjetas: seccion.items.map(catalogToCard),
+  }));
+
+  return <Dashboard paquete={loJusto(paquete)} catalog={filas} />;
 }
 
 export default function HomePage() {

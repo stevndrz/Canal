@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
@@ -100,84 +99,6 @@ function MarcaInicio({ className, onIr }: { className: string; onIr: () => void 
   );
 }
 
-/**
- * La señal de que el clic SÍ se registró.
- *
- * «Cine y series» es el único destino que no es una vista del shell sino una
- * ruta de Next, y por tanto el único cuyo clic depende de que el servidor
- * conteste. Los demás cambian de vista en el mismo fotograma.
- *
- * El fallo era este: cuando la petición de esa ruta tarda mucho o se corta —en
- * producción son diez llamadas a TMDB dentro de una función con límite de
- * tiempo—, **el router no actualiza la URL y no avisa de nada**. Reproducido
- * cortando la respuesta: la pantalla se queda en Inicio, quieta y sin un solo
- * cambio en el DOM. Desde fuera es un botón muerto, y lo natural es volver a
- * pulsar o probar otro botón, que es justo lo que se estaba haciendo.
- *
- * `useLinkStatus` da `pending` **antes de que la historia se actualice**, o sea
- * en la ventana exacta en la que no había nada. No depende del servidor ni del
- * prefetch. Y cuando la ruta ya está prefetcheada el estado se salta entero,
- * así que en el caso bueno no se ve.
- *
- * Tamaño fijo y siempre montado, con la animación retrasada 100 ms: así no
- * mueve la maquetación ni parpadea en una navegación instantánea. Es lo que
- * recomienda la documentación de esta versión para no meter saltos.
- */
-function PistaDeCarga() {
-  const { pending } = useLinkStatus();
-  return <span aria-hidden="true" className={`nav-pista ${pending ? "is-pending" : ""}`} />;
-}
-
-/**
- * Cuánto se espera al router antes de ir por las bravas.
- *
- * Medido: con el esqueleto puesto, la URL cambia entre 310 y 390 ms. Dos
- * segundos y medio dejan sitio de sobra a una navegación normal, incluso lenta,
- * y son poco para quien ya está mirando un botón que no responde.
- */
-const RESCATE_MS = 2500;
-
-/**
- * La red de seguridad: si el router no ha ido, se va a pelo.
- *
- * Esto no es elegante y está aquí a propósito. El síntoma —pulsar «Cine y
- * series» y que no pase absolutamente nada, hasta pulsar otro botón y volver—
- * no lo he conseguido reproducir en un entorno controlado, y he descartado con
- * medidas las causas que parecían obvias: el hilo principal no se bloquea
- * (0 ms congelados), el servidor contesta esa ruta en 2-3 ms en local y en
- * 540 ms en producción, las imágenes de los logos no estorban, y nada
- * intercepta el clic. Lo que sí sé es que **cuando la navegación del router
- * falla, falla en silencio y para siempre**: reproducido cortando la respuesta,
- * la URL se queda como está y no vuelve a intentarlo nadie.
- *
- * Así que en vez de seguir adivinando el mecanismo, se le pone un plazo. Si
- * pasado ese plazo seguimos exactamente en la misma dirección, se hace una
- * carga de página normal, que no depende del router, ni del payload RSC, ni
- * del prefetch — solo de que el servidor conteste, y contesta.
- *
- * No se dispara en una navegación sana: para entonces la URL ya cambió y la
- * comprobación no encuentra motivo. Y respeta las formas de abrir en otra
- * pestaña, que no son navegaciones de esta.
- */
-function rescatarSiSeAtasca(href: string, evento: React.MouseEvent) {
-  if (
-    evento.defaultPrevented ||
-    evento.button !== 0 ||
-    evento.metaKey ||
-    evento.ctrlKey ||
-    evento.shiftKey ||
-    evento.altKey
-  ) {
-    return;
-  }
-  const desde = window.location.pathname + window.location.search;
-  window.setTimeout(() => {
-    if (window.location.pathname + window.location.search === desde) {
-      window.location.href = href;
-    }
-  }, RESCATE_MS);
-}
-
 export function TopNav({ view, onNavigate }: TopNavProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -225,15 +146,9 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
           title={label}
           aria-current={active ? "page" : undefined}
           className={`${className} ${active ? "is-active" : ""}`}
-          onClick={(evento) => {
-            setMasAbierto(false);
-            rescatarSiSeAtasca(item.href, evento);
-          }}
+          onClick={() => setMasAbierto(false)}
         >
           {content}
-          {/* Tiene que ir DENTRO del Link: `useLinkStatus` solo funciona en un
-              descendiente suyo. Ver `PistaDeCarga`. */}
-          <PistaDeCarga />
         </Link>
       );
     }

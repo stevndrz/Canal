@@ -4,7 +4,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import type { Channel, ViewId } from "@/lib/types";
-import type { CatalogSection } from "@/lib/catalog/types";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import {
   CATEGORY_ORDER,
@@ -94,7 +94,7 @@ export function Dashboard({
    * repetidos 7.822 veces.
    */
   paquete: PaqueteCanales;
-  catalog: CatalogSection[];
+  catalog: FilaDeTarjetas[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();

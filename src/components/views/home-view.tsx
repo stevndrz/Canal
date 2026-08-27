@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import type { Channel } from "@/lib/types";
-import type { CatalogSection } from "@/lib/catalog/types";
-import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
+import { channelToCard, type CardItem } from "@/lib/media-item";
 import { groupByCategory } from "@/lib/channels";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
@@ -22,7 +22,7 @@ interface HomeViewProps {
    * aparecen igual en todos los aparatos. Ver `publicConfig.canalesDeCasa`.
    */
   deLaCasa: Channel[];
-  catalog: CatalogSection[];
+  catalog: FilaDeTarjetas[];
   /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta de arriba. */
   onSelect: (channel: Channel) => void;
   onOpenTitle: (mediaType: string, id: string) => void;
@@ -135,11 +135,13 @@ export function HomeView({
             </div>
           </section>
 
-          {catalog.map((section) => (
+          {/* Ya vienen convertidas del servidor: ver `page.tsx`. */}
+          {catalog.map((fila) => (
             <MediaRail
-              key={section.title}
-              title={section.title}
-              items={section.items.map(catalogToCard)}
+              key={fila.title}
+              title={fila.title}
+              href={fila.href}
+              items={fila.tarjetas}
               onOpen={abrirFicha}
               posterMode
             />

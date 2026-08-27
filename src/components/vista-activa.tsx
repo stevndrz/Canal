@@ -7,7 +7,7 @@ import { FavoritosView } from "@/components/views/favoritos-view";
 import { FuenteView } from "@/components/views/fuente-view";
 import { HomeView } from "@/components/views/home-view";
 import { LiveTvView } from "@/components/livetv/live-tv-view";
-import type { CatalogSection } from "@/lib/catalog/types";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 
 /**
@@ -34,7 +34,7 @@ export interface VistaActivaProps {
   tuned: Channel | null;
   favorites: { ids: Set<number>; toggle: (id: number) => void; clear: () => void };
   recentChannels: Channel[];
-  catalog: CatalogSection[];
+  catalog: FilaDeTarjetas[];
   categories: string[];
   /**
    * Cuántos canales tiene cada categoría en la lista COMPLETA, y cuántos hay en

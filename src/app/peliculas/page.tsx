@@ -9,6 +9,7 @@ import { NavegacionCatalogo } from "@/components/catalog/navegacion-catalogo";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
 import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
+import { catalogToCard } from "@/lib/media-item";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
@@ -124,7 +125,10 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   const contenido = cuadricula ? (
     cuadricula.items.length > 0 ? (
       <>
-        <CatalogGrid items={cuadricula.items} />
+        {/* La conversión a tarjeta ocurre AQUÍ, en el servidor, y no dentro de
+            `CatalogGrid`, que es de cliente: así cruza la red lo que se pinta y
+            no la ficha entera de TMDB. Ver `CatalogRows`. */}
+        <CatalogGrid tarjetas={cuadricula.items.map(catalogToCard)} />
         <Paginador pagina={cuadricula.pagina} totalPaginas={cuadricula.totalPaginas} href={enlacePagina} />
       </>
     ) : (
@@ -135,7 +139,13 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
       />
     )
   ) : rows.length > 0 ? (
-    <CatalogRows sections={rows} />
+    <CatalogRows
+      filas={rows.map((fila) => ({
+        title: fila.title,
+        href: fila.href,
+        tarjetas: fila.items.map(catalogToCard),
+      }))}
+    />
   ) : (
     <EstadoVacio
       Icono={Clapperboard}
