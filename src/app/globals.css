@@ -230,7 +230,6 @@ html[data-player="on"] body {
 .buscar-resultados { min-width: 0; }
 
 /* Dentro de la columna el margen lateral ya lo pone `.buscar-cuerpo`. */
-.grid-results.is-embedded { padding-inline: 0; }
 
 /* Dos grupos de resultados, canales y catálogo, con aire entre ellos para que
    se lean como dos listas y no como una revuelta. */
@@ -1001,12 +1000,8 @@ html[data-player="on"] body {
 }
 
 .catalogo-buscador-campo:focus-within {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.catalogo-buscador-campo:focus-within {
   border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.09);
   box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import type { Channel } from "@/lib/types";
 import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import { channelToCard, type CardItem } from "@/lib/media-item";
@@ -71,17 +71,50 @@ export function HomeView({
 
   const grupos = useMemo(() => groupByCategory(channels).slice(0, MAX_GRUPOS), [channels]);
 
-  const abrirCanal = (card: CardItem) => {
-    const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
-    // Una tarjeta de canal cambia lo que suena en la tarjeta de arriba; no
-    // salta a pantalla completa. Ir a pantalla completa se pide aparte.
-    if (canal) onSelect(canal);
-  };
+  /* Estables con `useCallback`: `MediaCard` está memoizada, y un manejador
+     nuevo por render anulaba el `memo` y repintaba las ~200 tarjetas de Inicio
+     cada vez que cambiaba cualquier cosa. Medido: 121 renders de tarjeta por
+     sintonizar un canal. */
+  const abrirCanal = useCallback(
+    (card: CardItem) => {
+      const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+      // Cambia lo que suena arriba; ir a pantalla completa se pide aparte.
+      if (canal) onSelect(canal);
+    },
+    [channels, onSelect],
+  );
 
-  const abrirFicha = (card: CardItem) => {
-    const [mediaType, ...resto] = card.key.split("-");
-    onOpenTitle(mediaType, resto.join("-"));
-  };
+  const abrirFicha = useCallback(
+    (card: CardItem) => {
+      const [mediaType, ...resto] = card.key.split("-");
+      onOpenTitle(mediaType, resto.join("-"));
+    },
+    [onOpenTitle],
+  );
+
+  /**
+   * Las tarjetas, calculadas una vez.
+   *
+   * `channelToCard` devuelve un objeto NUEVO cada vez, así que hacer el `map`
+   * dentro del JSX significaba que `MediaCard` —que está memoizada— recibía un
+   * `item` distinto por identidad en cada render y volvía a pintarse aunque no
+   * hubiera cambiado nada suyo. Medido: sintonizar un canal repintaba 121
+   * tarjetas.
+   */
+  const tarjetasRecientes = useMemo(() => recents.map((c) => channelToCard(c)), [recents]);
+  const tarjetasFavoritas = useMemo(
+    () => favoriteChannels.map((c) => channelToCard(c)),
+    [favoriteChannels],
+  );
+  const rielesDeCanal = useMemo(
+    () =>
+      grupos.map(({ category, items }) => ({
+        category,
+        total: items.length,
+        tarjetas: items.slice(0, MAX_POR_RIEL).map((c) => channelToCard(c)),
+      })),
+    [grupos],
+  );
 
   const tunedKey = tuned ? `canal-${tuned.id}` : null;
 
@@ -101,7 +134,7 @@ export function HomeView({
       <MediaRail
         compacto
         title="Seguir viendo"
-        items={recents.map((channel) => channelToCard(channel))}
+        items={tarjetasRecientes}
         onOpen={abrirCanal}
         activeKey={tunedKey}
       />
@@ -109,19 +142,19 @@ export function HomeView({
       <MediaRail
         compacto
         title="Tus favoritos"
-        items={favoriteChannels.map((channel) => channelToCard(channel))}
+        items={tarjetasFavoritas}
         onOpen={abrirCanal}
         count={favoriteChannels.length > 0 ? `${favoriteChannels.length}` : undefined}
         activeKey={tunedKey}
       />
 
-      {grupos.map(({ category, items }) => (
+      {rielesDeCanal.map(({ category, total, tarjetas }) => (
         <MediaRail
           key={category}
           title={category}
-          items={items.slice(0, MAX_POR_RIEL).map((channel) => channelToCard(channel))}
+          items={tarjetas}
           onOpen={abrirCanal}
-          count={`${items.length}`}
+          count={`${total}`}
           activeKey={tunedKey}
         />
       ))}

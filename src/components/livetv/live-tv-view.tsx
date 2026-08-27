@@ -5,6 +5,7 @@ import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
+import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import {
   calcularVentana,
@@ -52,16 +53,6 @@ const HUECO_FILA = 4;
  * `calcularVentana` recorta en cuanto hay una fila de la que sacar el alto.
  */
 const VENTANA_INICIAL: Ventana = { desde: 0, hasta: LOTE, huecoArriba: 0, huecoAbajo: 0 };
-
-function hora(millis?: number): string {
-  if (!millis) return "";
-  return new Date(millis).toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" });
-}
-
-function porcentaje(inicio?: number, fin?: number): number | null {
-  if (!inicio || !fin || fin <= inicio) return null;
-  return Math.min(100, Math.max(0, ((Date.now() - inicio) / (fin - inicio)) * 100));
-}
 
 interface LiveTvViewProps {
   /**
@@ -282,7 +273,10 @@ export function LiveTvView({
   );
 
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
-  const progreso = canal ? porcentaje(canal.currentStart, canal.currentEnd) : null;
+  const progreso = canal
+    ? // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
+      porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now())
+    : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
 
   return (

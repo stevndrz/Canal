@@ -336,16 +336,27 @@ export function Dashboard({
    * a pantalla completa por tocar una tarjeta sería quitarle a la persona la
    * pantalla que estaba mirando.
    */
+  /**
+   * Depende de `recents.push`, **no del objeto `recents` entero**.
+   *
+   * Sintonizar añade el canal a «Seguir viendo», así que `recents.ids` cambia
+   * en cada zapeo. Con el objeto entero en las dependencias, `select` cambiaba
+   * de identidad con él, y detrás cambiaba el `onOpen` de todas las tarjetas:
+   * el comparador de `memo(MediaCard)` dejaba de acertar y se repintaban las
+   * ~121 tarjetas de canal por un cambio que solo afectaba a una fila.
+   * `push` es estable; `ids` es lo que se mueve, y aquí no se lee.
+   */
+  const anotarReciente = recents.push;
   const select = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
-      recents.push(channel.id);
+      anotarReciente(channel.id);
       // Con esto la app abre la próxima vez donde la dejaste. Y se marca como
       // aplicado para que lo guardado no vuelva a sobrescribir una elección.
       arranqueAplicado.current = true;
       guardarUltimo({ id: channel.id, nombre: channel.name });
     },
-    [recents, guardarUltimo],
+    [anotarReciente, guardarUltimo],
   );
 
   /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */

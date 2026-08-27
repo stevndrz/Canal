@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import type { Channel } from "@/lib/types";
@@ -43,10 +44,20 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
 
   const tarjetasCanal = results.map((channel) => channelToCard(channel));
 
-  const abrirCanal = (card: CardItem) => {
-    const canal = results.find((channel) => `canal-${channel.id}` === card.key);
-    if (canal) onTune(canal);
-  };
+  // Estables: ver la nota de `home-view.tsx`. Un manejador nuevo por render
+  // anula el `memo` de `MediaCard` y repinta la rejilla entera.
+  const abrirCanal = useCallback(
+    (card: CardItem) => {
+      const canal = results.find((channel) => `canal-${channel.id}` === card.key);
+      if (canal) onTune(canal);
+    },
+    [results, onTune],
+  );
+
+  const abrirTitulo = useCallback(
+    (card: CardItem) => router.push(`/peliculas/${card.key.split("-")[0]}/${card.key.split("-").slice(1).join("-")}`),
+    [router],
+  );
 
   const buscando = search.trim().length > 0;
   const totalCanales = results.length;
@@ -125,7 +136,7 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
                         key={item.key}
                         item={item}
                         posterMode
-                        onOpen={() => router.push(`/peliculas/${item.mediaType}/${item.id}`)}
+                        onOpen={abrirTitulo}
                       />
                     ))}
                   </div>

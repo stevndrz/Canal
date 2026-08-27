@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useMemo } from "react";
 
 /**
  * Set de ids en localStorage. Sin cuenta ni base de datos: favoritos y
@@ -78,7 +78,17 @@ export function usePersistedRecents(key: string, limit = 12) {
     [key, limit],
   );
 
-  return { ids, push };
+  /**
+   * El objeto, memorizado.
+   *
+   * Devolver `{ ids, push }` a pelo creaba una identidad nueva en CADA render,
+   * y eso viajaba lejos: `select` en `dashboard.tsx` lo lleva en sus
+   * dependencias, así que cambiaba también; con él cambiaba el `onOpen` de las
+   * tarjetas, y el comparador de `memo(MediaCard)` dejaba de acertar. Medido:
+   * sintonizar un canal repintaba 121 tarjetas de canal que no habían
+   * cambiado en nada.
+   */
+  return useMemo(() => ({ ids, push }), [ids, push]);
 }
 
 /**

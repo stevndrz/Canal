@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Channel } from "@/lib/types";
+import { porcentajeDelPrograma } from "@/lib/guia-epg";
 import {
   modulosDeEmision,
   palabraDeEstado,
@@ -125,12 +126,3 @@ function useTicDeSegundo(activo: boolean): number | undefined {
   return ahora;
 }
 
-/** Cuánto lleva emitido el programa. `null` cuando no hay guía o el tramo es absurdo. */
-function porcentajeDelPrograma(
-  inicio: number | undefined,
-  fin: number | undefined,
-  ahora: number | undefined,
-) {
-  if (!inicio || !fin || !ahora || fin <= inicio) return null;
-  return Math.min(100, Math.max(0, ((ahora - inicio) / (fin - inicio)) * 100));
-}

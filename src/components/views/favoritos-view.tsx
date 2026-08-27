@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useMemo } from "react";
 import { Star } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelToCard, type CardItem } from "@/lib/media-item";
@@ -26,13 +27,23 @@ interface FavoritosViewProps {
 }
 
 export function FavoritosView({ channels, favorites, tunedId, onTune }: FavoritosViewProps) {
-  const items = channels.filter((channel) => favorites.has(channel.id));
-  const tarjetas = items.map((channel) => channelToCard(channel));
+  // Memorizados: sin esto se recalculaban en cada render y las tarjetas
+  // resultantes eran objetos nuevos, así que el `memo` de `MediaCard` no
+  // acertaba nunca y se repintaba la rejilla entera por cualquier cambio.
+  const tarjetas = useMemo(
+    () => channels.filter((channel) => favorites.has(channel.id)).map((canal) => channelToCard(canal)),
+    [channels, favorites],
+  );
 
-  const abrir = (card: CardItem) => {
-    const canal = items.find((channel) => `canal-${channel.id}` === card.key);
-    if (canal) onTune(canal);
-  };
+  // Busca en `channels`, el prop estable, y no en una lista derivada que
+  // cambia de identidad en cada render.
+  const abrir = useCallback(
+    (card: CardItem) => {
+      const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+      if (canal) onTune(canal);
+    },
+    [channels, onTune],
+  );
 
   return (
     <div className="screen has-section-heading">

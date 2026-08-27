@@ -4,19 +4,11 @@ import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 /**
  * Lo que se ve al entrar en Cine y series.
  *
- * Existe por un fallo concreto: pulsar «Cine y series» **no hacía nada
- * visible** hasta que se pulsaba otro botón. No era el enlace, era que la
- * barra superior vive dentro de cada página y desaparecía con ella, dejando la
- * pantalla negra mientras el servidor pedía las diez listas de TMDB.
- *
- * La documentación de Next dice que este fallback **se prefetchea**, así que
- * con el archivo puesto la respuesta al clic es inmediata. Por eso no hace
- * falta `useLinkStatus`: eso está pensado justo para cuando NO hay `loading`.
- *
- * La página también lleva su propio `<Suspense>` con el mismo esqueleto
- * (`EsqueletoCatalogo`): ese es el que cubre el tramo largo —las listas de
- * TMDB streameando— cuando el armazón de la página ya está servido y esta
- * pantalla ya dejó de hacer falta.
+ * Next prefetchea este fallback, así que la respuesta al clic es inmediata:
+ * cubre el hueco hasta que llega el armazón de la página. A partir de ahí toma
+ * el relevo el `<Suspense>` de `page.tsx`, que pinta este mismo esqueleto
+ * mientras TMDB streamea las listas — el mismo dibujo a propósito, para que la
+ * pantalla no cambie dos veces.
  */
 export default function CargandoCatalogo() {
   return (

@@ -120,7 +120,7 @@ const CATALOG_ROWS: RowSpec[] = [
  */
 const TMDB_ID_PREFIX = "tmdb-";
 
-export function toCatalogId(tmdbId: number): string {
+function toCatalogId(tmdbId: number): string {
   return `${TMDB_ID_PREFIX}${tmdbId}`;
 }
 
