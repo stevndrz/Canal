@@ -43,9 +43,19 @@ interface ChannelRowProps {
    */
   caido?: boolean;
   selected: boolean;
-  onFocus: () => void;
-  onPlay: () => void;
-  onToggleFavorite: () => void;
+  /**
+   * Los tres reciben el canal a propósito.
+   *
+   * Sin argumento, quien pinta la lista tenía que crear tres flechas nuevas por
+   * fila y por render, y eso **anulaba el `memo` de abajo**: cualquier cambio
+   * repintaba las ~50 filas montadas enteras, iconos incluidos. Pasando el
+   * canal, el padre puede tener manejadores estables y el `memo` por fin
+   * acierta. Las flechas de aquí dentro no molestan: solo son escuchadores de
+   * DOM, no props que comparar.
+   */
+  onFocus: (channel: Channel) => void;
+  onPlay: (channel: Channel) => void;
+  onToggleFavorite: (channel: Channel) => void;
 }
 
 function ChannelRowBase({
@@ -64,10 +74,10 @@ function ChannelRowBase({
   return (
     <article
       className={`livetv-row row-virtual ${selected ? "is-selected" : ""} ${caido ? "is-caido" : ""}`}
-      onMouseEnter={onFocus}
-      onFocus={onFocus}
+      onMouseEnter={() => onFocus(channel)}
+      onFocus={() => onFocus(channel)}
     >
-      <button type="button" data-nav="row" className="livetv-row-main" onClick={onPlay}>
+      <button type="button" data-nav="row" className="livetv-row-main" onClick={() => onPlay(channel)}>
         <span className="livetv-row-logo">
           {hayLogo ? (
             // Igual que en el resto del diseño: `<img>` plano. Las URLs de logo
@@ -121,7 +131,7 @@ function ChannelRowBase({
         type="button"
         data-nav="button"
         className={`livetv-row-star ${favorite ? "is-active" : ""}`}
-        onClick={onToggleFavorite}
+        onClick={() => onToggleFavorite(channel)}
         aria-pressed={favorite}
         aria-label={favorite ? `Quitar ${channel.name} de favoritos` : `Añadir ${channel.name} a favoritos`}
       >

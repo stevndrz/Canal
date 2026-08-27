@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
@@ -134,11 +134,21 @@ export function LiveTvView({
    * tarjeta que ya está en esta misma pantalla, y la lista se queda donde
    * estaba. Ir a pantalla completa sigue siendo una decisión aparte.
    */
-  const sintonizar = (canal: Channel) => {
-    onSelect(canal);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const sintonizar = useCallback(
+    (canal: Channel) => {
+      onSelect(canal);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [onSelect],
+  );
+
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
+  // Estables, para que el `memo` de `ChannelRow` sirva de algo. Ver allí.
+  const enfocarFila = useCallback((canal: Channel) => setSeleccionado(canal.id), []);
+  const alternarFavorito = useCallback(
+    (canal: Channel) => onToggleFavorite(canal.id),
+    [onToggleFavorite],
+  );
   const [pintadas, setPintadas] = useState(LOTE);
   const centinela = useRef<HTMLDivElement | null>(null);
   const contenedorFilas = useRef<HTMLDivElement | null>(null);
@@ -374,9 +384,9 @@ export function LiveTvView({
                     favorite={favorites.has(item.id)}
                     caido={idsCaidos.has(item.id)}
                     selected={canal?.id === item.id}
-                    onFocus={() => setSeleccionado(item.id)}
-                    onPlay={() => sintonizar(item)}
-                    onToggleFavorite={() => onToggleFavorite(item.id)}
+                    onFocus={enfocarFila}
+                    onPlay={sintonizar}
+                    onToggleFavorite={alternarFavorito}
                   />
                 ))}
               </div>

@@ -160,9 +160,38 @@ const StreamPlayer = memo(
       setRetryCount((n) => n + 1);
     }, []);
 
+    /**
+     * El aviso al padre, **sin que el padre pueda provocar un bucle**.
+     *
+     * `onStateChange` estaba en las dependencias del efecto de abajo, y eso
+     * abría un ciclo cerrado en cuanto alguien pasaba una función en línea —que
+     * es lo que hacía `live-card.tsx`—:
+     *
+     *   el padre renderiza → función nueva → `memo` falla y este componente
+     *   re-renderiza → las dependencias cambian → el efecto corre → llama al
+     *   callback con un objeto NUEVO → el padre hace `setState` y nunca
+     *   descarta por identidad → el padre renderiza → vuelta a empezar.
+     *
+     * Cada vuelta es barata, así que el hilo no se congela y no salta ningún
+     * aviso: lo que hace es programar trabajo sin parar en la cola normal, que
+     * va por encima de la de transiciones. Resultado, medido: la navegación de
+     * un `<Link>` **no llegaba a confirmarse nunca** mientras hubiera vídeo
+     * montado, y se quedaba encolada hasta que un clic discreto forzaba el
+     * vaciado — llevándote entonces a la página equivocada.
+     *
+     * Guardando el callback en una `ref` y sacándolo de las dependencias, el
+     * efecto solo corre cuando cambia algo del vídeo de verdad. Y queda
+     * blindado: ningún consumidor, ni hoy ni mañana, puede volver a abrir el
+     * ciclo pasando una función en línea.
+     */
+    const avisar = useRef(onStateChange);
     useEffect(() => {
-      onStateChange?.({ isPlaying, isMuted, streamError, needsUserGesture, ...emision });
-    }, [isPlaying, isMuted, streamError, needsUserGesture, emision, onStateChange]);
+      avisar.current = onStateChange;
+    });
+
+    useEffect(() => {
+      avisar.current?.({ isPlaying, isMuted, streamError, needsUserGesture, ...emision });
+    }, [isPlaying, isMuted, streamError, needsUserGesture, emision]);
 
     useEffect(() => {
       const video = videoRef.current;

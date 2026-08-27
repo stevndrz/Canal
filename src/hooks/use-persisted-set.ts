@@ -130,7 +130,25 @@ export function usePersistedJson<T extends object>(key: string, inicial: T) {
   const guardar = useCallback(
     (parche: Partial<T> | ((actual: T) => Partial<T>)) => {
       setValor((actual) => {
-        const siguiente = { ...actual, ...(typeof parche === "function" ? parche(actual) : parche) };
+        const cambios = typeof parche === "function" ? parche(actual) : parche;
+
+        /**
+         * Si el parche no cambia nada, se devuelve el MISMO objeto.
+         *
+         * Sin esto, `{ ...actual, ...cambios }` era siempre un objeto nuevo, así
+         * que toda llamada repintaba la aplicación entera y escribía en disco
+         * aunque el contenido fuera idéntico. Y aquí «la aplicación entera» no
+         * es una forma de hablar: `Dashboard` recalcula `visible` e `idsCaidos`
+         * sobre 7.822 canales, hasheando cada URL. Con `registrarExito` sobre un
+         * canal sano —que devuelve el mismo mapa a propósito— eso ocurría por
+         * nada.
+         */
+        const igual = Object.keys(cambios).every(
+          (clave) => actual[clave as keyof T] === cambios[clave as keyof T],
+        );
+        if (igual) return actual;
+
+        const siguiente = { ...actual, ...cambios };
         try {
           window.localStorage.setItem(key, JSON.stringify(siguiente));
         } catch {

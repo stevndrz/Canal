@@ -5,6 +5,7 @@ import { extrasCast, PlayerControls } from "@/components/player/player-controls"
 import { useCast } from "@/hooks/use-cast";
 import { esIPhone } from "@/lib/dispositivo";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
+import { cambioDeSalud } from "@/lib/salud-de-la-emision";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -71,6 +72,39 @@ export function LiveCard({
     streamError: false,
     needsUserGesture: false,
   });
+
+  /**
+   * Lo que el reproductor le cuenta a esta tarjeta.
+   *
+   * **Tiene que ser estable.** Aquí había una función en línea, y eso abría un
+   * bucle de render sin fin con `StreamPlayer`: función nueva en cada render →
+   * `memo` fallaba → el efecto que avisa del estado se re-ejecutaba → llamaba
+   * aquí con un objeto nuevo → `setState` nunca descartaba por identidad → otro
+   * render. El coste no era el hilo bloqueado, era el planificador ocupado sin
+   * parar: la navegación de «Cine y series» —una transición, de baja
+   * prioridad— **no llegaba a confirmarse nunca** mientras hubiera vídeo.
+   * `StreamPlayer` ya está blindado por su lado; esto lo cierra por el otro.
+   *
+   * La salud del canal se decide por **flanco**, no por nivel. Antes era
+   * `if (siguiente.streamError)`, una condición sobre el estado actual: con un
+   * canal caído se disparaba en cada vuelta del bucle, y cada disparo escribía
+   * en `localStorage` y reordenaba los 7.822 canales por salud. Ver
+   * `cambioDeSalud`, que además se puede probar sin React.
+   */
+  const previo = useRef<{ canal: number; lectura: StreamPlayerState } | null>(null);
+  const alCambiarEstado = useCallback(
+    (siguiente: StreamPlayerState) => {
+      setState(siguiente);
+      // Al zapear se olvida la lectura anterior: la salud de un canal no dice
+      // nada del siguiente, y compararlos daría un flanco inventado. Por eso la
+      // `ref` guarda de qué canal era la lectura, y no solo la lectura.
+      const anterior = previo.current?.canal === channel.id ? previo.current.lectura : undefined;
+      previo.current = { canal: channel.id, lectura: siguiente };
+      const cambio = cambioDeSalud(anterior, siguiente);
+      if (cambio) onSalud?.(channel.id, cambio === "revivio");
+    },
+    [channel.id, onSalud],
+  );
 
   /**
    * Pantalla completa de verdad, en un solo gesto.
@@ -145,14 +179,7 @@ export function LiveCard({
             ref={playerRef}
             channel={channel}
             settings={settings}
-            onStateChange={(siguiente) => {
-              setState(siguiente);
-              // Solo los dos extremos interesan: dio error, o llegó a sonar.
-              // Los estados intermedios (silenciado, pausado) no dicen nada de
-              // si el canal está vivo.
-              if (siguiente.streamError) onSalud?.(channel.id, false);
-              else if (siguiente.isPlaying && !state.isPlaying) onSalud?.(channel.id, true);
-            }}
+            onStateChange={alCambiarEstado}
           />
 
           <div className="live-card-top">
