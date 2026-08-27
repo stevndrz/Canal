@@ -1,4 +1,5 @@
 import type { MediaType } from "./types";
+import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
 
 /**
@@ -10,7 +11,12 @@ import { serverConfig } from "@/lib/config.server";
  * romperse por una API externa.
  */
 
-const TMDB_API = "https://api.themoviedb.org/3";
+/**
+ * La base es sustituible por entorno (`TMDB_API_BASE`) para pruebas —simular
+ * lentitud o caídas sin tocar producción— y para quien accede a la API desde
+ * un espejo. El defecto es la API pública.
+ */
+const TMDB_API = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 
 /**
@@ -93,6 +99,25 @@ function tmdbCredential(): string {
 async function tmdbFetch<T>(path: string): Promise<T | null> {
   const credential = tmdbCredential();
   if (!credential) return null;
+  return tmdbConClave<T>(path, credential);
+}
+
+/**
+ * La petición real a TMDB, **cacheada como función** (`use cache`).
+ *
+ * Bajo `cacheComponents`, `next: { revalidate }` de fetch ya no cachea: lo
+ * hace la directiva. La clave de caché incluye la ruta —y la credencial, que
+ * entra como argumento para que la caducidad de una clave vieja no sirva las
+ * respuestas de la nueva— y el perfil «days» mantiene el criterio de antes:
+ * el reparto de una película no cambia cada hora.
+ *
+ * Rodeando cada llamada está el mismo pacto de siempre: sin clave o con
+ * TMDB caída se devuelve null y la interfaz se queda con el catálogo local,
+ * nunca un 500.
+ */
+async function tmdbConClave<T>(path: string, credential: string): Promise<T | null> {
+  "use cache";
+  cacheLife("days");
 
   // TMDB reparte dos credenciales distintas en la misma pantalla de ajustes y
   // es fácil copiar la que no es. La v4 ("API Read Access Token") es un JWT y
@@ -104,9 +129,7 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
     const url =
       `${TMDB_API}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
       (isReadAccessToken ? "" : `&api_key=${encodeURIComponent(credential)}`);
-    // Un día de caché: el reparto de una película no cambia cada hora.
     const response = await fetch(url, {
-      next: { revalidate: 86400 },
       signal: AbortSignal.timeout(TMDB_TIMEOUT_MS),
       headers: isReadAccessToken ? { Authorization: `Bearer ${credential}` } : undefined,
     });

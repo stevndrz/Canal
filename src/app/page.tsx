@@ -1,4 +1,7 @@
+import { Suspense } from "react";
 import { Dashboard } from "@/components/dashboard";
+import { EsqueletoSuperior } from "@/components/esqueleto-superior";
+import { EsqueletoPortada } from "@/components/esqueleto-portada";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import type { CatalogSection } from "@/lib/catalog/types";
 import {
@@ -12,24 +15,19 @@ import { publicConfig } from "@/lib/config";
 import { normalizeChannelName } from "@/lib/text";
 
 /**
- * Se queda DINÁMICA, y conviene decir por qué para que nadie lo intente otra
- * vez pensando que es una mejora gratis.
+ * Ya no hace falta `dynamic = "force-dynamic"`: bajo `cacheComponents` todas
+ * las páginas lo son por defecto —lo que cambia es que el armazón se
+ * prerenderiza igual—. Esta portada sigue esperando la lista M3U en cada
+ * render a propósito:
  *
- * `revalidate` parece la respuesta obvia —nada aquí depende de quién pide la
- * página— pero choca con dos cosas del código actual:
+ *  1. `m3u.ts` descarga con `cache: "no-store"`: la caché de Next descarta
+ *     respuestas de más de 2 MB y estas listas las superan.
  *
- *  1. `m3u.ts` descarga con `cache: "no-store"` a propósito: la caché de datos
- *     de Next descarta respuestas de más de 2 MB y estas listas las superan.
- *     Eso es `revalidate: 0`, y saca a la ruta del renderizado estático.
- *  2. `Dashboard` lee `useSearchParams()` para el `?vista=`, que exige una
- *     frontera de Suspense para poder prerenderizar.
- *
- * Y además cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor. Lo
- * que de verdad se nota desde el sofá es cuántos bytes hay que descargar e
- * interpretar antes de ver algo, y eso es lo que ataca el recorte de abajo: la
- * parte cacheable de esta página ya no es el HTML, es `/api/canales`.
+ * Y además cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor.
+ * Lo que de verdad se nota desde el sofá es cuántos bytes hay que descargar
+ * e interpretar antes de ver algo, y eso lo ataca el recorte de abajo: la
+ * parte cacheable ya no es el HTML, es `/api/canales`.
  */
-export const dynamic = "force-dynamic";
 
 /**
  * Mandarlo todo en el HTML, como antes.
@@ -69,7 +67,16 @@ function loJusto(paquete: PaqueteCanales): PaqueteCanales {
   );
 }
 
-export default async function HomePage() {
+/**
+ * Todo lo que depende de datos en vivo: la lista M3U del día y el catálogo de
+ * TMDB.
+ *
+ * Vive detro de un `<Suspense>` para que el armazón de la página —barra de
+ * navegación incluida— pueda prerenderizarse en build: quien abre la app ve
+ * la barra al instante y este bloque rellena su sitio cuando la red contesta.
+ * Antes TODO esperaba a la M3U, hasta pintar nada.
+ */
+async function Portada() {
   const { paquete } = await paqueteDeCanales();
 
   // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
@@ -84,4 +91,19 @@ export default async function HomePage() {
   }
 
   return <Dashboard paquete={loJusto(paquete)} catalog={catalog} />;
+}
+
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="app-shell">
+          <EsqueletoSuperior />
+          <EsqueletoPortada />
+        </div>
+      }
+    >
+      <Portada />
+    </Suspense>
+  );
 }

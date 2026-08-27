@@ -18,9 +18,12 @@ import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
  * 2. **Servidores «Directo»**: si hay addons de Stremio configurados
  *    (`STREMIO_MANIFESTS`), enlaces .mp4/.m3u8 que la ficha reproduce en su
  *    propio `<video>` — la vía sin anuncios.
+ *
+ * Sin `dynamic = "force-dynamic"`: bajo `cacheComponents` las exportaciones de
+ * configuración de segmento ya no existen en rutas. Sigue respondiendo en
+ * vivo —lee la petición y consulta disponibilidad por request— porque no hay
+ * nada que cachear aquí, igual que antes.
  */
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
   /**
    * Esta es la ruta que más amplifica de la app: con `STREMIO_MANIFESTS`

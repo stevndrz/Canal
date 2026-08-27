@@ -25,11 +25,12 @@ import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-
  * Nunca prerenderizada.
  *
  * `m3u.ts` descarga con `cache: "no-store"` a propósito —la caché de datos de
- * Next descarta respuestas de más de 2 MB y estas listas las superan—, así que
- * intentar hacerla estática rompe la compilación. El `Cache-Control` de abajo
- * es lo que de verdad la cachea, y lo hace donde importa: en el borde.
+ * Next descarta respuestas de más de 2 MB y estas listas las superan—. Bajo
+ * `cacheComponents` las rutas sin datos cacheables son dinámicas por defecto,
+ * así que el export que antes lo forzaba ya no existe; la respuesta en vivo
+ * es la misma, y el `Cache-Control` de abajo es lo que de verdad la cachea,
+ * donde importa: en el borde.
  */
-export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   // Cachear en el borde no protege el origen del primer fallo de caché, y

@@ -15,14 +15,13 @@ import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 /**
  * El catálogo es idéntico para todo el mundo: los filtros y la página van en
- * la URL, no en la sesión. Con `revalidate` Next guarda el resultado de cada
- * combinación de parámetros que ya haya visto, en lugar de repetir las diez
- * llamadas a TMDB en cada visita.
+ * la URL, no en la sesión.
  *
- * Una hora: TMDB no cambia sus listas más rápido que eso, y `tmdb.ts` ya
- * cachea las peticiones sueltas un día.
+ * Antes había aquí un `revalidate = 3600`; bajo `cacheComponents` lo sustituye
+ * el `cacheLife("days")` que vive en `tmdb.ts`, junto a los datos — y las doce
+ * peticiones a TMDB ya no caducan cada hora por arte de un export que nadie
+ * veía.
  */
-export const revalidate = 3600;
 
 /** Lo que la URL trae, ya saneado antes de tocar TMDB. */
 interface Filtro {
@@ -36,21 +35,20 @@ interface Filtro {
 /**
  * Todo el contenido bajo la barra: héroe, buscador, filtros y catálogo.
  *
- * Vive separado de la página para poder streamearse entero. Las doce
- * peticiones a TMDB que alimenta —diez filas del catálogo, dos listas de
- * géneros— tardan medio segundo en caliente y hasta tres o más en frío, y
- * antes bloqueaban el render COMPLETO de la ruta: pulsar «Cine y series» era
- * mirar un esqueleto todo ese tiempo sin barra ni nada que hacer. Ahora el
- * armazón llega en el primer fotograma y esto ocupa su lugar en cuanto hay
- * datos: la API lenta retrasa las carátulas, no el entrar.
+ * La promesa de `searchParams` cruza el límite del Suspense SIN esperarse en
+ * la raíz de la página — ese detalle es exactamente lo que permite prerender
+ * el armazón (barra incluida) en build y servirlo al instante; la API
+ * dinámica se consume aquí dentro, cuando ya hay pantalla detrás. Las doce
+ * peticiones a TMDB que esto alimenta tardan medio segundo en caliente y
+ * hasta tres o más en frío, y antes bloqueaban el render COMPLETO de la ruta:
+ * pulsar «Cine y series» era mirar un esqueleto todo ese tiempo sin barra ni
+ * nada que hacer. Ahora la barra está arriba desde el primer fotograma y esto
+ * ocupa su lugar en cuanto hay datos: la API lenta retrasa las carátulas, no
+ * el entrar.
  */
-async function SeccionCatalogo({
-  q,
-  tipo: tipoParam,
-  genero: generoParam,
-  pagina: paginaParam,
-  orden: ordenParam,
-}: Filtro) {
+async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
+  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam, orden: ordenParam } =
+    await filtro;
   const query = q?.trim() ?? "";
 
   const tipo: MediaFilter = tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
@@ -200,12 +198,10 @@ async function SeccionCatalogo({
 }
 
 export default async function MoviesPage({ searchParams }: { searchParams: Promise<Filtro> }) {
-  // searchParams está disponible de inmediato: es lo primero que trae la
-  // petición. Lo costoso —las listas de TMDB— queda confinado a
-  // `SeccionCatalogo`, que se streamea debajo del `<Suspense>` mientras la
-  // barra ya está en pantalla.
-  const filtro = await searchParams;
-
+  // La promesa NO se espera aquí: `searchParams` es una API dinámica y
+  // consumirla en la raíz convertiría TODO el armazón —la barra que da el
+  // «instantáneo» al clic— en algo servible solo tras un render completo.
+  // La recibe `SeccionCatalogo`, que vive debajo del `<Suspense>`.
   return (
     /* El mando: esta ruta vive fuera del shell, así que monta su propia
        navegación espacial. Ver `navegacion-catalogo.tsx`. */
@@ -217,7 +213,7 @@ export default async function MoviesPage({ searchParams }: { searchParams: Promi
             (`loading.tsx`): a quien mira no le puede cambiar la pantalla dos
             veces por un redibujado del mismo dibujo. */}
         <Suspense fallback={<EsqueletoCatalogo />}>
-          <SeccionCatalogo {...filtro} />
+          <SeccionCatalogo filtro={searchParams} />
         </Suspense>
       </div>
     </NavegacionCatalogo>

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TitleDetail } from "@/components/catalog/title-detail";
@@ -8,20 +9,19 @@ import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
 import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
 
 /**
- * Esta SÍ se queda dinámica, y no por descuido: lee `headers()` para saber si
- * quien pide es un televisor y reordenar los servidores en consecuencia (ver
- * `esTelevisorUA`). Cachear la respuesta serviría el orden equivocado a la
- * mitad de los dispositivos — y en un Samsung eso es el bucle de recargas.
+ * La lectura de `headers()` —saber si quien pide es un televisor para
+ * reordenar los servidores— es dinámica por naturaleza: cachearla serviría el
+ * orden equivocado a la mitad de los dispositivos, y en un Samsung eso es el
+ * bucle de recargas. Vive dentro del `<Suspense>`, junto a params y
+ * searchParams; la raíz queda limpia y también aquí el armazón se prerenderiza.
  */
-export const dynamic = "force-dynamic";
 
-export default async function TitlePage({
-  params,
-  searchParams,
-}: {
+interface PropsDeFicha {
   params: Promise<{ mediaType: string; id: string }>;
   searchParams: Promise<{ t?: string }>;
-}) {
+}
+
+async function Ficha({ params, searchParams }: PropsDeFicha) {
   const { mediaType, id } = await params;
   if (mediaType !== "movie" && mediaType !== "tv") notFound();
 
@@ -78,5 +78,13 @@ export default async function TitlePage({
       enTelevisor={enTelevisor}
       servidoresIniciales={servidoresIniciales}
     />
+  );
+}
+
+export default function TitlePage(props: PropsDeFicha) {
+  return (
+    <Suspense fallback={<div className="app-shell bg-black" />}>
+      <Ficha {...props} />
+    </Suspense>
   );
 }

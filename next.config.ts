@@ -72,6 +72,21 @@ const CABECERAS_SEGURIDAD = [
 
 const nextConfig: NextConfig = {
   /**
+   * Componentes de caché: prerenderizado parcial del armazón en build.
+   *
+   * Es lo que convierte el clic en «Cine y series» —y cualquier entrada a
+   * estas rutas— en algo instantáneo: la barra y el esqueleto se sirven ya
+   * construidos desde la primera visita, sin esperar render del servidor, y
+   * solo los datos (TMDB, la lista M3U) streamean detrás.
+   *
+   * Antes, el prefetch de una ruta dinámica esperaba al render COMPLETO antes
+   * de emitir un solo byte (medido: 8 s con TMDB lenta), así que ninguna otra
+   * combinación de trucos tocaba el problema de fondo. Con esto el armazón ya
+   * no depende ni del render ni de la red.
+   */
+  cacheComponents: true,
+
+  /**
    * `hls.js` y `mpegts.js` solo pueden vivir en el navegador: al evaluarse
    * tocan `self`, que en Node no existe. Marcarlos como externos del servidor
    * evita que entren ahí.
