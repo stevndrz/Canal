@@ -40,6 +40,70 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 
 ---
 
+## ⚙️ Variables de entorno
+
+Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
+
+| Variable             | Para qué                                                        |
+|----------------------|-----------------------------------------------------------------|
+| `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código        |
+| `EPG_URL`            | Guía de programación en XMLTV. Sin ella las filas no dicen qué dan |
+| `TMDB_API_KEY`       | Credencial propia de TMDB. Hay una de reserva en el código       |
+| `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
+| `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
+| `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
+
+Las que llevan credencial viven en [`src/lib/config.server.ts`](src/lib/config.server.ts),
+con `import "server-only"`, para que no puedan cruzar al navegador ni por
+accidente; las públicas, en [`src/lib/config.ts`](src/lib/config.ts).
+
+---
+
+## 🚫 Películas sin anuncios (`STREMIO_MANIFESTS`)
+
+Los servidores «Servidor 1, 2, 3…» son iFrames de terceros: su reproductor, sus
+anuncios, y desde fuera **no se puede tocar nada de lo que pasa dentro**. Es el
+precio de que sean gratis.
+
+La única salida real no es bloquear sus anuncios, es **no usar su reproductor**.
+Eso es lo que hace `STREMIO_MANIFESTS`: un addon de Stremio es simplemente una
+URL que, dada una película por su id de IMDB, responde con una lista de enlaces
+de vídeo en JSON. Cuando alguno de esos enlaces es un `.mp4`/`.m3u8` directo,
+CanalCasa lo reproduce **en su propio `<video>` con hls.js** y el iFrame ajeno
+deja de existir: sin anuncios, sin sandbox y sin nada de nadie. Aparecen en la
+ficha como botones «Directo · …» junto a los demás.
+
+```bash
+STREMIO_MANIFESTS="https://addon-uno.example,https://addon-dos.example"
+```
+
+La URL es la **base** del addon, la que lleva `/manifest.json` detrás, incluido
+su trozo de configuración si lo tiene. La app pide `{base}/stream/movie/tt….json`.
+
+**El detalle que decide si esto te sirve:** [`stremio.ts`](src/lib/resolvers/stremio.ts)
+descarta todo lo que no sea http(s) directo, y **la mayoría de addons devuelven
+torrents**, que un navegador no puede reproducir. Para que un torrent se
+convierta en enlace directo hace falta un servicio de *debrid* configurado
+dentro de la URL del addon. Sin eso la lista llega vacía y la ficha se queda
+igual que antes, sin avisar.
+
+Por eso existe el comprobador, que aplica **los mismos filtros que la app**:
+
+```bash
+npm run addon -- https://tu-addon.example/con-su-configuracion
+```
+
+Dice cuántos enlaces llegan, cuántos sobreviven al filtro y —lo importante— si
+responden de verdad. Un enlace firmado contra la IP de quien lo pidió da 403
+desde el servidor, y ese fallo de otro modo solo se descubre dándole al play.
+
+> Dos avisos que ahorran tiempo. **Uno:** la petición sale del *servidor*
+> (`/api/stream`), no del navegador; los addons que bloquean IPs de centro de
+> datos fallan igual en Vercel. **Dos:** usa únicamente fuentes autorizadas.
+
+---
+
 ## 🛠️ Scripts disponibles
 
 | Comando            | Descripción                                        |
@@ -50,6 +114,7 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 | `npm run lint`     | Ejecuta ESLint                                     |
 | `npm run typecheck`| Verifica tipos con TypeScript                      |
 | `npm run test`     | Pruebas de la lógica pura (vitest)                 |
+| `npm run addon`    | Comprueba si un addon de Stremio sirve enlaces     |
 | `npm run verify`   | **Los cuatro de golpe.** Lo mismo que corre en CI  |
 
 ---
@@ -60,21 +125,65 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 Canal/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css        # Estilos globales y utilidades
-│   │   ├── layout.tsx         # Layout raíz con metadata
-│   │   └── page.tsx           # Página principal (SSR, dynamic)
+│   │   ├── globals.css         # Tokens, restablecimientos y pantallas propias
+│   │   ├── shell.css           # El armazón: barra, rieles, tarjetas, canales
+│   │   ├── layout.tsx          # Layout raíz con metadata
+│   │   ├── page.tsx            # Canales en vivo (SSR, dynamic)
+│   │   ├── peliculas/          # Catálogo TMDB y la ficha de cada título
+│   │   └── api/                # `canales`, `buscar` y `stream`: lo que no va en el HTML
 │   ├── components/
-│   │   ├── dashboard.tsx      # Dashboard: lista de canales, categorías, favoritos
-│   │   └── stream-player.tsx  # Reproductor (hls.js / mpegts.js), carga solo en cliente
+│   │   ├── stream-player.tsx   # Reproductor de canales (hls.js / mpegts.js)
+│   │   ├── native-player.tsx   # Reproductor de enlaces directos, con controles
+│   │   ├── catalog/            # Ficha, servidores, filtros, buscador del catálogo
+│   │   ├── livetv/             # Pestaña de canales: lista, categorías, detalle
+│   │   ├── media/              # Tarjetas y rieles, compartidos por todo
+│   │   ├── player/             # Barra de controles y guía, compartidas
+│   │   ├── shell/              # Barra superior
+│   │   └── views/              # Una por destino: inicio, buscar, favoritos, ajustes…
+│   ├── hooks/                  # Navegación con mando, pantalla completa, cast…
 │   └── lib/
-│       ├── m3u.ts             # Descarga y normaliza la lista M3U (categorías, dedupe)
-│       └── types.ts           # Tipo `Channel` compartido
+│       ├── m3u.ts              # Descarga y normaliza la lista M3U (categorías, dedupe)
+│       ├── lista-canales.ts    # La lista lista para el cable, memorizada por descarga
+│       ├── canales-empaquetados.ts # Cómo viajan los canales, y el recorte de la portada
+│       ├── types.ts            # Tipo `Channel` compartido
+│       ├── catalog/            # TMDB, proveedores de reproducción, descubrimiento
+│       ├── reproduccion/       # Qué motor reproduce cada enlace, cast, bucles
+│       ├── resolvers/          # Fuentes directas (addons de Stremio)
+│       └── fuente-propia/      # «Mi enlace»: validar URLs y magnets
+├── scripts/                    # Utilidades sueltas (lista M3U, probar addons)
 ├── next.config.ts
 ├── package.json
 └── tsconfig.json
 ```
 
-No hay carpeta `api/`, `db/` ni variables `DATABASE_URL`: todo el estado vive en memoria del servidor (por request) y en `localStorage` del navegador para los favoritos.
+La lógica que se puede razonar sin montar un componente vive en `src/lib` y
+tiene pruebas; los componentes se quedan con el estado y el DOM. Las trampas de
+la cascada CSS están en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
+
+No hay `db/` ni `DATABASE_URL`: todo el estado vive en memoria del servidor (por
+request) y en `localStorage` del navegador. Lo que cada aparato recuerda:
+
+| Clave | Qué guarda |
+|---|---|
+| `canalcasa:ajustes` | Los Ajustes de reproducción |
+| `canalcasa:ultimo` | El último canal visto, con su nombre para poder verificarlo |
+| `canalcasa:caidos` | Qué canales han dejado de responder — ver [`canales-caidos.ts`](src/lib/canales-caidos.ts) |
+| `canalcasa:favorites` · `canalcasa:recents` · `canalcasa:fuentes` | Favoritos, historial y «Mi enlace» |
+
+Lo compartido entre aparatos NO va por ahí: va por configuración
+(`NEXT_PUBLIC_CANALES_CASA`), que se cambia en un sitio y aparece en todos.
+
+Sí hay `api/`:
+
+- `/api/buscar` y `/api/stream` existen para no sacar la credencial de TMDB al
+  navegador.
+- `/api/canales` sirve la lista completa. **El HTML de la portada solo lleva los
+  ~200 canales que se pintan al abrir**; el resto llega por aquí, ya con la
+  primera pantalla dibujada y desde una respuesta que sí se cachea en el borde.
+  Con eso la portada pasó de 376 KB a 58 KB comprimidos. El porqué y el cómo
+  están en [`src/lib/canales-empaquetados.ts`](src/lib/canales-empaquetados.ts);
+  lo importante es que **el `id` de cada canal no cambia**, porque los favoritos
+  guardados son ids.
 
 ---
 
@@ -104,24 +213,30 @@ CanalCasa está diseñada para funcionar en Smart TVs y pantallas grandes.
 
 ### Navegación con control remoto
 
-| Tecla          | Acción                          |
-|----------------|----------------------------------|
-| `↑` / `↓`      | Cambiar canal en la lista       |
-| `PgUp` / `PgDn`| Salto de 10 canales             |
-| `← / →`        | Cambiar categoría                |
-| `0-9`          | Ir directamente a un canal      |
-| `Espacio` / `K`| Play / Pausa                    |
-| `M`            | Silenciar / Activar sonido      |
-| `F`            | Pantalla completa               |
-| `Enter`        | Marcar/quitar favorito           |
-| `?`            | Mostrar atajos de teclado       |
-| `Esc`          | Cerrar paneles                  |
+Durante la reproducción a pantalla completa
+([`fullscreen-player.tsx`](src/components/fullscreen-player.tsx)):
+
+| Tecla                    | Acción                                    |
+|--------------------------|-------------------------------------------|
+| `↑` `↓` `←` `→`          | Zapear al canal anterior / siguiente      |
+| `Enter` / OK             | Abrir y cerrar la guía de canales         |
+| `Espacio` / `K`          | Play / Pausa                              |
+| `M`                      | Silenciar / activar sonido                |
+| cualquier otra           | Despertar los controles                   |
+
+Fuera del reproductor manda la navegación espacial
+([`use-spatial-nav.ts`](src/hooks/use-spatial-nav.ts)): las flechas mueven el
+foco entre piezas, y `Esc`, `Retroceso` o la tecla Atrás del mando (`GoBack`,
+`BrowserBack`) vuelven atrás.
+
+> Pantalla completa se pide con doble clic sobre el vídeo o con su botón, no
+> con una tecla: `requestFullscreen` solo funciona dentro de un gesto.
 
 ### Buenas prácticas para TV
 
-1. **Foco visible**: Todos los elementos interactivos tienen `focus-visible` con anillo verde.
+1. **Foco visible**: la pieza enfocada se ilumina con un borde **blanco** (`--foco-borde`) y crece un 6%. Es el gesto del televisor, y es uno solo en toda la app.
 2. **Controles del reproductor**: Se auto-ocultan después de 4 segundos para no distraer.
-3. **Tipografía grande**: En pantallas ≥1280px el texto base aumenta a 16px.
+3. **Tipografía fluida**: los tamaños van en `clamp()` contra el viewport, así que crecen solos en un televisor sin necesidad de un salto por resolución.
 4. **Scroll suave**: El canal seleccionado siempre se mantiene visible con `scrollIntoView`.
 5. **Reduced motion**: Respeta `prefers-reduced-motion` para usuarios sensibles.
 
@@ -164,14 +279,20 @@ pantallas propias). El reparto y las trampas de la cascada están en
 
 ## 🧑‍💻 Cómo agregar un atajo de teclado
 
-En `src/components/dashboard.tsx`, dentro del `useEffect` de `handleKeyDown`:
+En [`src/components/fullscreen-player.tsx`](src/components/fullscreen-player.tsx),
+dentro del `switch (event.key)` de `onKeyDown`:
 
 ```ts
-if (e.key === "r" || e.key === "R") {
+case "r":
+case "R":
+  event.preventDefault();
   // Acción para la tecla R
   return;
-}
 ```
+
+Ojo con el `default`, que llama a `wake()`: cualquier tecla no reconocida
+despierta los controles a propósito. Un `case` nuevo que no haga `return` se
+comería también ese comportamiento.
 
 ---
 

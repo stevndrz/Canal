@@ -1,15 +1,74 @@
+import { Suspense } from "react";
 import { Dashboard } from "@/components/dashboard";
-import { loadM3uPlaylist } from "@/lib/m3u";
-import { fetchEpg, getEpgEntry } from "@/lib/epg";
+import { EsqueletoSuperior } from "@/components/esqueleto-superior";
+import { EsqueletoPortada } from "@/components/esqueleto-portada";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import type { CatalogSection } from "@/lib/catalog/types";
-import type { Channel } from "@/lib/types";
-import { serverConfig } from "@/lib/config";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
+import { catalogToCard } from "@/lib/media-item";
+import {
+  QUE_SE_PINTA,
+  posicionesIniciales,
+  recortarPaquete,
+  type PaqueteCanales,
+} from "@/lib/canales-empaquetados";
+import { paqueteDeCanales } from "@/lib/lista-canales";
+import { publicConfig } from "@/lib/config";
+import { normalizeChannelName } from "@/lib/text";
 
-export const dynamic = "force-dynamic";
+/**
+ * Sin `dynamic = "force-dynamic"`: bajo `cacheComponents` sobra, y el armazón
+ * se prerenderiza igual. La portada sigue esperando la M3U en cada render
+ * porque `m3u.ts` descarga con `cache: "no-store"` —la caché de Next descarta
+ * respuestas de más de 2 MB y estas listas las superan—.
+ *
+ * Cachear el HTML ahorraría trabajo al SERVIDOR, no al televisor. Lo que se
+ * nota desde el sofá son los bytes que hay que bajar antes de ver algo, y de
+ * eso se ocupa el recorte de abajo: lo cacheable es `/api/canales`.
+ */
 
-export default async function HomePage() {
-  const { channels: parsedChannels, epgUrl } = await loadM3uPlaylist();
+/**
+ * Mandarlo todo en el HTML, como antes.
+ *
+ * Es la marcha atrás sin revertir commits: `CANALES_EN_HTML=todos` y la página
+ * vuelve a serializar los 7.822 canales. Está aquí porque el recorte cambia
+ * cómo llegan los datos a las dos pantallas principales, y en un despliegue en
+ * producción conviene poder deshacerlo en un minuto, no en un redespliegue.
+ */
+function mandarlosTodos(): boolean {
+  return process.env.CANALES_EN_HTML === "todos";
+}
+
+/**
+ * Solo los canales que la primera pantalla pinta. Medido: el HTML llevaba
+ * 7.822 —1,88 MB— para pintar unos 200; el resto llega por `/api/canales`,
+ * cacheable en el borde. Ver `canales-empaquetados.ts` para qué se conserva y
+ * por qué los `id` no se mueven (los favoritos son ids).
+ */
+function loJusto(paquete: PaqueteCanales): PaqueteCanales {
+  if (mandarlosTodos()) return paquete;
+
+  // El canal preferido viaja aunque esté en el puesto 5.000: si no, la app
+  // abriría con otro y ya no se corregiría, porque cuando llega la lista
+  // completa hay uno sintonizado desde hace rato.
+  const buscado = normalizeChannelName(publicConfig.canalInicial);
+  const preferido = paquete.canales.findIndex(
+    ([nombre]) => normalizeChannelName(nombre) === buscado,
+  );
+
+  return recortarPaquete(
+    paquete,
+    posicionesIniciales(paquete, { ...QUE_SE_PINTA, ademas: preferido >= 0 ? [preferido] : [] }),
+  );
+}
+
+/**
+ * Todo lo que depende de datos en vivo: la M3U del día y el catálogo de TMDB.
+ * Vive dentro de un `<Suspense>` para que el armazón —barra incluida— se
+ * prerenderice en build y se vea al instante; antes TODO esperaba a la M3U.
+ */
+async function Portada() {
+  const { paquete } = await paqueteDeCanales();
 
   // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
   // envuelto porque son peticiones a TMDB: si la clave falta o la API se cae,
@@ -22,38 +81,33 @@ export default async function HomePage() {
     catalog = [];
   }
 
-  // La guía de programación es opcional: si la lista M3U no referencia
-  // ninguna y no hay EPG_URL configurada, la app funciona igual, solo sin
-  // horarios.
-  const resolvedEpgUrl = serverConfig().epgUrl || epgUrl;
-  const epg = resolvedEpgUrl ? await fetchEpg(resolvedEpgUrl) : null;
-  // Server Component: corre una vez por request en el servidor, no en cada
-  // re-render de un componente cliente, así que Date.now() es seguro aquí.
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now();
-
   /**
-   * Los campos de guía se **añaden solo si existen**, en lugar de asignarse
-   * siempre con `?? ""` o dejarlos en `undefined`.
-   *
-   * No es cosmético. Esta lista se serializa entera dentro del HTML, y React
-   * codifica una propiedad presente con valor `undefined` como el texto
-   * literal `"$undefined"`. Con tres campos de guía por canal eso eran unos
-   * 90 bytes × 7.822 = **700 KB de decir "aquí no hay nada"**. Sin guía
-   * configurada, que es el caso por defecto, las cinco claves desaparecen.
+   * A tarjetas AQUÍ, en el servidor. `Dashboard` es de cliente, así que todo lo
+   * que se le pase cruza la red dentro del HTML: con `CatalogSection[]`
+   * viajaban las fichas enteras de TMDB —sinopsis, reparto, temporadas— de los
+   * diez carruseles para pintar título, póster, año y nota. Si no se pinta, no
+   * se manda.
    */
-  const initialChannels: Channel[] = parsedChannels.map((channel, index) => {
-    const entry = epg ? getEpgEntry(epg, "", channel.name, now) : null;
-    const base: Channel = { ...channel, id: index + 1 };
-    if (!entry) return base;
+  const filas: FilaDeTarjetas[] = catalog.map((seccion) => ({
+    title: seccion.title,
+    href: seccion.href,
+    tarjetas: seccion.items.map(catalogToCard),
+  }));
 
-    if (entry.current?.title) base.currentProgram = entry.current.title;
-    if (entry.next?.title) base.nextProgram = entry.next.title;
-    if (entry.current?.start !== undefined) base.currentStart = entry.current.start;
-    if (entry.current?.stop !== undefined) base.currentEnd = entry.current.stop;
-    if (entry.next?.start !== undefined) base.nextStart = entry.next.start;
-    return base;
-  });
+  return <Dashboard paquete={loJusto(paquete)} catalog={filas} />;
+}
 
-  return <Dashboard initialChannels={initialChannels} catalog={catalog} />;
+export default function HomePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="app-shell">
+          <EsqueletoSuperior />
+          <EsqueletoPortada />
+        </div>
+      }
+    >
+      <Portada />
+    </Suspense>
+  );
 }

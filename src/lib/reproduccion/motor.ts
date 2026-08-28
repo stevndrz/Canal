@@ -3,15 +3,13 @@ import type MpegtsType from "mpegts.js";
 
 
 /**
- * Qué librería reproduce cada enlace, y cómo se conecta al `<video>`.
+ * Qué librería reproduce cada enlace, y cómo se conecta al `<video>`. Vivía
+ * dentro del efecto de `stream-player.tsx`, que además llevaba el estado de
+ * React, el autoplay y la limpieza; separado se puede razonar sin montar un
+ * componente.
  *
- * Vivía dentro del efecto de `stream-player.tsx`: sesenta líneas de `if`
- * anidados en medio de un efecto que además gestionaba el estado de React, el
- * autoplay y la limpieza. Separado, se ve de un vistazo qué hace cada motor y
- * se puede razonar sobre él sin montar un componente.
- *
- * Aquí **no se toca estado de React**. Lo que hace falta comunicar sale por
- * las dos devoluciones de llamada: `alPoderReproducir` y `alFallar`.
+ * Aquí **no se toca estado de React**: lo que hay que comunicar sale por
+ * `alPoderReproducir` y `alFallar`.
  */
 
 export type ClaseDeEmision = "hls" | "mpegts" | "flv" | "native";
@@ -32,13 +30,10 @@ export function claseDeEmision(url: string): ClaseDeEmision {
 }
 
 /**
- * `hls.js` y `mpegts.js` se cargan solo cuando hace falta reproducir.
- *
- * Segunda capa de la misma defensa que el `next/dynamic({ ssr: false })` de
- * los componentes: si algo llegara a evaluar este módulo en el servidor pese a
- * esa frontera, un `import` de nivel de módulo tocaría `self` y tumbaría la
- * página igual. Con `await import()` dentro de la función, el servidor nunca
- * llega a evaluarlos. Cada uno se pide una vez: la promesa queda cacheada.
+ * `hls.js` y `mpegts.js` se cargan solo al reproducir. Segunda capa de la misma
+ * defensa que el `next/dynamic({ ssr: false })`: si algo evaluara este módulo
+ * en el servidor, un `import` de nivel de módulo tocaría `self` y tumbaría la
+ * página. Cada uno se pide una vez — la promesa queda cacheada.
  */
 let moduloHls: Promise<typeof HlsType> | null = null;
 let moduloMpegts: Promise<typeof MpegtsType> | null = null;
@@ -99,18 +94,55 @@ export async function montarMotor(opciones: OpcionesMotor): Promise<MotorMontado
   return montarNativo(opciones);
 }
 
+/**
+ * ¿Toca reproducir HLS sin librería aunque exista MSE? AirPlay solo transmite
+ * la reproducción **nativa**: alimentado por MSE, el selector de Safari sale
+ * pero la tele se queda en negro. Los WebKit con AirPlay leen HLS por su
+ * cuenta, así que ahí va directo y hls.js queda para Chrome, Firefox y Android.
+ */
+export function prefiereNativoPorAirplay(video: HTMLVideoElement): boolean {
+  return (
+    typeof video.canPlayType === "function" &&
+    video.canPlayType("application/vnd.apple.mpegurl") !== "" &&
+    typeof window.WebKitPlaybackTargetAvailabilityEvent !== "undefined"
+  );
+}
+
+/**
+ * Política única de recuperación de hls.js, compartida por canales y por
+ * pelis/series. Un fallo de red se recarga; uno de medios se recupera UNA vez
+ * — dos seguidas y hls.js vacía el búfer y reemite el mismo fragmento, que es
+ * el «se repite un trozo y queda en bucle» de los televisores con MSE
+ * defectuoso. Agotados los intentos, abandona y decide quien llama.
+ */
+export const INTENTOS_RECUPERACION = 3;
+
+export interface EstadoRecuperacion {
+  intentos: number;
+  mediosRecuperados: boolean;
+}
+
+export type PlanAnteError = "reintentar-red" | "reintentar-medios" | "abandonar";
+
+export function planAnteErrorFatal(
+  estado: EstadoRecuperacion,
+  tipo: "red" | "medios" | "otro",
+): PlanAnteError {
+  if (tipo === "otro") return "abandonar";
+  if (estado.intentos >= INTENTOS_RECUPERACION) return "abandonar";
+  if (tipo === "medios" && estado.mediosRecuperados) return "abandonar";
+  return tipo === "red" ? "reintentar-red" : "reintentar-medios";
+}
+
 async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
   const Hls = await cargarHls();
   if (o.cancelado()) return vacio();
 
-  if (!Hls.isSupported()) {
-    // Safari reproduce HLS de forma nativa sin necesitar la librería.
-    if (o.video.canPlayType("application/vnd.apple.mpegurl")) {
-      o.video.src = o.url;
-      o.video.addEventListener("loadedmetadata", o.alPoderReproducir, { once: true });
-      return vacio();
-    }
-    o.alFallar();
+  // Sin MSE, o en un WebKit con AirPlay, el HLS va nativo. Ver
+  // `prefiereNativoPorAirplay`.
+  if (!Hls.isSupported() || prefiereNativoPorAirplay(o.video)) {
+    o.video.src = o.url;
+    o.video.addEventListener("loadedmetadata", o.alPoderReproducir, { once: true });
     return vacio();
   }
 
@@ -121,21 +153,42 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
      * Con «calidad máxima» se arranca en la mejor pista y se deja de limitar
      * por el tamaño del reproductor.
      *
-     * `startLevel: -1` es el comportamiento normal —empezar bajo y subir
-     * según se mide la conexión—, que con una línea justa evita cortes. Con
-     * fibra esa prudencia se nota como unos segundos borrosos en cada cambio
-     * de canal, y `Infinity` pide directamente la más alta que exista.
-     *
-     * `capLevelToPlayerSize` limita la pista al tamaño en píxeles del
-     * reproductor: ahorra datos, pero en un televisor con el vídeo a media
-     * pantalla impide subir a 1080 aunque la haya.
+     * `startLevel: -1` empieza bajo y sube midiendo la conexión, lo que con
+     * una línea justa evita cortes pero con fibra son unos segundos borrosos
+     * en cada zapeo. Y `capLevelToPlayerSize` ata la pista al tamaño en
+     * píxeles: ahorra datos, pero con el vídeo a media pantalla impide subir a
+     * 1080 aunque la haya.
      */
     startLevel: o.settings.calidadMaxima ? Infinity : -1,
     capLevelToPlayerSize: !o.settings.calidadMaxima,
   });
 
+  /**
+   * Recuperación acotada según la política común (`planAnteErrorFatal`):
+   * abandonar aquí es declarar la señal caída.
+   */
+  const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
   hls.on(Hls.Events.ERROR, (_evento, datos) => {
-    if (datos.fatal) o.alFallar();
+    if (!datos.fatal || o.cancelado()) return;
+    const plan = planAnteErrorFatal(
+      recuperacion,
+      datos.type === Hls.ErrorTypes.NETWORK_ERROR
+        ? "red"
+        : datos.type === Hls.ErrorTypes.MEDIA_ERROR
+          ? "medios"
+          : "otro",
+    );
+    if (plan === "abandonar") {
+      o.alFallar();
+      return;
+    }
+    recuperacion.intentos++;
+    if (plan === "reintentar-medios") {
+      recuperacion.mediosRecuperados = true;
+      hls.recoverMediaError();
+    } else {
+      hls.startLoad();
+    }
   });
   hls.on(Hls.Events.MANIFEST_PARSED, o.alPoderReproducir);
   hls.loadSource(o.url);

@@ -34,6 +34,20 @@
   --color-accent: #f5f5f7;
   --color-accent-on: #000;
 
+  /**
+   * Los dos grises secundarios, también como utilidades.
+   *
+   * Existían solo como variables de `shell.css` (`--muted`, `--soft`), así que
+   * el CSS propio los usaba y los componentes con clases de Tailwind no
+   * podían: tiraban de `zinc-*` y `neutral-*`, que se parecen pero no
+   * responden al token. El resultado eran nueve tonos de gris distintos para
+   * decir lo mismo, y algunos —`neutral-600` a 2,69:1— por debajo de lo
+   * legible. Declarados aquí, `text-muted` y `text-soft` son utilidades de
+   * verdad y hay una sola fuente para cada peso.
+   */
+  --color-muted: rgba(245, 245, 247, 0.72);
+  --color-soft: rgba(245, 245, 247, 0.56);
+
   --radius-tile: 14px;
   --radius-card: 20px;
 
@@ -80,6 +94,76 @@
 
   button { cursor: pointer; font: inherit; }
   button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+  /**
+   * Ningún control puede salir con su aspecto NATIVO.
+   *
+   * `color-scheme: dark` es lo único que le dice al navegador que pinte sus
+   * campos oscuros, y hay dos sitios donde no se aplica: los navegadores de
+   * televisor viejos, que no lo soportan, y cualquier escritorio que lo ignore.
+   * Ahí un `<input>` sin reglas propias se dibuja como lo que es —el campo del
+   * sistema— y sobre el negro de la app eso es un RECTÁNGULO BLANCO con el
+   * cursor de escritura dentro. Era exactamente el «cuadro blanco» reportado
+   * en televisor y en PC.
+   *
+   * Estas reglas quitan el dibujo del sistema y dejan el control transparente
+   * y heredando el color del texto: si alguien añade un campo y se olvida de
+   * estilarlo, lo peor que puede pasar es que se vea de menos, nunca una caja
+   * blanca. Al estar en `base`, cualquier componente lo sobrescribe sin pelear.
+   *
+   * `input` va con `:where()` para no tocar los que SÍ quieren su aspecto
+   * nativo —`range`, `checkbox`, `radio`, `color`— y para no sumar
+   * especificidad.
+   */
+  input:where(
+      :not([type]),
+      [type="text"],
+      [type="search"],
+      [type="url"],
+      [type="email"],
+      [type="tel"],
+      [type="number"],
+      [type="password"]
+    ),
+  select,
+  textarea {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: transparent;
+    color: inherit;
+    font: inherit;
+    border: 0;
+    border-radius: 0;
+    outline: none;
+  }
+
+  /* El aspa y la lupa que WebKit mete dentro de `type=search`: son suyas, con
+     su color, y en un campo oscuro cantan. */
+  input[type="search"]::-webkit-search-cancel-button,
+  input[type="search"]::-webkit-search-decoration,
+  input[type="search"]::-webkit-search-results-button,
+  input[type="search"]::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  /* Quitado el aspecto nativo, un `<select>` se queda sin su flecha y ya no se
+     lee como desplegable. Se le devuelve una propia, dibujada, que además es
+     igual en todos los navegadores. */
+  select {
+    padding-inline-end: 26px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1.5 1.75 6 6.25l4.5-4.5' stroke='%23f5f5f7' stroke-opacity='.6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+
+  /* El desplegable del sistema se pinta con los colores del sistema (blanco
+     sobre negro en muchos televisores). No se puede estilar desde fuera, así
+     que al menos las opciones se declaran oscuras. */
+  option {
+    background-color: var(--color-surface-2);
+    color: var(--color-accent);
+  }
 
   a { color: var(--color-accent); text-decoration: none; }
   a:hover { color: var(--muted); }
@@ -146,7 +230,6 @@ html[data-player="on"] body {
 .buscar-resultados { min-width: 0; }
 
 /* Dentro de la columna el margen lateral ya lo pone `.buscar-cuerpo`. */
-.grid-results.is-embedded { padding-inline: 0; }
 
 /* Dos grupos de resultados, canales y catálogo, con aire entre ellos para que
    se lean como dos listas y no como una revuelta. */
@@ -167,7 +250,7 @@ html[data-player="on"] body {
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* mobile-nav-item span {
@@ -294,29 +377,7 @@ html[data-player="on"] body {
 .live-card-meta {
   flex-shrink: 0;
   font-size: clamp(11px, 0.85vw, 15px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
-}
-
-.live-card-aviso {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 14px;
-  background: rgba(0, 0, 0, 0.72);
-  text-align: center;
-  padding: 20px;
-}
-
-.live-card-aviso button {
-  min-height: 44px;
-  padding: 0 20px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.12));
-  color: inherit;
-  cursor: pointer;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Dónde vive la barra de controles ────────────────────────────────
@@ -423,11 +484,30 @@ html[data-player="on"] body {
   flex-shrink: 0;
 }
 
-.player-btn:hover,
-.player-btn:focus-visible {
+.player-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.28);
   transform: scale(1.04);
+}
+
+/**
+ * El botón enfocado se invierte, no se ilumina un poco.
+ *
+ * Con el ratón encima basta con aclarar el fondo: la persona ya sabe dónde
+ * está porque su mano lo ha llevado ahí. Con un mando no: el foco es lo único
+ * que dice dónde estás, y a tres metros un fondo del 20% frente a uno del 8%
+ * son el mismo gris. Invertido —blanco sobre negro— se ve desde el sofá y de
+ * un vistazo, que es lo que hacen los reproductores de televisor.
+ *
+ * El contorno blanco global sigue puesto encima; sobre un botón ya blanco no
+ * estorba y es lo que lo separa del fondo del vídeo.
+ */
+.player-btn:focus-visible,
+[data-input="dpad"] .player-btn:focus {
+  background: var(--text, #f5f5f7);
+  border-color: transparent;
+  color: #0a0a0a;
+  transform: scale(1.06);
 }
 
 /* El primario: más alto, invertido y separado del resto. Es el único control
@@ -442,9 +522,14 @@ html[data-player="on"] body {
   font-weight: 700;
 }
 
+/* El primario ya es blanco, así que no puede invertirse más: se distingue
+   creciendo, y del contorno blanco se encarga la regla global. */
 .player-btn.is-primary:hover,
-.player-btn.is-primary:focus-visible {
+.player-btn.is-primary:focus-visible,
+[data-input="dpad"] .player-btn.is-primary:focus {
   background: #e6e6e6;
+  color: #0a0a0a;
+  transform: scale(1.06);
 }
 
 /* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
@@ -461,6 +546,124 @@ html[data-player="on"] body {
 .player-btn.is-extra.is-active {
   color: var(--color-live, #ff453a);
   border-color: rgba(255, 69, 58, 0.4);
+}
+
+/**
+ * Transmitiendo a otra pantalla.
+ *
+ * Verde y no rojo: `is-active` en esta barra ya significa «grabando o en
+ * directo», y estar enviando a un Chromecast es lo contrario de una alarma.
+ * Antes era `bg-sky-500/40`, un azul que no aparece en ningún otro sitio de
+ * la aplicación.
+ */
+.player-btn.is-emitiendo {
+  color: var(--green, #30d158);
+  border-color: rgba(48, 209, 88, 0.45);
+  background: rgba(48, 209, 88, 0.16);
+}
+
+/**
+ * Un desplegable con forma de botón.
+ *
+ * `.player-select` hereda todo de `.player-btn` y solo desarma lo que un
+ * `<select>` trae de fábrica. **El fondo de las opciones se pinta a mano**: sin
+ * él, el desplegable abierto sale con el fondo blanco del sistema en los
+ * televisores viejos, que ignoran `color-scheme: dark`. Es la misma «caja
+ * blanca» que aparecía en los campos de texto.
+ */
+.player-select {
+  padding: 0 clamp(12px, 1vw, 18px);
+  cursor: default;
+}
+
+.player-select select {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.player-select select:focus {
+  outline: none;
+}
+
+.player-select option {
+  background: var(--bg-elevated, #1c1c1f);
+  color: var(--text, #f5f5f7);
+}
+
+/* ── Cuando el enlace no da imagen ───────────────────────────────────── */
+.player-fallo {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.player-fallo-titulo {
+  margin: 0;
+  font-size: clamp(17px, 1.4vw, 26px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.player-fallo-detalle {
+  margin: 0 0 6px;
+  max-width: 42ch;
+  font-size: clamp(13px, 1vw, 17px);
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.player-sin-enlace {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio-panel, 18px);
+  background: var(--bg-card, #101012);
+  font-size: clamp(13px, 1vw, 16px);
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* ── La barra de tiempo de «Mi enlace» ───────────────────────────────── */
+.player-barra-tiempo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: clamp(11px, 0.85vw, 14px);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.player-barra-tiempo > span {
+  flex-shrink: 0;
+  min-width: 46px;
+}
+
+.player-barra-tiempo > span:first-child {
+  text-align: right;
+}
+
+/**
+ * El acento es blanco, como todo lo demás.
+ *
+ * `accent-color` es lo que pinta el pulgar y la barra rellena de un `range`
+ * sin tener que recrear el control entero; los televisores que no lo entienden
+ * caen al control nativo, que sigue funcionando. Antes era esmeralda, un color
+ * que no está en ningún otro control de la app.
+ */
+.player-barra-tiempo input[type="range"] {
+  flex: 1;
+  height: 20px;
+  accent-color: var(--text, #f5f5f7);
+  cursor: pointer;
 }
 
 /* Controles grandes: todo sube y aparecen todas las palabras. */
@@ -532,6 +735,235 @@ html[data-player="on"] body {
   }
 }
 
+/* ── El riel compacto, lo que le gana a Tailwind ──────────────────────
+   Las dos reglas que faltaban de `.rail.is-compacto` (ver `shell.css`), aquí y
+   sin capa porque compiten con utilidades de Tailwind —`p-6` y `flex`, que
+   viven en `@layer utilities`— y una regla sin capa gana a cualquier regla en
+   capa, pase lo que pase con la especificidad. En `shell.css`, que entra en
+   `components`, no hacían absolutamente nada. */
+
+/* El `p-6` de la tarjeta son 24px: casi un cuarto del ancho de una ficha
+   compacta. Ahí el aire sobra, la ficha ya es pequeña de por sí. */
+.rail.is-compacto .media-card {
+  padding: clamp(8px, 0.7vw, 14px);
+}
+
+/* La línea de «CH 102 · Guatemala» se va. No es esconder datos: a 168px no
+   cabe —parte el número en dos renglones y deja la categoría en «Guatema…»—, y
+   media palabra cortada informa menos que el silencio. El nombre del canal se
+   lee entero, que es lo que se busca en una fila de historial; la ficha
+   completa sigue en su riel de siempre. */
+.rail.is-compacto .card-canal-meta {
+  display: none;
+}
+
+/* ── El panel de la emisión: la cabecera del reproductor ──────────────
+   Ver `panel-emision.tsx` para el porqué de cada módulo.
+
+   Dos decisiones que se ven en la tele antes que en el PC:
+
+   1. **Ni un `gap` de flexbox aquí.** Es de Chromium 84 y el parque de la casa
+      va de 53 a 79: en esas teles todos los huecos valdrían cero y el panel
+      saldría con las palabras pegadas. Separación por `margin`, que funciona
+      desde siempre, en vez de sumar cinco respaldos más a `[data-sin-gap]`.
+   2. **`tabular-nums` en todo el panel.** Sin ella el reloj, el `T+` y el
+      porcentaje cambian de ancho a cada segundo y arrastran la fila entera. */
+.panel-emision {
+  /* El mismo margen lateral que usa la pista de teclas de la barra de abajo
+     (`right-[3.35vw]`), para que la cabecera y el pie compartan encuadre.
+
+     No es cosmético: `tv-safe` solo aparta las muescas de iOS —en un navegador
+     de escritorio vale 0—, así que sin esto el panel salía pegado al borde y el
+     módulo de la hora quedaba cortado por la mitad. En un televisor es peor
+     todavía: el overscan se come el primer 3 % de la pantalla, y ahí es donde
+     estaba el estado de la emisión. */
+  padding-left: clamp(14px, 3.35vw, 74px);
+  padding-right: clamp(14px, 3.35vw, 74px);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-emision-fila {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* El estado, en una palabra. Casi todo monocromo: el rojo queda reservado al
+   directo y a los fallos, que es lo único que merece llamar la atención sobre
+   la imagen. */
+.panel-estado {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-right: clamp(12px, 1.2vw, 22px);
+  padding: 5px clamp(8px, 0.7vw, 12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 6px;
+  font-size: clamp(11px, 0.8vw, 13px);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+}
+
+.panel-estado-punto {
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 999px;
+  background: var(--live, #e50914);
+}
+
+.panel-estado.is-vivo {
+  border-color: rgba(229, 9, 20, 0.55);
+  color: #fff;
+}
+
+.panel-estado.is-sin-senal {
+  border-color: rgba(229, 9, 20, 0.55);
+  background: rgba(229, 9, 20, 0.16);
+  color: #fff;
+}
+
+.panel-estado.is-pausa,
+.panel-estado.is-sintonizando {
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.panel-canal {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.panel-canal b {
+  flex-shrink: 0;
+  margin-right: 10px;
+  font-size: clamp(13px, 1vw, 16px);
+  font-weight: 700;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.panel-canal-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: clamp(17px, 1.45vw, 22px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.panel-canal-cat {
+  flex-shrink: 0;
+  margin-left: clamp(8px, 0.8vw, 14px);
+  font-size: clamp(11px, 0.82vw, 13px);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* Los módulos: etiqueta en versalitas arriba, valor abajo, y una línea fina
+   entre uno y otro en vez de píldoras flotando. Es la diferencia entre un
+   instrumento y una fila de botones. */
+.panel-modulos {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  margin-left: clamp(12px, 1.4vw, 28px);
+}
+
+.panel-modulo {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-left: clamp(10px, 1vw, 18px);
+  padding-right: clamp(10px, 1vw, 18px);
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.panel-modulo:last-child {
+  padding-right: 0;
+}
+
+.panel-modulo small {
+  font-size: clamp(9px, 0.62vw, 11px);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.panel-modulo b {
+  margin-top: 2px;
+  font-size: clamp(13px, 1vw, 16px);
+  font-weight: 600;
+}
+
+/* El programa. Con guía, cuánto lleva; sin ella, una regla que no afirma nada
+   que no se sepa. Nunca desaparece del todo: si apareciera y desapareciera
+   según el canal traiga EPG, la cabecera cambiaría de alto al zapear. */
+.panel-programa {
+  margin-top: clamp(8px, 0.8vw, 14px);
+}
+
+.panel-programa-texto {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-size: clamp(11px, 0.85vw, 14px);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.panel-programa-texto > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.panel-programa-riel {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  overflow: hidden;
+}
+
+.panel-programa-barra {
+  height: 100%;
+  background: var(--live, #e50914);
+}
+
+/* Sin guía la regla se queda, apagada y sin texto: marca el borde inferior de
+   la cabecera y mantiene el alto constante. */
+.panel-programa.is-vacio .panel-programa-riel {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin-top: clamp(12px, 1.1vw, 20px);
+}
+
+/* En teléfono no cabe todo en una fila: los módulos bajan y el nombre del
+   canal se queda con el ancho entero, que es el dato que más se mira. */
+@media (max-width: 720px) {
+  .panel-canal {
+    flex: 1 1 100%;
+    order: 2;
+    margin-top: 6px;
+  }
+
+  .panel-modulos {
+    margin-left: auto;
+  }
+
+  .panel-modulo {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
 /* ── Buscador del catálogo ───────────────────────────────────────────
    Campo y botón son hermanos en una fila. Antes el botón iba en absolute
    encima del campo y el campo le reservaba 7rem de padding: en un teléfono
@@ -568,12 +1000,8 @@ html[data-player="on"] body {
 }
 
 .catalogo-buscador-campo:focus-within {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  background: rgba(255, 255, 255, 0.09);
-}
-
-.catalogo-buscador-campo:focus-within {
   border-color: rgba(255, 255, 255, 0.34);
+  background: rgba(255, 255, 255, 0.09);
   box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
 }
 
@@ -581,7 +1009,7 @@ html[data-player="on"] body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .catalogo-buscador-campo input {
@@ -595,7 +1023,7 @@ html[data-player="on"] body {
 }
 
 .catalogo-buscador-campo input::placeholder {
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
@@ -604,24 +1032,30 @@ html[data-player="on"] body {
   appearance: none;
 }
 
-.catalogo-buscador-enviar {
+/* «Ordenar por» del catálogo. Mismo cristal que las píldoras de al lado, con
+   el hueco de la flecha que dibuja la regla base de `select`. */
+.catalogo-orden {
   flex-shrink: 0;
-  min-height: 54px;
-  padding: 0 clamp(18px, 1.6vw, 30px);
-  border: 0;
+  padding: 6px 30px 6px 12px;
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
   border-radius: 999px;
-  background: #fff;
-  color: #0a0a0a;
-  font-size: clamp(14px, 1vw, 17px);
-  font-weight: 700;
+  background-color: var(--bg-elevated, #1c1c1f);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  font-size: 14px;
   cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
 }
 
-.catalogo-buscador-enviar:hover,
-.catalogo-buscador-enviar:focus-visible {
-  background: #e6e6e6;
-  transform: scale(1.03);
+.catalogo-orden:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  color: var(--text, #f5f5f7);
+}
+
+/* El desplegable no lleva `data-nav`, así que la regla general de foco no le
+   entra: se le pone aquí el suyo, o al tabular no se vería dónde está. */
+.catalogo-orden:focus-visible {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  color: var(--text, #f5f5f7);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
 }
 
 /* ── Teléfono en horizontal ──────────────────────────────────────────
@@ -922,8 +1356,75 @@ html[data-player="on"] body {
   width: 100%;
   height: 100%;
   border: 0;
+  /**
+   * Negro, no el blanco del navegador.
+   *
+   * El contenedor ya es negro, pero **el iframe pinta su propio fondo** y por
+   * defecto es blanco: mientras el proveedor no responde —o si no responde
+   * nunca— se ve un rectángulo blanco de 16:9 en mitad de una app negra. En un
+   * televisor de noche eso es un fogonazo a pantalla completa. Es la misma
+   * «caja blanca» que aparecía en los campos de texto, por la misma razón: un
+   * elemento que se pinta solo y no hereda el tema.
+   */
+  background: #000;
+  color-scheme: dark;
 }
 
+
+/* Aviso al pie del vídeo: «¿sigue sin verse?» y la salida a otro servidor. */
+.ficha-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(10px, 1.2vw, 18px);
+  margin: 0;
+  padding: clamp(10px, 1vw, 14px) clamp(14px, 1.4vw, 22px);
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+  font-size: clamp(13px, 0.92vw, 15px);
+  line-height: 1.5;
+}
+
+.ficha-aviso-accion {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 clamp(14px, 1.2vw, 22px);
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: 999px;
+  background: var(--chip, rgba(245, 245, 247, 0.1));
+  color: var(--text, #f5f5f7);
+  font-size: clamp(13px, 0.92vw, 15px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* El secundario de la barra: presente, pero sin competir con la salida. */
+.ficha-aviso-accion.is-suave {
+  background: transparent;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  font-weight: 500;
+}
+
+.ficha-aviso-accion:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: var(--chip-focus, rgba(245, 245, 247, 0.2));
+}
+
+/* La marca «Subtítulos» dentro del botón de servidor: es lo que se busca. */
+.servidor-marca {
+  display: block;
+  margin-top: 3px;
+  font-size: clamp(10px, 0.62vw, 12px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--green, #30d158);
+}
+
+.servidor.is-active .servidor-marca {
+  color: inherit;
+  opacity: 0.75;
+}
 
 /* La barra de servidores, al pie del vídeo. */
 .servidores {
@@ -1022,7 +1523,7 @@ html[data-player="on"] body {
 
 .ficha-sin-fuente svg { width: 32px; height: 32px; opacity: 0.5; }
 .ficha-sin-fuente p { margin: 0; font-weight: 650; }
-.ficha-sin-fuente span { max-width: 44ch; font-size: 0.9em; color: var(--soft, rgba(255,255,255,0.5)); }
+.ficha-sin-fuente span { max-width: 44ch; font-size: 0.9em; color: var(--soft, rgba(245, 245, 247, 0.56)); }
 
 .ficha-seccion {
   margin-bottom: clamp(28px, 4.5vh, 56px);
@@ -1095,7 +1596,7 @@ html[data-player="on"] body {
 
 .ficha-persona span {
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1153,7 +1654,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.45);
   font-size: 13px;
   font-weight: 700;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .ficha-episodio-arte img { width: 100%; height: 100%; object-fit: cover; }
@@ -1162,7 +1663,7 @@ html[data-player="on"] body {
 .ficha-episodio-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ficha-episodio-texto span {
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -1174,7 +1675,7 @@ html[data-player="on"] body {
   border: 1px dashed var(--line, rgba(255, 255, 255, 0.18));
   border-radius: 14px;
   text-align: center;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Paginador ───────────────────────────────────────────────────────
@@ -1232,7 +1733,7 @@ html[data-player="on"] body {
 .paginador-hueco {
   min-width: 24px;
   text-align: center;
-  color: var(--faint, rgba(245, 245, 247, 0.28));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── Estados vacíos y avisos ─────────────────────────────────────────
@@ -1273,6 +1774,255 @@ html[data-player="on"] body {
 
 .estado-vacio .secondary {
   margin-top: 8px;
+}
+
+/* ── «Sintonizando…» ──────────────────────────────────────────────────
+   Encima del vídeo mientras no hay primer fotograma.
+
+   Gira con `transform`, no con `background-position` ni `box-shadow`: es la
+   única propiedad que un navegador de televisor viejo puede animar en el
+   compositor, sin volver a maquetar ni repintar en cada fotograma. Un
+   esqueleto con brillo aquí costaría caro justo cuando la CPU está montando
+   el motor de vídeo. */
+.player-sintonizando {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  /* No tiene nada que pulsar, y tapaba el vídeo entero: mientras se
+     sintonizaba, tocar la imagen para pausar no hacía nada porque el clic se
+     lo quedaba este aviso. Lo encontró la prueba del navegador. */
+  pointer-events: none;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.player-sintonizando p {
+  margin: 0;
+  max-width: 30ch;
+  font-size: clamp(13px, 1vw, 16px);
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+}
+
+.player-anillo {
+  width: clamp(30px, 3vw, 44px);
+  height: clamp(30px, 3vw, 44px);
+  border: 3px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-top-color: var(--text, #f5f5f7);
+  border-radius: 999px;
+  animation: cc-giro 0.9s linear infinite;
+}
+
+@keyframes cc-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sin movimiento, el anillo se queda quieto pero sigue estando: es la marca
+   de que algo está pasando, y el texto de al lado lo dice igual. */
+@media (prefers-reduced-motion: reduce) {
+  .player-anillo {
+    animation: none;
+  }
+}
+
+/* ── Pantallas de mensaje: 404 y error ────────────────────────────────
+   `error.tsx` y `not-found.tsx` viven fuera del armazón —no hay barra ni
+   reproductor cuando se pintan—, así que centran su estado vacío en la
+   ventana en vez de apoyarse en el `.content` de las vistas. */
+.pantalla-mensaje {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  padding: var(--margen) 0;
+}
+
+/**
+ * A pantalla completa, `.estado-vacio` se queda corto.
+ *
+ * Sus medidas están pensadas para un panel dentro de una lista, con contenido
+ * alrededor que le da escala. Solo, en 1920 × 1080 y a tres metros, era un
+ * recuadro de 490 px con texto de 15 px perdido en negro: se lee desde el
+ * escritorio y no se lee desde el sofá, que es donde se usa esta app.
+ */
+.pantalla-mensaje .estado-vacio {
+  min-width: min(620px, 88vw);
+  gap: 14px;
+  padding: clamp(40px, 7vh, 92px) clamp(28px, 4vw, 76px);
+}
+
+.pantalla-mensaje .estado-vacio > svg {
+  width: clamp(40px, 3.6vw, 64px);
+  height: clamp(40px, 3.6vw, 64px);
+}
+
+.pantalla-mensaje .estado-vacio-titulo {
+  font-size: clamp(23px, 2.4vw, 44px);
+}
+
+.pantalla-mensaje .estado-vacio-detalle {
+  font-size: clamp(15px, 1.2vw, 22px);
+}
+
+.pantalla-mensaje .secondary {
+  min-height: clamp(48px, 3.6vw, 64px);
+  padding: 0 clamp(22px, 2vw, 38px);
+  font-size: clamp(15px, 1.15vw, 21px);
+}
+
+/* ── Esqueleto de carga ───────────────────────────────────────────────
+   Reserva el sitio de lo que está por llegar. Todo hereda `.is-loading`, que
+   es el único brillo de la app; aquí solo se dan las medidas.
+
+   Las alturas están puestas a ojo contra las piezas de verdad: no tienen que
+   coincidir al píxel, tienen que evitar que la pantalla pegue un salto cuando
+   el contenido las sustituya. */
+/**
+ * La barra superior, dibujada.
+ *
+ * Era una caja con un borde abajo y nada dentro: sobre negro puro no se
+ * distinguía, así que al navegar la pantalla parecía apagada. Ver
+ * `esqueleto-superior.tsx` para por qué la barra desaparece al navegar.
+ */
+.esqueleto-barra {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: clamp(12px, 1.5vw, 28px);
+  height: var(--topbar-h);
+  padding: 0 var(--margen);
+  border-bottom: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+}
+
+.esqueleto-marca {
+  width: clamp(96px, 9vw, 140px);
+  height: clamp(30px, 2.6vw, 42px);
+  border-radius: 12px;
+}
+
+.esqueleto-destinos {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: clamp(10px, 1.2vw, 24px);
+}
+
+.esqueleto-destinos > span {
+  height: clamp(14px, 1.1vw, 19px);
+  border-radius: 6px;
+}
+
+.esqueleto-reloj {
+  width: clamp(64px, 5vw, 92px);
+  height: clamp(14px, 1.1vw, 19px);
+  border-radius: 6px;
+}
+
+.esqueleto-directo,
+.esqueleto-hero {
+  width: 100%;
+  border-radius: var(--radio-panel);
+}
+
+.esqueleto-directo {
+  aspect-ratio: 16 / 9;
+}
+
+/* Las mismas medidas que `.hero`, para que al llegar no salte nada. */
+.esqueleto-hero {
+  min-height: 70vh;
+  border-radius: 0;
+}
+
+.esqueleto-catalogo {
+  max-width: 1700px;
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(16px, 2.4vh, 30px) clamp(16px, 3vw, 48px) 0;
+}
+
+.esqueleto-titulo-grande {
+  width: clamp(200px, 20vw, 330px);
+  height: clamp(28px, 2.6vw, 50px);
+  border-radius: 10px;
+}
+
+.esqueleto-buscador {
+  width: min(576px, 100%);
+  height: clamp(44px, 3.6vw, 58px);
+  margin: clamp(14px, 2vh, 26px) auto 0;
+  border-radius: 999px;
+}
+
+.esqueleto-pildoras {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: 10px;
+  margin-top: clamp(14px, 2vh, 26px);
+}
+
+.esqueleto-pildoras > span {
+  height: 44px;
+  border-radius: 999px;
+}
+
+.esqueleto-riel {
+  margin-top: clamp(20px, 3.4vh, 40px);
+}
+
+/* Con la caja del catálogo ya puestos los márgenes, repetirlos descuadraría. */
+.app-shell > .content .esqueleto-riel {
+  padding: 0 var(--margen);
+}
+
+/**
+ * Relleno plano, sin animación: ver el comentario de `loading.tsx`.
+ *
+ * `--bg-elevated` y no `--bg-card`: sobre negro puro el segundo no se
+ * distingue, que es exactamente por lo que estas pantallas se leían como
+ * apagadas en vez de como cargando. Mismo error que tenía el panel de géneros.
+ */
+.esqueleto-marca,
+.esqueleto-destinos > span,
+.esqueleto-reloj,
+.esqueleto-titulo,
+.esqueleto-titulo-grande,
+.esqueleto-buscador,
+.esqueleto-pildoras > span,
+.esqueleto-tarjeta,
+.esqueleto-cartel {
+  background: var(--bg-elevated, #1c1c1f);
+}
+
+.esqueleto-cartel {
+  flex: 0 0 clamp(120px, 13vw, 200px);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radio-tarjeta);
+}
+
+.esqueleto-titulo {
+  width: clamp(140px, 16vw, 260px);
+  height: clamp(18px, 1.5vw, 26px);
+  border-radius: 8px;
+}
+
+.esqueleto-fila {
+  display: flex;
+  gap: clamp(8px, 0.9vw, 16px);
+  margin-top: clamp(10px, 1.4vh, 18px);
+  overflow: hidden;
+}
+
+.esqueleto-tarjeta {
+  flex: 0 0 clamp(120px, 13vw, 200px);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radio-tarjeta);
 }
 
 .catalogo-aviso {
@@ -1359,6 +2109,115 @@ html[data-player="on"] body {
   color: var(--text, #f5f5f7);
 }
 
+/* La flecha de la píldora que abre el panel de géneros. */
+.catalogo-chip-flecha {
+  width: 1em;
+  height: 1em;
+  margin-left: 6px;
+  opacity: 0.7;
+}
+
+/* ── El panel de géneros ─────────────────────────────────────────────────
+   Los veintiún géneros iban sueltos en la cabecera, partidos en dos líneas
+   centradas: veintiuna paradas de mando seguidas, y bajar desde una línea a
+   la otra caía donde quisiera la geometría. Aquí son una rejilla, que es lo
+   que `use-spatial-nav` sabe recorrer en dos ejes, y se ven todos a la vez.
+
+   Fondo OPACO y no `backdrop-filter`: es la lección de la tanda de
+   optimización —el desenfoque obliga al compositor a copiar el fondo y
+   rehacerlo en cada fotograma, y en la GPU de un televisor es de lo más caro
+   que hay—. A tres metros no se distingue. */
+.genero-velo {
+  position: fixed;
+  /* Las cuatro por separado además del atajo: `inset` es de Chromium 87 y el
+     parque de televisores empieza en 53. Sin ellas, ahí el velo no cubriría
+     nada y el panel caería donde estuviera en el flujo de la página. */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: var(--margen);
+  /* Casi negro del todo. Un 72% sobre una página que ya ES negra no se ve, y
+     un velo que no se ve no dice que lo de detrás está desactivado: el panel
+     parecía flotar suelto en mitad de la página. */
+  background: rgba(0, 0, 0, 0.88);
+}
+
+/**
+ * El panel tiene que verse COMO un panel.
+ *
+ * Estaba en `--bg-card` (#101012) con un borde al 14% sobre una página negra:
+ * a tres metros —y en una captura— sus bordes no existen, así que lo que se
+ * lee no es «un cuadro centrado» sino «unos chips sueltos en mitad de la
+ * pantalla». Se levanta al gris de los elementos elevados, el borde sube al
+ * 22% y la sombra se hace grande de verdad: son los tres recursos que separan
+ * una superficie de su fondo, y aquí hacían falta los tres.
+ */
+.genero-panel {
+  width: min(1100px, 100%);
+  max-height: 82vh;
+  overflow-y: auto;
+  padding: clamp(20px, 2.4vw, 36px);
+  border: 1px solid rgba(245, 245, 247, 0.22);
+  border-radius: var(--radio-panel, 18px);
+  background: var(--bg-elevated, #1c1c1f);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+}
+
+.genero-panel-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: clamp(16px, 2vh, 26px);
+}
+
+.genero-panel-cabecera h2 {
+  margin: 0;
+  color: var(--text, #f5f5f7);
+  font-size: clamp(19px, 1.6vw, 28px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.genero-panel-cerrar {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted, rgba(245, 245, 247, 0.72));
+  cursor: pointer;
+}
+
+.genero-panel-cerrar svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Columnas que se llenan solas: en un televisor caben seis, en un teléfono
+   dos, y en ningún caso queda una fila coja al final. */
+.genero-rejilla {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 12vw, 200px), 1fr));
+  gap: 10px;
+}
+
+/* Dentro del panel las píldoras ocupan su celda entera: una rejilla de cajas
+   iguales se recorre con el mando mejor que una de anchos distintos. */
+.genero-rejilla .catalogo-chip {
+  justify-content: center;
+  width: 100%;
+  /* Sobre el gris del panel, el borde al 14% del chip se pierde. */
+  border-color: rgba(245, 245, 247, 0.2);
+}
+
 .catalogo-chip.is-active {
   background: #fff;
   border-color: #fff;
@@ -1431,7 +2290,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(245, 245, 247, 0.46));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .livetv-acerca-datos dd {
@@ -1445,7 +2304,7 @@ body {
 .livetv-acerca-nota {
   margin: 0;
   font-size: clamp(11px, 0.82vw, 13px);
-  color: var(--faint, rgba(245, 245, 247, 0.28));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── La guía de canales del reproductor ──────────────────────────────
@@ -1456,9 +2315,12 @@ body {
   inset: auto 0 0;
   z-index: 20;
   padding: clamp(16px, 2.4vh, 28px) 0 clamp(96px, 13vh, 150px);
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.94) 30%, rgba(0, 0, 0, 0.6) 70%, transparent);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  /* Degradado opaco, SIN `backdrop-filter`.
+     Este panel se abre ENCIMA del vídeo en reproducción, que es el peor sitio
+     posible para un desenfoque de fondo: obliga a copiar y desenfocar una
+     imagen que cambia 25-30 veces por segundo. El degradado ya oscurece lo que
+     hay detrás, que es para lo que estaba. */
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.97) 30%, rgba(0, 0, 0, 0.82) 70%, transparent);
   animation: cc-entrar 220ms var(--ease, ease) both;
 }
 
@@ -1469,7 +2331,7 @@ body {
   gap: 16px;
   padding-bottom: clamp(10px, 1.4vh, 16px);
   font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(245, 245, 247, 0.46));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .guia-tira {
@@ -1654,7 +2516,7 @@ body {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-campo input,
@@ -1781,7 +2643,7 @@ body {
 .fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fuente-fila-texto span {
   font-size: clamp(11px, 0.8vw, 13px);
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1797,7 +2659,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.55));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-quitar {
@@ -1806,7 +2668,7 @@ body {
   border: 0;
   border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12));
   background: transparent;
-  color: var(--soft, rgba(255, 255, 255, 0.5));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
   cursor: pointer;
 }
 
@@ -1861,7 +2723,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--soft, rgba(255, 255, 255, 0.45));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .ficha-tecnica dd {
@@ -1870,3 +2732,232 @@ body {
   line-height: 1.45;
   color: var(--text, #ededed);
 }
+
+/* El encabezado de Cine y series vive DENTRO de la caja del buscador, que ya
+   pone sus propios márgenes laterales: sin esto heredaría el `padding` de
+   `.section-heading`, pensado para encabezados a sangre, y quedaría desalineado
+   con el buscador que tiene justo debajo. */
+.catalogo-encabezado {
+  padding: 0 0 clamp(4px, 0.8vh, 10px);
+}
+
+/* ── Canales que han dejado de responder ─────────────────────────────────
+   Se apagan y se etiquetan, pero siguen enteros y pulsables: la lista IPTV
+   resucita canales continuamente, y esconderlos en silencio ya fue un error
+   antes en este proyecto. Ver `canales-caidos.ts`. */
+.livetv-row.is-caido .livetv-row-logo,
+.livetv-row.is-caido .livetv-row-copy {
+  opacity: 0.55;
+}
+
+.livetv-row.is-caido:focus-within .livetv-row-logo,
+.livetv-row.is-caido:focus-within .livetv-row-copy {
+  opacity: 1;
+}
+
+.livetv-caido {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid rgba(255, 69, 58, 0.4);
+  border-radius: 999px;
+  font-size: 0.72em;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  color: var(--red, #ff453a);
+}
+
+/* ═══ Huecos para navegadores sin `gap` en flexbox ═══════════════════════
+   El `gap` de flexbox es de Chromium 84, y el parque de televisores va de
+   Chromium 53 (webOS 4) a 79 (webOS 6): ahí TODOS los huecos de flex valen
+   cero y los botones se tocan entre sí. `soporte-gap.ts` lo mide al arrancar y
+   marca el documento; aquí se restauran con márgenes.
+
+   **Solo donde se nota**, no en los setenta y siete sitios que usan `gap`: la
+   mayoría son huecos de 4px dentro de una etiqueta que nadie echa de menos, y
+   setenta y siete respaldos serían setenta y siete sitios donde equivocarse.
+
+   `:not(:last-child)` en vez de un margen a todos: sin él, la última pieza
+   empuja el borde derecho y la barra queda descentrada.
+
+   En un navegador moderno este bloque no existe. */
+[data-sin-gap] .player-bar-main > *:not(:last-child),
+[data-sin-gap] .player-bar-extras > *:not(:last-child) {
+  margin-right: clamp(6px, 0.6vw, 12px);
+}
+
+[data-sin-gap] .player-bar > *:not(:last-child) {
+  margin-right: clamp(8px, 0.8vw, 16px);
+}
+
+/* La barra superior: sin esto los seis destinos salen pegados. */
+[data-sin-gap] .sidebar nav > *:not(:last-child),
+[data-sin-gap] .mobile-bottom-nav > *:not(:last-child) {
+  margin-right: clamp(2px, 0.35vw, 8px);
+}
+
+/* Dos valores porque hay dos reglas: `.top-right` suelto separa a
+   `clamp(8px, 0.8vw, 14px)` y dentro de la barra sube a
+   `clamp(10px, 1vw, 20px)`. Un solo respaldo dejaba 14px donde el navegador
+   pone 19, que es un respaldo que casi acierta — lo peor de los dos mundos. */
+[data-sin-gap] .top-right > *:not(:last-child),
+[data-sin-gap] .profile-cluster > *:not(:last-child) {
+  margin-right: clamp(8px, 0.8vw, 14px);
+}
+
+[data-sin-gap] .sidebar > .top-right > *:not(:last-child) {
+  margin-right: clamp(10px, 1vw, 20px);
+}
+
+/* Píldoras del catálogo y de Canales. */
+[data-sin-gap] .livetv-cats > *:not(:last-child) {
+  margin-bottom: 6px;
+}
+
+[data-sin-gap] .catalogo-chip:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* La fila de un canal: el logo pegado al nombre es lo más feo de todo. */
+[data-sin-gap] .livetv-row-main > *:not(:last-child) {
+  margin-right: clamp(10px, 1vw, 18px);
+}
+
+[data-sin-gap] .livetv-row > *:not(:last-child) {
+  margin-right: 8px;
+}
+
+/* Los botones de acción de la ficha y del panel de detalle. */
+[data-sin-gap] .livetv-detail-actions > *:not(:last-child),
+[data-sin-gap] .hero-acciones > *:not(:last-child),
+[data-sin-gap] .ficha-aviso > *:not(:last-child) {
+  margin-right: clamp(8px, 0.9vw, 14px);
+}
+
+/* Un icono pegado a su texto dentro de un botón se lee como una sola palabra
+   rara; es el hueco más pequeño y el que más se nota. */
+[data-sin-gap] .player-btn svg,
+[data-sin-gap] .primary svg,
+[data-sin-gap] .secondary svg {
+  margin-right: 9px;
+}
+
+/* ═══ Casa ═══════════════════════════════════════════════════════════════
+   Los canales que se ven de cajón. NO es un riel, y por eso no comparte nada
+   con `.rail`: un riel dice «hay más si sigues» —flechas, scroll, tarjetas
+   pegadas al margen izquierdo esperando compañía— y aquí son tres, siempre los
+   mismos, y no va a haber un cuarto.
+
+   Centrados y grandes porque es lo primero que se ve al abrir y lo que se pide
+   en voz alta desde el sofá: «pon el tres». */
+.casa {
+  margin-top: clamp(18px, 2.6vh, 34px);
+  padding: 0 var(--margen);
+}
+
+.casa-titulo {
+  margin: 0 0 clamp(10px, 1.4vh, 16px);
+  text-align: center;
+  font-size: clamp(19px, 1.42vw, 27px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+/* Rejilla y no flex: el `gap` de flexbox no existe hasta Chromium 84 y estas
+   teles llegan a 79, así que en la sala las tres tarjetas se tocarían. El de
+   rejilla es de Chromium 66 y aquí sí funciona. Ver `soporte-gap.ts`. */
+.casa-fila {
+  display: grid;
+  grid-auto-flow: column;
+  justify-content: center;
+  gap: clamp(12px, 1.4vw, 26px);
+}
+
+.casa-boton {
+  display: grid;
+  justify-items: center;
+  width: clamp(150px, 15vw, 260px);
+  padding: clamp(12px, 1.2vw, 20px);
+  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
+  border-radius: var(--radio-panel, 18px);
+  background: var(--bg-card, #101012);
+  color: inherit;
+  cursor: pointer;
+  transition: border-color 160ms var(--ease-native), transform 160ms var(--ease-native);
+}
+
+/* El canal que está sonando ahora mismo. */
+.casa-boton.is-active {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+  background: var(--bg-elevated, #1c1c1f);
+}
+
+.casa-boton:hover {
+  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+}
+
+/* El foco crece: el mismo gesto que el resto de la app. El contorno blanco lo
+   pone la regla global de `[data-nav]`. */
+.casa-boton:focus-visible,
+[data-input="dpad"] .casa-boton:focus {
+  transform: scale(1.04);
+  border-color: transparent;
+}
+
+/* El logo, con sitio de sobra: son los tres canales que hay que reconocer de
+   un vistazo desde tres metros. */
+.casa-arte {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  margin-bottom: clamp(8px, 1vh, 14px);
+  border-radius: var(--radio-tarjeta, 12px);
+  background: var(--bg-elevated, #1c1c1f);
+  overflow: hidden;
+}
+
+.casa-arte img {
+  max-width: 78%;
+  max-height: 78%;
+  object-fit: contain;
+}
+
+.casa-marca {
+  font-size: clamp(24px, 2.4vw, 40px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+.casa-nombre {
+  max-width: 100%;
+  font-size: clamp(14px, 1.05vw, 19px);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.casa-numero {
+  margin-top: 2px;
+  font-size: clamp(12px, 0.85vw, 15px);
+  font-variant-numeric: tabular-nums;
+  color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* En vertical no caben tres de ese ancho: se reparten el sitio que haya. */
+@media (max-width: 680px) {
+  .casa-fila {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .casa-boton {
+    width: auto;
+    padding: 10px;
+  }
+}
+

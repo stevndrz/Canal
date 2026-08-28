@@ -7,7 +7,7 @@ import { FavoritosView } from "@/components/views/favoritos-view";
 import { FuenteView } from "@/components/views/fuente-view";
 import { HomeView } from "@/components/views/home-view";
 import { LiveTvView } from "@/components/livetv/live-tv-view";
-import type { CatalogSection } from "@/lib/catalog/types";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
 
 /**
@@ -34,8 +34,19 @@ export interface VistaActivaProps {
   tuned: Channel | null;
   favorites: { ids: Set<number>; toggle: (id: number) => void; clear: () => void };
   recentChannels: Channel[];
-  catalog: CatalogSection[];
+  catalog: FilaDeTarjetas[];
   categories: string[];
+  /**
+   * Cuántos canales tiene cada categoría en la lista COMPLETA, y cuántos hay en
+   * total. No se cuentan sobre `channels` porque `channels` puede ser todavía
+   * el recorte que vino en el HTML. Ver `dashboard.tsx`.
+   */
+  recuentos: Map<string, number>;
+  totalCanales: number;
+  /** Los canales que se ven de cajón. Ver `publicConfig.canalesDeCasa`. */
+  deLaCasa: Channel[];
+  /** Los que han dejado de responder en este aparato. Ver `canales-caidos.ts`. */
+  idsCaidos: Set<number>;
   category: string;
   search: string;
   settings: PlaybackSettings;
@@ -63,6 +74,7 @@ export function VistaActiva(props: VistaActivaProps) {
           tuned={props.tuned}
           favorites={props.favorites.ids}
           recents={props.recentChannels}
+          deLaCasa={props.deLaCasa}
           catalog={props.catalog}
           onSelect={props.onSelect}
           onOpenTitle={(mediaType, id) => router.push(`/peliculas/${mediaType}/${id}`)}
@@ -73,7 +85,10 @@ export function VistaActiva(props: VistaActivaProps) {
       return (
         <LiveTvView
           sinHueco
-          channels={props.channels}
+          recuentos={props.recuentos}
+          totalCanales={props.totalCanales}
+          deLaCasa={props.deLaCasa}
+          idsCaidos={props.idsCaidos}
           visible={props.visible}
           tuned={props.tuned}
           favorites={props.favorites.ids}
@@ -119,7 +134,7 @@ export function VistaActiva(props: VistaActivaProps) {
           <AjustesView
             settings={props.settings}
             onChange={props.onPatchSettings}
-            channelCount={props.channels.length}
+            channelCount={props.totalCanales}
             favoriteCount={props.favorites.ids.size}
             onClearFavorites={props.favorites.clear}
             onRefresh={() => router.refresh()}

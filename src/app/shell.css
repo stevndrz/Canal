@@ -37,11 +37,22 @@
   --bg-card: #101012;
   --bg-elevated: #1c1c1f;
 
-  /* ── Texto, en cuatro pesos de presencia ────────────────────────────── */
+  /* ── Texto, en cuatro pesos de presencia ──────────────────────────────
+     Medidos contra el fondo, no elegidos a ojo. Los dos de abajo estaban por
+     debajo del mínimo legible y se subieron:
+
+       --soft   0.46 → 0.56   4,29:1 → 6,03:1  (5,45:1 sobre una tarjeta)
+       --faint  0.28 → 0.40   2,18:1 → 3,45:1
+
+     `--faint` sigue sin llegar a 4,5:1, y por eso **no vale para texto**:
+     queda reservado a iconos, separadores y puntos, donde el mínimo es 3:1.
+     Todo lo que se lee usa `--soft` o más. Esto importa el doble aquí: un
+     televisor a tres metros, de noche y con el brillo bajado, es el peor caso
+     de contraste que existe. */
   --text: #f5f5f7;
   --muted: rgba(245, 245, 247, 0.72);
-  --soft: rgba(245, 245, 247, 0.46);
-  --faint: rgba(245, 245, 247, 0.28);
+  --soft: rgba(245, 245, 247, 0.56);
+  --faint: rgba(245, 245, 247, 0.4);
 
   /* ── Relleno y líneas ───────────────────────────────────────────────── */
   --chip: rgba(245, 245, 247, 0.1);
@@ -184,8 +195,8 @@
   min-width: 0;
 }
 
-/* Acotado a la barra a propósito: `.cw-badge` usa `top-right` como
-   modificador de posición y heredaría este flex. */
+/* Acotado a la barra con `>` a propósito: `top-right` se usa también como
+   modificador de posición, y sin acotar heredaría este flex. */
 .sidebar > .top-right {
   display: flex;
   align-items: center;
@@ -250,6 +261,22 @@
 .settings-gear svg {
   width: 21px;
   height: 21px;
+}
+
+/* La marca es un botón que lleva al inicio (top-nav.tsx). Se desmonta el
+   aspecto nativo del botón para que siga viéndose idéntica a la marca de
+   siempre; el radio se conserva para que el anillo de foco no se vea
+   cuadrado al llegar con el mando o el teclado. */
+.brand-inicio {
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 12px;
+  text-align: inherit;
 }
 
 /* El monograma. Es lo más grande de la barra a propósito: identifica la app
@@ -323,6 +350,56 @@
 .rail.is-poster {
   contain-intrinsic-size: auto 560px;
 }
+
+/**
+ * Historial, no oferta.
+ *
+ * «Seguir viendo» y «Tus favoritos» informan de lo que ya hiciste; no están
+ * proponiendo nada, así que no tienen por qué ocupar lo mismo que una sección
+ * que sí. Bajan a dos tercios y su encabezado deja de competir con los
+ * títulos de sección.
+ *
+ * `contain-intrinsic-size` baja con ellos: si el riel encoge y la estimación
+ * no, la barra de desplazamiento pega un salto justo al pintarlo. Fue lo
+ * primero que se rompió al probarlo.
+ */
+.rail.is-compacto {
+  margin-top: clamp(12px, 1.8vh, 22px);
+  contain-intrinsic-size: auto 220px;
+}
+
+.rail.is-compacto .rail-head h3 {
+  font-size: clamp(14px, 1vw, 18px);
+  font-weight: 500;
+  color: var(--soft);
+}
+
+.rail.is-compacto .rail-head {
+  margin-bottom: clamp(6px, 0.9vh, 10px);
+}
+
+/* Las fichas, a dos tercios.
+ *
+ * Se sobreescribe `grid-auto-columns` y no `--carteles`: esa variable solo la
+ * lee el carrusel de pósters (`.rail.is-poster`, que es flex), y los rieles de
+ * canales —que es lo que son «Seguir viendo» y «Tus favoritos»— van en grid,
+ * donde no la mira nadie. Con `--carteles` a solas la fila encogía un 6 %, que
+ * es no encoger.
+ *
+ * Mismo cálculo que el riel normal con el divisor subido de 6 a 9, para que el
+ * ancho siga saliendo de fichas enteras y no de un número inventado. */
+.rail.is-compacto .rail-strip {
+  grid-auto-columns: clamp(104px, calc((min(100vw, 1740px) - 96px) / 9), 168px);
+}
+
+.rail.is-compacto .media-card {
+  font-size: 0.86em;
+}
+
+/* El relleno de la tarjeta y la línea de metadatos se apagan desde
+   `globals.css`, SIN capa: los dos los pone Tailwind (`p-6`, `flex`) en
+   `@layer utilities`, y esta hoja entra en `components`, que va por debajo.
+   Puestas aquí no hacían nada. Ver la nota de capas en `globals.css`. */
 
 .rail-head {
   display: flex;
@@ -589,58 +666,6 @@
   color: var(--text);
 }
 
-/* La carátula entra con un fundido cuando termina de descargarse: aparecer de
-   golpe sobre el degradado de espera da un parpadeo en cada riel. */
-.poster-art {
-  opacity: 0;
-  transition: opacity 320ms var(--ease);
-}
-
-.poster-art.is-loaded {
-  opacity: 1;
-}
-
-/* Monograma de respaldo: la mayoría de canales de una lista M3U no traen
-   logo, y dos letras identifican mejor que un icono repetido cien veces. */
-.poster-mark {
-  font-size: clamp(26px, 2.6vw, 46px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* Insignia de esquina y barra de progreso, para «continuar viendo». */
-.cw-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  padding: 4px 9px;
-  border-radius: 999px;
-  background: var(--glass-strong);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #fff;
-}
-
-.cw-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.cw-progress > span {
-  display: block;
-  height: 100%;
-  background: #fff;
-}
-
 /* ═══ Hero ══════════════════════════════════════════════════════════════
    La cabecera a sangre de Películas. Ocupa alto de pantalla porque su trabajo
    es que, desde el sofá, se vea de qué va el catálogo antes de leer nada. */
@@ -655,14 +680,6 @@
   isolation: isolate;
 }
 
-/*
-   La imagen no termina: **se disuelve**.
-
-   La máscara vive ahora como estilo EN LÍNEA en el componente
-   (hero-destacado.tsx): `linear-gradient(to bottom, #000 60%, transparent
-   100%)`. Antes había aquí dos máscaras multiplicadas (vertical + lateral)
-   con mask-composite; se retiraron para que exista una sola fuente de
-   verdad y el fundido sea exactamente el especificado. */
 .hero-arte {
   position: absolute;
   inset: 0;
@@ -673,9 +690,51 @@
   object-position: center 18%;
 }
 
-/* El degradado del hero vive como overlay explícito en el componente
-   (hero-destacado.tsx): una sola capa, sin dobles fundidos. La sección de
-   debajo entra con -mt-12 sobre su borde, cubriendo la costura. */
+/*
+   La imagen no termina: **se disuelve**. Y con UN solo velo.
+
+   Antes eran tres fundidos solapados —una máscara en el propio píxel más dos
+   degradados absolutos en el componente— y eso no suma, multiplica: la foto
+   quedaba al 30% de brillo en el centro del hero y muerta al 80%. Dos curvas
+   multiplicadas dan una caída cuadrática, más brusca que cualquiera de las
+   dos, y una caída brusca se lee como un borde recto. Era el «bloque negro».
+
+   Tres decisiones dentro de este degradado, y ninguna es de gusto:
+
+   1. **Arranca en 10%, no en transparente.** Empezar en 0 hace que se note
+      DÓNDE empieza el velo; una base tenue lo disimula con cualquier paleta.
+      Es la misma razón ya escrita para `.ficha-portada::before`.
+   2. **Diez paradas suavizadas y no dos.** Un degradado de dos paradas sobre
+      ~750px hace bandas visibles en 8 bits. Las paradas siguen una curva de
+      salida en vez de una recta, así que el ojo no encuentra ningún escalón.
+      No se añade ruido de tramado encima: sería una capa más que componer en
+      cada fotograma, y en la GPU de un televisor eso cuesta más de lo que
+      arregla.
+   3. **Llega a #000 exacto en el 100%**, que es el color del fondo de la
+      página. Sin diferencia de tono no hay costura que tapar.
+
+   Foto visible resultante: 90% a media altura, 74% a dos tercios, 28% al 81%.
+*/
+.hero::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.1) 34%,
+    rgba(0, 0, 0, 0.16) 46%,
+    rgba(0, 0, 0, 0.26) 57%,
+    rgba(0, 0, 0, 0.4) 66%,
+    rgba(0, 0, 0, 0.56) 74%,
+    rgba(0, 0, 0, 0.72) 81%,
+    rgba(0, 0, 0, 0.86) 88%,
+    rgba(0, 0, 0, 0.95) 94%,
+    #000 100%
+  );
+}
 
 /* El texto vive en la misma caja fluida que los rieles (max-w-[1700px]). */
 .hero-copy {
@@ -684,6 +743,10 @@
 
 .hero-titulo {
   margin: 0;
+  /* La sombra sustituye a oscurecer la foto entera para que el texto se lea.
+     Un velo global cuesta imagen en todo el banner; esto solo cuesta donde
+     hay letras, y aguanta hasta un fotograma blanco debajo. */
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.78), 0 1px 3px rgba(0, 0, 0, 0.6);
   /* text-3xl md:text-5xl: 30px en móvil, 48px en pantallas grandes. Iba
      hasta 84px y con el héroe ya acotado se comía la cabecera entera. */
   font-size: clamp(30px, 3.4vw, 48px);
@@ -697,12 +760,14 @@
 
 .hero-lema {
   margin: clamp(8px, 1.2vh, 14px) 0 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
   font-size: clamp(14px, 1.15vw, 21px);
   font-style: italic;
   color: var(--muted);
 }
 
 .hero-datos {
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
   display: flex;
   align-items: center;
   flex-wrap: wrap;
@@ -747,7 +812,10 @@
   margin: 0.75rem 0;
   font-size: clamp(14px, 1vw, 16px);
   line-height: 1.55;
-  color: #d4d4d4; /* neutral-300 */
+  /* Era `#d4d4d4` a pelo —un `neutral-300` escrito a mano— en vez del token.
+     Sobre una foto clara la sombra es lo que la sostiene. */
+  color: var(--muted);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
   max-width: 36rem; /* max-w-xl */
   /* Tres líneas y el resto en la ficha: la sinopsis completa de una serie
      larga empujaría los botones fuera de la pantalla. */
@@ -775,10 +843,26 @@
     max-width: 100%;
   }
 
-  /* En vertical el degradado tiene que venir de abajo: a lo ancho no hay sitio
-     para dejar media imagen despejada. */
+  /* En vertical el texto ocupa todo el ancho, así que el velo tiene que
+     apretar antes: las mismas paradas, corridas hacia arriba.
+
+     Esta regla existía y NO pintaba nada: definía un `background` sin que
+     hubiera ningún `content`, así que el pseudoelemento no llegaba a
+     generarse. Llevaba ahí desde que el velo se movió al componente. */
   .hero::after {
-    background: linear-gradient(0deg, var(--bg) 4%, rgba(0, 0, 0, 0.78) 38%, rgba(0, 0, 0, 0.22) 78%);
+    background: linear-gradient(
+      180deg,
+      rgba(0, 0, 0, 0.14) 0%,
+      rgba(0, 0, 0, 0.14) 22%,
+      rgba(0, 0, 0, 0.24) 36%,
+      rgba(0, 0, 0, 0.38) 48%,
+      rgba(0, 0, 0, 0.54) 58%,
+      rgba(0, 0, 0, 0.7) 68%,
+      rgba(0, 0, 0, 0.83) 78%,
+      rgba(0, 0, 0, 0.92) 87%,
+      rgba(0, 0, 0, 0.97) 94%,
+      #000 100%
+    );
   }
 
   .hero-acciones .primary,
@@ -857,6 +941,41 @@
   padding-top: 0;
 }
 
+/* La píldora de Buscar: el mismo campo que Canales y que el catálogo, para
+   que las tres búsquedas de la app se vean iguales. Que exista es además lo
+   que impide que el navegador pinte su campo nativo — un rectángulo claro con
+   el cursor de escritura — en los que ignoran `color-scheme: dark`. */
+.buscar-campo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 720px;
+  min-height: clamp(48px, 4.4vh, 62px);
+  padding: 0 clamp(16px, 1.4vw, 24px);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--chip);
+  cursor: text;
+}
+
+.buscar-campo:focus-within {
+  border-color: var(--line-bright);
+}
+
+.buscar-campo input {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  font-size: clamp(15px, 1.15vw, 20px);
+}
+
+.buscar-campo input::placeholder {
+  /* Texto: `--faint` no llega a 4,5:1 y un marcador de posición es lo
+     primero que se lee de un buscador vacío. */
+  color: var(--soft);
+}
+
 .search-icon-shell {
   display: grid;
   place-items: center;
@@ -918,7 +1037,7 @@
 }
 
 .livetv-search input::placeholder {
-  color: var(--faint);
+  color: var(--soft);
 }
 
 /* Lista y detalle. Por debajo de 1024px el detalle desaparece: en un teléfono
@@ -1147,7 +1266,8 @@
   display: block;
   margin-top: 2px;
   font-size: clamp(11px, 0.78vw, 13px);
-  color: var(--faint);
+  /* Es texto, y encima pequeño: `--soft`, nunca `--faint`. */
+  color: var(--soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

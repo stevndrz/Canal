@@ -3,6 +3,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import {
+  Airplay,
   Captions,
   Cast,
   Languages,
@@ -15,12 +16,24 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useCast } from "@/hooks/use-cast";
+import { useCast, type SubtituloCast } from "@/hooks/use-cast";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { esIPhone } from "@/lib/dispositivo";
 import type { ManualStream } from "@/lib/catalog/types";
+import {
+  planAnteErrorFatal,
+  prefiereNativoPorAirplay,
+  type EstadoRecuperacion,
+} from "@/lib/reproduccion/motor";
 
 /**
  * Reproductor nativo para los enlaces propios del catálogo (`manual`).
+ *
+ * **Todo control lleva `data-nav`.** `useSpatialNav` solo recoge `[data-nav]`
+ * y además hace `preventDefault()` en las cuatro flechas, así que un mando no
+ * puede llegar a nada que no lo lleve — y en un televisor no hay Tab. Sin
+ * estos atributos, esta pantalla era un callejón sin salida: no se podía ni
+ * pausar, ni silenciar, ni salir de pantalla completa.
  *
  * Solo aquí tiene sentido añadir controles avanzados: en las fichas de tipo
  * `embed` manda el reproductor del proveedor, con sus propios controles.
@@ -29,8 +42,6 @@ import type { ManualStream } from "@/lib/catalog/types";
  * añade barra de progreso (una película sí se busca, un canal en vivo no),
  * selector de pistas de audio y de subtítulos.
  */
-
-const MAX_RECOVERY_ATTEMPTS = 3;
 
 interface AudioTrackOption {
   id: number;
@@ -77,12 +88,37 @@ export const NativePlayer = memo(function NativePlayer({
   const [audioTracks, setAudioTracks] = useState<AudioTrackOption[]>([]);
   const [activeAudio, setActiveAudio] = useState<number | null>(null);
   const [activeSubtitle, setActiveSubtitle] = useState<number | null>(null);
+  /** Línea de subtítulo activa, para pintarla en la capa propia. */
+  const [subtitleText, setSubtitleText] = useState("");
 
   const stream = streams[streamIndex] ?? streams[0];
   const subtitles = useMemo(() => stream?.subtitles ?? [], [stream]);
 
-  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
-    useCast(videoRef, stream?.url ?? "", title);
+  /**
+   * Los subtítulos también tienen que verse en la tele al transmitir: sin
+   * pasarlos al hook, el receptor recibe el vídeo mudo de letras. Memoizado
+   * para que la identidad no cambie en cada render (el hook los usa en
+   * efectos).
+   */
+  const subtitulosCast = useMemo<SubtituloCast[]>(
+    () =>
+      subtitles.map((pista) => ({
+        url: pista.url,
+        label: pista.label,
+        lang: pista.srclang,
+        porDefecto: Boolean(pista.default),
+      })),
+    [subtitles],
+  );
+
+  // Película o episodio: BUFFERED en el receptor, con búsqueda. El subtítulo
+  // elegido aquí es el que se activa allí (o el marcado por defecto).
+  const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+    useCast(videoRef, stream?.url ?? "", title, {
+      enVivo: false,
+      subtitulos: subtitulosCast,
+      subtituloActivo: activeSubtitle,
+    });
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
@@ -93,7 +129,6 @@ export const NativePlayer = memo(function NativePlayer({
     if (!video || !stream?.url) return;
 
     let cancelled = false;
-    let recoveryAttempts = 0;
     setHasError(false);
     setIsLoading(true);
     setAudioTracks([]);
@@ -110,7 +145,9 @@ export const NativePlayer = memo(function NativePlayer({
       setIsLoading(false);
     };
 
-    if (detectKind(stream) === "hls" && !video.canPlayType("application/vnd.apple.mpegurl") && Hls.isSupported()) {
+    // Misma regla que el motor de canales: en los WebKit con AirPlay el HLS
+    // va nativo (ver `prefiereNativoPorAirplay`), hls.js solo para el resto.
+    if (detectKind(stream) === "hls" && !prefiereNativoPorAirplay(video) && Hls.isSupported()) {
       const hls = new Hls({ enableWorker: true });
       hlsRef.current = hls;
 
@@ -123,21 +160,37 @@ export const NativePlayer = memo(function NativePlayer({
         setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
       });
 
+      /**
+       * Recuperación acotada según la política común del motor
+       * (`planAnteErrorFatal`). Abandonar NO es rendirse del todo: antes de
+       * dar el enlace por muerto se prueba UNA vía más — entregarlo al
+       * `<video>` tal cual, porque varios televisores leen HLS de forma
+       * nativa aunque su MSE falle; si tampoco puede, `error` cae en
+       * `onNativeError`, que ya enseña el aviso de siempre.
+       */
+      const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (cancelled || !data.fatal) return;
-        if (recoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
+        const plan = planAnteErrorFatal(
+          recuperacion,
+          data.type === Hls.ErrorTypes.NETWORK_ERROR
+            ? "red"
+            : data.type === Hls.ErrorTypes.MEDIA_ERROR
+              ? "medios"
+              : "otro",
+        );
+        if (plan === "abandonar") {
           hls.destroy();
           hlsRef.current = null;
-          fail();
+          video.src = stream.url;
           return;
         }
-        recoveryAttempts++;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) hls.startLoad();
-        else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) hls.recoverMediaError();
-        else {
-          hls.destroy();
-          hlsRef.current = null;
-          fail();
+        recuperacion.intentos++;
+        if (plan === "reintentar-medios") {
+          recuperacion.mediosRecuperados = true;
+          hls.recoverMediaError();
+        } else {
+          hls.startLoad();
         }
       });
 
@@ -191,13 +244,56 @@ export const NativePlayer = memo(function NativePlayer({
   }, [stream, retryCount]);
 
   // --- Subtítulos -----------------------------------------------------------
-  // Los <track> se declaran en el JSX; aquí solo se decide cuál se muestra.
+  /**
+   * Los subtítulos se pintan en una capa propia, no los dibuja el navegador.
+   *
+   * El motivo es un fallo real de televisores Samsung (Tizen): su capa nativa
+   * de pistas de texto desaparece cuando la pantalla completa se pide sobre
+   * un contenedor del `<video>` — que es justo como entra aquí a lo grande —,
+   * así que los subtítulos se veían en la ficha y se esfumaban en fullscreen.
+   *
+   * Con `mode = "hidden"` la pista activa sigue avisando por `cuechange` sin
+   * que nadie la dibuje, y el texto activo va a un div nuestro dentro del
+   * contenedor: al ser DOM normal, escala con la pantalla completa en cualquier
+   * aparato. En iPhone no aplica: allí el botón abre el reproductor del
+   * sistema, que pinta él mismo las pistas, así que se dejan en `showing` y la
+   * capa propia se omite para no salir dos veces.
+   */
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    for (let i = 0; i < video.textTracks.length; i++) {
-      video.textTracks[i].mode = i === activeSubtitle ? "showing" : "disabled";
+
+    const pistas = Array.from(video.textTracks);
+    const nativoDelSistema = esIPhone();
+    pistas.forEach((pista, i) => {
+      pista.mode = i === activeSubtitle ? (nativoDelSistema ? "showing" : "hidden") : "disabled";
+    });
+
+    if (activeSubtitle === null || nativoDelSistema) {
+      setSubtitleText("");
+      return;
     }
+
+    const pistaActiva = pistas[activeSubtitle];
+    if (!pistaActiva) {
+      setSubtitleText("");
+      return;
+    }
+
+    const pintar = () => {
+      const activos = pistaActiva.activeCues;
+      setSubtitleText(
+        activos
+          ? Array.from(activos)
+              .map((cue) => (cue as VTTCue).text)
+              .join("\n")
+          : "",
+      );
+    };
+
+    pintar();
+    pistaActiva.addEventListener("cuechange", pintar);
+    return () => pistaActiva.removeEventListener("cuechange", pintar);
   }, [activeSubtitle, subtitles]);
 
   // --- Controles ------------------------------------------------------------
@@ -231,9 +327,7 @@ export const NativePlayer = memo(function NativePlayer({
 
   if (!stream) {
     return (
-      <div className="flex aspect-video items-center justify-center rounded-2xl bg-black text-sm text-white/60">
-        Esta ficha no tiene ningún enlace configurado.
-      </div>
+      <div className="player-sin-enlace">Esta ficha no tiene ningún enlace configurado.</div>
     );
   }
 
@@ -245,8 +339,11 @@ export const NativePlayer = memo(function NativePlayer({
           className="h-full w-full object-contain"
           playsInline
           muted={isMuted}
+          /* Transmitir: sin estos atributos Safari no ofrece AirPlay sobre
+             este vídeo y algunas TVs rechazan el flujo .m3u8 por CORS. */
           x-webkit-airplay="allow"
           crossOrigin="anonymous"
+          disableRemotePlayback={false}
         >
           {subtitles.map((track) => (
             <track
@@ -259,6 +356,16 @@ export const NativePlayer = memo(function NativePlayer({
           ))}
         </video>
 
+        {/* Subtítulos propios: capa DOM dentro de este contenedor, así
+            sobreviven al fullscreen del contenedor en cualquier televisor. */}
+        {subtitleText && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-[6%] z-10 flex justify-center px-[5%]">
+            <span className="whitespace-pre-line rounded-md bg-black/70 px-3 py-1 text-center text-base font-medium leading-snug text-white md:text-lg xl:text-xl">
+              {subtitleText}
+            </span>
+          </div>
+        )}
+
         {/* Fallo al transmitir. Antes solo se escribía en la consola, así que
             desde fuera parecía que el botón simplemente no hacía nada. */}
         {castError && (
@@ -266,6 +373,7 @@ export const NativePlayer = memo(function NativePlayer({
             <Cast aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
             <p className="flex-1">{castError}</p>
             <button
+              data-nav="button"
               type="button"
               onClick={dismissCastError}
               aria-label="Cerrar aviso"
@@ -284,17 +392,13 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         {hasError && (
-          <div role="alert" className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-zinc-950/95 p-6 text-center">
-            <p className="text-lg font-bold text-white">No se pudo reproducir</p>
-            <p className="mb-4 mt-1 max-w-sm text-sm text-slate-400">
+          <div role="alert" className="player-fallo">
+            <p className="player-fallo-titulo">No se pudo reproducir</p>
+            <p className="player-fallo-detalle">
               El enlace no respondió. Prueba otra versión o inténtalo de nuevo.
             </p>
-            <button
-              type="button"
-              onClick={retry}
-              className="flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-            >
-              <RefreshCw aria-hidden="true" className="h-4 w-4" />
+            <button data-nav="button" type="button" onClick={retry} className="player-btn is-primary">
+              <RefreshCw aria-hidden="true" />
               Reintentar
             </button>
           </div>
@@ -302,9 +406,10 @@ export const NativePlayer = memo(function NativePlayer({
       </div>
 
       {/* Barra de progreso: una película sí se busca, un canal en vivo no. */}
-      <div className="flex items-center gap-3 text-xs text-white/70">
-        <span className="w-12 shrink-0 text-right font-mono">{formatTime(currentTime)}</span>
+      <div className="player-barra-tiempo">
+        <span>{formatTime(currentTime)}</span>
         <input
+          data-nav="input"
           type="range"
           min={0}
           max={duration || 0}
@@ -312,42 +417,43 @@ export const NativePlayer = memo(function NativePlayer({
           value={currentTime}
           onChange={(event) => seekTo(Number(event.target.value))}
           aria-label="Posición de reproducción"
-          className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-emerald-400"
         />
-        <span className="w-12 shrink-0 font-mono">{formatTime(duration)}</span>
+        <span>{formatTime(duration)}</span>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <button
+          data-nav="button"
           type="button"
           onClick={togglePlay}
           aria-label={isPlaying ? "Pausar" : "Reproducir"}
-          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="player-btn is-extra"
         >
-          {isPlaying ? <Pause aria-hidden="true" className="h-5 w-5" /> : <Play aria-hidden="true" className="h-5 w-5" />}
+          {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
         </button>
 
         <button
+          data-nav="button"
           type="button"
           onClick={toggleMute}
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
-          className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+          className="player-btn is-extra"
         >
-          {isMuted ? <VolumeX aria-hidden="true" className="h-5 w-5" /> : <Volume2 aria-hidden="true" className="h-5 w-5" />}
+          {isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
         </button>
 
         {/* Versiones del mismo título (doblajes, calidades) */}
         {streams.length > 1 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Languages aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Languages aria-hidden="true" />
             <span className="sr-only">Versión</span>
             <select
+              data-nav="input"
               value={streamIndex}
               onChange={(event) => setStreamIndex(Number(event.target.value))}
-              className="bg-transparent font-semibold focus:outline-none"
             >
               {streams.map((option, index) => (
-                <option key={option.url} value={index} className="bg-slate-900">
+                <option key={option.url} value={index}>
                   {option.label}
                 </option>
               ))}
@@ -357,16 +463,16 @@ export const NativePlayer = memo(function NativePlayer({
 
         {/* Solo aparece si el archivo trae más de una pista de audio */}
         {audioTracks.length > 1 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Languages aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Languages aria-hidden="true" />
             <span className="sr-only">Audio</span>
             <select
+              data-nav="input"
               value={activeAudio ?? 0}
               onChange={(event) => selectAudio(Number(event.target.value))}
-              className="bg-transparent font-semibold focus:outline-none"
             >
               {audioTracks.map((track) => (
-                <option key={track.id} value={track.id} className="bg-slate-900">
+                <option key={track.id} value={track.id}>
                   {track.label}
                 </option>
               ))}
@@ -375,22 +481,22 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         {subtitles.length > 0 && (
-          <label className="flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-sm text-white">
-            <Captions aria-hidden="true" className="h-4 w-4" />
+          <label className="player-btn player-select">
+            <Captions aria-hidden="true" />
             <span className="sr-only">Subtítulos</span>
             <select
+              data-nav="input"
               value={activeSubtitle ?? -1}
               onChange={(event) => {
                 const value = Number(event.target.value);
                 setActiveSubtitle(value < 0 ? null : value);
               }}
-              className="bg-transparent font-semibold focus:outline-none"
             >
-              <option value={-1} className="bg-slate-900">
+              <option value={-1}>
                 Sin subtítulos
               </option>
               {subtitles.map((track, index) => (
-                <option key={track.url} value={index} className="bg-slate-900">
+                <option key={track.url} value={index}>
                   {track.label}
                 </option>
               ))}
@@ -399,30 +505,47 @@ export const NativePlayer = memo(function NativePlayer({
         )}
 
         <div className="ml-auto flex items-center gap-2">
-          {canCast && (
-            <button
-              type="button"
-              onClick={isCasting ? stopCasting : startCasting}
-              aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir a la TV"}
-              className={`rounded-xl p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-                isCasting ? "bg-sky-500/40" : "bg-white/10"
-              }`}
-            >
-              <Cast aria-hidden="true" className="h-5 w-5" />
-            </button>
-          )}
+        {/* Un botón por vía, no uno genérico: en Android aparece Chromecast
+            y en iOS AirPlay. Si no hay ninguna disponible, ninguno. */}
+        {castMethod === "gcast" && (
+          <button
+            data-nav="button"
+            type="button"
+            onClick={isCasting ? stopCasting : startCasting}
+            aria-label={isCasting ? "Dejar de transmitir a la TV" : "Transmitir con Chromecast"}
+            className={`player-btn is-extra ${isCasting ? "is-emitiendo" : ""}`}
+          >
+            <Cast aria-hidden="true" />
+          </button>
+        )}
+
+        {castMethod === "airplay" && (
+          /* Encendido mientras emite y sirviendo para cortar, igual que el de
+             Chromecast: sin estado, el botón se veía idéntico funcionara o no. */
+          <button
+            data-nav="button"
+            type="button"
+            onClick={isCasting ? stopCasting : startCasting}
+            aria-pressed={isCasting}
+            aria-label={isCasting ? "Dejar de transmitir con AirPlay" : "Transmitir con AirPlay"}
+            className={`player-btn is-extra ${isCasting ? "is-emitiendo" : ""}`}
+          >
+            <Airplay aria-hidden="true" />
+          </button>
+        )}
 
           {canFullscreen && (
             <button
+              data-nav="button"
               type="button"
               onClick={toggleFullscreen}
               aria-label={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
-              className="rounded-xl bg-white/10 p-3 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+              className="player-btn is-extra"
             >
               {isFullscreen ? (
-                <Minimize aria-hidden="true" className="h-5 w-5" />
+                <Minimize aria-hidden="true" />
               ) : (
-                <Maximize aria-hidden="true" className="h-5 w-5" />
+                <Maximize aria-hidden="true" />
               )}
             </button>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { channelMark } from "@/lib/channels";
 import type { Channel } from "@/lib/types";
 
@@ -15,6 +15,12 @@ import type { Channel } from "@/lib/types";
  * Se lleva consigo el efecto que mantiene el canal sintonizado a la vista, que
  * es lo único que esta tira necesita recordar.
  */
+/**
+ * Canales a cada lado del sintonizado. Cincuenta botones llenan de sobra
+ * cualquier pantalla y dejan margen para zapear sin volver a montar nada.
+ */
+const VENTANA = 25;
+
 export function GuiaCanales({
   playlist,
   channelId,
@@ -26,6 +32,30 @@ export function GuiaCanales({
   onTune: (canal: Channel) => void;
 }) {
   const railRef = useRef<HTMLDivElement | null>(null);
+
+  /**
+   * Solo una ventana alrededor del canal sintonizado, nunca la lista entera.
+   *
+   * Cada botón de aquí abajo son cinco nodos (`button`, `span`, `img`, `em`,
+   * `p`). Con la categoría «Todas» la lista son 7.822 canales, así que pintarla
+   * completa creaba **unos 39.000 nodos de golpe, y de forma síncrona, con el
+   * vídeo reproduciendo**: el televisor se queda congelado varios segundos con
+   * el audio siguiendo. Encima disparaba 7.822 `<img>` a dominios arbitrarios.
+   *
+   * Con la ventana son ~250 nodos y la guía se abre al instante. El efecto de
+   * abajo tampoco tiene ya que buscar entre miles de elementos ni recorrer
+   * miles de píxeles de `scrollLeft`.
+   *
+   * Se recentra sola al zapear, porque `channelId` está en las dependencias:
+   * al llegar a un borde de la ventana, la siguiente ya viene desplazada.
+   */
+  const visibles = useMemo(() => {
+    if (playlist.length <= VENTANA * 2) return playlist;
+    const actual = playlist.findIndex((canal) => canal.id === channelId);
+    const centro = actual >= 0 ? actual : 0;
+    const desde = Math.max(0, Math.min(centro - VENTANA, playlist.length - VENTANA * 2));
+    return playlist.slice(desde, desde + VENTANA * 2);
+  }, [playlist, channelId]);
 
   /**
    * Traer el canal sintonizado al encuadre al abrir la guía o al zapear.
@@ -58,7 +88,7 @@ export function GuiaCanales({
       </div>
 
       <div ref={railRef} className="guia-tira scroll-none tv-safe">
-        {playlist.map((canal) => (
+        {visibles.map((canal) => (
           <button
             key={canal.id}
             type="button"

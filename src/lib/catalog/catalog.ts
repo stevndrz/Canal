@@ -65,7 +65,7 @@ export async function resolveCatalog(): Promise<ResolvedCatalogItem[]> {
 }
 
 /** Agrupa por `collection` conservando el orden de aparición en el JSON. */
-export function groupByCollection(items: ResolvedCatalogItem[]): CatalogSection[] {
+function groupByCollection(items: ResolvedCatalogItem[]): CatalogSection[] {
   const groups = new Map<string, ResolvedCatalogItem[]>();
   for (const item of items) {
     const key = item.collection?.trim() || "Destacados";

@@ -25,6 +25,7 @@ export function MediaRail({
   onOpen,
   onFocus,
   posterMode,
+  compacto,
   activeKey,
   count,
   href,
@@ -34,6 +35,15 @@ export function MediaRail({
   onOpen: (item: CardItem) => void;
   onFocus?: (item: CardItem) => void;
   posterMode?: boolean;
+  /**
+   * Más pequeño y más callado.
+   *
+   * Para las filas que son **historial y no oferta** —«Seguir viendo», «Tus
+   * favoritos»—: informan de lo que ya hiciste, no proponen nada nuevo, así
+   * que no tienen por qué pesar lo mismo que una sección que sí está
+   * ofreciendo algo. Mismo mecanismo que `posterMode`, en la otra dirección.
+   */
+  compacto?: boolean;
   activeKey?: string | null;
   count?: string;
   /** Enlace del título («Acción» → todas las de Acción). Sin él, texto plano. */
@@ -44,10 +54,11 @@ export function MediaRail({
   if (items.length === 0) return null;
 
   return (
-    <section className={`rail ${posterMode ? "is-poster" : ""}`}>
+    <section className={`rail ${posterMode ? "is-poster" : ""} ${compacto ? "is-compacto" : ""}`}>
       <div className="rail-head">
         {href ? (
           <Link
+            data-nav="button"
             href={href}
             className="group flex items-center gap-2 hover:text-red-500 transition-colors"
           >

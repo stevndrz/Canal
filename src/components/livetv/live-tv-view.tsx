@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
+import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
+import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
+import {
+  calcularVentana,
+  ventanaCambio,
+  type Ventana,
+} from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
 
 /**
@@ -29,22 +36,50 @@ import { ChannelRow } from "./channel-row";
  * el CSS del shell.
  */
 
-/** Cuántas filas se pintan de golpe antes de pedir más al llegar abajo. */
-const LOTE = 60;
+/**
+ * Cuántas filas se pintan de golpe antes de pedir más al llegar abajo.
+ *
+ * Sale de `QUE_SE_PINTA` porque **es también lo que el servidor manda en el
+ * HTML**: subirlo aquí sin subirlo allí dejaría la lista corta hasta que
+ * llegara el resto de la lista. Un solo número, un solo sitio.
+ */
+const LOTE = QUE_SE_PINTA.lote;
 
-function hora(millis?: number): string {
-  if (!millis) return "";
-  return new Date(millis).toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" });
-}
+/** El `gap` de `.livetv-rows` en `shell.css`. Cuenta para el alto de fila. */
+const HUECO_FILA = 4;
 
-function porcentaje(inicio?: number, fin?: number): number | null {
-  if (!inicio || !fin || fin <= inicio) return null;
-  return Math.min(100, Math.max(0, ((Date.now() - inicio) / (fin - inicio)) * 100));
-}
+/**
+ * Antes de medir nada se monta todo, que es el comportamiento de siempre.
+ * `calcularVentana` recorta en cuanto hay una fila de la que sacar el alto.
+ */
+const VENTANA_INICIAL: Ventana = { desde: 0, hasta: LOTE, huecoArriba: 0, huecoAbajo: 0 };
 
 interface LiveTvViewProps {
-  /** Todos los canales; alimenta los recuentos de cada categoría. */
-  channels: Channel[];
+  /**
+   * Cuántos canales tiene cada categoría en la lista COMPLETA.
+   *
+   * Viene contado del servidor en vez de recorrer los canales aquí: el HTML
+   * solo trae los que se pintan al abrir (ver `canales-empaquetados.ts`), así
+   * que contar sobre lo recibido diría «Deportes 20» durante el primer segundo.
+   */
+  recuentos: Map<string, number>;
+  /** Total de la lista completa. Es el número grande de la cabecera. */
+  totalCanales: number;
+  /**
+   * Los canales que se ven de cajón, los primeros de «Todas».
+   *
+   * Solo ahí: dentro de una categoría concreta o con una búsqueda escrita,
+   * subirlos sería contestar otra pregunta distinta de la que se hizo.
+   */
+  deLaCasa: Channel[];
+  /**
+   * Los que han dejado de responder en este aparato.
+   *
+   * Se marcan, **no se esconden**: estos canales resucitan constantemente y
+   * quien quiera probar uno lo tiene al final de su lista. Ver
+   * `canales-caidos.ts`.
+   */
+  idsCaidos: Set<number>;
   /** Los que pasan el filtro actual de categoría y búsqueda. */
   visible: Channel[];
   tuned: Channel | null;
@@ -64,7 +99,10 @@ interface LiveTvViewProps {
 }
 
 export function LiveTvView({
-  channels,
+  recuentos,
+  totalCanales,
+  deLaCasa,
+  idsCaidos,
   visible,
   tuned,
   favorites,
@@ -79,29 +117,29 @@ export function LiveTvView({
   sinHueco,
 }: LiveTvViewProps) {
   /**
-   * Elegir un canal cambia la señal de arriba y sube a verla.
-   *
-   * Antes saltaba a pantalla completa, y eso convertía explorar la lista en un
-   * viaje de ida: para probar otro canal había que salir del reproductor,
-   * volver a Canales y buscar dónde estabas. Ahora la emisión cambia en la
-   * tarjeta que ya está en esta misma pantalla, y la lista se queda donde
-   * estaba. Ir a pantalla completa sigue siendo una decisión aparte.
+   * Elegir un canal cambia la señal de arriba sin mover la lista. Saltar a
+   * pantalla completa convertía explorar en un viaje de ida: para probar otro
+   * canal había que salir, volver a Canales y buscar dónde estabas.
    */
-  const sintonizar = (canal: Channel) => {
-    onSelect(canal);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const sintonizar = useCallback(
+    (canal: Channel) => {
+      onSelect(canal);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    },
+    [onSelect],
+  );
+
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
+  // Estables, para que el `memo` de `ChannelRow` sirva de algo. Ver allí.
+  const enfocarFila = useCallback((canal: Channel) => setSeleccionado(canal.id), []);
+  const alternarFavorito = useCallback(
+    (canal: Channel) => onToggleFavorite(canal.id),
+    [onToggleFavorite],
+  );
   const [pintadas, setPintadas] = useState(LOTE);
   const centinela = useRef<HTMLDivElement | null>(null);
-
-  const recuentos = useMemo(() => {
-    const mapa = new Map<string, number>();
-    for (const channel of channels) {
-      mapa.set(channel.category, (mapa.get(channel.category) ?? 0) + 1);
-    }
-    return mapa;
-  }, [channels]);
+  const contenedorFilas = useRef<HTMLDivElement | null>(null);
+  const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
 
   // Cambiar de categoría o buscar reinicia el recorte durante el render: con un
   // efecto se pintaría un fotograma con las filas de la categoría anterior.
@@ -130,9 +168,102 @@ export function LiveTvView({
     return () => observador.disconnect();
   }, [visible.length]);
 
-  const filas = visible.slice(0, pintadas);
+  /**
+   * El lote manda cuántas filas EXISTEN; la ventana, cuántas se montan. Hacen
+   * falta las dos: el lote evita calcular 7.822 posiciones al abrir, y la
+   * ventana evita que tras bajar un rato queden montadas para siempre —eran
+   * ~141.000 nodos y 15.650 `[data-nav]`, que `use-spatial-nav` recorre con
+   * `getBoundingClientRect()` **en cada pulsación de flecha**—.
+   */
+  /**
+   * Los canales de la casa, arriba del todo. Solo en «Todas» y sin búsqueda:
+   * si alguien pidió Deportes, subirle el Canal 3 es contestar otra pregunta.
+   *
+   * **Manda sobre el apartado de los caídos, a propósito**: si Guatevisión no
+   * responde hoy sigue siendo el canal de siempre, y nadie quiere buscarlo
+   * entre 7.822 para ver si volvió. Se queda con su marca de «sin señal».
+   */
+  const conLaCasaDelante = useMemo(() => {
+    if (category !== "Todas" || search.trim() || deLaCasa.length === 0) return visible;
+    const suyos = new Set(deLaCasa.map((canal) => canal.id));
+    const presentes = deLaCasa.filter((canal) => visible.some((item) => item.id === canal.id));
+    if (presentes.length === 0) return visible;
+    return [...presentes, ...visible.filter((canal) => !suyos.has(canal.id))];
+  }, [visible, deLaCasa, category, search]);
+
+  const enLote = useMemo(
+    () => conLaCasaDelante.slice(0, pintadas),
+    [conLaCasaDelante, pintadas],
+  );
+  const filas = useMemo(
+    () => enLote.slice(ventana.desde, ventana.hasta),
+    [enLote, ventana.desde, ventana.hasta],
+  );
+
+  /**
+   * Recalcular la ventana al desplazarse.
+   *
+   * El alto de fila se mide de la primera montada en vez de codificarlo: es
+   * `clamp()` contra el viewport, así que en un televisor no vale lo mismo que
+   * en un teléfono. Mientras no haya nada que medir, `calcularVentana` devuelve
+   * la lista entera — el comportamiento de antes, que es el seguro.
+   *
+   * `requestAnimationFrame` para no hacer un `setState` por cada evento de
+   * desplazamiento, y `ventanaCambio` para no repintar cuando los índices no se
+   * han movido.
+   */
+  useEffect(() => {
+    const contenedor = contenedorFilas.current;
+    if (!contenedor) return undefined;
+
+    let pendiente = 0;
+    const recalcular = () => {
+      pendiente = 0;
+      const primera = contenedor.firstElementChild as HTMLElement | null;
+      const altoFila = primera ? primera.getBoundingClientRect().height + HUECO_FILA : 0;
+      const siguiente = calcularVentana({
+        desplazamiento: window.scrollY,
+        alto: window.innerHeight,
+        inicioLista: contenedor.getBoundingClientRect().top + window.scrollY,
+        altoFila,
+        total: enLote.length,
+      });
+      setVentana((actual) => (ventanaCambio(actual, siguiente) ? siguiente : actual));
+    };
+
+    const alDesplazar = () => {
+      if (pendiente) return;
+      pendiente = requestAnimationFrame(recalcular);
+    };
+
+    recalcular();
+    window.addEventListener("scroll", alDesplazar, { passive: true });
+    window.addEventListener("resize", alDesplazar);
+    return () => {
+      if (pendiente) cancelAnimationFrame(pendiente);
+      window.removeEventListener("scroll", alDesplazar);
+      window.removeEventListener("resize", alDesplazar);
+    };
+  }, [enLote.length]);
+  /**
+   * Cuántos canales hay bajo el filtro actual, incluidos los que aún no han
+   * llegado.
+   *
+   * Sin esto, mientras el HTML solo trae el primer lote, la cabecera diría
+   * «60» a secas: parecería que la categoría entera son sesenta canales. Con
+   * una búsqueda escrita no hay forma de saberlo sin la lista completa, y ahí
+   * se cuenta lo que hay —que es además cuando antes llega el resto.
+   */
+  const totalDelFiltro = Math.max(
+    visible.length,
+    search.trim() ? 0 : category === "Todas" ? totalCanales : (recuentos.get(category) ?? 0),
+  );
+
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
-  const progreso = canal ? porcentaje(canal.currentStart, canal.currentEnd) : null;
+  const progreso = canal
+    ? // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
+      porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now())
+    : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
 
   return (
@@ -141,7 +272,7 @@ export function LiveTvView({
         <div className="livetv-heading">
           <h2>Canales</h2>
           <span>
-            {channels.length.toLocaleString("es-GT")} canales · {categories.length - 1} categorías
+            {totalCanales.toLocaleString("es-GT")} canales · {categories.length - 1} categorías
           </span>
         </div>
 
@@ -155,7 +286,12 @@ export function LiveTvView({
             aria-label="Buscar canal"
           />
           {search && (
-            <button type="button" onClick={() => onSearchChange("")} aria-label="Borrar búsqueda">
+            <button
+              type="button"
+              data-nav="button"
+              onClick={() => onSearchChange("")}
+              aria-label="Borrar búsqueda"
+            >
               <X size={15} />
             </button>
           )}
@@ -177,7 +313,7 @@ export function LiveTvView({
               }}
             >
               <span>{nombre}</span>
-              <em>{(nombre === "Todas" ? channels.length : (recuentos.get(nombre) ?? 0)).toLocaleString("es-GT")}</em>
+              <em>{(nombre === "Todas" ? totalCanales : (recuentos.get(nombre) ?? 0)).toLocaleString("es-GT")}</em>
             </button>
           ))}
         </nav>
@@ -186,9 +322,13 @@ export function LiveTvView({
           <div className="livetv-list-head">
             <h3>{category}</h3>
             <span>
-              {filas.length < visible.length
-                ? `${filas.length} de ${visible.length.toLocaleString("es-GT")}`
-                : visible.length.toLocaleString("es-GT")}
+              {/* Cuenta el LOTE, no la ventana. Lo que le importa a quien mira
+                  es cuántos canales hay disponibles para recorrer, no cuántas
+                  filas están montadas ahora mismo en el DOM — eso es un
+                  detalle de implementación que cambia con el desplazamiento. */}
+              {enLote.length < totalDelFiltro
+                ? `${enLote.length} de ${totalDelFiltro.toLocaleString("es-GT")}`
+                : totalDelFiltro.toLocaleString("es-GT")}
             </span>
           </div>
 
@@ -199,26 +339,41 @@ export function LiveTvView({
                 Ningún canal coincide con {search.trim() ? `«${search.trim()}»` : "esta categoría"}.
               </p>
               {search.trim() && (
-                <button type="button" className="secondary" onClick={() => onSearchChange("")}>
+                <button
+                  type="button"
+                  data-nav="button"
+                  className="secondary"
+                  onClick={() => onSearchChange("")}
+                >
                   Borrar búsqueda
                 </button>
               )}
             </div>
           ) : (
             <>
-              <div className="livetv-rows">
+              {/* Los huecos ocupan el sitio de las filas que no se montan.
+                  Sin ellos la barra de desplazamiento mediría solo lo pintado
+                  y daría tirones al bajar. */}
+              {ventana.huecoArriba > 0 && (
+                <div style={{ height: ventana.huecoArriba }} aria-hidden="true" />
+              )}
+              <div className="livetv-rows" ref={contenedorFilas}>
                 {filas.map((item) => (
                   <ChannelRow
                     key={item.id}
                     channel={item}
                     favorite={favorites.has(item.id)}
+                    caido={idsCaidos.has(item.id)}
                     selected={canal?.id === item.id}
-                    onFocus={() => setSeleccionado(item.id)}
-                    onPlay={() => sintonizar(item)}
-                    onToggleFavorite={() => onToggleFavorite(item.id)}
+                    onFocus={enfocarFila}
+                    onPlay={sintonizar}
+                    onToggleFavorite={alternarFavorito}
                   />
                 ))}
               </div>
+              {ventana.huecoAbajo > 0 && (
+                <div style={{ height: ventana.huecoAbajo }} aria-hidden="true" />
+              )}
               <div ref={centinela} aria-hidden="true" />
             </>
           )}

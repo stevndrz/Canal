@@ -1,20 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Cast } from "lucide-react";
 import {
-  ICONO_CAST,
+  extrasCast,
   ICONO_GUIA,
   PlayerControls,
 } from "@/components/player/player-controls";
+import { PanelEmision } from "@/components/player/panel-emision";
+import type { EstadoEmision } from "@/lib/telemetria";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
   type StreamPlayerState,
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
+import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useReloj } from "@/hooks/use-reloj";
 import { useCast } from "@/hooks/use-cast";
 
 interface FullscreenPlayerProps {
@@ -28,14 +32,13 @@ interface FullscreenPlayerProps {
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
   onExit: () => void;
-  clock: string;
+  /** La persona ha tocado el botón de sonido. Ver `recordarSilencio`. */
+  onSilencio?: (mudo: boolean) => void;
 }
 
-/* Cinco segundos, no cuatro. El tiempo que tarda alguien que no conoce los
-   iconos en decidir cuál pulsar es más largo que el de quien ya los reconoce, y
-   que la barra se vaya mientras dudas es justo lo que la hace sentir hostil.
-   Solo aplica en pantalla completa: el reproductor de Inicio lleva sus
-   controles debajo del vídeo, donde no tapan nada, y no los oculta nunca. */
+/* Cinco segundos, no cuatro: que la barra se vaya mientras dudas qué icono
+   pulsar es lo que la hace sentir hostil. Solo en pantalla completa — los
+   controles de Inicio van debajo del vídeo y no se ocultan nunca. */
 const CONTROLS_TIMEOUT = 5000;
 const GUIDE_TIMEOUT = 5000;
 
@@ -45,7 +48,7 @@ export function FullscreenPlayer({
   settings,
   onTune,
   onExit,
-  clock,
+  onSilencio,
 }: FullscreenPlayerProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,10 +79,18 @@ export function FullscreenPlayer({
    */
   const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
+  /**
+   * El reloj vive AQUÍ, el único sitio donde se pinta. En `Dashboard` bajaba
+   * como prop, y como `useReloj` cambia cada 20 segundos **re-renderizaba el
+   * árbol entero** —hasta 200 tarjetas— por un dato que allí no lee nadie. Ese
+   * era el tirón periódico en una tele vieja.
+   */
+  const clock = useReloj();
+
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el
   // elemento primero, ambos leen `.current` en el momento de actuar.
-  const { canCast, isCasting, startCasting, stopCasting, castError, dismissCastError } =
+  const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoElRef, channel.streamUrl, channel.name);
 
 
@@ -92,6 +103,44 @@ export function FullscreenPlayer({
     needsUserGesture: false,
   });
 
+
+  /**
+   * Desde cuándo se está en ESTE canal. Se marca al montar y al zapear, no al
+   * empezar a reproducir: cuenta el rato que llevas viendo, y una recarga del
+   * stream a mitad de partido no lo reinicia.
+   *
+   * El reloj es un sistema externo, así que leerlo va en un efecto y no en el
+   * render — de ahí la excepción de abajo. El precio es un render de más al
+   * zapear; a un segundo de resolución no se ve.
+   */
+  // `undefined` hasta que el efecto la fije: sin marca no hay módulo, que es
+  // justo lo que hace `modulosDeEmision` con un dato ausente. Un cero aquí
+  // sacaría un «T+ 490.000:00:00» en el primer fotograma.
+  const [desde, setDesde] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDesde(Date.now());
+  }, [channel.id]);
+
+  /**
+   * En qué está la emisión, dicho sin inventar nada.
+   *
+   * `sintonizando` no es un adorno: mientras el `<video>` no tenga altura no ha
+   * llegado ni un fotograma, así que decir «EN VIVO» sobre una pantalla negra
+   * sería mentir justo cuando la persona está mirando a ver si funciona.
+   */
+  const estado: EstadoEmision = state.streamError
+    ? "sin-senal"
+    : !state.isPlaying
+      ? "pausa"
+      : state.alto
+        ? "vivo"
+        : "sintonizando";
+
+  const lectura = useMemo(
+    () => ({ ancho: state.ancho, alto: state.alto, bitrate: state.bitrate, desde }),
+    [state.ancho, state.alto, state.bitrate, desde],
+  );
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -127,25 +176,87 @@ export function FullscreenPlayer({
     };
   }, [channel.id, wake]);
 
-  // El mando manda: ↑↓ zapea, OK abre la guía, Atrás sale.
+  /** Tocar la imagen pausa y reanuda, y despierta la barra. */
+  const alTocar = useCallback(
+    (evento: React.MouseEvent) => {
+      if (!esToqueEnElVideo(evento.target)) return;
+      playerRef.current?.togglePlay();
+      wake();
+    },
+    [wake],
+  );
+
+  /**
+   * Recorrer la barra de controles con el mando. `use-spatial-nav` está apagado
+   * aquí a propósito —las flechas zapean—, así que **no había forma de llegar a
+   * la barra**: los botones existían y solo servían con ratón o con el dedo.
+   * La primera pulsación entra por Pausar, no por donde caiga el DOM.
+   */
+  const moverFoco = useCallback(
+    (delta: number) => {
+      wake();
+      const barra = containerRef.current?.querySelector(".player-bar");
+      const botones = barra ? [...barra.querySelectorAll<HTMLElement>("[data-nav]")] : [];
+      if (botones.length === 0) return;
+      const actual = botones.indexOf(document.activeElement as HTMLElement);
+      botones[actual === -1 ? 0 : (actual + delta + botones.length) % botones.length].focus();
+    },
+    [wake],
+  );
+
+  /**
+   * El mando manda:
+   *
+   *   ↑ ↓        cambiar de canal
+   *   ← →        recorrer la barra de controles
+   *   OK         pulsar el botón enfocado; si no hay ninguno, abrir la guía
+   *   ⏯ ⏵ ⏸      reproducir o pausar
+   *   Atrás      salir
+   *
+   * ← y → zapeaban, repitiendo lo de ↑ y ↓ y dejando la barra inalcanzable. Y
+   * faltaban las teclas de reproducción que Tizen y webOS sí mandan: pausar
+   * pedía espacio o «k», que en un mando no existen.
+   */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const enLaBarra = (document.activeElement as HTMLElement | null)?.closest(".player-bar");
+
       switch (event.key) {
         case "ArrowUp":
-        case "ArrowLeft":
           event.preventDefault();
           zap(-1);
           return;
         case "ArrowDown":
-        case "ArrowRight":
           event.preventDefault();
           zap(1);
           return;
+        /**
+         * ← y → dependen de si la guía está abierta: con ella recorren canales
+         * —lo que dice su propia pista—, y sin ella llevan el foco por la barra
+         * de controles, que es lo que no se podía alcanzar de otra forma.
+         */
+        case "ArrowLeft":
+          event.preventDefault();
+          if (showGuide) zap(-1);
+          else moverFoco(-1);
+          return;
+        case "ArrowRight":
+          event.preventDefault();
+          if (showGuide) zap(1);
+          else moverFoco(1);
+          return;
         case "Enter":
+          // Con un botón enfocado, el navegador ya lo pulsa solo: interceptar
+          // aquí sería robarle el OK al control que la persona acaba de elegir.
+          if (enLaBarra) return;
           event.preventDefault();
           if (showGuide) setShowGuide(false);
           else openGuide();
           return;
+        case "MediaPlayPause":
+        case "MediaPlay":
+        case "MediaPause":
+        case "MediaStop":
         case " ":
         case "k":
           event.preventDefault();
@@ -164,7 +275,20 @@ export function FullscreenPlayer({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zap, showGuide, openGuide, wake]);
+  }, [zap, showGuide, openGuide, wake, moverFoco]);
+
+  /**
+   * Al esconderse la barra, soltar el foco.
+   *
+   * Si no, queda enfocado un botón invisible: la siguiente pulsación de OK
+   * activaría algo que no se está viendo, y la de ← o → seguiría recorriendo
+   * una barra que ya no está.
+   */
+  useEffect(() => {
+    if (showControls) return;
+    const activo = document.activeElement as HTMLElement | null;
+    if (activo?.closest(".player-bar")) activo.blur();
+  }, [showControls]);
 
 
   return (
@@ -172,8 +296,10 @@ export function FullscreenPlayer({
       ref={containerRef}
       className="absolute inset-0 z-20 bg-black"
       onMouseMove={wake}
-      // Doble clic o doble toque: pantalla completa real, como en cualquier
-      // reproductor de escritorio.
+      /* Tocar la imagen pausa y reanuda; el doble toque va a pantalla completa
+         real. Sin temporizador a propósito: el segundo clic deshace el primero
+         y todo queda como estaba antes de expandir. Ver `live-card.tsx`. */
+      onClick={alTocar}
       onDoubleClick={toggleFullscreen}
     >
       <StreamPlayer
@@ -183,23 +309,19 @@ export function FullscreenPlayer({
         onStateChange={setState}
       />
 
-      {/* Cabecera */}
+      {/* Cabecera: el panel de la emisión. Ver `panel-emision.tsx`. */}
       <div
-        className={`tv-safe pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between gap-6 bg-gradient-to-b from-black/78 to-transparent py-7 transition-opacity duration-300 ${
+        className={`tv-safe pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/78 to-transparent py-7 transition-opacity duration-300 ${
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <div className="flex min-w-0 items-center gap-4.5">
-          <span className="flex shrink-0 items-center gap-2.5 text-[13px] font-semibold tracking-[0.16em]">
-            <span className="live-dot h-[7px] w-[7px] rounded-full bg-live" />
-            EN VIVO
-          </span>
-          <span className="truncate text-[22px] font-semibold tracking-tight">
-            {channel.number} · {channel.name}
-          </span>
-          <span className="shrink-0 text-sm text-zinc-100/50">{channel.category}</span>
-        </div>
-        <span className="shrink-0 font-mono text-sm text-zinc-100/60">{clock}</span>
+        <PanelEmision
+          channel={channel}
+          estado={estado}
+          lectura={lectura}
+          reloj={clock}
+          activo={showControls}
+        />
       </div>
 
       {/* Controles */}
@@ -223,6 +345,7 @@ export function FullscreenPlayer({
           }}
           onToggleMute={() => {
             playerRef.current?.toggleMute();
+            onSilencio?.(!state.isMuted);
             wake();
           }}
           onPrev={() => zap(-1)}
@@ -245,24 +368,17 @@ export function FullscreenPlayer({
               expanded: showGuide,
               onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
             },
-            ...(canCast
-              ? [
-                  {
-                    id: "cast",
-                    label: isCasting ? "Dejar de transmitir" : "Transmitir a la TV",
-                    icon: ICONO_CAST,
-                    active: isCasting,
-                    pressed: isCasting,
-                    onClick: isCasting ? stopCasting : startCasting,
-                  },
-                ]
-              : []),
+            ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
           ]}
         />
 
-        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-zinc-100/50 xl:flex">
+        {/* La pista cambia con el contexto, porque las teclas cambian: con la
+            guía abierta ← → recorren canales, y sin ella llevan el foco por
+            esta misma barra. Una chuleta que miente es peor que ninguna. */}
+        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-soft xl:flex">
           <span>↑↓ cambiar canal</span>
-          <span>OK guía</span>
+          <span>{showGuide ? "← → recorrer" : "← → controles"}</span>
+          <span>{showGuide ? "OK sintonizar" : "OK guía"}</span>
           <span>Atrás salir</span>
         </div>
       </div>
@@ -284,13 +400,13 @@ export function FullscreenPlayer({
       {castError && (
         <div className="tv-safe absolute inset-x-0 top-24 z-30 flex items-start gap-2.5 rounded-2xl border border-white/12 bg-app/92 p-4 text-sm backdrop-blur-xl">
           <Cast aria-hidden="true" strokeWidth={1.5} className="mt-0.5 h-4 w-4 shrink-0 text-live" />
-          <p className="flex-1 text-zinc-100/85">{castError}</p>
+          <p className="flex-1 text-muted">{castError}</p>
           <button
             type="button"
             data-nav="button"
             onClick={dismissCastError}
             aria-label="Cerrar aviso"
-            className="shrink-0 rounded-lg px-2 text-zinc-100/50 hover:text-accent"
+            className="shrink-0 rounded-lg px-2 text-soft hover:text-accent"
           >
             ✕
           </button>

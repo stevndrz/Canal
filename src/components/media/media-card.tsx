@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import { Tv } from "lucide-react";
 import type { CardItem } from "@/lib/media-item";
 
@@ -11,6 +11,41 @@ interface MediaCardProps {
   /** `true` pinta 2:3 (póster de catálogo); `false`, tarjeta de canal glass. */
   posterMode?: boolean;
   active?: boolean;
+}
+
+/**
+ * El estado del arte de una tarjeta: descargado, fallido, y cómo enterarse.
+ *
+ * La carrera que motiva el `refImg`: el HTML llega con la `<img>` dentro y el
+ * navegador la empieza a bajar de inmediato, pero los handlers de React solo
+ * existen tras hidratar — y en una tele lenta eso tarda segundos. Los pósters
+ * cuya descarga termina antes de entonces no reciben nunca su `load`, `loaded`
+ * queda falso para siempre y la carátula se queda negra «cargando». Preguntar
+ * a la propia imagen (`complete`) cuando el nodo entra en el árbol lo cierra.
+ */
+function useArte(artwork: string | null | undefined) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  // La tarjeta se reutiliza al cambiar de riel: sin reiniciar loaded/failed,
+  // el arte nuevo heredaba el estado del anterior y no aparecía.
+  const [artPrevio, setArtPrevio] = useState(artwork);
+  if (artPrevio !== artwork) {
+    setArtPrevio(artwork);
+    setLoaded(false);
+    setFailed(false);
+  }
+
+  const alCargar = useCallback(() => setLoaded(true), []);
+  const alFallar = useCallback(() => setFailed(true), []);
+
+  const refImg = useCallback((imagen: HTMLImageElement | null) => {
+    if (!imagen || !imagen.complete) return;
+    if (imagen.naturalWidth > 0) setLoaded(true);
+    else setFailed(true);
+  }, []);
+
+  return { loaded, failed, refImg, alCargar, alFallar };
 }
 
 /**
@@ -35,19 +70,8 @@ function ChannelGlassCard({
   onFocus?: (item: CardItem) => void;
   active?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
   const artwork = item.backdrop ?? item.poster;
-
-  // La tarjeta se reutiliza al cambiar de riel: sin reiniciar loaded/failed,
-  // el logo nuevo heredaba el estado del anterior y no aparecía.
-  const [artPrevio, setArtPrevio] = useState(artwork);
-  if (artPrevio !== artwork) {
-    setArtPrevio(artwork);
-    setLoaded(false);
-    setFailed(false);
-  }
+  const { loaded, failed, refImg, alCargar, alFallar } = useArte(artwork);
 
   const showArt = Boolean(artwork) && !failed;
   const progress = item.progress ?? 0;
@@ -61,7 +85,14 @@ function ChannelGlassCard({
       onClick={() => onOpen(item)}
       onMouseEnter={() => onFocus?.(item)}
       onFocus={() => onFocus?.(item)}
-      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-neutral-900/60 p-6 text-left shadow-lg backdrop-blur-md transition-all duration-300 hover:border-white/20 ${
+      /* Fondo plano y no `backdrop-blur`: esta clase la lleva CADA tarjeta de
+         canal —hasta 120 en Inicio—, y `backdrop-filter` obliga al compositor
+         a copiar el fondo, desenfocarlo y recomponer en cada fotograma en que
+         algo se mueva encima. En la GPU de un televisor es de lo más caro que
+         hay, y a tres metros el resultado es indistinguible de un negro al
+         85 %. Y `transition-all` transicionaba TODA propiedad animable,
+         incluidas las que fuerzan maquetación; aquí solo hacen falta dos. */
+      className={`group relative flex w-full flex-col overflow-hidden rounded-2xl border bg-surface/85 p-6 text-left shadow-lg transition-[border-color,transform] duration-300 hover:border-white/20 ${
         active ? "border-white/30" : "border-white/10"
       }`}
     >
@@ -78,24 +109,25 @@ function ChannelGlassCard({
             alt=""
             loading="lazy"
             decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            ref={refImg}
+            onLoad={alCargar}
+            onError={alFallar}
             className={`h-full w-full p-2 object-contain transition-transform duration-300 group-hover:scale-105 ${
               loaded ? "" : "opacity-0"
             }`}
           />
         ) : item.mark ? (
-          <span className="absolute inset-0 grid place-items-center font-mono text-2xl tracking-widest text-neutral-500">
+          <span className="absolute inset-0 grid place-items-center font-mono text-2xl tracking-widest text-soft">
             {item.mark}
           </span>
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-neutral-600">
+          <span className="absolute inset-0 grid place-items-center text-soft">
             <Tv size={28} aria-hidden="true" />
           </span>
         )}
 
         {item.badge && (
-          <span className="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-200 ring-1 ring-white/10">
+          <span className="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
             {item.badge}
           </span>
         )}
@@ -108,10 +140,14 @@ function ChannelGlassCard({
       </div>
 
       {/* Metadatos técnicos: número + categoría en mono discreto. */}
-      <strong className="mt-3 truncate font-semibold text-sm text-neutral-200 transition-colors group-hover:text-white">
+      <strong className="mt-3 truncate font-semibold text-sm text-muted transition-colors group-hover:text-white">
         {item.title}
       </strong>
-      <span className="mt-1 flex items-center gap-1 font-mono text-xs text-neutral-400">
+      {/* `card-canal-meta` no pinta nada por sí sola: existe para que el riel
+          compacto pueda apagar esta línea. A 168px de ancho «CH 102 ·
+          Guatemala» parte el número en dos renglones y trunca la categoría a
+          «Guatema…», que es peor que no decir nada. */}
+      <span className="card-canal-meta mt-1 flex items-center gap-1 font-mono text-xs text-muted">
         {item.metaRight && <span>CH {item.metaRight}</span>}
         {item.metaRight && item.meta && <span aria-hidden="true">·</span>}
         {item.meta && <span className="truncate">{item.meta}</span>}
@@ -139,17 +175,8 @@ function PosterCard({
   onFocus?: (item: CardItem) => void;
   active?: boolean;
 }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
   const artwork = item.poster;
-
-  const [artPrevio, setArtPrevio] = useState(artwork);
-  if (artPrevio !== artwork) {
-    setArtPrevio(artwork);
-    setLoaded(false);
-    setFailed(false);
-  }
+  const { loaded, failed, refImg, alCargar, alFallar } = useArte(artwork);
 
   const showArt = Boolean(artwork) && !failed;
   const progress = item.progress ?? 0;
@@ -167,7 +194,7 @@ function PosterCard({
     >
       {/* Cartel vertical 2/3: la imagen cubre el marco completo. */}
       <div
-        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-neutral-800 to-neutral-950 shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
+        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-app shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
       >
         {showArt ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -176,8 +203,9 @@ function PosterCard({
             alt=""
             loading="lazy"
             decoding="async"
-            onLoad={() => setLoaded(true)}
-            onError={() => setFailed(true)}
+            ref={refImg}
+            onLoad={alCargar}
+            onError={alFallar}
             className={`object-cover w-full h-full rounded-xl transition-opacity duration-300 ${
               loaded ? "opacity-100" : "opacity-0"
             }`}
@@ -187,13 +215,13 @@ function PosterCard({
             {item.mark}
           </span>
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-neutral-600">
+          <span className="absolute inset-0 grid place-items-center text-soft">
             <Tv size={42} aria-hidden="true" />
           </span>
         )}
 
         {item.badge && (
-          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-neutral-200 ring-1 ring-white/10">
+          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
             {item.badge}
           </span>
         )}

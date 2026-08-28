@@ -34,14 +34,10 @@ const MAX_CHANNELS = 50_000;
 const EPG_CACHE_MS = 10 * 60 * 1000;
 
 /**
- * Tope de espera de la guía, deliberadamente corto.
- *
- * Los horarios son un adorno: la guía de canales tiene que salir aunque el
- * servidor del EPG no conteste. Muchas listas apuntan a servicios en planes
- * gratuitos que se duermen y tardan medio minuto en despertar; sin este tope,
- * esa espera se comía el tiempo de la función y la página no llegaba a
- * pintarse. Un fallo aquí se cachea igual que un acierto, así que solo la
- * primera visita paga la espera.
+ * Tope de espera de la guía, deliberadamente corto: los horarios son un adorno
+ * y la lista tiene que salir aunque el EPG no conteste. Muchas listas apuntan a
+ * servicios gratuitos que se duermen medio minuto, y esa espera se comía el
+ * tiempo de la función. Un fallo se cachea igual que un acierto.
  */
 const EPG_TIMEOUT_MS = 5000;
 
@@ -61,6 +57,25 @@ export async function fetchEpg(url: string): Promise<EpgGuide | null> {
 }
 
 async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
+  /**
+   * Solo `https:`. Es el ÚNICO punto donde contenido remoto —el `url-tvg` de
+   * dentro del M3U— decide a dónde sale una petición del servidor: quien
+   * controle esa lista tendría si no un primitivo de petición saliente, y los
+   * títulos que devuelva se pintan en la guía. El riesgo aparece al apuntar
+   * `M3U_URL` a una lista pública, que es lo que invita a hacer el README.
+   */
+  let destino: URL;
+  try {
+    destino = new URL(url);
+  } catch {
+    console.error(`❌ La URL de la guía EPG no es válida — ${url}`);
+    return null;
+  }
+  if (destino.protocol !== "https:") {
+    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${url}`);
+    return null;
+  }
+
   try {
     const res = await fetch(url, {
       cache: "no-store",
@@ -149,17 +164,12 @@ function desfaseEnMs(tz: string | undefined): number {
 }
 
 /**
- * Interpreta una guía XMLTV.
- *
- * Se apoya en dos pasadas separadas porque son dos trabajos distintos:
- * la primera construye el índice de **nombre → id** y la segunda la lista de
- * programas por canal. Estaban juntas en una sola función con dos bucles
- * anidados —lo que CodeScene llama *Bumpy Road*— y para entender cualquiera de
- * las dos había que leer las dos.
+ * Interpreta una guía XMLTV, en dos pasadas separadas porque son dos trabajos:
+ * el índice de **nombre → id** y la lista de programas por canal.
  *
  * Con expresiones regulares y no con un analizador de XML a propósito: estas
- * guías pesan decenas de megabytes y montar un DOM entero para sacar cuatro
- * atributos por nodo costaría más memoria de la que tiene un televisor.
+ * guías pesan decenas de megabytes y montar un DOM para sacar cuatro atributos
+ * por nodo costaría más memoria de la que tiene un televisor.
  */
 export function parseXmltv(xml: string): EpgGuide {
   return {

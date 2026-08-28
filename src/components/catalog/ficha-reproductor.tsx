@@ -1,12 +1,34 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
-import { buildEmbedUrl, getProviders } from "@/lib/catalog/providers";
-import type { MediaType, PlaybackSource } from "@/lib/catalog/types";
+import {
+  buildEmbedUrl,
+  getProviders,
+  ordenarParaTelevisor,
+  type EmbedProvider,
+} from "@/lib/catalog/providers";
+import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
+import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
+
+/**
+ * Cuánto se espera antes de ofrecer el cambio de servidor.
+ *
+ * Suficiente para que un embed lento arranque —una tele vieja tarda—, poco
+ * para no dejar a nadie mirando una rueda sin saber que hay salida.
+ */
+const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
+
+/**
+ * Lo mismo, para los proveedores con puerta antirrobot. Cuatro segundos: de
+ * esos ya se sabe cómo fallan, así que se baja a lo justo para no cortarle el
+ * arranque a una tele lenta. Esperar doce a algo que no va a pasar es lo que
+ * se sentía como «se queda cargando».
+ */
+const ESPERA_CON_PUERTA_MS = 4_000;
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -32,6 +54,8 @@ export function FichaReproductor({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
+  servidoresIniciales,
 }: {
   fuente: PlaybackSource;
   titulo: string;
@@ -41,6 +65,13 @@ export function FichaReproductor({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  /** Lo decide el servidor con el `User-Agent`; ver `respaldo`. */
+  enTelevisor: boolean;
+  /**
+   * Los servidores que **ya se comprobó** que tienen el título, calculados en
+   * el servidor antes de pintar. Ver `lib/catalog/disponibilidad.ts`.
+   */
+  servidoresIniciales?: ServidorStream[];
 }) {
   if (fuente.kind === "manual") {
     return (
@@ -76,17 +107,18 @@ export function FichaReproductor({
       temporada={temporada}
       episodio={episodio}
       spokenInSpanish={spokenInSpanish}
+      enTelevisor={enTelevisor}
+      servidoresIniciales={servidoresIniciales}
     />
   );
 }
 
 /**
- * El reproductor cuando el título viene del catálogo de TMDB.
+ * El reproductor cuando el título viene de TMDB.
  *
- * Mientras `/api/stream` responde se enseña ya el iframe de VidSrc, armado en
- * el cliente con las plantillas de siempre: la primera imagen tarda lo mismo
- * que antes. Cuando llega la lista, todos los servidores quedan como botones y
- * el activo por defecto es el primero (un embed, instantáneo).
+ * Mientras `/api/stream` responde ya se enseña el iframe del primer proveedor
+ * que cubra el tipo, armado en el cliente con las mismas plantillas. Cuando
+ * llega la lista, el activo por defecto es ese mismo, así que no parpadea.
  */
 function ReproductorCatalogo({
   titulo,
@@ -95,6 +127,8 @@ function ReproductorCatalogo({
   temporada,
   episodio,
   spokenInSpanish,
+  enTelevisor,
+  servidoresIniciales,
 }: {
   titulo: string;
   tmdbId: number;
@@ -102,29 +136,194 @@ function ReproductorCatalogo({
   temporada: number;
   episodio: number;
   spokenInSpanish: boolean;
+  enTelevisor: boolean;
+  servidoresIniciales?: ServidorStream[];
 }) {
-  const servidores = useServidores(tmdbId, titulo, mediaType, temporada, episodio);
+  const servidores = useServidores(
+    tmdbId,
+    titulo,
+    mediaType,
+    temporada,
+    episodio,
+    servidoresIniciales,
+  );
   // La elección manual vive y muere con este componente: el padre lo monta con
   // una key distinta por título/episodio, así que aquí nunca llega una elección
   // vieja de otro capítulo.
   const [elegidoId, setElegidoId] = useState<string | null>(null);
+  /**
+   * Servidores descartados para esta ficha, por dos vías:
+   *
+   * - **Automática**, cuando NUESTRO marco se recarga sin parar
+   *   (`marco-en-bucle.ts`); las recargas de un marco anidado son invisibles.
+   * - **A mano**, cuando la persona dice que no se ve. Cubre todo lo demás,
+   *   que es mucho: desde fuera de un iframe ajeno no se sabe si el vídeo
+   *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
+   *   el código, nunca.
+   */
+  const [descartados, setDescartados] = useState<string[]>([]);
+  const cargas = useRef<ConteoDeCargas | null>(null);
+  /**
+   * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
+   * booleano: así al cambiar de servidor no hay que apagar nada —un `setState`
+   * dentro de un efecto y su cascada—, basta comparar contra el activo.
+   */
+  const [avisarPara, setAvisarPara] = useState<string | null>(null);
+  /**
+   * Si el mando puede entrar dentro del vídeo del proveedor. Empieza en
+   * `false`, y ese es el detalle que quita los pop-ups: los popunder necesitan
+   * un **gesto DENTRO del marco** o el navegador bloquea `window.open` él
+   * solo. Sin foco cruzado no hay clic dentro, y sin clic no hay pestaña.
+   *
+   * No es una jaula: el botón de al lado se lo entrega cuando hace falta.
+   */
+  const [marcoAbierto, setMarcoAbierto] = useState(false);
+  const marcoRef = useRef<HTMLIFrameElement | null>(null);
 
-  // Fallback inmediato: el mismo iframe de VidSrc que se veía antes de que
-  // existiera esta ruta. Si `/api/stream` falla, es lo que queda en pantalla.
-  const vidSrcUrl = useMemo(() => {
-    const vidsrc = getProviders().find((provider) => provider.id === "vidsrc");
-    return vidsrc
-      ? buildEmbedUrl(vidsrc, mediaType, { tmdbId, season: temporada, episode: episodio })
+  /**
+   * Respaldo inmediato mientras `/api/stream` responde, y si falla. Es **el
+   * primero de la lista que cubra este tipo**, o sea el que llegará como
+   * `servidores[0]`. Fijado a VidSrc eran dos cargas y un parpadeo, y encima
+   * VidSrc es justo el que no arranca en un televisor.
+   */
+  const respaldo = useMemo<ServidorStream | null>(() => {
+    // Si el servidor ya mandó la lista comprobada, no hay nada que adivinar:
+    // su primero es un servidor que TIENE el título. Adivinar aquí es lo que
+    // hacía que en una película sin Vimeus se viera su «Not Found» hasta que
+    // respondiera `/api/stream`.
+    if (servidoresIniciales && servidoresIniciales.length > 0) return servidoresIniciales[0];
+
+    // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
+    // sabe preservar la memoización de un `return` dentro de un bucle y el
+    // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
+    const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+    const candidatos = lista.map((provider) => ({
+      provider,
+      url: buildEmbedUrl(provider, mediaType, {
+        tmdbId,
+        season: temporada,
+        episode: episodio,
+      }),
+    }));
+    const primero = candidatos.find(
+      (candidato): candidato is { provider: EmbedProvider; url: string } => candidato.url !== null
+    );
+    return primero
+      ? {
+          id: primero.provider.id,
+          // «Servidor 1» y no la etiqueta que trae `getProviders()`: esa numera
+          // sobre la lista COMPLETA, y en series —donde Vimeus no cubre— el
+          // primero disponible se llamaría «Servidor 2». `/api/stream` ya
+          // renumera después de filtrar; esto hace lo mismo para que el
+          // respaldo no cante mientras llega.
+          label: "Servidor 1",
+          tipo: "embed",
+          url: primero.url,
+          puertaAntirrobot: primero.provider.puertaAntirrobot,
+          subtitulos: primero.provider.spanishSubtitles,
+        }
       : null;
-  }, [mediaType, tmdbId, temporada, episodio]);
+  }, [mediaType, tmdbId, temporada, episodio, enTelevisor, servidoresIniciales]);
 
-  const activo: ServidorStream | null =
-    servidores.find((servidor) => servidor.id === elegidoId) ??
-    // El primero de la lista: un embed, instantáneo.
-    servidores[0] ??
-    (vidSrcUrl
-      ? { id: "vidsrc", label: "VidSrc", tipo: "embed" as const, url: vidSrcUrl }
-      : null);
+  // Elegido manual, si no el primero de la lista (un embed, instantáneo), y
+  // como último recurso el respaldo de arriba. Memoizado para que la identidad
+  // no cambie con cada render: de ella cuelga la lista que reinicia o no al
+  // reproductor.
+  const activo: ServidorStream | null = useMemo(() => {
+    // Un servidor que se recarga en bucle no es una opción: se salta, aunque
+    // sea el elegido a mano, porque ahí no se ve nada de todos modos.
+    const sirve = (servidor: ServidorStream) => !descartados.includes(servidor.id);
+    const utiles = servidores.filter(sirve);
+    const elegido = utiles.find((servidor) => servidor.id === elegidoId);
+    const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
+    return elegido ?? utiles[0] ?? deRespaldo;
+  }, [elegidoId, servidores, respaldo, descartados]);
+
+  /**
+   * Cada vez que NUESTRO marco carga un documento. Sirve para el proveedor que
+   * se recarga a sí mismo: uno sano carga una vez, uno en bucle ocho veces en
+   * cinco segundos, y al pasarse se descarta y `activo` salta al siguiente, lo
+   * que corta el bucle en seco.
+   *
+   * **Y solo para eso**: si quien se recarga es un marco ANIDADO —VidSrc y su
+   * puerta de Turnstile— esto no se dispara (medido: 14 navegaciones, 1
+   * evento). Ese caso se evita ordenando los proveedores, y si aun así pasa lo
+   * corta la persona con el botón de abajo.
+   */
+  const descartar = useCallback((servidorId: string) => {
+    setDescartados((previos) =>
+      previos.includes(servidorId) ? previos : [...previos, servidorId],
+    );
+  }, []);
+
+  /**
+   * El reloj de «esto no arranca». No mide si el vídeo va —desde fuera de un
+   * iframe ajeno no se puede—, solo cuánto lleva mirando la persona. Pasado
+   * ese rato se le ofrece el cambio: preguntar en vez de adivinar.
+   */
+  const servidorActivoId = activo?.id;
+
+  /** Cada servidor empieza cerrado: cambiar de uno no hereda el permiso. */
+  const [servidorDelPermiso, setServidorDelPermiso] = useState<string | null>(null);
+  const abierto = marcoAbierto && servidorDelPermiso === servidorActivoId;
+
+  const abrirMarco = useCallback(() => {
+    if (!servidorActivoId) return;
+    setServidorDelPermiso(servidorActivoId);
+    setMarcoAbierto(true);
+    // El foco se entrega en el mismo gesto: con un mando, si no se mueve solo,
+    // la persona se queda pulsando flechas sin que pase nada.
+    requestAnimationFrame(() => marcoRef.current?.focus());
+  }, [servidorActivoId]);
+
+  useEffect(() => {
+    if (!servidorActivoId) return;
+    const reloj = setTimeout(
+      () => setAvisarPara(servidorActivoId),
+      activo?.puertaAntirrobot ? ESPERA_CON_PUERTA_MS : ESPERA_ANTES_DE_OFRECER_MS,
+    );
+    return () => clearTimeout(reloj);
+  }, [servidorActivoId, activo?.puertaAntirrobot]);
+
+  const ofrecerCambio = avisarPara === servidorActivoId;
+
+  const alCargarMarco = useCallback(() => {
+    const servidorId = activo?.id;
+    if (!servidorId) return;
+    const veredicto = registrarCarga(cargas.current, servidorId, Date.now());
+    cargas.current = veredicto.conteo;
+    if (veredicto.enBucle) descartar(servidorId);
+  }, [activo?.id, descartar]);
+
+  /**
+   * La lista de streams debe conservar la identidad entre renders. El
+   * reproductor rearranca la emisión cuando cambia el objeto `stream` que
+   * recibe; recrear el array inline en cada render —cuando llega la lista de
+   * servidores, al elegir otro, con cualquier parpadeo— reiniciaba el vídeo
+   * desde cero: el «se repite el reproductor» reportado en televisores.
+   */
+  const streamDirecto = useMemo<ManualStream[]>(
+    () => (activo ? [{ label: titulo, url: activo.url, type: "auto" }] : []),
+    [titulo, activo],
+  );
+
+  // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
+  // rueda girando para siempre como hacía antes.
+  if (!activo && descartados.length > 0) {
+    return (
+      <section className="ficha-reproductor">
+        <div className="ficha-sin-fuente">
+          <Info aria-hidden="true" />
+          <p>Ningún servidor llegó a cargar</p>
+          <span>
+            Se probaron todos. En el navegador de un televisor es lo habitual cuando sus
+            comprobaciones antirrobot no pasan. Prueba desde el teléfono, o usa «Mi enlace»
+            con un enlace propio.
+          </span>
+        </div>
+      </section>
+    );
+  }
 
   if (!activo) {
     return (
@@ -141,28 +340,26 @@ function ReproductorCatalogo({
           {activo.tipo === "video" ? (
             /* Enlace directo (.mp4/.m3u8) de un addon: reproductor HTML5
                propio con hls.js — la única vía sin anuncios. */
-            <NativePlayer
-              streams={[{ label: titulo, url: activo.url, type: "auto" }]}
-              title={titulo}
-            />
-          ) : activo.id === "vimeus" ? (
-            /* Vimeus es el único que tolera el sandbox —y por tanto el único
-               con los popups bloqueados de verdad—. VidSrc y VideoEasy se
-               niegan a cargar dentro de un frame restringido, así que esos
-               van sin él: si meten popups, el botón «atrás» del navegador
-               sigue siendo la defensa. */
-            <iframe
-              src={activo.url}
-              title={titulo}
-              allowFullScreen
-              allow="autoplay; encrypted-media; fullscreen"
-              referrerPolicy="origin"
-              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
-            />
+            <NativePlayer streams={streamDirecto} title={titulo} />
           ) : (
+            /* Sin `sandbox`. Se puso para que los guiones de publicidad no
+               pudieran navegar la ventana entera, y no cumplió: el bucle de
+               recargas que perseguía vive en un marco anidado y se recarga a
+               sí mismo, cosa que el sandbox no impide. Lo único que consiguió
+               fue que los proveedores lo detectaran y se negaran a reproducir
+               («iframe sandbox detected»). Se retira entero. */
             <iframe
+              // Un marco nuevo por servidor: cambiar solo el `src` deja dentro
+              // el historial del anterior, y con él su bucle de recargas.
+              key={activo.id}
+              ref={marcoRef}
               src={activo.url}
               title={titulo}
+              onLoad={alCargarMarco}
+              /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta
+                 los pop-ups: sin gesto dentro del marco, el navegador ya
+                 bloquea `window.open` por su cuenta. Ver `marcoAbierto`. */
+              tabIndex={abierto ? 0 : -1}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
@@ -170,10 +367,75 @@ function ReproductorCatalogo({
           )}
         </div>
 
+        {/* Acciones, no lecciones.
+
+            Aquí se explicaba en un párrafo qué proveedor traía subtítulos y
+            cuál se recargaba en los televisores. Era información verdadera y
+            en el sitio equivocado: quien está mirando una pantalla que no
+            arranca no quiere leer sobre servidores, quiere pasar al siguiente.
+            Los subtítulos ya se ven donde toca —la insignia de cada botón del
+            selector de abajo— y aquí solo quedan los mandos.
+
+            **«Probar otro servidor» se queda, y es necesario.** La
+            comprobación del servidor (`disponibilidad.ts`) solo cubre «no
+            tengo ese título». Los otros fallos —que lo tenga pero su
+            reproductor dé error, o que su puerta antirrobot dé vueltas en un
+            marco nieto— siguen sin poder verse desde fuera de un iframe ajeno
+            (medido: 14 navegaciones reales, 1 evento `load`). Es lo único que
+            cubre TODOS los modos de fallo, incluidos los que aún no
+            conocemos.
+
+            UNA sola barra al pie del vídeo, no dos apiladas: en un televisor
+            cada barra empuja hacia abajo lo de después, y la salida acababa
+            fuera de pantalla. */}
+        {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
+            siempre un texto de relleno para que no quedara una caja vacía, y
+            la respuesta correcta es no pintar la caja. */}
+        {(descartados.length > 0 || (ofrecerCambio && activo) || !abierto) && (
+        <div className="ficha-aviso" role="status">
+          {descartados.length > 0 && (
+            <span>
+              Se {descartados.length === 1 ? "saltó" : "saltaron"} {descartados.length}{" "}
+              servidor{descartados.length === 1 ? "" : "es"}.
+            </span>
+          )}
+
+          {/* La salida primero: cuando hace falta, es lo que se busca. */}
+          {ofrecerCambio && activo && (
+            <button
+              type="button"
+              data-nav="button"
+              className="ficha-aviso-accion"
+              onClick={() => descartar(activo.id)}
+            >
+              Probar otro servidor
+            </button>
+          )}
+
+          {/* Entregar el mando al reproductor ajeno, a propósito. Mientras no
+              se pulse, el foco no entra en el marco y sus popunder se quedan
+              sin el gesto que necesitan para abrir pestañas. */}
+          {!abierto && (
+            <button
+              type="button"
+              data-nav="button"
+              className="ficha-aviso-accion is-suave"
+              onClick={abrirMarco}
+            >
+              Usar los controles del servidor
+            </button>
+          )}
+        </div>
+        )}
+
         {/* Al pie del vídeo, no suelto en la página: es un control de este
             reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
         <ServerPicker
-          providers={servidores.map((servidor) => ({ id: servidor.id, label: servidor.label }))}
+          providers={servidores.map((servidor) => ({
+            id: servidor.id,
+            label: servidor.label,
+            subtitulos: servidor.subtitulos,
+          }))}
           activeId={activo.id}
           onSelect={setElegidoId}
           nota={
@@ -201,9 +463,11 @@ function useServidores(
   titulo: string,
   mediaType: MediaType,
   temporada: number,
-  episodio: number
+  episodio: number,
+  /** Lo que ya calculó el servidor: se parte de ahí en vez de de una lista vacía. */
+  iniciales: ServidorStream[] = [],
 ): ServidorStream[] {
-  const [servidores, setServidores] = useState<ServidorStream[]>([]);
+  const [servidores, setServidores] = useState<ServidorStream[]>(iniciales);
 
   useEffect(() => {
     // Cada parámetro por separado: son primitivos y el efecto solo se repite

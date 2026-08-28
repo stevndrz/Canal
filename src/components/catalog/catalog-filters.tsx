@@ -1,17 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { GeneroPanel } from "./genero-panel";
 import type { TmdbGenre } from "@/lib/catalog/tmdb";
 import type { OrdenCatalogo } from "@/lib/catalog/discover";
 
 /**
  * Filtros del catálogo: tipo y género.
  *
- * Los géneros van en un carrusel horizontal deslizable —son más de los que
- * caben en una línea y el scroll horizontal de una fila de píldoras es un
- * patrón que cualquier usuario de Netflix ya tiene en la mano—. Sigue siendo
- * navegación por enlaces (`?tipo=…&genero=…`), no estado de cliente: se puede
- * compartir, el botón atrás deshace y funciona sin JavaScript.
+ * Cuatro paradas de foco en total: tres píldoras de tipo y una que abre el
+ * panel de géneros. Los veintiún géneros estaban aquí sueltos, partidos en dos
+ * líneas centradas, y con la cabecera entera eso pedía ~26 pulsaciones de
+ * mando antes de llegar al contenido. Ver `genero-panel.tsx`.
+ *
+ * Todo sigue siendo navegación por enlaces (`?tipo=…&genero=…`), no estado de
+ * cliente: se puede compartir, el botón atrás deshace y funciona sin
+ * JavaScript.
  */
 export type MediaFilter = "todo" | "movie" | "tv";
 
@@ -21,26 +25,21 @@ const TIPOS: { id: MediaFilter; label: string }[] = [
   { id: "tv", label: "Series" },
 ];
 
-/** Fila de tipo (Todo / Películas / Series): tres píldoras, siempre centradas. */
+/** Tipo y género en una sola línea centrada: cuatro píldoras y ya está. */
 const FILA_TIPOS = "flex flex-wrap items-center justify-center gap-2 py-2 w-full";
 
-/** Píldoras de género. En móvil son un carrusel que scrollea de lado —el
-    patrón que cualquier usuario de Netflix ya tiene en la mano—. Desde `md`
-    dejan de desbordar: fluyen en líneas centradas, así ninguna píldora
-    («Ciencia ficción») muere cortada contra el borde. Sigue siendo navegación
-    por enlaces (`?tipo=…&genero=…`), no estado de cliente. */
-const CARRUSEL =
-  "flex items-center gap-2 overflow-x-auto whitespace-nowrap py-2 w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden md:flex-wrap md:justify-center";
-
 /** Píldora activa/inactiva, con contraste suficiente para leerse a 3 metros. */
+/**
+ * La píldora de filtro, con la clase que ya existe.
+ *
+ * Antes se armaba aquí con utilidades sueltas, y salía distinta de la que usa
+ * la lista de temporadas de una serie —la misma pieza, dos veces—. La de
+ * `globals.css` además está pensada para un mando: 44px de alto mínimo en vez
+ * de los ~34 que dejaba `py-1.5`, y tipografía que crece con la pantalla en
+ * vez de 14px fijos en un televisor de 1920.
+ */
 function chip(activo: boolean): string {
-  const base = "inline-block shrink-0 rounded-full px-4 py-1.5 text-sm";
-  return (
-    base +
-    (activo
-      ? " bg-white text-black font-semibold shadow-md"
-      : " bg-neutral-800/80 text-neutral-300 hover:bg-neutral-700 hover:text-white transition")
-  );
+  return `catalogo-chip ${activo ? "is-active" : ""}`;
 }
 
 export interface GenerosValidos {
@@ -91,31 +90,27 @@ export function CatalogFilters({
 }) {
   return (
     <div className="w-full">
-      <div className={FILA_TIPOS} role="group" aria-label="Tipo de contenido">
+      <div className={FILA_TIPOS} role="group" aria-label="Filtros del catálogo">
         {TIPOS.map(({ id, label }) => (
-          <Link key={id} href={href(id, genero, generosValidos, orden)} aria-current={tipo === id ? "true" : undefined} className={chip(tipo === id)}>
+          <Link
+            key={id}
+            data-nav="button"
+            href={href(id, genero, generosValidos, orden)}
+            aria-current={tipo === id ? "true" : undefined}
+            className={chip(tipo === id)}
+          >
             {label}
           </Link>
         ))}
-      </div>
 
-      {generos.length > 0 && (
-        <div className={CARRUSEL} role="group" aria-label="Género">
-          <Link href={href(tipo, null, generosValidos, orden)} aria-current={genero === null ? "true" : undefined} className={chip(genero === null)}>
-            Todos los géneros
-          </Link>
-          {generos.map((g) => (
-            <Link
-              key={g.id}
-              href={href(tipo, g.id, generosValidos, orden)}
-              aria-current={genero === g.id ? "true" : undefined}
-              className={chip(genero === g.id)}
-            >
-              {g.name}
-            </Link>
-          ))}
-        </div>
-      )}
+        {generos.length > 0 && (
+          <GeneroPanel
+            generos={generos}
+            activo={genero}
+            hrefDe={(id) => href(tipo, id, generosValidos, orden)}
+          />
+        )}
+      </div>
     </div>
   );
 }

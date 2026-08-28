@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import type { ResolvedCatalogItem, CatalogSection } from "@/lib/catalog/types";
-import { catalogToCard, type CardItem } from "@/lib/media-item";
+import { type CardItem } from "@/lib/media-item";
 import { MediaCard } from "@/components/media/media-card";
 import { MediaRail } from "@/components/media/media-rail";
 
@@ -36,10 +35,9 @@ function abrir(router: ReturnType<typeof useRouter>, card: CardItem) {
  * `memo` de cada tarjeta y una cuadrilla entera se volvería a pintar por un
  * cambio que no la afecta.
  */
-export function CatalogGrid({ items }: { items: ResolvedCatalogItem[] }) {
+export function CatalogGrid({ tarjetas }: { tarjetas: CardItem[] }) {
   const router = useRouter();
   const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
-  const tarjetas = useMemo(() => items.map(catalogToCard), [items]);
   return (
     <div className="grid-results">
       {tarjetas.map((card) => (
@@ -49,37 +47,43 @@ export function CatalogGrid({ items }: { items: ResolvedCatalogItem[] }) {
   );
 }
 
-export function CatalogRows({ sections }: { sections: CatalogSection[] }) {
+/** Una fila ya convertida a tarjetas. Ver `FilaDeTarjetas`. */
+export interface FilaDeTarjetas {
+  title: string;
+  href?: string;
+  tarjetas: CardItem[];
+}
+
+/**
+ * Las filas del catálogo, **ya convertidas a tarjetas**.
+ *
+ * Antes esto recibía `CatalogSection[]`, o sea las fichas completas de TMDB, y
+ * llamaba a `catalogToCard` aquí dentro. Como este archivo es de cliente, eso
+ * obligaba a **serializar las fichas enteras** en la carga de la página:
+ * medido, 200 títulos viajando con `overview`, `tagline`, `generos`,
+ * `reparto`, `autoria`, `seasons`, `duracion` y `source` — y una tarjeta solo
+ * pinta título, póster, año y nota. Todo lo demás era peso muerto en cada
+ * entrada a la sección, y es lo que hacía que «Cine y series» tardara.
+ *
+ * Es la misma regla que `types.ts` aplica a los canales: si un campo no se
+ * pinta, no se manda. Convertir en el servidor cuesta lo mismo y lo que cruza
+ * la red es solo lo que se ve.
+ */
+export function CatalogRows({ filas }: { filas: FilaDeTarjetas[] }) {
   const router = useRouter();
   const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
   return (
     <>
-      {sections.map((section) => (
-        <FilaCatalogo key={section.title} section={section} onAbrir={onAbrir} />
+      {filas.map((fila) => (
+        <MediaRail
+          key={fila.title}
+          title={fila.title}
+          href={fila.href}
+          items={fila.tarjetas}
+          onOpen={onAbrir}
+          posterMode
+        />
       ))}
     </>
-  );
-}
-
-/**
- * Una fila del catálogo. Componente propio para poder derivar las tarjetas con
- * `useMemo` a nivel de hook: en el cuerpo del `map` del padre eso sería ilegal.
- */
-function FilaCatalogo({
-  section,
-  onAbrir,
-}: {
-  section: CatalogSection;
-  onAbrir: (card: CardItem) => void;
-}) {
-  const tarjetas = useMemo(() => section.items.map(catalogToCard), [section.items]);
-  return (
-    <MediaRail
-      title={section.title}
-      href={section.href}
-      items={tarjetas}
-      onOpen={onAbrir}
-      posterMode
-    />
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link2, Play, Trash2 } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
@@ -47,6 +47,16 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const escribiendoAun = !/^(magnet:\?|https?:\/\/\S)/i.test(limpiaAhora);
   const aviso = resuelta?.ok ? resuelta.aviso : escribiendoAun ? "" : (resuelta?.motivo ?? "");
   const firmado = resuelta?.ok ? esEnlaceFirmado(resuelta.url) : false;
+
+  /**
+   * Identidad estable para el reproductor: el efecto de carga rearranca la
+   * emisión cuando cambia el objeto `stream`, así que recrear el array en
+   * cada render reiniciaría el vídeo con cada tecla del formulario de arriba.
+   */
+  const streamsActivos = useMemo(
+    () => (activa ? [{ label: activa.titulo, url: activa.url, type: "auto" as const }] : []),
+    [activa],
+  );
 
   const enviar = (evento: React.FormEvent) => {
     evento.preventDefault();
@@ -122,7 +132,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
 
           <NativePlayer
             key={activa.id}
-            streams={[{ label: activa.titulo, url: activa.url, type: "auto" }]}
+            streams={streamsActivos}
             title={activa.titulo}
           />
         </section>

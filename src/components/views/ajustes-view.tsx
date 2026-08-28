@@ -35,7 +35,7 @@ function Row({
     <div className="flex min-h-[76px] flex-col items-start gap-3 border-b border-white/[0.06] px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4.5">
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium">{label}</p>
-        <p className="mt-1 text-[13px] text-zinc-500 sm:truncate">{hint}</p>
+        <p className="mt-1 text-[13px] text-soft sm:truncate">{hint}</p>
       </div>
       <div className="flex w-full shrink-0 justify-start sm:w-auto sm:justify-end">{children}</div>
     </div>
@@ -65,7 +65,7 @@ function Toggle({
     >
       <span
         className={`absolute top-[3px] h-[26px] w-[26px] rounded-full transition-[left] duration-200 ${
-          checked ? "left-[27px] bg-accent-on" : "left-[3px] bg-zinc-400"
+          checked ? "left-[27px] bg-accent-on" : "left-[3px] bg-soft"
         }`}
       />
     </button>
@@ -100,10 +100,10 @@ export function AjustesView({
 
       <div className="ajustes-columna">
         <section>
-          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-zinc-600">Fuente</h2>
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Fuente</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">
             <Row label="Lista M3U" hint={m3uSource}>
-              <span className="shrink-0 text-sm text-zinc-500">M3U_URL</span>
+              <span className="shrink-0 text-sm text-soft">M3U_URL</span>
             </Row>
             <Row
               label="Actualizar ahora"
@@ -117,7 +117,7 @@ export function AjustesView({
         </section>
 
         <section>
-          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-zinc-600">Reproducción</h2>
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Reproducción</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">
             <Row label="Motor de video" hint="HLS.js para .m3u8 · mpegts.js para .ts y .flv">
               <button
@@ -206,7 +206,7 @@ export function AjustesView({
         </section>
 
         <section>
-          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-zinc-600">
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">
             Este dispositivo
           </h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">

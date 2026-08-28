@@ -1,8 +1,11 @@
-import { getProviders, buildEmbedUrl } from "@/lib/catalog/providers";
+import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
+import { esTelevisorUA } from "@/lib/dispositivo";
 import { fetchTitle } from "@/lib/catalog/tmdb";
 import { fuentesDirectas, stremioActivo } from "@/lib/resolvers/stremio";
 import type { MediaType } from "@/lib/catalog/types";
 import type { ServidorStream } from "@/lib/resolvers/types";
+import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
+import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
 
 /**
  * Lista de servidores para reproducir un título: **responde al instante**,
@@ -15,10 +18,21 @@ import type { ServidorStream } from "@/lib/resolvers/types";
  * 2. **Servidores «Directo»**: si hay addons de Stremio configurados
  *    (`STREMIO_MANIFESTS`), enlaces .mp4/.m3u8 que la ficha reproduce en su
  *    propio `<video>` — la vía sin anuncios.
+ *
+ * Sin `dynamic = "force-dynamic"`: bajo `cacheComponents` las exportaciones de
+ * configuración de segmento ya no existen en rutas. Sigue respondiendo en
+ * vivo —lee la petición y consulta disponibilidad por request— porque no hay
+ * nada que cachear aquí, igual que antes.
  */
-export const dynamic = "force-dynamic";
-
 export async function GET(request: Request) {
+  /**
+   * Esta es la ruta que más amplifica de la app: con `STREMIO_MANIFESTS`
+   * configurado, UNA petición entrante dispara una llamada a TMDB más una por
+   * cada manifiesto, todas en paralelo. Sin freno, es el mejor sitio para
+   * hacer daño con el menor esfuerzo.
+   */
+  if (excedeLimite(identificarCliente(request))) return respuestaLimite();
+
   const params = new URL(request.url).searchParams;
 
   const tmdbId = Number(params.get("tmdbId"));
@@ -31,21 +45,24 @@ export async function GET(request: Request) {
   const season = Number(params.get("season")) || undefined;
   const episode = Number(params.get("episode")) || undefined;
 
-  const servidores: ServidorStream[] = [];
-  for (const provider of getProviders()) {
-    const url = buildEmbedUrl(provider, type, { tmdbId, season, episode });
-    if (url) {
-      servidores.push({ id: provider.id, label: provider.label, url });
-    }
-  }
+  /**
+   * En un televisor, los de puerta antirrobot van los últimos. Ver
+   * `ordenarParaTelevisor`: allí está el porqué y lo que cuesta.
+   */
+  const enTelevisor = esTelevisorUA(request.headers.get("user-agent") ?? "");
+  const candidatos = servidoresEmbed(type, { tmdbId, season, episode }, enTelevisor);
 
-  // Numeración de corrido DESPUÉS del filtro: los proveedores que no cubren
-  // este tipo (solo-películas…) no deben dejar huecos que parezcan botones
-  // rotos.
-  let numero = 0;
-  for (const servidor of servidores) {
-    if (servidor.id !== "propio") servidor.label = `Servidor ${++numero}`;
-  }
+  /**
+   * Fuera los que ya han dicho que no tienen este título.
+   *
+   * Antes se ofrecían igual y quien estuviera delante se encontraba el «Not
+   * Found» del proveedor dentro del marco. Ver `disponibilidad.ts`: solo se
+   * pregunta a los que responden con un estado que ya se comprobó qué
+   * significa, y si la pregunta falla el servidor se conserva.
+   */
+  const servidores: ServidorStream[] = numerarServidores(
+    await servidoresConElTitulo(candidatos),
+  );
 
   // --- Servidores «Directo»: enlaces sin anuncios vía addons Stremio -------
   if (stremioActivo()) {

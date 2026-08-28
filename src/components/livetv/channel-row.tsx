@@ -4,6 +4,7 @@ import { Play, Star, Tv } from "lucide-react";
 import { memo, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
+import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 
 /**
  * Una fila de canal en la lista.
@@ -20,45 +21,57 @@ import { channelMark } from "@/lib/channels";
  *     nada que pedir al aparecer.
  *   - Añadidos el número de canal y el monograma de respaldo.
  */
-function porcentaje(inicio?: number, fin?: number): number | null {
-  if (!inicio || !fin || fin <= inicio) return null;
-  const transcurrido = ((Date.now() - inicio) / (fin - inicio)) * 100;
-  return Math.min(100, Math.max(0, transcurrido));
-}
-
-function hora(millis?: number): string {
-  if (!millis) return "";
-  return new Date(millis).toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" });
-}
-
 interface ChannelRowProps {
   channel: Channel;
   favorite: boolean;
+  /**
+   * Ha dejado de responder en este aparato.
+   *
+   * Se apaga un poco y lleva una marca, pero **sigue siendo pulsable**: estos
+   * canales resucitan constantemente y esconder cosas en silencio ya fue un
+   * error antes en este proyecto. Ver `canales-caidos.ts`.
+   */
+  caido?: boolean;
   selected: boolean;
-  onFocus: () => void;
-  onPlay: () => void;
-  onToggleFavorite: () => void;
+  /**
+   * Los tres reciben el canal a propósito.
+   *
+   * Sin argumento, quien pinta la lista tenía que crear tres flechas nuevas por
+   * fila y por render, y eso **anulaba el `memo` de abajo**: cualquier cambio
+   * repintaba las ~50 filas montadas enteras, iconos incluidos. Pasando el
+   * canal, el padre puede tener manejadores estables y el `memo` por fin
+   * acierta. Las flechas de aquí dentro no molestan: solo son escuchadores de
+   * DOM, no props que comparar.
+   */
+  onFocus: (channel: Channel) => void;
+  onPlay: (channel: Channel) => void;
+  onToggleFavorite: (channel: Channel) => void;
 }
 
 function ChannelRowBase({
   channel,
   favorite,
+  caido,
   selected,
   onFocus,
   onPlay,
   onToggleFavorite,
 }: ChannelRowProps) {
   const [logoFalla, setLogoFalla] = useState(false);
-  const progreso = porcentaje(channel.currentStart, channel.currentEnd);
+  // El reloj se lee aquí y no en un temporizador: una barra de progreso por
+  // fila son hasta 120 intervalos vivos, y en una tele eso cuesta más que la
+  // precisión que da. Se queda en la hora del montaje.
+  // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
+  const progreso = porcentajeDelPrograma(channel.currentStart, channel.currentEnd, Date.now());
   const hayLogo = Boolean(channel.logoUrl) && !logoFalla;
 
   return (
     <article
-      className={`livetv-row row-virtual ${selected ? "is-selected" : ""}`}
-      onMouseEnter={onFocus}
-      onFocus={onFocus}
+      className={`livetv-row row-virtual ${selected ? "is-selected" : ""} ${caido ? "is-caido" : ""}`}
+      onMouseEnter={() => onFocus(channel)}
+      onFocus={() => onFocus(channel)}
     >
-      <button type="button" data-nav="row" className="livetv-row-main" onClick={onPlay}>
+      <button type="button" data-nav="row" className="livetv-row-main" onClick={() => onPlay(channel)}>
         <span className="livetv-row-logo">
           {hayLogo ? (
             // Igual que en el resto del diseño: `<img>` plano. Las URLs de logo
@@ -77,6 +90,7 @@ function ChannelRowBase({
           <span className="livetv-row-title">
             <strong>{channel.name}</strong>
             <i className="livetv-quality">{channel.number}</i>
+            {caido && <i className="livetv-caido" title="No respondió las últimas veces">sin señal</i>}
           </span>
 
           {channel.currentProgram ? (
@@ -111,7 +125,7 @@ function ChannelRowBase({
         type="button"
         data-nav="button"
         className={`livetv-row-star ${favorite ? "is-active" : ""}`}
-        onClick={onToggleFavorite}
+        onClick={() => onToggleFavorite(channel)}
         aria-pressed={favorite}
         aria-label={favorite ? `Quitar ${channel.name} de favoritos` : `Añadir ${channel.name} a favoritos`}
       >

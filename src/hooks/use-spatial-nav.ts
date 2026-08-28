@@ -19,16 +19,11 @@ interface Candidate {
 }
 
 /**
- * Un candidato tiene que poder recibir el foco de verdad.
- *
- * `.focus()` sobre un `<div>` corriente no hace nada y no avisa: el motor cree
- * que movió el foco, el foco se queda donde estaba y la navegación se atasca
- * sin ningún error en consola. Pasó exactamente eso al marcar el contenedor de
- * scroll de un carril con `data-nav`: al pulsar abajo desde la barra, ese div
- * enorme ganaba por cercanía y el foco no salía nunca de la barra.
- *
- * En vez de confiar en que nadie vuelva a marcar un elemento no enfocable, se
- * comprueba aquí.
+ * Un candidato tiene que poder recibir el foco de verdad: `.focus()` sobre un
+ * `<div>` corriente no hace nada y no avisa, así que la navegación se atasca
+ * sin un solo error en consola. Pasó al marcar con `data-nav` el contenedor de
+ * scroll de un carril: ese div enorme ganaba por cercanía y el foco no salía
+ * de la barra. Se comprueba aquí en vez de confiar en que no se repita.
  */
 const ENFOCABLES = new Set(["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "VIDEO"]);
 
@@ -230,6 +225,18 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       // El input de búsqueda con teclado físico manda sobre la navegación.
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
+
+      /**
+       * Un diálogo abierto manda sobre todo esto.
+       *
+       * Mientras hay un `role="dialog"` con el foco dentro, las teclas son
+       * suyas: sus flechas las mueve su propia rejilla y su Atrás lo cierra.
+       * Sin esta guarda pasaban las dos cosas a la vez —el foco se movía dos
+       * veces por pulsación, porque el diálogo y este hook lo empujaban cada
+       * uno por su lado— y Atrás cerraba el diálogo **y** salía de la sección
+       * entera de un tirón. Se vio con el panel de géneros del catálogo.
+       */
+      if (target?.closest?.('[role="dialog"]')) return;
 
       // Atrás se atiende siempre, incluso con el foco desactivado: es lo que
       // saca del reproductor en un televisor. Escribiendo en un campo,

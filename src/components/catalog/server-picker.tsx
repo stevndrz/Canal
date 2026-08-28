@@ -29,11 +29,11 @@ export function ServerPicker({
   nota,
 }: {
   /**
-   * Solo hace falta el par de lo visible: id estable y etiqueta. Antes pedía
-   * el proveedor entero de embeds; ahora los servidores pueden venir también
-   * de `/api/stream`, y a este control le da igual de dónde vengan.
+   * Solo hace falta lo visible: id estable, etiqueta y si trae subtítulos.
+   * Antes pedía el proveedor entero de embeds; ahora los servidores pueden
+   * venir también de `/api/stream`, y a este control le da igual de dónde.
    */
-  providers: { id: string; label: string }[];
+  providers: { id: string; label: string; subtitulos?: boolean }[];
   activeId: string;
   onSelect: (id: string) => void;
   nota?: React.ReactNode;
@@ -64,6 +64,13 @@ export function ServerPicker({
               className={`servidor ${activo ? "is-active" : ""}`}
             >
               {provider.label}
+              {/* Cuál trae subtítulos, escrito en el botón.
+
+                  Es lo primero que se busca, y sin decirlo «Servidor 2» no
+                  significa nada: hubo que reordenarlos en televisor porque el
+                  de los subtítulos no arranca ahí, y sin esta marca la persona
+                  solo notaba que los había perdido, sin saber dónde buscarlos. */}
+              {provider.subtitulos && <span className="servidor-marca">Subtítulos</span>}
             </button>
           );
         })}

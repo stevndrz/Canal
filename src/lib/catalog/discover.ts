@@ -2,19 +2,13 @@ import { fetchList, fetchPagina, searchTitles, type TmdbListEntry } from "./tmdb
 import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
 /**
- * Filas del catálogo servidas por TMDB.
+ * Filas del catálogo servidas por TMDB. El orden de `CATALOG_ROWS` es la
+ * prioridad en pantalla, y manda una idea: **lo grande primero**. Encabezan
+ * trending y popular GLOBAL, no una selección por idioma — con las filas de
+ * español delante arriba solo salían producciones locales con pocos votos.
  *
- * El orden de `CATALOG_ROWS` es la prioridad que se ve en pantalla, y manda
- * una sola idea: **lo grande primero**. La cabecera de la página son los
- * estrenos que todo el mundo conoce —trending y popular GLOBAL—, no una
- * selección por idioma: antes las filas de español encabezaban el catálogo y
- * arriba solo se veían producciones locales con pocos votos, aunque fueran
- * traducidas. Los títulos, sinopsis e imágenes siguen llegando en español
- * (`tmdbFetch` pide `language=es-MX` en todas las llamadas); lo único que
- * cambió es qué películas encabezan.
- *
- * Las filas "en español" no desaparecen: garantizan audio en español de
- * verdad, pero al final del catálogo, donde quien las busca las encuentra.
+ * El idioma no se pierde: `tmdbFetch` pide `language=es-MX` siempre, y las
+ * filas en español siguen ahí, al final, garantizando audio de verdad.
  */
 
 /** Géneros de TMDB usados abajo (los nombres los devuelve la API en español). */
@@ -120,7 +114,7 @@ const CATALOG_ROWS: RowSpec[] = [
  */
 const TMDB_ID_PREFIX = "tmdb-";
 
-export function toCatalogId(tmdbId: number): string {
+function toCatalogId(tmdbId: number): string {
   return `${TMDB_ID_PREFIX}${tmdbId}`;
 }
 
@@ -249,20 +243,4 @@ export async function fetchFiltered(
 /** Resultados de búsqueda, ya listos para pintar como cualquier otra ficha. */
 export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[]> {
   return (await searchTitles(query)).map(toCatalogItem);
-}
-
-/** Igual, pero con el recuento de páginas para poder seguir buscando. */
-export async function searchCatalogPagina(query: string, pagina = 1): Promise<PaginaCatalogo> {
-  const term = query.trim();
-  if (!term) return { items: [], pagina, totalPaginas: 0 };
-  const { entradas, totalPaginas } = await fetchPagina(
-    `/search/multi?query=${encodeURIComponent(term)}&include_adult=false&page=${pagina}`,
-    "movie"
-  );
-  return {
-    // `/search/multi` mezcla personas, que no encajan en ninguna ficha.
-    items: entradas.filter((e) => e.mediaType === "movie" || e.mediaType === "tv").map(toCatalogItem),
-    pagina,
-    totalPaginas,
-  };
 }

@@ -32,9 +32,18 @@ export interface CardItem {
   progress?: number;
   /** Monograma de respaldo cuando no hay ninguna imagen. */
   mark?: string;
-  /** Sinopsis; solo la usa el hero. */
-  overview?: string;
 }
+
+/**
+ * **Aquí NO va la sinopsis.** La tuvo, con el comentario «solo la usa el hero»
+ * — y era verdad a medias: el hero recibe la ficha completa
+ * (`ResolvedCatalogItem`), no una tarjeta, así que este campo no lo leía nadie.
+ * Mientras tanto viajaba en los 200 títulos del catálogo, y una sinopsis de
+ * TMDB son 300-600 caracteres.
+ *
+ * La regla es la misma que en `types.ts` para los canales: si un campo no se
+ * pinta, no se manda.
+ */
 
 /** Un canal en vivo visto como tarjeta. */
 export function channelToCard(channel: Channel, options?: { live?: boolean }): CardItem {
@@ -62,6 +71,5 @@ export function catalogToCard(item: ResolvedCatalogItem): CardItem {
     meta: item.mediaType === "tv" ? "Serie" : "Película",
     metaRight: item.year ? String(item.year) : undefined,
     mark: item.title.slice(0, 2).toUpperCase(),
-    overview: item.overview,
   };
 }

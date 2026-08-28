@@ -1,30 +1,55 @@
+import { Suspense } from "react";
 import { Clapperboard, Info, SearchX } from "lucide-react";
 import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
 import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
+import { NavegacionCatalogo } from "@/components/catalog/navegacion-catalogo";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
 import { TopNav } from "@/components/shell/top-nav";
+import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
+import { catalogToCard } from "@/lib/media-item";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
-export const dynamic = "force-dynamic";
+/**
+ * El catálogo es idéntico para todo el mundo: los filtros y la página van en
+ * la URL, no en la sesión.
+ *
+ * Antes había aquí un `revalidate = 3600`; bajo `cacheComponents` lo sustituye
+ * el `cacheLife("days")` que vive en `tmdb.ts`, junto a los datos — y las doce
+ * peticiones a TMDB ya no caducan cada hora por arte de un export que nadie
+ * veía.
+ */
 
-export default async function MoviesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{
-    q?: string;
-    tipo?: string;
-    genero?: string;
-    pagina?: string;
-    orden?: string;
-  }>;
-}) {
+/** Lo que la URL trae, ya saneado antes de tocar TMDB. */
+interface Filtro {
+  q?: string;
+  tipo?: string;
+  genero?: string;
+  pagina?: string;
+  orden?: string;
+}
+
+/**
+ * Todo el contenido bajo la barra: héroe, buscador, filtros y catálogo.
+ *
+ * La promesa de `searchParams` cruza el límite del Suspense SIN esperarse en
+ * la raíz de la página — ese detalle es exactamente lo que permite prerender
+ * el armazón (barra incluida) en build y servirlo al instante; la API
+ * dinámica se consume aquí dentro, cuando ya hay pantalla detrás. Las doce
+ * peticiones a TMDB que esto alimenta tardan medio segundo en caliente y
+ * hasta tres o más en frío, y antes bloqueaban el render COMPLETO de la ruta:
+ * pulsar «Cine y series» era mirar un esqueleto todo ese tiempo sin barra ni
+ * nada que hacer. Ahora la barra está arriba desde el primer fotograma y esto
+ * ocupa su lugar en cuanto hay datos: la API lenta retrasa las carátulas, no
+ * el entrar.
+ */
+async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam, orden: ordenParam } =
-    await searchParams;
+    await filtro;
   const query = q?.trim() ?? "";
 
   const tipo: MediaFilter = tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
@@ -100,7 +125,10 @@ export default async function MoviesPage({
   const contenido = cuadricula ? (
     cuadricula.items.length > 0 ? (
       <>
-        <CatalogGrid items={cuadricula.items} />
+        {/* La conversión a tarjeta ocurre AQUÍ, en el servidor, y no dentro de
+            `CatalogGrid`, que es de cliente: así cruza la red lo que se pinta y
+            no la ficha entera de TMDB. Ver `CatalogRows`. */}
+        <CatalogGrid tarjetas={cuadricula.items.map(catalogToCard)} />
         <Paginador pagina={cuadricula.pagina} totalPaginas={cuadricula.totalPaginas} href={enlacePagina} />
       </>
     ) : (
@@ -111,7 +139,13 @@ export default async function MoviesPage({
       />
     )
   ) : rows.length > 0 ? (
-    <CatalogRows sections={rows} />
+    <CatalogRows
+      filas={rows.map((fila) => ({
+        title: fila.title,
+        href: fila.href,
+        tarjetas: fila.items.map(catalogToCard),
+      }))}
+    />
   ) : (
     <EstadoVacio
       Icono={Clapperboard}
@@ -125,9 +159,7 @@ export default async function MoviesPage({
   );
 
   return (
-    <div className="app-shell bg-black">
-      <TopNav />
-
+    <>
       {destacado && <HeroDestacado item={destacado} />}
 
       {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
@@ -137,7 +169,19 @@ export default async function MoviesPage({
         {/* La búsqueda es reactiva en el cliente: mientras hay consulta,
             sustituye a estos hijos servidos por el servidor; al vaciar el
             campo, vuelven sin recargar nada. */}
-        <CatalogSearch initialQuery={query} orden={orden} conHero={Boolean(destacado)}>
+        <CatalogSearch
+          initialQuery={query}
+          orden={orden}
+          conHero={Boolean(destacado)}
+          /* La página no tenía ningún título propio, y eso era parte de por
+             qué se leía como «solo pelis»: lo único que la nombraba era la
+             barra de arriba, que además decía «Películas». */
+          titulo={
+            <section className="section-heading catalogo-encabezado">
+              <h2>Cine y series</h2>
+            </section>
+          }
+        >
           {!tmdbReady && (
             <p className="catalogo-aviso">
               <Info aria-hidden="true" />
@@ -159,6 +203,29 @@ export default async function MoviesPage({
           {contenido}
         </CatalogSearch>
       </div>
-    </div>
+    </>
+  );
+}
+
+export default async function MoviesPage({ searchParams }: { searchParams: Promise<Filtro> }) {
+  // La promesa NO se espera aquí: `searchParams` es una API dinámica y
+  // consumirla en la raíz convertiría TODO el armazón —la barra que da el
+  // «instantáneo» al clic— en algo servible solo tras un render completo.
+  // La recibe `SeccionCatalogo`, que vive debajo del `<Suspense>`.
+  return (
+    /* El mando: esta ruta vive fuera del shell, así que monta su propia
+       navegación espacial. Ver `navegacion-catalogo.tsx`. */
+    <NavegacionCatalogo>
+      <div className="app-shell bg-black">
+        <TopNav />
+
+        {/* El fallback es el MISMO esqueleto que el del segmento
+            (`loading.tsx`): a quien mira no le puede cambiar la pantalla dos
+            veces por un redibujado del mismo dibujo. */}
+        <Suspense fallback={<EsqueletoCatalogo />}>
+          <SeccionCatalogo filtro={searchParams} />
+        </Suspense>
+      </div>
+    </NavegacionCatalogo>
   );
 }

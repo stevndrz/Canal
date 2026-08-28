@@ -18,6 +18,16 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      /**
+       * `server-only` revienta a propósito fuera del servidor.
+       *
+       * Es su trabajo: convierte en error de compilación que un módulo con
+       * secretos cruce al navegador. Pero aquí no hay navegador ninguno —estas
+       * pruebas corren en Node— y sin este alias no se podría probar nada de
+       * lo que vive detrás de esa frontera, que es justo lo que más conviene
+       * probar. Se sustituye por un módulo vacío.
+       */
+      "server-only": fileURLToPath(new URL("./src/pruebas/server-only.ts", import.meta.url)),
     },
   },
   test: {

@@ -3,14 +3,20 @@ import { classifyChannel, compareByCategory, priorityRank } from "./categories";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
-import { serverConfig } from "@/lib/config";
+import { serverConfig } from "@/lib/config.server";
 
 /**
  * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
  * `page.tsx` al numerar) ni datos de EPG (se cruzan aparte, porque la guía es
  * una fuente independiente que puede fallar sin tumbar la lista de canales).
  */
-export type ParsedChannel = Omit<Channel, "id" | "currentProgram" | "nextProgram">;
+/**
+ * Un canal recién interpretado, antes de empaquetarlo. Sin `id` —es la
+ * posición— y **sin `number`**: se rellenaba aquí y el cliente lo sobrescribía
+ * al llegar, o sea 30 KB que se bajaban, se interpretaban y se tiraban. Ahora
+ * lo pone `desempaquetarCanales` en su misma pasada.
+ */
+export type ParsedChannel = Omit<Channel, "id" | "number">;
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
@@ -45,6 +51,14 @@ const M3U_TIMEOUT_MS = 8000;
 /** Cuánto se reutiliza la lista ya interpretada antes de volver a descargarla. */
 const PLAYLIST_CACHE_MS = 5 * 60 * 1000;
 
+/**
+ * Tope de tamaño de la lista. El tiempo de espera solo no protege: un origen
+ * rápido con un cuerpo enorme agota la memoria antes de que el reloj sirva de
+ * nada, y `response.text()` no tiene freno. 20 MB deja margen de sobra — la
+ * lista por defecto son 1,6 MB.
+ */
+const MAX_M3U_BYTES = 20 * 1024 * 1024;
+
 export function getM3uSourceUrl(): string {
   return serverConfig().m3uUrl;
 }
@@ -59,7 +73,25 @@ async function fetchM3uText(): Promise<string | null> {
       cache: "no-store",
       signal: AbortSignal.timeout(M3U_TIMEOUT_MS),
     });
-    if (response.ok) return await response.text();
+    if (response.ok) {
+      const declarado = Number(response.headers.get("content-length") || 0);
+      if (declarado && declarado > MAX_M3U_BYTES) {
+        console.error(
+          `❌ Lista M3U descartada por tamaño (${Math.round(declarado / 1024 / 1024)} MB) — ${source}`
+        );
+        return null;
+      }
+      // Y otra vez con el cuerpo ya leído: `content-length` puede faltar o
+      // mentir, así que la comprobación de verdad es esta.
+      const texto = await response.text();
+      if (texto.length > MAX_M3U_BYTES) {
+        console.error(
+          `❌ Lista M3U descartada por tamaño (${Math.round(texto.length / 1024 / 1024)} MB) — ${source}`
+        );
+        return null;
+      }
+      return texto;
+    }
     console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
   } catch (error) {
     const reason =
@@ -214,9 +246,6 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
 
     return {
       name,
-      // Provisional: withChannelNumbers() lo reemplaza según la categoría ya
-      // ordenada (101+, 201+...). Aquí solo hace falta que el campo exista.
-      number: String(index + 1),
       category: classifyChannel({
         name,
         group,

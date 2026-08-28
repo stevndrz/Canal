@@ -1,18 +1,28 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import type { Channel } from "@/lib/types";
-import type { CatalogSection } from "@/lib/catalog/types";
-import { channelToCard, catalogToCard, type CardItem } from "@/lib/media-item";
+import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
+import { channelToCard, type CardItem } from "@/lib/media-item";
 import { groupByCategory } from "@/lib/channels";
+import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
+import { FilaCasa } from "./fila-casa";
 
 interface HomeViewProps {
   channels: Channel[];
   tuned: Channel | null;
   favorites: Set<number>;
   recents: Channel[];
-  catalog: CatalogSection[];
+  /**
+   * Los canales que se ven de cajón, con su propio riel el primero de todos.
+   *
+   * Es lo que resuelve «que estén en la tele, en mi PC y en el teléfono de mi
+   * mamá» sin sincronizar nada: se configuran una vez en el despliegue y
+   * aparecen igual en todos los aparatos. Ver `publicConfig.canalesDeCasa`.
+   */
+  deLaCasa: Channel[];
+  catalog: FilaDeTarjetas[];
   /** Sintonizar sin salir de Inicio: cambia el canal de la tarjeta de arriba. */
   onSelect: (channel: Channel) => void;
   onOpenTitle: (mediaType: string, id: string) => void;
@@ -20,10 +30,17 @@ interface HomeViewProps {
   sinHueco?: boolean;
 }
 
-/** Cuántas categorías de canales se ofrecen antes de mandar a Canales. */
-const MAX_GRUPOS = 6;
-/** Un riel más largo que esto no lo recorre nadie; para eso está Canales. */
-const MAX_POR_RIEL = 20;
+/**
+ * Cuántas categorías se ofrecen antes de mandar a Canales, y cuántos canales
+ * lleva cada riel.
+ *
+ * Salen de `QUE_SE_PINTA` porque **son también los canales que el servidor
+ * manda en el HTML**: el recorte de la portada se calcula con estos dos
+ * números, así que subirlos aquí sin subirlos allí dejaría rieles a medias
+ * hasta que llegara el resto de la lista.
+ */
+const MAX_GRUPOS = QUE_SE_PINTA.grupos;
+const MAX_POR_RIEL = QUE_SE_PINTA.porGrupo;
 
 /**
  * Inicio: la señal en directo arriba, y todo lo demás debajo.
@@ -41,6 +58,7 @@ export function HomeView({
   tuned,
   favorites,
   recents,
+  deLaCasa,
   catalog,
   onSelect,
   onOpenTitle,
@@ -53,17 +71,50 @@ export function HomeView({
 
   const grupos = useMemo(() => groupByCategory(channels).slice(0, MAX_GRUPOS), [channels]);
 
-  const abrirCanal = (card: CardItem) => {
-    const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
-    // Una tarjeta de canal cambia lo que suena en la tarjeta de arriba; no
-    // salta a pantalla completa. Ir a pantalla completa se pide aparte.
-    if (canal) onSelect(canal);
-  };
+  /* Estables con `useCallback`: `MediaCard` está memoizada, y un manejador
+     nuevo por render anulaba el `memo` y repintaba las ~200 tarjetas de Inicio
+     cada vez que cambiaba cualquier cosa. Medido: 121 renders de tarjeta por
+     sintonizar un canal. */
+  const abrirCanal = useCallback(
+    (card: CardItem) => {
+      const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+      // Cambia lo que suena arriba; ir a pantalla completa se pide aparte.
+      if (canal) onSelect(canal);
+    },
+    [channels, onSelect],
+  );
 
-  const abrirFicha = (card: CardItem) => {
-    const [mediaType, ...resto] = card.key.split("-");
-    onOpenTitle(mediaType, resto.join("-"));
-  };
+  const abrirFicha = useCallback(
+    (card: CardItem) => {
+      const [mediaType, ...resto] = card.key.split("-");
+      onOpenTitle(mediaType, resto.join("-"));
+    },
+    [onOpenTitle],
+  );
+
+  /**
+   * Las tarjetas, calculadas una vez.
+   *
+   * `channelToCard` devuelve un objeto NUEVO cada vez, así que hacer el `map`
+   * dentro del JSX significaba que `MediaCard` —que está memoizada— recibía un
+   * `item` distinto por identidad en cada render y volvía a pintarse aunque no
+   * hubiera cambiado nada suyo. Medido: sintonizar un canal repintaba 121
+   * tarjetas.
+   */
+  const tarjetasRecientes = useMemo(() => recents.map((c) => channelToCard(c)), [recents]);
+  const tarjetasFavoritas = useMemo(
+    () => favoriteChannels.map((c) => channelToCard(c)),
+    [favoriteChannels],
+  );
+  const rielesDeCanal = useMemo(
+    () =>
+      grupos.map(({ category, items }) => ({
+        category,
+        total: items.length,
+        tarjetas: items.slice(0, MAX_POR_RIEL).map((c) => channelToCard(c)),
+      })),
+    [grupos],
+  );
 
   const tunedKey = tuned ? `canal-${tuned.id}` : null;
 
@@ -73,28 +124,37 @@ export function HomeView({
        encabezado. Aquí lo primero es la tarjeta en directo, y sin hueco su
        cabecera se metía debajo de la barra de navegación. */
     <div className={sinHueco ? "screen sin-hueco" : "screen"}>
+      {/* No es un riel: son tres, son siempre los mismos y no va a haber un
+          cuarto. Ver `fila-casa.tsx`. */}
+      <FilaCasa canales={deLaCasa} tunedId={tuned?.id ?? null} onSelect={onSelect} />
+
+      {/* Historial, no oferta: informan, no invitan. De ahí el modo compacto —
+          son un buen recurso cuando hace falta y no tienen por qué ocupar
+          como las secciones que sí están proponiendo algo. */}
       <MediaRail
+        compacto
         title="Seguir viendo"
-        items={recents.map((channel) => channelToCard(channel))}
+        items={tarjetasRecientes}
         onOpen={abrirCanal}
         activeKey={tunedKey}
       />
 
       <MediaRail
+        compacto
         title="Tus favoritos"
-        items={favoriteChannels.map((channel) => channelToCard(channel))}
+        items={tarjetasFavoritas}
         onOpen={abrirCanal}
         count={favoriteChannels.length > 0 ? `${favoriteChannels.length}` : undefined}
         activeKey={tunedKey}
       />
 
-      {grupos.map(({ category, items }) => (
+      {rielesDeCanal.map(({ category, total, tarjetas }) => (
         <MediaRail
           key={category}
           title={category}
-          items={items.slice(0, MAX_POR_RIEL).map((channel) => channelToCard(channel))}
+          items={tarjetas}
           onOpen={abrirCanal}
-          count={`${items.length}`}
+          count={`${total}`}
           activeKey={tunedKey}
         />
       ))}
@@ -108,11 +168,13 @@ export function HomeView({
             </div>
           </section>
 
-          {catalog.map((section) => (
+          {/* Ya vienen convertidas del servidor: ver `page.tsx`. */}
+          {catalog.map((fila) => (
             <MediaRail
-              key={section.title}
-              title={section.title}
-              items={section.items.map(catalogToCard)}
+              key={fila.title}
+              title={fila.title}
+              href={fila.href}
+              items={fila.tarjetas}
               onOpen={abrirFicha}
               posterMode
             />

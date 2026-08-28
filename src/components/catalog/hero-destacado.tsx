@@ -43,38 +43,17 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
         // `<img>` y no `next/image`: el arte de TMDB ya viene dimensionado y
         // esta imagen es la primera que se ve, así que se pide sin diferir.
         //
-        // Máscara de transparencia: el propio píxel de la imagen se apaga en
-        // el tramo final (60%→100%), así el banner se disuelve en el fondo
-        // sin que exista ningún borde recto que cortar.
+        // Sin máscara y sin ninguna capa encima: **el fundido es uno solo** y
+        // vive en `.hero::after` (shell.css). Aquí había una máscara en el
+        // propio píxel MÁS dos degradados absolutos, y tres fundidos
+        // solapados se multiplican: la foto quedaba al 30% de brillo ya en el
+        // centro del hero y muerta al 80%. Multiplicar dos curvas da una
+        // caída cuadrática, más brusca que cualquiera de ellas por separado,
+        // y eso es justo lo que se lee como un borde recto en vez de un
+        // fundido.
         // eslint-disable-next-line @next/next/no-img-element
-        <img
-          className="hero-arte"
-          src={arte}
-          alt=""
-          fetchPriority="high"
-          style={{
-            WebkitMaskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
-            maskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
-          }}
-        />
+        <img className="hero-arte" src={arte} alt="" fetchPriority="high" />
       )}
-
-      {/* Degradado a NEGRO PURO (#000), el mismo tono del fondo de la página:
-          era neutral-950 (#0a0a0a) y esa diferencia de 10 valores era la
-          línea horizontal entre el banner y el buscador. */}
-      <div
-        aria-hidden="true"
-        className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent pointer-events-none"
-      />
-
-      {/* Capa extra de fundido en la base: asegura negro sólido en los
-          últimos 128px, donde va a entrar solapada la caja del buscador. */}
-      <div
-        aria-hidden="true"
-        className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-b from-transparent to-black pointer-events-none"
-      />
 
       <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 lg:px-12">
         <div className="hero-copy relative z-10 pt-28 pb-20">
@@ -97,7 +76,7 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
         </div>
 
         {item.overview && (
-          <p className="hero-sinopsis text-neutral-300 text-sm md:text-base max-w-xl line-clamp-3 my-3">
+          <p className="hero-sinopsis text-muted text-sm md:text-base max-w-xl line-clamp-3 my-3">
             {item.overview}
           </p>
         )}

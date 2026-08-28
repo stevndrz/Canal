@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Search } from "lucide-react";
 import type { Channel } from "@/lib/types";
@@ -43,10 +44,20 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
 
   const tarjetasCanal = results.map((channel) => channelToCard(channel));
 
-  const abrirCanal = (card: CardItem) => {
-    const canal = results.find((channel) => `canal-${channel.id}` === card.key);
-    if (canal) onTune(canal);
-  };
+  // Estables: ver la nota de `home-view.tsx`. Un manejador nuevo por render
+  // anula el `memo` de `MediaCard` y repinta la rejilla entera.
+  const abrirCanal = useCallback(
+    (card: CardItem) => {
+      const canal = results.find((channel) => `canal-${channel.id}` === card.key);
+      if (canal) onTune(canal);
+    },
+    [results, onTune],
+  );
+
+  const abrirTitulo = useCallback(
+    (card: CardItem) => router.push(`/peliculas/${card.key.split("-")[0]}/${card.key.split("-").slice(1).join("-")}`),
+    [router],
+  );
 
   const buscando = search.trim().length > 0;
   const totalCanales = results.length;
@@ -56,18 +67,28 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
   return (
     <div className="screen has-search-hero">
       <section className="search-hero">
-        <span className="search-icon-shell">
-          <Search size={28} />
-        </span>
-        <input
-          type="search"
-          data-nav="input"
-          value={search}
-          autoFocus
-          onChange={(evento) => onSearchChange(evento.target.value)}
-          placeholder="Buscar canales, películas y series"
-          aria-label="Buscar canales, películas y series"
-        />
+        {/* Icono y campo dentro de la MISMA píldora, como en Canales y en el
+            catálogo. Sueltos como hermanos del grid, el campo se quedaba sin
+            una sola regla propia y cada navegador lo pintaba con su aspecto
+            nativo: en cuanto `color-scheme: dark` no se soporta —los
+            navegadores de televisor viejos, y los de escritorio que no lo
+            aplican— eso es un rectángulo BLANCO de borde a borde, con su
+            cursor de escritura y su aspa, encajado en una pantalla negra. Es
+            el «cuadro blanco» que se veía en televisor y en PC. */}
+        <label className="buscar-campo">
+          <span className="search-icon-shell">
+            <Search size={22} aria-hidden="true" />
+          </span>
+          <input
+            type="search"
+            data-nav="input"
+            value={search}
+            autoFocus
+            onChange={(evento) => onSearchChange(evento.target.value)}
+            placeholder="Buscar canales, películas y series"
+            aria-label="Buscar canales, películas y series"
+          />
+        </label>
       </section>
 
       {/* Teclado a un lado y resultados al otro. Puestos uno debajo del otro,
@@ -115,7 +136,7 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
                         key={item.key}
                         item={item}
                         posterMode
-                        onOpen={() => router.push(`/peliculas/${item.mediaType}/${item.id}`)}
+                        onOpen={abrirTitulo}
                       />
                     ))}
                   </div>

@@ -54,13 +54,31 @@ export function RailScroller({
     update();
     const onScroll = () => update();
     node.addEventListener("scroll", onScroll, { passive: true });
-    const resizeObserver = new ResizeObserver(update);
-    resizeObserver.observe(node);
+
+    /**
+     * `ResizeObserver` existe desde Chromium 64, y el hardware al que apunta
+     * esta app es MÁS VIEJO que eso: Tizen 4.0 (2018) trae Chromium 56 y
+     * webOS 4.x, 53. Ahí `new ResizeObserver(...)` lanza dentro del efecto, la
+     * excepción sube por el árbol y **se cae el render de cada `MediaRail`**,
+     * o sea, la portada entera en negro.
+     *
+     * `live-tv-view.tsx` ya comprueba el soporte de `IntersectionObserver` de
+     * esta misma manera; aquí faltaba. El respaldo con `resize` de ventana no
+     * detecta que el carril cambie de tamaño sin que lo haga la ventana, pero
+     * cubre el caso real —girar el televisor no existe— y, sobre todo, no
+     * tumba nada.
+     */
+    const observador =
+      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
+    if (observador) observador.observe(node);
+    else window.addEventListener("resize", onScroll);
+
     const timer = window.setTimeout(update, 250);
     return () => {
       window.clearTimeout(timer);
       node.removeEventListener("scroll", onScroll);
-      resizeObserver.disconnect();
+      if (observador) observador.disconnect();
+      else window.removeEventListener("resize", onScroll);
     };
   }, [update, children]);
 
@@ -70,7 +88,19 @@ export function RailScroller({
   // no alterar el comportamiento de los rieles de canales.
   if (overlay) {
     const flecha =
-      "absolute top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/70 text-white shadow-lg backdrop-blur-md transition-all duration-200 hover:scale-110 hover:border-white/30";
+      /* Dos cosas aquí.
+
+         Sin `backdrop-blur` ni `transition-all`, por lo mismo que en
+         `media-card`: son dos flechas por riel y en Inicio hay dieciocho.
+
+         Y `[@media(hover:none)]:hidden` para esconderlas donde se toca con el
+         dedo. `shell.css` ya tiene esa regla para `.rail-arrow`, pero **no
+         servía aquí**: Tailwind vive en la capa `utilities` y el armazón en
+         `components`, así que el `grid` de la propia cadena le ganaba al
+         `display: none`. En un teléfono las flechas flotaban encima de las
+         carátulas de los rieles de películas, y en los de canales no —el mismo
+         componente comportándose de dos maneras—. En su propia capa sí gana. */
+      "rail-arrow [@media(hover:none)]:hidden absolute top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/80 text-white shadow-lg transition-[border-color,transform] duration-200 hover:scale-110 hover:border-white/30";
     return (
       <div className="relative group">
         <button

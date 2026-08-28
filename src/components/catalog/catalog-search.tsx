@@ -35,6 +35,7 @@ export function CatalogSearch({
   initialQuery = "",
   orden = "populares",
   conHero = false,
+  titulo,
   children,
 }: {
   /** Consulta previa si la URL traía `?q=`: el campo arranca ya escrita. */
@@ -44,6 +45,15 @@ export function CatalogSearch({
   /** Hay banner encima: el bloque entra -mt-16 sobre su zona difuminada
       (h-32 fundiéndose a negro puro), cubriendo toda la costura. */
   conHero?: boolean;
+  /**
+   * El nombre de la sección, encima del buscador.
+   *
+   * Va aquí y no en la página porque tiene que compartir la caja centrada con
+   * el buscador y las píldoras; puesto fuera queda desalineado con todo lo que
+   * lleva debajo. Y encima del campo, no debajo: primero se dice dónde estás y
+   * después se ofrece buscar.
+   */
+  titulo?: ReactNode;
   children?: ReactNode;
 }) {
   const router = useRouter();
@@ -98,6 +108,8 @@ export function CatalogSearch({
         conHero ? "-mt-16" : ""
       }`}
     >
+      {titulo}
+
       {/* Todo el bloque de cabecera respira centrado: buscador y orden forman
           un grupo compacto en el eje, no un campo estirado a la izquierda con
           el select colgado de la derecha. */}
@@ -128,7 +140,7 @@ export function CatalogSearch({
                 onClick={limpiar}
                 aria-label="Borrar búsqueda y volver al catálogo"
                 title="Borrar y volver al catálogo"
-                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 transition-colors hover:bg-white/10 hover:text-white"
+                className="grid h-6 w-6 shrink-0 cursor-pointer place-items-center rounded-full text-muted transition-colors hover:bg-white/10 hover:text-white"
               >
                 <X size={15} aria-hidden="true" />
               </button>
@@ -136,13 +148,18 @@ export function CatalogSearch({
           </label>
         </form>
 
-        <label className="flex shrink-0 items-center gap-2 text-sm text-neutral-400">
+        {/* El desplegable lleva clase propia y no utilidades sueltas: el hueco
+            de la flecha lo pone la hoja junto con la flecha misma, y con
+            `px-3` de Tailwind —que gana a la regla base— el texto se le
+            montaba encima. */}
+        <label className="flex shrink-0 items-center gap-2 text-sm text-muted">
           Ordenar por
           <select
+            data-nav="input"
             value={orden}
             onChange={(evento) => cambiarOrden(evento.target.value as OrdenCatalogo)}
             aria-label="Ordenar catálogo"
-            className="shrink-0 rounded-full border border-white/10 bg-neutral-800/80 px-3 py-1.5 text-sm text-neutral-200 hover:bg-neutral-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            className="catalogo-orden"
           >
             {ORDENES.map(({ id, label }) => (
               <option key={id} value={id}>
