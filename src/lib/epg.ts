@@ -1,5 +1,6 @@
 import { gunzipSync } from "node:zlib";
 import { channelNameVariants, normalizeChannelName } from "./text";
+import { paraRegistro } from "./url-segura";
 
 export interface EpgProgramme {
   title: string;
@@ -48,15 +49,67 @@ const EPG_TIMEOUT_MS = 5000;
  */
 let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null = null;
 
-export async function fetchEpg(url: string): Promise<EpgGuide | null> {
+/**
+ * `deLaLista` distingue las dos procedencias, y la diferencia es de confianza,
+ * no de forma:
+ *
+ * - `false` — la puso quien despliega en `EPG_URL`. Puede apuntar a donde
+ *   quiera, incluido un servidor de la red local: es su propia máquina y su
+ *   propia decisión.
+ * - `true` — venía dentro del M3U descargado (`url-tvg`). **La eligió quien
+ *   controla esa lista**, que con una lista pública no es quien despliega.
+ *   Ahí sí se comprueba a dónde apunta.
+ */
+export async function fetchEpg(url: string, deLaLista = false): Promise<EpgGuide | null> {
   if (cachedEpg?.url === url && cachedEpg.expiresAt > Date.now()) return cachedEpg.guide;
 
-  const guide = await downloadAndParseEpg(url);
+  const guide = await downloadAndParseEpg(url, deLaLista);
   cachedEpg = { url, guide, expiresAt: Date.now() + EPG_CACHE_MS };
   return guide;
 }
 
-async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
+/**
+ * ¿Este nombre de máquina apunta a la propia red?
+ *
+ * Solo mira el texto: literales de IP y los sufijos que designan una red
+ * interna. **No resuelve DNS**, y hay que decir claramente lo que eso deja
+ * fuera: un nombre público cuyo registro A apunte a `10.0.0.5` pasa esta
+ * comprobación, y el reenlace de DNS —resolver a una IP pública al comprobar y
+ * a una privada al pedir— también. Cerrar eso de verdad exige resolver el
+ * nombre y fijar la IP resuelta en la conexión, y `fetch` no deja hacerlo sin
+ * un agente propio.
+ *
+ * Aun así cubre lo que se intenta primero y cuesta cuatro líneas. Lo que de
+ * verdad zanja el asunto está escrito en el README: poner `EPG_URL`, y entonces
+ * el `url-tvg` de la lista no se usa.
+ */
+function hostInterno(hostname: string): boolean {
+  // IPv6 llega entre corchetes en `hostname`; se quitan para poder mirarlo.
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+
+  if (host === "localhost" || /\.(localhost|local|internal|home\.arpa)$/.test(host)) return true;
+
+  // IPv6: bucle local (::1), únicas locales (fc00::/7) y de enlace (fe80::/10).
+  if (host === "::1" || /^f[cd][0-9a-f]{2}:/.test(host) || /^fe[89ab][0-9a-f]:/.test(host)) {
+    return true;
+  }
+
+  // IPv4, también en su forma mapeada a IPv6 (`::ffff:10.0.0.1`).
+  const ipv4 = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!ipv4) return false;
+  const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+  return (
+    a === 0 || // 0.0.0.0/8
+    a === 10 || // privada
+    a === 127 || // bucle local
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT
+    (a === 169 && b === 254) || // enlace local: metadatos de la nube
+    (a === 172 && b >= 16 && b <= 31) || // privada
+    (a === 192 && b === 168) // privada
+  );
+}
+
+async function downloadAndParseEpg(url: string, deLaLista: boolean): Promise<EpgGuide | null> {
   /**
    * Solo `https:`. Es el ÚNICO punto donde contenido remoto —el `url-tvg` de
    * dentro del M3U— decide a dónde sale una petición del servidor: quien
@@ -68,11 +121,32 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
   try {
     destino = new URL(url);
   } catch {
-    console.error(`❌ La URL de la guía EPG no es válida — ${url}`);
+    console.error(`❌ La URL de la guía EPG no es válida — ${paraRegistro(url)}`);
     return null;
   }
   if (destino.protocol !== "https:") {
-    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${url}`);
+    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${paraRegistro(url)}`);
+    return null;
+  }
+
+  /**
+   * `https:` sola no basta contra lo que de verdad se busca con esto.
+   *
+   * Rechaza `file:` y `http://169.254.169.254`, sí. Pero dentro de https queda
+   * toda la red interna: un servicio de la red privada del despliegue, un panel
+   * de administración sin autenticar en `10.x`, o cualquier máquina de la LAN
+   * si esto corre en casa. Y no es ciego del todo: lo que responda se
+   * interpreta como XMLTV y **sus títulos se pintan en la guía**, así que parte
+   * del contenido vuelve a verse en pantalla.
+   *
+   * Solo se comprueba la que viene de la lista. La de quien despliega no: si
+   * pone su propio servidor de guía en la red local, es su decisión.
+   */
+  if (deLaLista && hostInterno(destino.hostname)) {
+    console.error(
+      `❌ Guía EPG rechazada: la lista M3U apunta a una dirección interna — ${paraRegistro(url)}. ` +
+        "Configura EPG_URL si esa guía es tuya.",
+    );
     return null;
   }
 
@@ -82,7 +156,7 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
       signal: AbortSignal.timeout(EPG_TIMEOUT_MS),
     });
     if (!res.ok) {
-      console.error(`❌ La guía EPG respondió HTTP ${res.status} — ${url}`);
+      console.error(`❌ La guía EPG respondió HTTP ${res.status} — ${paraRegistro(url)}`);
       return null;
     }
 
@@ -111,7 +185,7 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${EPG_TIMEOUT_MS / 1000}s (¿servidor dormido?)`
         : String(error);
-    console.error(`❌ Guía EPG descartada: ${reason} — ${url}`);
+    console.error(`❌ Guía EPG descartada: ${reason} — ${paraRegistro(url)}`);
     return null;
   }
 }

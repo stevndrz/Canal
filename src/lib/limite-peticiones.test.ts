@@ -67,3 +67,55 @@ describe("respuestaLimite", () => {
     expect(respuesta.headers.get("Cache-Control")).toBe("no-store");
   });
 });
+
+describe("identificarCliente: de menos falsificable a más", () => {
+  it("la cabecera de Vercel gana a un `x-forwarded-for` inventado", () => {
+    // Quien llama puede escribir lo que quiera en `x-forwarded-for`; la red de
+    // Vercel descarta lo que traiga y pone la suya.
+    const peticion = new Request("https://x.test", {
+      headers: {
+        "x-vercel-forwarded-for": "203.0.113.7",
+        "x-forwarded-for": "1.1.1.1",
+        "x-real-ip": "2.2.2.2",
+      },
+    });
+    expect(identificarCliente(peticion)).toBe("203.0.113.7");
+  });
+
+  it("`x-real-ip` gana a `x-forwarded-for`: no admite lista donde colarse", () => {
+    const peticion = new Request("https://x.test", {
+      headers: { "x-real-ip": "198.51.100.4", "x-forwarded-for": "1.1.1.1" },
+    });
+    expect(identificarCliente(peticion)).toBe("198.51.100.4");
+  });
+});
+
+describe("tope global", () => {
+  it("una IP distinta en cada petición ya no sale gratis", () => {
+    // El ataque que el cupo por IP no cubre: falsificar la cabecera estrena
+    // ventana cada vez. Esto es lo único que sigue en pie ahí.
+    let cortadas = 0;
+    for (let i = 0; i < LIMITES.TOPE_GLOBAL + 50; i++) {
+      if (excedeLimite(`falsa-${i}`, 1_000)) cortadas += 1;
+    }
+    expect(cortadas).toBeGreaterThan(0);
+  });
+
+  it("cuenta también lo que el cupo por IP ya iba a rechazar", () => {
+    // Si solo contara lo que pasa, machacar desde una sola IP saldría gratis.
+    for (let i = 0; i < LIMITES.TOPE_GLOBAL + 5; i++) excedeLimite("una sola", 1_000);
+    expect(excedeLimite("recién llegada", 1_000)).toBe(true);
+  });
+
+  it("se renueva con la ventana, igual que el cupo por IP", () => {
+    for (let i = 0; i < LIMITES.TOPE_GLOBAL + 5; i++) excedeLimite("una sola", 1_000);
+    expect(excedeLimite("recién llegada", 1_000)).toBe(true);
+    expect(excedeLimite("recién llegada", 1_000 + LIMITES.VENTANA_MS + 1)).toBe(false);
+  });
+
+  it("va holgado: una casa entera no lo roza", () => {
+    // Cinco aparatos a pleno cupo siguen pasando; el tope solo salta con un
+    // volumen que ninguna casa produce.
+    expect(LIMITES.TOPE_GLOBAL).toBeGreaterThanOrEqual(LIMITES.PETICIONES * 5);
+  });
+});

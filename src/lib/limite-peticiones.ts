@@ -30,6 +30,26 @@ const VENTANA_MS = 60_000;
  */
 const MAX_IPS = 5_000;
 
+/**
+ * Tope de peticiones de TODO EL MUNDO dentro de la ventana.
+ *
+ * El de arriba cuenta por IP, y quien elige su propia IP no tiene tope: basta
+ * con mandar un `x-forwarded-for` distinto en cada petición para estrenar
+ * ventana cada vez. Fuera de Vercel —`next start` en la red de casa, que es
+ * justo como se usa esto— la cabecera la pone quien llama, y no hay forma de
+ * saber desde aquí si delante hay un proxy que la reescriba o no.
+ *
+ * Este contador no pregunta quién llama, así que no se puede falsificar. Es el
+ * único freno que sigue en pie cuando la identificación falla.
+ *
+ * **Lo que cuesta:** es un tope compartido, así que alguien que lo agote deja
+ * a los demás fuera hasta que pase el minuto. Se acepta a sabiendas y por eso
+ * va holgado —veinte veces el cupo de una IP—: solo salta con un volumen que
+ * ninguna casa produce. Perder un minuto de catálogo es mejor que regalar la
+ * cuota de TMDB y las invocaciones de la función.
+ */
+const TOPE_GLOBAL = PETICIONES * 20;
+
 interface Ventana {
   contador: number;
   hasta: number;
@@ -37,18 +57,36 @@ interface Ventana {
 
 const visto = new Map<string, Ventana>();
 
+/** La cuenta que no depende de quién llame. Ver `TOPE_GLOBAL`. */
+const compartida: Ventana = { contador: 0, hasta: 0 };
+
 /**
  * Quién hace la petición, según las cabeceras que pone la plataforma.
  *
- * `x-forwarded-for` se puede falsificar, pero en Vercel la cabecera la
- * **reescribe el proxy** antes de llegar aquí, así que el primer valor es real.
- * Fuera de Vercel esto degrada a un agrupador aproximado, que sigue sirviendo
- * para lo que se busca.
+ * **El orden importa, y es el de menos falsificable a más.** Ninguna de estas
+ * cabeceras es de fiar por sí sola: son texto que manda quien llama, y solo
+ * valen cuando delante hay un proxy que las reescribe.
+ *
+ * 1. `x-vercel-forwarded-for` la pone la red de Vercel y **descarta** la que
+ *    trajera la petición. Es la única que aquí no se puede elegir.
+ * 2. `x-real-ip` la escribe el proxy de delante con un valor único: no admite
+ *    lista, así que no se le puede anteponer nada.
+ * 3. `x-forwarded-for` es una lista a la que cualquiera puede añadir por la
+ *    izquierda. Se conserva como último recurso porque sin proxy conocido es
+ *    lo único que hay, pero **no se sostiene sola**: el freno que aguanta
+ *    cuando esto se falsifica es `TOPE_GLOBAL`, que no pregunta quién llama.
  */
 export function identificarCliente(request: Request): string {
+  const deVercel = request.headers.get("x-vercel-forwarded-for");
+  if (deVercel) return deVercel.split(",")[0]!.trim();
+
+  const real = request.headers.get("x-real-ip");
+  if (real) return real.trim();
+
   const reenviado = request.headers.get("x-forwarded-for");
   if (reenviado) return reenviado.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip") ?? "desconocido";
+
+  return "desconocido";
 }
 
 /**
@@ -58,6 +96,17 @@ export function identificarCliente(request: Request): string {
  */
 export function excedeLimite(clave: string, ahora: number = Date.now()): boolean {
   if (visto.size > MAX_IPS) visto.clear();
+
+  // El tope compartido va PRIMERO y cuenta siempre, incluso las peticiones que
+  // el cupo por IP ya iba a rechazar: si solo contara las que pasan, mandar
+  // basura desde una sola IP saldría gratis.
+  if (ahora > compartida.hasta) {
+    compartida.contador = 1;
+    compartida.hasta = ahora + VENTANA_MS;
+  } else {
+    compartida.contador += 1;
+    if (compartida.contador > TOPE_GLOBAL) return true;
+  }
 
   const ventana = visto.get(clave);
   if (!ventana || ahora > ventana.hasta) {
@@ -86,6 +135,8 @@ export function respuestaLimite(): Response {
 /** Solo para las pruebas: deja el contador a cero entre casos. */
 export function olvidarTodo(): void {
   visto.clear();
+  compartida.contador = 0;
+  compartida.hasta = 0;
 }
 
-export const LIMITES = { PETICIONES, VENTANA_MS, MAX_IPS } as const;
+export const LIMITES = { PETICIONES, VENTANA_MS, MAX_IPS, TOPE_GLOBAL } as const;
