@@ -23,16 +23,16 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.1.17",
-    "@types/node": "22.19.15",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "26.4.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "9.39.4",
-    "eslint-config-next": "^16.3.1",
+    "eslint": "10.9.1",
+    "eslint-config-next": "^16.3.3",
     "postcss": "^8.5.26",
-    "tailwindcss": "4.1.17",
-    "typescript": "5.9.3",
-    "vitest": "^3.2.7"
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vitest": "^4.1.11"
   },
   "engines": {
     "node": ">=20.9"
