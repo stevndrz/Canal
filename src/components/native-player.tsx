@@ -17,6 +17,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useCast, type SubtituloCast } from "@/hooks/use-cast";
+import { useSeguirViendo } from "@/hooks/use-progreso";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esIPhone } from "@/lib/dispositivo";
 import type { ManualStream } from "@/lib/catalog/types";
@@ -69,9 +70,17 @@ function formatTime(seconds: number): string {
 export const NativePlayer = memo(function NativePlayer({
   streams,
   title,
+  claveProgreso,
 }: {
   streams: ManualStream[];
   title: string;
+  /**
+   * Con qué nombre recordar por dónde iba esto. Sin ella no se sigue nada.
+   *
+   * Es opcional porque no todo lo que pasa por aquí se puede retomar: quien
+   * llame decide. Ver `lib/progreso.ts` para las claves.
+   */
+  claveProgreso?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -120,6 +129,11 @@ export const NativePlayer = memo(function NativePlayer({
       subtituloActivo: activeSubtitle,
     });
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
+
+  /**
+   * Por dónde iba, si se sabe. Escribe directo, sin estado: ver el hook.
+   */
+  const { posicionParaRetomar, apuntar } = useSeguirViendo(claveProgreso);
 
   const retry = useCallback(() => setRetryCount((count) => count + 1), []);
 
@@ -204,10 +218,33 @@ export const NativePlayer = memo(function NativePlayer({
       if (cancelled) return;
       setDuration(video.duration);
       setIsLoading(false);
+
+      /**
+       * Retomar donde se quedó, una sola vez y solo si queda algo por ver.
+       *
+       * Va aquí y no antes porque hasta `loadedmetadata` el `<video>` no acepta
+       * un `currentTime`: asignarlo antes se pierde en silencio. Y se compara
+       * con la duración ya conocida para no saltar al final de un archivo
+       * distinto que reutilizara la clave.
+       */
+      const retomar = posicionParaRetomar();
+      if (retomar !== undefined && retomar < video.duration) {
+        video.currentTime = retomar;
+      }
     };
-    const onTimeUpdate = () => !cancelled && setCurrentTime(video.currentTime);
+    const onTimeUpdate = () => {
+      if (cancelled) return;
+      setCurrentTime(video.currentTime);
+      apuntar(video.currentTime, video.duration);
+    };
     const onPlay = () => !cancelled && setIsPlaying(true);
-    const onPause = () => !cancelled && setIsPlaying(false);
+    const onPause = () => {
+      if (cancelled) return;
+      setIsPlaying(false);
+      // Pausar es de los momentos que sí importan: quien pausa suele irse.
+      apuntar(video.currentTime, video.duration, true);
+    };
+    const onEnded = () => apuntar(video.duration, video.duration, true);
     const onWaiting = () => !cancelled && setIsLoading(true);
     const onPlaying = () => {
       if (cancelled) return;
@@ -225,9 +262,16 @@ export const NativePlayer = memo(function NativePlayer({
     video.addEventListener("waiting", onWaiting);
     video.addEventListener("playing", onPlaying);
     video.addEventListener("error", onNativeError);
+    video.addEventListener("ended", onEnded);
 
     return () => {
       cancelled = true;
+      /**
+       * Al desmontar se apunta a la fuerza: salir de la pantalla es el momento
+       * más habitual de dejar algo a medias, y esperar al siguiente turno del
+       * reloj perdería justo esa posición.
+       */
+      apuntar(video.currentTime, video.duration, true);
       video.removeEventListener("loadedmetadata", onLoadedMetadata);
       video.removeEventListener("timeupdate", onTimeUpdate);
       video.removeEventListener("play", onPlay);
@@ -235,13 +279,14 @@ export const NativePlayer = memo(function NativePlayer({
       video.removeEventListener("waiting", onWaiting);
       video.removeEventListener("playing", onPlaying);
       video.removeEventListener("error", onNativeError);
+      video.removeEventListener("ended", onEnded);
       hlsRef.current?.destroy();
       hlsRef.current = null;
       video.pause();
       video.removeAttribute("src");
       video.load();
     };
-  }, [stream, retryCount]);
+  }, [stream, retryCount, apuntar, posicionParaRetomar]);
 
   // --- Subtítulos -----------------------------------------------------------
   /**

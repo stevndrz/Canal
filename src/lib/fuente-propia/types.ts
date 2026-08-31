@@ -46,6 +46,14 @@ export interface FuentePropia {
   magnet?: string;
   /** Marca de tiempo de alta, para ordenar «lo último que añadí». */
   creadaEn: number;
-  /** Segundo por el que iba, para poder continuar. */
+  /**
+   * @deprecated Lo reemplaza `lib/progreso.ts`, y no es lo mismo escrito dos
+   * veces: el progreso vive en su propio almacén, con la misma forma para una
+   * fuente propia, una película y un episodio. Guardarlo también aquí serían
+   * dos verdades que se desincronizan a la primera.
+   *
+   * Se conserva el campo para no romper lo que alguien ya tenga guardado en su
+   * aparato; nadie lo escribe ni lo lee. Ver `claveDeFuente()`.
+   */
   progreso?: number;
 }

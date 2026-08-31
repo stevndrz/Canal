@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
 import { Link2, Play, Trash2 } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
+import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
 
@@ -134,6 +135,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             key={activa.id}
             streams={streamsActivos}
             title={activa.titulo}
+            claveProgreso={claveDeFuente(activa.id)}
           />
         </section>
       )}

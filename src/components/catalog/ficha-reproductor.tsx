@@ -13,6 +13,7 @@ import {
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
+import { claveDeTitulo } from "@/lib/progreso";
 
 /**
  * Cuánto se espera antes de ofrecer el cambio de servidor.
@@ -76,7 +77,13 @@ export function FichaReproductor({
   if (fuente.kind === "manual") {
     return (
       <section className="ficha-reproductor">
-        <NativePlayer streams={fuente.streams} title={titulo} />
+        <NativePlayer
+          streams={fuente.streams}
+          title={titulo}
+          claveProgreso={
+            tmdbId ? claveDeTitulo(mediaType, tmdbId, temporada, episodio) : undefined
+          }
+        />
       </section>
     );
   }
@@ -339,8 +346,17 @@ function ReproductorCatalogo({
         <div className="player-surface ficha-marco">
           {activo.tipo === "video" ? (
             /* Enlace directo (.mp4/.m3u8) de un addon: reproductor HTML5
-               propio con hls.js — la única vía sin anuncios. */
-            <NativePlayer streams={streamDirecto} title={titulo} />
+               propio con hls.js — la única vía sin anuncios.
+
+               Y la única rama de esta pantalla donde se puede recordar por
+               dónde iba: el `<video>` es nuestro. En la otra el reproductor es
+               de otro dominio y su tiempo no se puede leer, así que ahí no se
+               guarda nada en vez de guardar un cero que mentiría. */
+            <NativePlayer
+              streams={streamDirecto}
+              title={titulo}
+              claveProgreso={claveDeTitulo(mediaType, tmdbId, temporada, episodio)}
+            />
           ) : (
             /* Sin `sandbox`. Se puso para que los guiones de publicidad no
                pudieran navegar la ventana entera, y no cumplió: el bucle de

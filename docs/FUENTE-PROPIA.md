@@ -47,15 +47,38 @@ No reimplementar nada de esto:
   aviso honesto para `.mkv` y nombre derivado del archivo
 - [x] **Lista guardada** en `localStorage` (`src/hooks/use-fuentes.ts`)
 - [x] **Reproducción** con `NativePlayer`
+- [x] **Continuar donde se quedó** — ver abajo
+
+## Continuar donde se quedó
+
+Hecho, pero **no** con `FuentePropia.progreso`, que era como estaba planteado
+aquí. El progreso vive en su propio almacén (`src/lib/progreso.ts`,
+`canalcasa:progreso`) con la misma forma para una fuente propia, una película y
+un episodio. El motivo es que guardarlo también dentro de cada `FuentePropia`
+serían dos verdades sobre lo mismo, y se desincronizan a la primera. El campo se
+queda marcado como obsoleto para no romper lo que alguien ya tenga guardado en
+su aparato; nadie lo escribe ni lo lee.
+
+Cómo funciona: `NativePlayer` recibe una `claveProgreso` opcional
+(`claveDeFuente(id)` aquí, `claveDeTitulo(...)` en el catálogo). Con ella,
+apunta la posición cada cinco segundos —no en cada `timeupdate`, que son cuatro
+por segundo y en un televisor se nota— y al pausar, terminar o salir. Al volver,
+retoma en `loadedmetadata`, que es el primer instante en que el `<video>` acepta
+un `currentTime`.
+
+Y **terminar borra la entrada** en vez de guardarla al 100%: sin eso, «Seguir
+viendo» acabaría siendo la lista de todo lo visto alguna vez.
 
 ## Lo que falta
 
-1. **Continuar donde se quedó** — `FuentePropia.progreso` está en el tipo pero
-   nadie lo escribe todavía.
-2. **Pistas de subtítulos** — `ManualStream.subtitles` ya existe; falta poder
+1. **Pistas de subtítulos** — `ManualStream.subtitles` ya existe; falta poder
    añadir un `.vtt` junto al enlace.
-3. **Varias calidades por título** — `NativePlayer` acepta un array de
+2. **Varias calidades por título** — `NativePlayer` acepta un array de
    `ManualStream`; la pantalla solo pasa uno.
+3. **La barra en la lista de guardados** — el progreso ya se guarda y se retoma,
+   pero la lista de «Guardados en este dispositivo» todavía no lo enseña. En el
+   catálogo sí se ve, porque `MediaCard` ya sabía pintarla. Aquí hace falta
+   tocar `shell.css`, y eso es territorio del agente de diseño.
 
 ---
 

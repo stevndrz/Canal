@@ -3,7 +3,8 @@
 import { useMemo, useCallback } from "react";
 import type { Channel } from "@/lib/types";
 import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
-import { channelToCard, type CardItem } from "@/lib/media-item";
+import { channelToCard, conProgreso, type CardItem } from "@/lib/media-item";
+import { useProgreso } from "@/hooks/use-progreso";
 import { groupByCategory } from "@/lib/channels";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
@@ -82,6 +83,24 @@ export function HomeView({
       if (canal) onSelect(canal);
     },
     [channels, onSelect],
+  );
+
+  /**
+   * El progreso de cada título, cruzado con las tarjetas que ya vinieron
+   * hechas del servidor.
+   *
+   * Va aquí y no en `page.tsx` porque el servidor no puede saberlo: cada
+   * aparato guarda lo suyo en `localStorage`. Memoizado porque recorre todas
+   * las filas del catálogo y `MediaRail` compara por identidad.
+   */
+  const { memoria: progreso } = useProgreso();
+  const catalogoConProgreso = useMemo(
+    () =>
+      catalog.map((fila) => ({
+        ...fila,
+        tarjetas: fila.tarjetas.map((tarjeta) => conProgreso(tarjeta, progreso)),
+      })),
+    [catalog, progreso],
   );
 
   const abrirFicha = useCallback(
@@ -168,8 +187,10 @@ export function HomeView({
             </div>
           </section>
 
-          {/* Ya vienen convertidas del servidor: ver `page.tsx`. */}
-          {catalog.map((fila) => (
+          {/* Ya vienen convertidas del servidor: ver `page.tsx`. Lo único que
+              se les añade aquí es la barra de por dónde iba cada una, que solo
+              se puede saber en el navegador. */}
+          {catalogoConProgreso.map((fila) => (
             <MediaRail
               key={fila.title}
               title={fila.title}
