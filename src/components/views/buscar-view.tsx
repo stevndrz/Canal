@@ -2,12 +2,13 @@
 
 import { useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search } from "lucide-react";
+import { Mic, MicOff, Search } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { TvKeyboard } from "@/components/tv-keyboard";
 import { channelToCard, type CardItem } from "@/lib/media-item";
 import { MediaCard } from "@/components/media/media-card";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
+import { useDictado } from "@/hooks/use-dictado";
 
 /**
  * Buscar, en los dos catálogos a la vez.
@@ -24,6 +25,11 @@ import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
  *   - Busca en **dos** orígenes y no en uno. Antes solo recorría la lista M3U,
  *     así que escribir el nombre de una película no daba nada aunque estuviera
  *     en el catálogo: media aplicación quedaba fuera del buscador.
+ *   - Se puede dictar. «Guardianes de la galaxia» son cuarenta y tantas
+ *     pulsaciones de mando en el teclado en pantalla, o una pulsación y una
+ *     frase. El botón **solo aparece donde el navegador sabe hacerlo** (ver
+ *     `lib/dictado.ts`): en buena parte de los televisores no sabe, y ahí queda
+ *     el teclado de siempre sin que nadie se entere de que faltaba algo.
  *
  * Los dos orígenes se consultan de forma distinta a propósito. Los canales ya
  * están enteros en el cliente desde la primera carga, así que se filtran en
@@ -41,6 +47,15 @@ interface BuscarViewProps {
 export function BuscarView({ results, search, onSearchChange, onTune }: BuscarViewProps) {
   const router = useRouter();
   const { resultados: titulos, cargando } = useBuscarTitulos(search);
+
+  /**
+   * Dictar **sustituye** lo escrito en vez de añadirse al final.
+   *
+   * Es lo que se espera: quien dicta está empezando una búsqueda, no
+   * continuando la anterior. Concatenar dejaría «batmanguardianes de la
+   * galaxia» a quien probó dos cosas seguidas.
+   */
+  const { soportado: hayVoz, escuchando, error: errorVoz, escuchar } = useDictado(onSearchChange);
 
   const tarjetasCanal = results.map((channel) => channelToCard(channel));
 
@@ -88,7 +103,43 @@ export function BuscarView({ results, search, onSearchChange, onTune }: BuscarVi
             placeholder="Buscar canales, películas y series"
             aria-label="Buscar canales, películas y series"
           />
+
+          {/* Dentro de la píldora y no fuera: en un mando, un destino de foco
+              suelto al lado del campo es una parada más que estorba al bajar a
+              los resultados. */}
+          {hayVoz && (
+            <button
+              type="button"
+              data-nav="button"
+              onClick={escuchar}
+              /* Utilidades en línea y no una clase de `shell.css`: ese archivo
+                 lo lleva el agente de diseño. Esto es lo justo para que el
+                 botón se vea correcto y esté al alcance del mando; la pasada
+                 de diseño de verdad es suya. */
+              className={`shrink-0 rounded-full p-2 transition-colors ${
+                escuchando ? "bg-accent text-black" : "text-muted hover:text-white"
+              }`}
+              aria-pressed={escuchando}
+              aria-label={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
+              title={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
+            >
+              {escuchando ? <MicOff size={20} aria-hidden="true" /> : <Mic size={20} aria-hidden="true" />}
+            </button>
+          )}
         </label>
+
+        {/* `role="status"` y no un aviso pasajero: en un televisor nadie ve un
+            mensaje que se va solo a los tres segundos. */}
+        {escuchando && (
+          <p className="mt-2 text-sm text-muted" role="status">
+            Escuchando… di el nombre de un canal, una película o una serie.
+          </p>
+        )}
+        {!escuchando && errorVoz && (
+          <p className="mt-2 text-sm text-muted" role="status">
+            {errorVoz}
+          </p>
+        )}
       </section>
 
       {/* Teclado a un lado y resultados al otro. Puestos uno debajo del otro,
