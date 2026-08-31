@@ -13,20 +13,20 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },
   "dependencies": {
-    "hls.js": "^1.7.0",
+    "hls.js": "^1.7.1",
     "iptv-playlist-parser": "^0.15.2",
-    "lucide-react": "^1.31.0",
+    "lucide-react": "^1.35.0",
     "mpegts.js": "^1.8.2",
-    "next": "^16.3.1",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
+    "next": "^16.3.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",
     "@types/node": "22.19.15",
-    "@types/react": "19.2.14",
-    "@types/react-dom": "19.2.3",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
     "eslint": "9.39.4",
     "eslint-config-next": "^16.3.1",
     "postcss": "^8.5.26",
