@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Play, Search, Star, Tv, X } from "lucide-react";
+import { CalendarClock, List, Play, Search, Star, Tv, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
@@ -13,6 +13,8 @@ import {
   type Ventana,
 } from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
+import { ParrillaEpg } from "./parrilla-epg";
+import { useInstante } from "@/hooks/use-reloj";
 
 /**
  * Canales: categorías, lista y detalle.
@@ -26,8 +28,11 @@ import { ChannelRow } from "./channel-row";
  *   - Fuera la gestión de listas de reproducción. En el origen se añaden y
  *     quitan listas M3U desde la propia pantalla; en CanalCasa la lista se
  *     configura con la variable `M3U_URL` y no hay nada que administrar aquí.
- *   - Fuera el conmutador Lista/Guía y la parrilla EPG: decidido dejarlo para
- *     una tanda posterior.
+ *   - El conmutador Lista/Parrilla SÍ está, aunque estuvo aplazado mucho
+ *     tiempo («decidido dejarlo para una tanda posterior»). La parrilla es
+ *     propia, no la del origen: aquí la programación no viaja con la lista
+ *     —`Channel` no puede engordar, ver `types.ts`— así que se pide por
+ *     ventana de canales a `/api/guia`. Ver `parrilla-epg.tsx`.
  *   - Fuera Catch-up, el lanzamiento en VLC y los avisos de Xtream, que
  *     dependen de infraestructura que esta app no tiene.
  *   - Textos en español y filtrado delegado al shell, que ya lo hacía.
@@ -128,6 +133,15 @@ export function LiveTvView({
     },
     [onSelect],
   );
+
+  /**
+   * Lista o parrilla. **La lista manda por defecto**, y no es indecisión: es
+   * la que funciona siempre. La parrilla depende de que haya guía EPG
+   * configurada, y el caso por defecto de esta app es no tenerla — abrir en una
+   * rejilla vacía sería una primera impresión falsa.
+   */
+  const [modo, setModo] = useState<"lista" | "parrilla">("lista");
+  const instante = useInstante();
 
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   // Estables, para que el `memo` de `ChannelRow` sirva de algo. Ver allí.
@@ -296,6 +310,36 @@ export function LiveTvView({
             </button>
           )}
         </div>
+
+        {/* Dos botones y no un interruptor: en un mando, un interruptor obliga
+            a saber en qué estado está antes de pulsarlo, y dos botones dicen a
+            dónde llevan. `aria-pressed` marca cuál está puesto. */}
+        <div className="flex shrink-0 items-center rounded-full border border-white/15 p-1">
+          <button
+            type="button"
+            data-nav="button"
+            onClick={() => setModo("lista")}
+            aria-pressed={modo === "lista"}
+            className={`flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
+              modo === "lista" ? "bg-white/15 text-white" : "text-muted hover:text-white"
+            }`}
+          >
+            <List size={16} aria-hidden="true" />
+            <span className="ml-1.5">Lista</span>
+          </button>
+          <button
+            type="button"
+            data-nav="button"
+            onClick={() => setModo("parrilla")}
+            aria-pressed={modo === "parrilla"}
+            className={`ml-1 flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
+              modo === "parrilla" ? "bg-white/15 text-white" : "text-muted hover:text-white"
+            }`}
+          >
+            <CalendarClock size={16} aria-hidden="true" />
+            <span className="ml-1.5">Parrilla</span>
+          </button>
+        </div>
       </header>
 
       <div className="livetv-columns">
@@ -318,6 +362,21 @@ export function LiveTvView({
           ))}
         </nav>
 
+        {modo === "parrilla" ? (
+          /* La parrilla ocupa el sitio de la lista Y del panel de detalle:
+             una rejilla de tiempo en una columna estrecha no se lee. Las
+             categorías se quedan, que es el filtro que sí sigue teniendo
+             sentido aquí. Se sintoniza desde la propia parrilla. */
+          <main className="livetv-list" aria-label={`Parrilla de ${category}`}>
+            <ParrillaEpg
+              canales={visible}
+              sintonizado={tuned}
+              onSelect={sintonizar}
+              ahora={instante}
+            />
+          </main>
+        ) : (
+          <>
         <main className="livetv-list" aria-label={category}>
           <div className="livetv-list-head">
             <h3>{category}</h3>
@@ -454,6 +513,8 @@ export function LiveTvView({
             </div>
           )}
         </aside>
+          </>
+        )}
       </div>
     </div>
   );

@@ -348,6 +348,33 @@ function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): Ep
   return null;
 }
 
+/**
+ * Los programas de un canal que caen dentro de una franja horaria.
+ *
+ * Lo que consume la parrilla. `getEpgEntry` responde «qué dan ahora y qué
+ * viene después», que es lo que necesita una fila de lista; una rejilla
+ * necesita ver varias horas de golpe, y por eso hace falta esta otra puerta a
+ * los mismos datos.
+ *
+ * Cuenta como dentro de la franja **todo lo que la toca**, no solo lo que
+ * empieza dentro: el programa que arrancó a las 19:30 sigue en pantalla a las
+ * 20:00, y una parrilla que empezara la fila en blanco hasta el siguiente
+ * cambio estaría mintiendo sobre lo que se está viendo.
+ */
+export function programasEnFranja(
+  guide: EpgGuide,
+  tvgId: string,
+  channelName: string,
+  desde: number,
+  hasta: number,
+): EpgProgramme[] {
+  const programmes = findProgrammes(guide, tvgId, channelName);
+  if (!programmes) return [];
+  return programmes
+    .filter((programme) => programme.stop > desde && programme.start < hasta)
+    .sort((a, b) => a.start - b.start);
+}
+
 export function getEpgEntry(guide: EpgGuide, tvgId: string, channelName: string, now: number): EpgEntry | null {
   const programmes = findProgrammes(guide, tvgId, channelName);
   if (!programmes || programmes.length === 0) return null;

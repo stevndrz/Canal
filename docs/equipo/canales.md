@@ -54,4 +54,18 @@ Nazco con la app ya funcionando. El estado de partida está en `PLAN-ARVIO.md`
 
 - `stream-player.tsx` (8,64) y `fullscreen-player.tsx` (8,29) siguen marcando
   *Large Method*. Coordinar con `calidad` antes de tocarlos.
-- La parrilla de la guía EPG sigue aplazada; hoy solo hay vista de lista.
+- ~~La parrilla de la guía EPG sigue aplazada~~ — **hecha**. Conmutador
+  Lista/Parrilla en la cabecera de Canales, con la lista por defecto porque es
+  la que funciona siempre (la parrilla necesita `EPG_URL`, y el caso por defecto
+  de esta app es no tenerla).
+
+  Lo que hubo que resolver, por si toca tocarla: la programación de varias horas
+  **no puede viajar con la lista** —`Channel` no puede engordar, cada campo va
+  7.822 veces—, así que se pide por ventana de canales a `/api/guia`, que
+  responde en tuplas. Las cuentas están en `lib/parrilla.ts`, probadas aparte;
+  lo que más cuesta de una parrilla no es la rejilla sino los tres casos de
+  borde: lo que empezó antes de la franja, lo que sigue después, y los huecos
+  de guía, que hay que dibujar o dos programas seguidos parecen uno.
+
+  En `parrilla-epg.tsx` **no hay ni un `gap`**, a propósito: en webOS y Tizen
+  vale cero. Separación con margen y borde.

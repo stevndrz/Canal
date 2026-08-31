@@ -56,7 +56,9 @@ src/
 │   ├── reproduccion/         Qué librería reproduce cada enlace
 │   ├── catalog/              TMDB, proveedores de iframe, catálogo propio
 │   ├── fuente-propia/        Mi enlace: clasificar URLs, leer magnets
-│   └── resolvers/            Contrato de /api/stream (tipos compartidos)
+│   ├── resolvers/            Contrato de /api/stream (tipos compartidos)
+│   ├── parrilla.ts           Las cuentas de la guía en rejilla
+│   └── progreso.ts           Por dónde iba cada cosa que se estaba viendo
 ```
 
 ---
