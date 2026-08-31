@@ -14,48 +14,17 @@ import {
 } from "@/components/app-nav";
 
 /**
- * Barra de navegación del shell.
+ * La barra de navegación, en sus tres formas: fija arriba en escritorio y TV,
+ * cabecera y barra inferior en teléfono.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/shell/TopNav.tsx
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
+ * Las tres llevan `data-nav-chrome` porque son fijas y están siempre pegadas al
+ * borde: sin marcarlas ganaban cualquier movimiento vertical del mando y el
+ * foco no podía volver al riel de encima.
  *
- * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Fuera el sistema de perfiles (avatar, cambio de perfil, nombre): CanalCasa
- *     no tiene cuentas. Ese hueco de la rejilla lo ocupa la marca y el reloj.
- *   - La marca es el monograma propio: ni logotipos ni nombres ajenos.
- *   - Los destinos salen de NAV_ITEMS, que admite tanto vistas del shell como
- *     rutas de Next; el origen solo tenía lo primero.
- *   - Añadido `data-nav` para que use-spatial-nav siga viendo estos botones, y
- *     `data-nav-chrome` en las tres barras: al ser fijas están siempre pegadas
- *     al borde, así que sin marcarlas ganaban cualquier movimiento vertical y
- *     el foco no podía volver al riel de encima.
- *
- * Se conservan intactos sus nombres de clase (.sidebar, .nav-item,
- * .mobile-header, .mobile-bottom-nav…) porque son el contrato con el CSS del
- * shell: renombrarlos obligaría a tocar miles de líneas de estilos.
- *
- * Cuidado con `.sidebar`: pese al nombre es una barra superior fija, no una
- * columna lateral. La rejilla de tres columnas reparte marca | destinos | ajustes.
+ * Cuidado con `.sidebar`: pese al nombre es una barra SUPERIOR, no una columna
+ * lateral. Los nombres de clase son el contrato con `shell.css` y por eso no se
+ * tocan.
  */
-
-interface TopNavProps {
-  /**
-   * Vista activa del App Shell.
-   *
-   * Opcional porque la barra también se pinta en rutas que viven fuera del
-   * shell —`/peliculas`—, donde no hay ninguna vista: allí la sección activa la
-   * decide la URL. Antes esas rutas no tenían barra y cambiar de sección se
-   * sentía como salir de la aplicación.
-   */
-  view?: ViewId;
-  /**
-   * Cambiar de vista dentro del shell. Sin ella, la barra navega a `/` con la
-   * vista pedida en la URL, que es lo que necesitan las rutas de fuera.
-   */
-  onNavigate?: (view: ViewId) => void;
-}
 
 function isActive(item: NavItem, view: ViewId | undefined, pathname: string): boolean {
   if (item.kind === "link") return pathname.startsWith(item.href);
@@ -64,16 +33,21 @@ function isActive(item: NavItem, view: ViewId | undefined, pathname: string): bo
   return view === item.key || (item.key === "canales" && view === "player");
 }
 
-/** Ajustes vive en el engranaje de la derecha, no entre los destinos. */
+/**
+ * Los cuatro repartos de `NAV_ITEMS`, resueltos una vez al cargar el módulo.
+ *
+ * Dos de ellos se calculaban dentro del render, así que se rehacían en cada
+ * pulsación de la barra para dar siempre lo mismo. Ajustes va aparte porque
+ * vive en el engranaje de la derecha, no entre los destinos.
+ */
 const AJUSTES = NAV_ITEMS.find((item) => item.key === "ajustes");
 const DESTINOS = NAV_ITEMS.filter((item) => item.key !== "ajustes");
+const MOVIL_PRINCIPALES = NAV_ITEMS.filter((item) => MOBILE_PRIMARY_KEYS.includes(item.key));
+const MOVIL_RESTO = NAV_ITEMS.filter((item) => MOBILE_OVERFLOW_KEYS.includes(item.key));
 
 /**
- * La marca —icono de televisión y wordmark— es también un botón hacia el
- * inicio, como se espera del logo en cualquier aplicación. Se usa en las dos
- * barras (escritorio/TV y teléfono); hereda el aspecto de las clases que ya
- * tenía cada una (`profile-cluster` / `mobile-brand`) y `.brand-inicio`
- * desmonta en shell.css el aspecto nativo del botón.
+ * La marca es también un botón al inicio, como se espera del logo de cualquier
+ * app. La usan las dos barras, heredando el aspecto de la clase de cada una.
  */
 function MarcaInicio({ className, onIr }: { className: string; onIr: () => void }) {
   return (
@@ -99,7 +73,19 @@ function MarcaInicio({ className, onIr }: { className: string; onIr: () => void 
   );
 }
 
-export function TopNav({ view, onNavigate }: TopNavProps) {
+export function TopNav({
+  view,
+  onNavigate,
+}: {
+  /**
+   * Vista activa del shell. Opcional porque la barra también se pinta fuera de
+   * él —en `/peliculas`—, donde la sección activa la decide la URL. Antes esas
+   * rutas no tenían barra y cambiar de sección se sentía como salir de la app.
+   */
+  view?: ViewId;
+  /** Sin ella la barra navega a `/?vista=…`, que es lo que necesitan las rutas de fuera. */
+  onNavigate?: (view: ViewId) => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
@@ -216,17 +202,13 @@ export function TopNav({ view, onNavigate }: TopNavProps) {
             onClick={() => setMasAbierto(false)}
           />
           <div className="mobile-mas" role="group" aria-label="Más secciones">
-            {NAV_ITEMS.filter((item) => MOBILE_OVERFLOW_KEYS.includes(item.key)).map((item) =>
-              renderItem(item, "mobile-mas-item"),
-            )}
+            {MOVIL_RESTO.map((item) => renderItem(item, "mobile-mas-item"))}
           </div>
         </>
       )}
 
       <nav className="mobile-bottom-nav" aria-label="Secciones" data-nav-chrome>
-        {NAV_ITEMS.filter((item) => MOBILE_PRIMARY_KEYS.includes(item.key)).map((item) =>
-          renderItem(item, "mobile-nav-item"),
-        )}
+        {MOVIL_PRINCIPALES.map((item) => renderItem(item, "mobile-nav-item"))}
         <button
           type="button"
           data-nav="button"

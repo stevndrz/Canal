@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { CalendarClock, List, Play, Search, Star, Tv, X } from "lucide-react";
+import { CalendarClock, List, Search, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
-import { channelMark } from "@/lib/channels";
-import { describirCanal } from "@/lib/describir-canal";
-import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import {
   calcularVentana,
@@ -14,6 +11,7 @@ import {
 } from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
 import { ParrillaEpg } from "./parrilla-epg";
+import { PanelCanal } from "./panel-canal";
 import { useInstante } from "@/hooks/use-reloj";
 
 /**
@@ -273,11 +271,9 @@ export function LiveTvView({
     search.trim() ? 0 : category === "Todas" ? totalCanales : (recuentos.get(category) ?? 0),
   );
 
+  // Lo seleccionado, o lo que se está viendo, o el primero de la lista: la
+  // columna de detalle nunca se queda vacía teniendo algo que enseñar.
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
-  const progreso = canal
-    ? // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
-      porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now())
-    : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
 
   return (
@@ -438,112 +434,15 @@ export function LiveTvView({
           )}
         </main>
 
-        <aside className="livetv-detail" aria-label="Detalle del canal">
-          {canal ? (
-            <>
-              <div className="livetv-detail-art">
-                {canal.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={canal.logoUrl} alt="" loading="lazy" />
-                ) : (
-                  <b className="livetv-row-mark">{channelMark(canal)}</b>
-                )}
-              </div>
-
-              <p className="livetv-detail-group">
-                {canal.number} · {canal.category}
-              </p>
-              <h2>{canal.name}</h2>
-
-              {canal.currentProgram ? (
-                <div className="livetv-program">
-                  <div className="livetv-program-head">
-                    <span>AHORA</span>
-                    {canal.currentStart && (
-                      <em>
-                        {hora(canal.currentStart)} – {hora(canal.currentEnd)}
-                      </em>
-                    )}
-                  </div>
-                  <strong>{canal.currentProgram}</strong>
-                  {progreso !== null && (
-                    <span className="livetv-progress">
-                      <span style={{ width: `${progreso}%` }} />
-                    </span>
-                  )}
-                </div>
-              ) : (
-                /* Sin guía, el panel cuenta lo que sí se sabe del canal en vez
-                   de quedarse en «no hay datos» y dejar la columna vacía. Todo
-                   se deriva en el cliente: cero peticiones, cero bytes de más
-                   en los 7.822 canales que viajan en el HTML. */
-                <AcercaDelCanal canal={canal} />
-              )}
-
-              {canal.nextProgram && (
-                <div className="livetv-program is-next">
-                  <div className="livetv-program-head">
-                    <span>DESPUÉS</span>
-                    {canal.nextStart && <em>{hora(canal.nextStart)}</em>}
-                  </div>
-                  <strong>{canal.nextProgram}</strong>
-                </div>
-              )}
-
-              <div className="livetv-detail-actions">
-                <button type="button" data-nav="button" className="primary" onClick={() => onTune(canal)}>
-                  <Play size={17} fill="currentColor" /> Ver ahora
-                </button>
-                <button
-                  type="button"
-                  data-nav="button"
-                  className={esFavorito ? "secondary is-active" : "secondary"}
-                  aria-pressed={esFavorito}
-                  onClick={() => onToggleFavorite(canal.id)}
-                >
-                  <Star size={17} fill={esFavorito ? "currentColor" : "none"} />
-                  {esFavorito ? "En favoritos" : "Favorito"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="livetv-detail-empty-state">
-              <Tv size={44} />
-              <p>Elige un canal para ver su información.</p>
-            </div>
-          )}
-        </aside>
+        <PanelCanal
+          canal={canal}
+          esFavorito={esFavorito}
+          onTune={onTune}
+          onToggleFavorite={onToggleFavorite}
+        />
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-/**
- * Qué es este canal, cuando no hay guía que contar.
- *
- * Es lo que ocupa la columna de detalle en la mayoría de los casos: casi
- * ninguna lista M3U pública trae EPG, así que antes ahí solo se leía «Este
- * canal no tiene guía de programación» y debajo, nada.
- */
-function AcercaDelCanal({ canal }: { canal: Channel }) {
-  const { descripcion, datos } = describirCanal(canal);
-
-  return (
-    <div className="livetv-acerca">
-      <p className="livetv-acerca-texto">{descripcion}</p>
-
-      <dl className="livetv-acerca-datos">
-        {datos.map(({ termino, valor }) => (
-          <div key={termino}>
-            <dt>{termino}</dt>
-            <dd>{valor}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="livetv-acerca-nota">Este canal no publica guía de programación.</p>
     </div>
   );
 }

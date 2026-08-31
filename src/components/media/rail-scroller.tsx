@@ -6,18 +6,120 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 /**
  * Carril horizontal con flechas que solo aparecen cuando hay a dónde ir.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/media/RailScroller.tsx
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
+ * Dos modos con la misma mecánica y distinta piel: el de canales pinta las
+ * flechas a los lados con clases del armazón, y el de pósters las flota encima
+ * del propio carrusel. Comparten `Flecha` y `useDesplazamiento` — estaban
+ * escritos dos veces, y cualquier arreglo había que hacerlo en los dos.
  *
- * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Textos de accesibilidad en español.
- *   - Las flechas quedan fuera de la navegación con mando: en un televisor el
- *     carril se recorre moviendo el foco de tarjeta en tarjeta, y el propio
- *     desplazamiento sigue al foco. Las flechas son para ratón y para pantallas
- *     táctiles que no descubren el arrastre.
+ * **Las flechas no llevan `data-nav`.** En un televisor el carril se recorre
+ * moviendo el foco de tarjeta en tarjeta y el desplazamiento sigue al foco;
+ * son para el ratón y para el táctil que no descubre el arrastre.
  */
+
+/** Margen para no encender una flecha por un píxel de resto. */
+const HOLGURA = 6;
+
+/** Cuánto avanza cada pulsación: casi una pantalla, con un mínimo utilizable. */
+function pasoDe(node: HTMLElement): number {
+  return Math.max(220, node.clientWidth * 0.82);
+}
+
+/** Si hay recorrido a cada lado, y cómo recorrerlo. */
+function useDesplazamiento(hijos: ReactNode) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [puedeAntes, setPuedeAntes] = useState(false);
+  const [puedeDespues, setPuedeDespues] = useState(false);
+
+  const medir = useCallback(() => {
+    const node = ref.current;
+    if (!node) return;
+    setPuedeAntes(node.scrollLeft > HOLGURA);
+    setPuedeDespues(node.scrollLeft < node.scrollWidth - node.clientWidth - HOLGURA);
+  }, []);
+
+  const desplazar = useCallback((sentido: -1 | 1) => {
+    const node = ref.current;
+    if (node) node.scrollBy({ left: sentido * pasoDe(node), behavior: "smooth" });
+  }, []);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    medir();
+    node.addEventListener("scroll", medir, { passive: true });
+
+    /**
+     * `ResizeObserver` existe desde Chromium 64 y el hardware al que apunta esta
+     * app es MÁS VIEJO: Tizen 4.0 trae Chromium 56 y webOS 4.x, 53. Ahí
+     * `new ResizeObserver(...)` lanza dentro del efecto, la excepción sube por
+     * el árbol y **se cae el render de cada riel** — la portada entera en negro.
+     *
+     * El respaldo con `resize` de ventana no ve que el carril cambie de tamaño
+     * por su cuenta, pero cubre el caso real —girar un televisor no existe— y
+     * sobre todo no tumba nada.
+     */
+    const observador = typeof ResizeObserver !== "undefined" ? new ResizeObserver(medir) : null;
+    if (observador) observador.observe(node);
+    else window.addEventListener("resize", medir);
+
+    // Las imágenes llegan después del primer render y cambian el ancho total.
+    const tardio = window.setTimeout(medir, 250);
+
+    return () => {
+      window.clearTimeout(tardio);
+      node.removeEventListener("scroll", medir);
+      if (observador) observador.disconnect();
+      else window.removeEventListener("resize", medir);
+    };
+  }, [medir, hijos]);
+
+  return { ref, puedeAntes, puedeDespues, desplazar };
+}
+
+function Flecha({
+  sentido,
+  activa,
+  etiqueta,
+  className,
+  onClick,
+}: {
+  sentido: -1 | 1;
+  activa: boolean;
+  etiqueta: string;
+  className: string;
+  onClick: () => void;
+}) {
+  const Icono = sentido === -1 ? ChevronLeft : ChevronRight;
+  return (
+    <button
+      type="button"
+      className={className}
+      onClick={onClick}
+      disabled={!activa}
+      aria-label={`Desplazar ${etiqueta} a la ${sentido === -1 ? "izquierda" : "derecha"}`}
+    >
+      <Icono size={24} />
+    </button>
+  );
+}
+
+/**
+ * Flecha flotante del modo póster.
+ *
+ * Sin `backdrop-blur` ni `transition-all`, por lo mismo que en `media-card`:
+ * son dos por riel y en Inicio hay dieciocho.
+ *
+ * `[@media(hover:none)]:hidden` esconde las flechas donde se toca con el dedo.
+ * `shell.css` ya tiene esa regla para `.rail-arrow` y **no servía aquí**:
+ * Tailwind vive en la capa `utilities` y el armazón en `components`, así que el
+ * `grid` de esta misma cadena le ganaba al `display: none`. En un teléfono
+ * flotaban sobre las carátulas de los rieles de películas y en los de canales
+ * no — el mismo componente comportándose de dos maneras.
+ */
+const FLOTANTE =
+  "rail-arrow [@media(hover:none)]:hidden absolute top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/80 text-white shadow-lg transition-[border-color,transform] duration-200 hover:scale-110 hover:border-white/30";
+
 export function RailScroller({
   children,
   className,
@@ -27,133 +129,49 @@ export function RailScroller({
   children: ReactNode;
   className: string;
   ariaLabel: string;
-  /** Flechas flotando SIEMPRE visibles sobre las fichas (carrusel de pósters). */
+  /** Flechas flotando sobre las fichas, para el carrusel de pósters. */
   overlay?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(false);
+  const { ref, puedeAntes, puedeDespues, desplazar } = useDesplazamiento(children);
 
-  const update = useCallback(() => {
-    const node = ref.current;
-    if (!node) return;
-    const max = node.scrollWidth - node.clientWidth;
-    setCanPrev(node.scrollLeft > 6);
-    setCanNext(node.scrollLeft < max - 6);
-  }, []);
+  /* Sin `data-nav`: este div es el contenedor de scroll, no un destino. Marcarlo
+     hacía que el mando lo eligiera como vecino y se atascara, porque `.focus()`
+     sobre un div corriente no hace nada. */
+  const pista = (
+    <div ref={ref} className={className}>
+      {children}
+    </div>
+  );
 
-  const scrollByPage = (direction: -1 | 1) => {
-    const node = ref.current;
-    if (!node) return;
-    node.scrollBy({ left: direction * Math.max(220, node.clientWidth * 0.82), behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return undefined;
-    update();
-    const onScroll = () => update();
-    node.addEventListener("scroll", onScroll, { passive: true });
-
-    /**
-     * `ResizeObserver` existe desde Chromium 64, y el hardware al que apunta
-     * esta app es MÁS VIEJO que eso: Tizen 4.0 (2018) trae Chromium 56 y
-     * webOS 4.x, 53. Ahí `new ResizeObserver(...)` lanza dentro del efecto, la
-     * excepción sube por el árbol y **se cae el render de cada `MediaRail`**,
-     * o sea, la portada entera en negro.
-     *
-     * `live-tv-view.tsx` ya comprueba el soporte de `IntersectionObserver` de
-     * esta misma manera; aquí faltaba. El respaldo con `resize` de ventana no
-     * detecta que el carril cambie de tamaño sin que lo haga la ventana, pero
-     * cubre el caso real —girar el televisor no existe— y, sobre todo, no
-     * tumba nada.
-     */
-    const observador =
-      typeof ResizeObserver !== "undefined" ? new ResizeObserver(update) : null;
-    if (observador) observador.observe(node);
-    else window.addEventListener("resize", onScroll);
-
-    const timer = window.setTimeout(update, 250);
-    return () => {
-      window.clearTimeout(timer);
-      node.removeEventListener("scroll", onScroll);
-      if (observador) observador.disconnect();
-      else window.removeEventListener("resize", onScroll);
-    };
-  }, [update, children]);
-
-  // Modo overlay: el shell es `relative group` y las flechas se pintan por
-  // encima del carril con z-20, ancladas a 8px del borde — sin salirse nunca
-  // del propio carrusel. Las clases Tailwind van aparte de `.rail-arrow` para
-  // no alterar el comportamiento de los rieles de canales.
-  if (overlay) {
-    const flecha =
-      /* Dos cosas aquí.
-
-         Sin `backdrop-blur` ni `transition-all`, por lo mismo que en
-         `media-card`: son dos flechas por riel y en Inicio hay dieciocho.
-
-         Y `[@media(hover:none)]:hidden` para esconderlas donde se toca con el
-         dedo. `shell.css` ya tiene esa regla para `.rail-arrow`, pero **no
-         servía aquí**: Tailwind vive en la capa `utilities` y el armazón en
-         `components`, así que el `grid` de la propia cadena le ganaba al
-         `display: none`. En un teléfono las flechas flotaban encima de las
-         carátulas de los rieles de películas, y en los de canales no —el mismo
-         componente comportándose de dos maneras—. En su propia capa sí gana. */
-      "rail-arrow [@media(hover:none)]:hidden absolute top-1/2 z-20 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-white/15 bg-black/80 text-white shadow-lg transition-[border-color,transform] duration-200 hover:scale-110 hover:border-white/30";
-    return (
-      <div className="relative group">
-        <button
-          type="button"
-          className={`${flecha} left-2 ${canPrev ? "opacity-100" : "pointer-events-none opacity-0"}`}
-          onClick={() => scrollByPage(-1)}
-          disabled={!canPrev}
-          aria-label={`Desplazar ${ariaLabel} a la izquierda`}
-        >
-          <ChevronLeft size={24} />
-        </button>
-        <div ref={ref} className={className}>
-          {children}
-        </div>
-        <button
-          type="button"
-          className={`${flecha} right-2 ${canNext ? "opacity-100" : "pointer-events-none opacity-0"}`}
-          onClick={() => scrollByPage(1)}
-          disabled={!canNext}
-          aria-label={`Desplazar ${ariaLabel} a la derecha`}
-        >
-          <ChevronRight size={24} />
-        </button>
-      </div>
-    );
-  }
+  const flechas = overlay
+    ? {
+        contenedor: "relative group",
+        antes: `${FLOTANTE} left-2 ${puedeAntes ? "opacity-100" : "pointer-events-none opacity-0"}`,
+        despues: `${FLOTANTE} right-2 ${puedeDespues ? "opacity-100" : "pointer-events-none opacity-0"}`,
+      }
+    : {
+        contenedor: `rail-scroll-shell ${puedeAntes ? "can-prev" : ""} ${puedeDespues ? "can-next" : ""}`,
+        antes: "rail-arrow rail-arrow-left",
+        despues: "rail-arrow rail-arrow-right",
+      };
 
   return (
-    <div className={`rail-scroll-shell ${canPrev ? "can-prev" : ""} ${canNext ? "can-next" : ""}`}>
-      <button
-        type="button"
-        className="rail-arrow rail-arrow-left"
-        onClick={() => scrollByPage(-1)}
-        disabled={!canPrev}
-        aria-label={`Desplazar ${ariaLabel} a la izquierda`}
-      >
-        <ChevronLeft size={24} />
-      </button>
-      {/* Sin `data-nav`: este div es el contenedor de scroll, no un destino.
-          Marcarlo hacía que la navegación con mando lo eligiera como vecino y
-          se atascara, porque `.focus()` sobre un div corriente no hace nada. */}
-      <div ref={ref} className={className}>
-        {children}
-      </div>
-      <button
-        type="button"
-        className="rail-arrow rail-arrow-right"
-        onClick={() => scrollByPage(1)}
-        disabled={!canNext}
-        aria-label={`Desplazar ${ariaLabel} a la derecha`}
-      >
-        <ChevronRight size={24} />
-      </button>
+    <div className={flechas.contenedor}>
+      <Flecha
+        sentido={-1}
+        activa={puedeAntes}
+        etiqueta={ariaLabel}
+        className={flechas.antes}
+        onClick={() => desplazar(-1)}
+      />
+      {pista}
+      <Flecha
+        sentido={1}
+        activa={puedeDespues}
+        etiqueta={ariaLabel}
+        className={flechas.despues}
+        onClick={() => desplazar(1)}
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, Search } from "lucide-react";
 import type { Channel } from "@/lib/types";
@@ -11,66 +11,64 @@ import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import { useDictado } from "@/hooks/use-dictado";
 
 /**
- * Buscar, en los dos catálogos a la vez.
+ * Buscar canales y catálogo a la vez.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/search/SearchScreen.tsx
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
- *
- * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Se conserva el teclado en pantalla de CanalCasa, ausente en el origen.
- *     En un televisor sin teclado físico, un campo de texto a secas es un
- *     callejón sin salida: el mando solo mueve el foco.
- *   - Busca en **dos** orígenes y no en uno. Antes solo recorría la lista M3U,
- *     así que escribir el nombre de una película no daba nada aunque estuviera
- *     en el catálogo: media aplicación quedaba fuera del buscador.
- *   - Se puede dictar. «Guardianes de la galaxia» son cuarenta y tantas
- *     pulsaciones de mando en el teclado en pantalla, o una pulsación y una
- *     frase. El botón **solo aparece donde el navegador sabe hacerlo** (ver
- *     `lib/dictado.ts`): en buena parte de los televisores no sabe, y ahí queda
- *     el teclado de siempre sin que nadie se entere de que faltaba algo.
- *
- * Los dos orígenes se consultan de forma distinta a propósito. Los canales ya
+ * Los dos orígenes se consultan de forma distinta a propósito: los canales ya
  * están enteros en el cliente desde la primera carga, así que se filtran en
- * memoria y responden en la misma pulsación. Las películas viven en TMDB y
- * pasan por `/api/buscar`, con antirrebote: la credencial no sale al
- * navegador, así que el cliente no puede preguntarle a TMDB directamente.
+ * memoria y responden en la misma pulsación; las películas viven en TMDB y
+ * pasan por `/api/buscar` con antirrebote, porque la credencial no sale al
+ * navegador y el cliente no puede preguntarle directamente.
+ *
+ * Tres formas de escribir, y las tres hacen falta: el campo, el teclado en
+ * pantalla —sin él, un mando delante de un campo de texto es un callejón sin
+ * salida— y el dictado, que solo aparece donde el navegador sabe hacerlo.
  */
-interface BuscarViewProps {
+export function BuscarView({
+  results,
+  search,
+  onSearchChange,
+  onTune,
+}: {
   results: Channel[];
   search: string;
   onSearchChange: (value: string) => void;
   onTune: (channel: Channel) => void;
-}
-
-export function BuscarView({ results, search, onSearchChange, onTune }: BuscarViewProps) {
+}) {
   const router = useRouter();
   const { resultados: titulos, cargando } = useBuscarTitulos(search);
 
-  /**
-   * Dictar **sustituye** lo escrito en vez de añadirse al final.
-   *
-   * Es lo que se espera: quien dicta está empezando una búsqueda, no
-   * continuando la anterior. Concatenar dejaría «batmanguardianes de la
-   * galaxia» a quien probó dos cosas seguidas.
-   */
+  // Dictar **sustituye** lo escrito: quien dicta empieza una búsqueda, no
+  // continúa la anterior. Concatenar dejaría «batmanguardianes de la galaxia».
   const { soportado: hayVoz, escuchando, error: errorVoz, escuchar } = useDictado(onSearchChange);
 
-  const tarjetasCanal = results.map((channel) => channelToCard(channel));
+  /**
+   * Tarjetas e índice por clave, en una pasada y memorizados.
+   *
+   * Sin memorizar, cada pulsación del buscador creaba tarjetas nuevas y el
+   * `memo` de `MediaCard` no acertaba nunca: se repintaba la rejilla entera por
+   * cada letra, que es justo cuando menos margen hay. Y el índice evita
+   * recorrer los resultados otra vez al pulsar una.
+   */
+  const { tarjetasCanal, canalPorClave } = useMemo(() => {
+    const tarjetasCanal = results.map(channelToCard);
+    const canalPorClave = new Map(tarjetasCanal.map((t, i) => [t.key, results[i]]));
+    return { tarjetasCanal, canalPorClave };
+  }, [results]);
 
-  // Estables: ver la nota de `home-view.tsx`. Un manejador nuevo por render
-  // anula el `memo` de `MediaCard` y repinta la rejilla entera.
   const abrirCanal = useCallback(
-    (card: CardItem) => {
-      const canal = results.find((channel) => `canal-${channel.id}` === card.key);
+    (tarjeta: CardItem) => {
+      const canal = canalPorClave.get(tarjeta.key);
       if (canal) onTune(canal);
     },
-    [results, onTune],
+    [canalPorClave, onTune],
   );
 
+  // La clave de una tarjeta de catálogo es `tipo-id`; la ruta, las dos partes.
   const abrirTitulo = useCallback(
-    (card: CardItem) => router.push(`/peliculas/${card.key.split("-")[0]}/${card.key.split("-").slice(1).join("-")}`),
+    (tarjeta: CardItem) => {
+      const [tipo, ...resto] = tarjeta.key.split("-");
+      router.push(`/peliculas/${tipo}/${resto.join("-")}`);
+    },
     [router],
   );
 

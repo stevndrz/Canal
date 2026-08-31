@@ -7,42 +7,47 @@ import { channelToCard, type CardItem } from "@/lib/media-item";
 import { MediaCard } from "@/components/media/media-card";
 
 /**
- * Favoritos.
+ * Los canales marcados en este aparato.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/watchlist/WatchlistScreen.tsx
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
- *
- * MODIFICADO respecto al original (Apache 2.0 §4b): se porta el encabezado y la
- * rejilla, y se deja fuera todo su selector de origen —Trakt, Jellyfin, Plex,
- * Emby y sus bibliotecas—, porque aquí solo hay un origen: lo que está marcado
- * en este dispositivo.
+ * No hay más de un origen ni lo habrá: sin cuentas ni sincronización, «mis
+ * favoritos» son los de esta pantalla y punto. La vista lo dice en el
+ * antetítulo para que nadie espere encontrarlos en otro aparato.
  */
-interface FavoritosViewProps {
+export function FavoritosView({
+  channels,
+  favorites,
+  tunedId,
+  onTune,
+}: {
   channels: Channel[];
   favorites: Set<number>;
   tunedId: number | null;
   onTune: (channel: Channel) => void;
-}
+}) {
+  /**
+   * La tarjeta y el canal del que salió, en una sola pasada.
+   *
+   * Memorizado porque `MediaCard` va con `memo`: recalcular las tarjetas en
+   * cada render las convierte en objetos nuevos, el `memo` no acierta nunca y
+   * se repinta la rejilla entera por cualquier cambio.
+   *
+   * Y con un índice por clave en vez de buscar el canal al pulsar: `channels`
+   * son 7.822, así que un `find` por clic recorría la lista entera para algo
+   * que ya se sabía al construir la tarjeta.
+   */
+  const { tarjetas, porClave } = useMemo(() => {
+    const marcados = channels.filter((canal) => favorites.has(canal.id));
+    const tarjetas = marcados.map(channelToCard);
+    const porClave = new Map(tarjetas.map((tarjeta, i) => [tarjeta.key, marcados[i]]));
+    return { tarjetas, porClave };
+  }, [channels, favorites]);
 
-export function FavoritosView({ channels, favorites, tunedId, onTune }: FavoritosViewProps) {
-  // Memorizados: sin esto se recalculaban en cada render y las tarjetas
-  // resultantes eran objetos nuevos, así que el `memo` de `MediaCard` no
-  // acertaba nunca y se repintaba la rejilla entera por cualquier cambio.
-  const tarjetas = useMemo(
-    () => channels.filter((channel) => favorites.has(channel.id)).map((canal) => channelToCard(canal)),
-    [channels, favorites],
-  );
-
-  // Busca en `channels`, el prop estable, y no en una lista derivada que
-  // cambia de identidad en cada render.
   const abrir = useCallback(
-    (card: CardItem) => {
-      const canal = channels.find((channel) => `canal-${channel.id}` === card.key);
+    (tarjeta: CardItem) => {
+      const canal = porClave.get(tarjeta.key);
       if (canal) onTune(canal);
     },
-    [channels, onTune],
+    [porClave, onTune],
   );
 
   return (
@@ -54,18 +59,7 @@ export function FavoritosView({ channels, favorites, tunedId, onTune }: Favorito
         </div>
       </section>
 
-      {tarjetas.length > 0 ? (
-        <div className="grid-results">
-          {tarjetas.map((item) => (
-            <MediaCard
-              key={item.key}
-              item={item}
-              onOpen={abrir}
-              active={tunedId !== null && item.key === `canal-${tunedId}`}
-            />
-          ))}
-        </div>
-      ) : (
+      {tarjetas.length === 0 ? (
         <div className="watchlist-empty">
           <Star size={30} />
           <p>Todavía no marcas ningún canal</p>
@@ -73,6 +67,17 @@ export function FavoritosView({ channels, favorites, tunedId, onTune }: Favorito
             Pulsa la estrella en cualquier canal de la lista. Se guardan solo en este
             dispositivo.
           </span>
+        </div>
+      ) : (
+        <div className="grid-results">
+          {tarjetas.map((tarjeta) => (
+            <MediaCard
+              key={tarjeta.key}
+              item={tarjeta}
+              onOpen={abrir}
+              active={tunedId !== null && tarjeta.key === `canal-${tunedId}`}
+            />
+          ))}
         </div>
       )}
     </div>
