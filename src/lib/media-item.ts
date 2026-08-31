@@ -27,8 +27,6 @@ export interface CardItem {
   meta: string;
   /** Línea inferior derecha: duración, nota, número de canal. */
   metaRight?: string;
-  /** Distintivo de la esquina superior derecha, ej. "EN VIVO". */
-  badge?: string;
   /** 0-100. Pinta la barra de progreso sobre el arte. */
   progress?: number;
   /** Monograma de respaldo cuando no hay ninguna imagen. */
@@ -46,8 +44,15 @@ export interface CardItem {
  * pinta, no se manda.
  */
 
-/** Un canal en vivo visto como tarjeta. */
-export function channelToCard(channel: Channel, options?: { live?: boolean }): CardItem {
+/**
+ * Un canal en vivo visto como tarjeta.
+ *
+ * Tenía un `options.live` que ponía un distintivo «EN VIVO», y **nadie lo pasó
+ * nunca**. No es casualidad ni olvido: en esta app todos los canales están en
+ * vivo, así que el distintivo no distinguiría nada. Es la misma razón por la
+ * que `isLive` se retiró de `Channel` — valía `true` en los 7.822.
+ */
+export function channelToCard(channel: Channel): CardItem {
   return {
     key: `canal-${channel.id}`,
     title: channel.name,
@@ -57,7 +62,6 @@ export function channelToCard(channel: Channel, options?: { live?: boolean }): C
     poster: channel.logoUrl || null,
     meta: channel.currentProgram || channel.category,
     metaRight: channel.number,
-    badge: options?.live ? "EN VIVO" : undefined,
     mark: channelMark(channel),
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { hora } from "@/lib/guia-epg";
@@ -47,6 +47,15 @@ import {
 
 /** Cuántos canales se piden de una vez. Cuadra con `MAX_CANALES` de la ruta. */
 const POR_TANDA = 40;
+
+/**
+ * El array que reciben las filas sin programación.
+ *
+ * Constante y no `[]` en línea: un literal nuevo por render le cambia la
+ * identidad de las props a cada fila y anula el `memo` de abajo, que es justo
+ * lo que evita repintar cuarenta filas cada vez que avanza el reloj.
+ */
+const SIN_PROGRAMAS: [number, number, string][] = [];
 
 interface Respuesta {
   programas: [number, number, string][][];
@@ -98,6 +107,18 @@ export function ParrillaEpg({
   const columnas = useMemo(() => columnasDeFranja(desde), [desde]);
 
   const enPantalla = useMemo(() => canales.slice(0, cuantos), [canales, cuantos]);
+
+  /**
+   * El reloj, redondeado al minuto, es lo que reciben las filas.
+   *
+   * `useInstante` avanza cada 20 segundos y la línea del «ahora» de arriba lo
+   * necesita así de fino para moverse. Las filas no: lo único que sacan del
+   * reloj es qué bloque está en emisión, y eso cambia en los cambios de
+   * programa, no cada veinte segundos. Pasarles el instante crudo repintaba
+   * cuarenta filas —con sus bloques dentro— tres veces por minuto, en el
+   * aparato que menos lo puede pagar.
+   */
+  const minuto = Math.floor(ahora / 60_000);
 
   useEffect(() => {
     const nombres = enPantalla.map((canal) => canal.name);
@@ -182,10 +203,10 @@ export function ParrillaEpg({
           <FilaParrilla
             key={canal.id}
             canal={canal}
-            programas={porCanal.get(canal.name) ?? []}
+            programas={porCanal.get(canal.name) ?? SIN_PROGRAMAS}
             desde={desde}
             hasta={hasta}
-            ahora={ahora}
+            minuto={minuto}
             activo={sintonizado?.id === canal.id}
             onSelect={onSelect}
           />
@@ -201,12 +222,12 @@ export function ParrillaEpg({
   );
 }
 
-function FilaParrilla({
+const FilaParrilla = memo(function FilaParrilla({
   canal,
   programas,
   desde,
   hasta,
-  ahora,
+  minuto,
   activo,
   onSelect,
 }: {
@@ -214,10 +235,12 @@ function FilaParrilla({
   programas: [number, number, string][];
   desde: number;
   hasta: number;
-  ahora: number;
+  /** El reloj en minutos, no en milisegundos. Ver `minuto` en el padre. */
+  minuto: number;
   activo: boolean;
   onSelect: (canal: Channel) => void;
 }) {
+  const ahora = minuto * 60_000;
   const bloques = useMemo(
     () =>
       filaDeParrilla(
@@ -267,7 +290,7 @@ function FilaParrilla({
       </div>
     </div>
   );
-}
+});
 
 function BloqueDePrograma({
   bloque,

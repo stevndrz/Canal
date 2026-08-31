@@ -20,6 +20,7 @@ import { useCast, type SubtituloCast } from "@/hooks/use-cast";
 import { useSeguirViendo } from "@/hooks/use-progreso";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esIPhone } from "@/lib/dispositivo";
+import { extensionDe } from "@/lib/extension";
 import type { ManualStream } from "@/lib/catalog/types";
 import {
   planAnteErrorFatal,
@@ -52,8 +53,7 @@ interface AudioTrackOption {
 function detectKind(stream: ManualStream): "hls" | "native" {
   if (stream.type === "hls") return "hls";
   if (stream.type === "mp4") return "native";
-  const path = stream.url.toLowerCase().split("?")[0];
-  return path.endsWith(".m3u8") ? "hls" : "native";
+  return extensionDe(stream.url) === "m3u8" ? "hls" : "native";
 }
 
 function formatTime(seconds: number): string {

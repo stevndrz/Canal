@@ -24,7 +24,6 @@ interface ReconocimientoLike {
   interimResults: boolean;
   maxAlternatives: number;
   start: () => void;
-  stop: () => void;
   abort: () => void;
   onresult: ((evento: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
   onerror: ((evento: { error?: string }) => void) | null;

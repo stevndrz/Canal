@@ -36,6 +36,22 @@ const MAX_CANALES = 40;
 /** Tope de franja pedida. Tres horas es lo que pinta la parrilla de una vez. */
 const MAX_HORAS = 6;
 
+/**
+ * Cuánto se puede pedir hacia atrás o hacia delante desde ahora.
+ *
+ * Esta respuesta se cachea en el borde, y la URL entera es la clave. Sin tope,
+ * `desde` admite cualquier entero: son infinitas URLs distintas que caducan
+ * sin que nadie las vuelva a pedir, y cada una es una petición al origen. Es
+ * el mismo agujero que se cerró en `/api/stream` acotando el `tmdbId`, y se me
+ * escapó aquí.
+ *
+ * Siete días cubren de sobra lo que una guía XMLTV trae.
+ */
+const MARGEN_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Tope de nombre de canal. Los de verdad no pasan de 60 caracteres. */
+const MAX_LARGO_NOMBRE = 120;
+
 /** Un programa, en tuplas: inicio, fin, título. */
 type ProgramaTupla = [number, number, string];
 
@@ -53,7 +69,7 @@ export async function GET(request: Request) {
    */
   const nombres = (params.get("canales") ?? "")
     .split("\n")
-    .map((nombre) => nombre.trim())
+    .map((nombre) => nombre.trim().slice(0, MAX_LARGO_NOMBRE))
     .filter(Boolean)
     .slice(0, MAX_CANALES);
 
@@ -62,7 +78,12 @@ export async function GET(request: Request) {
   }
 
   const desde = Number(params.get("desde"));
-  if (!Number.isInteger(desde) || desde <= 0) {
+  const ahora = Date.now();
+  if (
+    !Number.isInteger(desde) ||
+    desde < ahora - MARGEN_MS ||
+    desde > ahora + MARGEN_MS
+  ) {
     return Response.json({ error: "Falta un «desde» válido" }, { status: 400 });
   }
 
