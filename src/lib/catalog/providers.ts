@@ -4,14 +4,11 @@ import { publicConfig } from "@/lib/config";
 /**
  * Proveedores de reproducción por iFrame.
  *
- * Hay una lista y no una plantilla única porque estos servicios fallan a
- * menudo y de forma desigual: el que no tiene una película tiene la siguiente.
- *
- * Límite que condiciona todo el diseño: **el iframe es de otro dominio, así que
- * desde aquí no se ve nada de lo que pasa dentro**. Ni si encontró la película,
- * ni en qué idioma, ni si dio error — el evento `load` se dispara igual para
- * una página de error. Por eso el cambio de servidor lo hace la persona con un
- * botón y no un detector automático que mentiría.
+ * Una lista y no una plantilla única porque fallan a menudo y de forma
+ * desigual: el que no tiene una película tiene la siguiente. Desde fuera del
+ * iframe no se ve nada de lo que pasa dentro, así que el cambio de servidor lo
+ * hace la persona con un botón; ver `disponibilidad.ts` para lo único que sí
+ * se puede preguntar.
  *
  * ⚠️ Estos dominios ROTAN sin aviso (AutoEmbed desapareció en 2026, VideoEasy
  * migró de .net a .to). Si varios fallan a la vez con error de DNS, comprobar
@@ -74,33 +71,24 @@ export interface EmbedProvider {
 const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
 
 /**
- * El orden es el producto: decide qué se ve al abrir una ficha.
+ * El orden es el producto: decide qué se ve al abrir una ficha. Vimeus primero
+ * en películas (doblaje latino), VidSrc primero en series (los únicos
+ * subtítulos de verdad), Videasy y Vidlink de relevo, Multiembed el último.
  *
- * 1. **Vimeus** en PELÍCULAS, que es el del doblaje latino. En series no
- *    aparece: su ruta da 404.
- * 2. **VidSrc** detrás, y primero en SERIES: el único con subtítulos de
- *    verdad, y con menos anuncios que Vidlink.
- * 3. **Videasy** y **Vidlink**, el relevo. 4. **Multiembed**, el último.
- *
- * ⚠️ El precio de VidSrc delante es su puerta antirrobot (ver
- * `puertaAntirrobot`): subtítulos a cambio de que a veces haya que pulsar
- * «Probar otro servidor», que con estos proveedores se ofrece antes (ver
- * `ESPERA_ANTES_DE_OFRECER_MS`).
+ * ⚠️ El precio de VidSrc delante es su puerta antirrobot: subtítulos a cambio
+ * de que a veces haya que pulsar «Probar otro servidor».
  */
 const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
-    // El «VIMEOS» de las webs latinas (vimeus.com): el del doblaje latino.
-    // Solo películas — verificado 2026-08-24, /e/movie → 200 y las siete
-    // variantes de serie probadas (/e/tv, /e/series, /tv, /e/show…) → 404.
+    // El del doblaje latino. Solo películas — verificado 2026-08-24: /e/movie
+    // → 200, y las siete variantes de serie probadas → 404.
     //
     // Ojo, `vimeos.net` es OTRO sitio: sus embeds llevan un hash opaco por
-    // título resuelto en su backend, así que no se pueden construir por
-    // plantilla y no sirve como proveedor automático.
+    // título resuelto en su backend, así que no se pueden armar por plantilla.
     id: "vimeus",
     movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
     tv: "",
     spanishSubtitles: false,
-    // Responde 404 con `<h1>Not Found</h1>` cuando no tiene la película, y
-    // por eso ya no hace falta que nadie vea ese «Not Found» dentro del marco.
+    // Responde 404 cuando no tiene la película: por eso se puede preguntar.
     compruebaPorEstado: true,
   },
   {
@@ -115,8 +103,8 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     puertaAntirrobot: true,
   },
   {
-    // El relevo limpio: sin puerta antirrobot y sin librerías de anuncios en
-    // su paquete. Lo que no trae son subtítulos propios, por eso no encabeza.
+    // El relevo limpio: sin puerta antirrobot ni librerías de anuncios. No
+    // trae subtítulos propios, por eso no encabeza.
     id: "videasy",
     movie: "https://player.videasy.to/movie/{tmdbId}",
     tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
@@ -124,13 +112,11 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     spanishSubtitles: false,
   },
   {
-    // El relevo de Videasy, sin puerta (verificado 2026-08-24, 200 en tv y
-    // movie). Va detrás porque es el que MÁS anuncios trae: carga `aclib`
-    // (AdCash) y `processPopunderQueue`, que abre pestaña cada 30 s.
-    //
-    // Los parámetros salen de su propio paquete (`searchParams.get(…)`), no
-    // de suponer: `autoplay=true` arranca sin tocar el vídeo —clave con un
-    // mando— y `poster=false` se salta un clic, o sea un popunder menos.
+    // Sin puerta (verificado 2026-08-24), pero el que MÁS anuncios trae:
+    // carga `aclib` (AdCash) y `processPopunderQueue`, que abre pestaña cada
+    // 30 s. Los parámetros salen de su propio paquete, no de suponer:
+    // `autoplay=true` arranca sin tocar el vídeo —clave con un mando— y
+    // `poster=false` se salta un clic, o sea un popunder menos.
     id: "vidlink",
     movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
     tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",

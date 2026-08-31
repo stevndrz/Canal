@@ -1,21 +1,13 @@
 /**
  * Las cuentas de la parrilla, sin DOM ni React para poder probarlas.
  *
- * Una parrilla es una tabla donde el eje X es el tiempo, así que todo se
- * reduce a convertir instantes en porcentajes de una franja. Suena trivial y
- * tiene tres casos que no lo son, y son justo los que se ven en pantalla:
+ * Convertir instantes en porcentajes de una franja suena trivial; los tres
+ * casos que no lo son están en las pruebas: el programa que ya había empezado
+ * antes de la franja, el que se sale por la derecha, y los huecos de guía —que
+ * hay que dibujar, o dos bloques pegados parecen seguidos.
  *
- *  1. **El programa que ya había empezado.** A las 20:00 sigue emitiéndose lo
- *     que arrancó a las 19:30. Su bloque tiene que empezar pegado al borde
- *     izquierdo, no fuera de la pantalla ni en el minuto 30.
- *  2. **El que se sale por la derecha**, por lo mismo al revés.
- *  3. **Los huecos.** Casi ninguna guía XMLTV cubre las 24 horas de todos sus
- *     canales, y un hueco sin dibujar deja dos bloques pegados que parecen
- *     seguidos cuando no lo son. Un hueco tiene que verse como un hueco.
- *
- * Este archivo no sabe cuántos píxeles mide nada: devuelve porcentajes, y el
- * CSS decide el ancho. Es lo que permite que la misma parrilla sirva en un
- * teléfono y en un televisor de 1920 sin recalcular nada.
+ * Devuelve porcentajes y no píxeles: la misma parrilla sirve en un teléfono y
+ * en un televisor de 1920 sin recalcular nada.
  */
 
 /** Un programa ya colocado en la franja. */
@@ -50,20 +42,14 @@ export const HORAS_VISIBLES = 3;
 export const PASO_MINUTOS = 30;
 
 /**
- * Un hueco más corto que esto no se dibuja.
- *
- * Las guías traen desajustes de segundos entre el fin de un programa y el
- * inicio del siguiente. Dibujarlos produce rendijas de un píxel que parecen un
- * fallo de pintado, y en un televisor se ven como parpadeos en el borde.
+ * Las guías encadenan 20:29:58 → 20:30:00; dibujar esos dos segundos deja
+ * rendijas de un píxel que parecen un fallo de pintado.
  */
 export const HUECO_MINIMO_MS = 60_000;
 
 /**
- * El inicio de la franja: la media hora en punto anterior a `ahora`.
- *
- * Empezar exactamente en `ahora` haría que la primera columna fuera «20:07»,
- * que no se lee. Y que la franja se mueva sola cada minuto es peor: la parrilla
- * bailaría bajo el foco del mando mientras alguien la recorre.
+ * La media hora en punto anterior a `ahora`. Empezar en «20:07» no se lee, y
+ * una franja que se mueve sola hace bailar la parrilla bajo el foco del mando.
  */
 export function inicioDeFranja(ahora: number, pasoMinutos = PASO_MINUTOS): number {
   const paso = pasoMinutos * 60_000;
@@ -89,10 +75,9 @@ export function posicionEnFranja(instante: number, desde: number, hasta: number)
 /**
  * Coloca los programas de un canal en la franja, rellenando los huecos.
  *
- * Devuelve una fila completa de extremo a extremo: los bloques suman siempre el
- * 100% del ancho, con huecos donde la guía no dice nada. Eso es lo que permite
- * que la fila se pinte con un `flex` sin posicionamiento absoluto, que es
- * bastante más barato en un televisor.
+ * Los bloques suman siempre el 100% del ancho, y eso no es una curiosidad: es
+ * lo que permite pintar la fila con `flex` en vez de con decenas de elementos
+ * absolutos, bastante más barato en un televisor.
  */
 export function filaDeParrilla(
   programas: ProgramaCrudo[],
@@ -150,12 +135,8 @@ export function filaDeParrilla(
 }
 
 /**
- * ¿Está sonando ahora este bloque?
- *
- * Se pregunta aparte y no se guarda en el bloque a propósito: el bloque se
- * calcula una vez y el «ahora» avanza. Guardarlo obligaría a recalcular la
- * parrilla entera cada minuto, que es justo lo que no se puede hacer con 7.822
- * canales detrás.
+ * Se pregunta aparte y no se guarda en el bloque: el bloque se calcula una vez
+ * y el «ahora» avanza. Guardarlo obligaría a rehacer la parrilla cada minuto.
  */
 export function estaEnEmision(bloque: BloqueParrilla, ahora: number): boolean {
   return !bloque.hueco && bloque.inicio <= ahora && ahora < bloque.fin;

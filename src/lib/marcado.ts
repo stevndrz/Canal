@@ -1,20 +1,10 @@
 /**
  * Marcar un canal por su número, como en una televisión de siempre.
  *
- * Antes los dígitos del mando saltaban a la centena de una categoría: pulsar
- * «3» llevaba al primer canal cuyo número empezara por 3. Eso no es lo que hace
- * un mando de verdad y no coincide con lo que la app enseña — cada fila tiene
- * su número escrito al lado, y teclearlo no llevaba ahí.
- *
- * Lo que hace un televisor: acumula los dígitos, los enseña mientras se marcan,
- * y salta cuando ya no cabe duda. «Cuando ya no cabe duda» tiene dos formas, y
- * las dos importan:
- *
- * - **Se acabó el tiempo.** Se marca «3», se espera, y va al canal 3 si existe.
- * - **No hay continuación posible.** Se marca «307» y ningún canal empieza por
- *   «307» salvo el 307 mismo: no hay nada que esperar, se salta ya. Es lo que
- *   hace que marcar un número completo se sienta instantáneo en vez de dejarte
- *   dos segundos mirando la pantalla.
+ * Se acumulan los dígitos y se salta cuando ya no cabe duda, que tiene dos
+ * formas: o vence el tiempo, o **ningún número más largo empieza por lo
+ * marcado** — y esa segunda es la que hace que teclear un número completo se
+ * sienta instantáneo en vez de dejarte dos segundos mirando la pantalla.
  */
 
 /** Tope de dígitos. Los números de esta app llegan a cuatro cifras. */
@@ -24,17 +14,12 @@ export const MAX_DIGITOS = 4;
 export const ESPERA_MS = 2_000;
 
 /**
- * Índice para resolver un marcado sin recorrer la lista en cada tecla.
+ * Índice para resolver un marcado sin recorrer 7.822 canales en cada tecla.
  *
- * `cuantosEmpiezanPor` cuenta, para cada comienzo posible, cuántos números lo
- * tienen (para el 307 se apuntan «3», «30» y «307»). Con 7.822 canales de
- * cuatro cifras son unas 31.000 entradas, construidas una sola vez.
- *
- * Es un **conteo** y no un conjunto porque la pregunta que hay que responder en
- * cada pulsación no es «¿existe algo que empiece así?» sino «¿hay algo MÁS
- * LARGO que empiece así?», y eso sale de comparar el conteo del prefijo con si
- * el prefijo es además un número completo. Con un conjunto habría que recorrerlo
- * entero para averiguarlo, que es justo lo que este índice viene a evitar.
+ * Es un **conteo** y no un conjunto porque la pregunta real no es «¿existe algo
+ * que empiece así?» sino «¿hay algo MÁS LARGO que empiece así?». Con un
+ * conjunto habría que recorrerlo entero, que es lo que el índice viene a
+ * evitar; con el conteo sale de restarle el propio marcado si es un número.
  */
 export interface IndiceMarcado<T> {
   exactos: Map<string, T>;
@@ -94,11 +79,8 @@ export function canalDeMarcado<T>(indice: IndiceMarcado<T>, marcado: string): T 
 }
 
 /**
- * El siguiente marcado al pulsar un dígito, o `null` si hay que ignorarlo.
- *
- * Se ignora pasado el tope en vez de reiniciar: quien teclea un dígito de más
- * se ha equivocado, y empezar de cero con ese dígito suelto le llevaría a un
- * canal cualquiera. Dejarlo quieto le da ocasión de ver el número y esperar.
+ * Pasado el tope se ignora en vez de reiniciar: quien teclea un dígito de más
+ * se ha equivocado, y empezar de cero con él le llevaría a un canal cualquiera.
  */
 export function siguienteMarcado(actual: string, digito: string): string | null {
   if (!/^[0-9]$/.test(digito)) return null;

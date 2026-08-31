@@ -1,22 +1,12 @@
 /**
  * Por dónde iba cada cosa que se estaba viendo.
  *
- * «Seguir viendo» existía en la portada desde el principio, pero era historial
- * y no reanudación: enseñaba lo último que se había abierto y al pulsar
- * empezaba de cero. La barra de progreso de la tarjeta también estaba escrita
- * —`CardItem.progress`, que `MediaCard` pinta cuando el valor está entre 1 y
- * 94— y **no la alimentaba nadie**. Esto es lo que faltaba en medio.
+ * **Solo funciona donde el `<video>` es nuestro**: «Mi enlace» y los servidores
+ * «Directo». En los proveedores por iframe la posición no se puede leer —otro
+ * dominio, la misma razón por la que tampoco se sabe si cargaron—, así que ahí
+ * no se ofrece, en vez de dejar una barra que unos títulos tienen y otros no.
  *
- * **Dónde funciona y dónde no, que conviene decirlo por delante.** Solo puede
- * funcionar donde el `<video>` es nuestro: «Mi enlace» y los servidores
- * «Directo» de los addons. En los proveedores por iframe es imposible leer la
- * posición, por la misma razón estructural por la que tampoco se puede saber si
- * cargaron: es otro dominio. Así que la función se ofrece donde funciona y no
- * se insinúa donde no — nada de una barra a medias que unos títulos tienen y
- * otros no sin explicación.
- *
- * Aquí solo vive la lógica, sin React ni `localStorage`, para poder probarla:
- * `vitest.config.ts` usa `environment: "node"`.
+ * Sin React ni `localStorage` para poder probarlo: `vitest` corre en `node`.
  */
 
 /** Lo que se recuerda de un título empezado. */
@@ -32,31 +22,17 @@ export interface Marca {
 export type MemoriaProgreso = Record<string, Marca>;
 
 /**
- * A partir de aquí se considera visto.
- *
- * 94 no es un número al azar: es **el mismo umbral que `MediaCard` ya usa**
- * para decidir si pinta la barra. Si fueran distintos habría una franja en la
- * que la tarjeta no enseña progreso pero la fila sigue ofreciendo continuar, y
- * eso se lee como un fallo. Un solo número para las dos decisiones.
+ * A partir de aquí se considera visto. Es **el mismo umbral que `MediaCard`**
+ * usa para pintar la barra: con dos distintos habría una franja donde la
+ * tarjeta no enseña progreso pero la fila sigue ofreciendo continuar.
  */
 export const TERMINADO_PCT = 94;
 
-/**
- * Por debajo de esto no se recuerda nada.
- *
- * Alguien abre una ficha, ve treinta segundos de anuncios y se va: eso no es
- * «lo dejé a medias», es «lo abrí». Ofrecerlo en Seguir viendo llenaría la fila
- * de cosas que nadie empezó de verdad.
- */
+/** Abrir una ficha y ver treinta segundos de anuncios no es «lo dejé a medias». */
 export const MINIMO_PCT = 1;
 
-/**
- * Duración mínima para molestarse en recordar, en segundos.
- *
- * Protege del caso raro pero real: un enlace de dos minutos donde el 1% son
- * apenas unos segundos, o un `duration` que el navegador aún no sabe y reporta
- * como algo diminuto.
- */
+/** Debajo de esto el porcentaje no significa nada: un clip corto, o un
+ * `duration` que el navegador aún no sabe. En segundos. */
 export const MINIMA_DURACION_S = 120;
 
 /** Tope de títulos recordados. */
@@ -65,12 +41,7 @@ export const MAX_RECORDADOS = 200;
 /** Cuánto se recuerda algo que nadie ha vuelto a tocar. */
 export const OLVIDO_MS = 90 * 24 * 60 * 60 * 1000;
 
-/**
- * La clave de un título del catálogo.
- *
- * Un episodio se recuerda por separado de su serie y de sus hermanos: quien va
- * por el capítulo cuatro no quiere que continuar le devuelva al tres.
- */
+/** Un episodio se recuerda aparte: quien va por el cuatro no quiere volver al tres. */
 export function claveDeTitulo(
   mediaType: "movie" | "tv",
   id: number,
@@ -101,12 +72,7 @@ export function estaTerminado(marca: Marca): boolean {
   return porcentaje(marca) >= TERMINADO_PCT;
 }
 
-/**
- * ¿Vale la pena recordar esta posición?
- *
- * Tres noes: lo que apenas se empezó, lo que ya se acabó, y lo que dura tan
- * poco que el porcentaje no significa nada.
- */
+/** Ni lo apenas empezado, ni lo acabado, ni lo que dura demasiado poco. */
 export function valeLaPena(marca: Marca): boolean {
   if (marca.duracion < MINIMA_DURACION_S) return false;
   const pct = porcentaje(marca);
@@ -114,11 +80,9 @@ export function valeLaPena(marca: Marca): boolean {
 }
 
 /**
- * Guarda por dónde iba, o **borra la entrada** si ya no vale la pena.
- *
- * Que terminar borre en vez de guardar un 100 es la parte que hace que la fila
- * se mantenga sola: sin eso, «Seguir viendo» acabaría siendo una lista de todo
- * lo que se ha visto alguna vez, que es justo lo que no se está pidiendo.
+ * Guarda por dónde iba, o **borra la entrada** si ya no vale la pena. Que
+ * terminar borre en vez de guardar un 100 es lo que mantiene la fila sola: si
+ * no, sería la lista de todo lo visto alguna vez.
  */
 export function marcar(
   memoria: MemoriaProgreso,
@@ -143,11 +107,8 @@ export function olvidar(memoria: MemoriaProgreso, clave: string): MemoriaProgres
 }
 
 /**
- * El segundo por el que retomar, o `undefined` para empezar de cero.
- *
- * Devuelve `undefined` y no `0` a propósito: quien llama tiene que poder
- * distinguir «empieza por el principio» de «no hay nada guardado», porque en un
- * caso hay que tocar `currentTime` y en el otro no.
+ * El segundo por el que retomar. `undefined` y no `0` a propósito: quien llama
+ * tiene que distinguir «empieza por el principio» de «no hay nada guardado».
  */
 export function posicionGuardada(
   memoria: MemoriaProgreso,
@@ -158,12 +119,7 @@ export function posicionGuardada(
   return marca.posicion;
 }
 
-/**
- * Lo empezado, de lo más reciente a lo más viejo.
- *
- * El orden es el de la fila: lo último que se estaba viendo va primero, que es
- * lo que casi siempre se busca al encender.
- */
+/** Lo empezado, de lo más reciente a lo más viejo: el orden de la fila. */
 export function enOrden(memoria: MemoriaProgreso): { clave: string; marca: Marca }[] {
   return Object.entries(memoria)
     .filter(([, marca]) => valeLaPena(marca))
@@ -172,11 +128,8 @@ export function enOrden(memoria: MemoriaProgreso): { clave: string; marca: Marca
 }
 
 /**
- * Quita lo viejo y lo que sobra del tope.
- *
- * Mismo criterio que `canales-caidos.ts`: primero lo caducado, que es gratis, y
- * si aún no cabe, lo que lleva más tiempo sin tocarse. `localStorage` en un
- * televisor no es infinito y esto crece con el uso.
+ * Primero lo caducado, que es gratis; si aún no cabe, lo que lleva más tiempo
+ * sin tocarse. Mismo criterio que `canales-caidos.ts`.
  */
 export function podar(memoria: MemoriaProgreso, ahora: number): MemoriaProgreso {
   const vivas = Object.entries(memoria).filter(

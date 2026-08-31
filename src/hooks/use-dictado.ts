@@ -4,17 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { IDIOMA, hayDictado, limpiarDictado, mensajeDeError, motorDeDictado } from "@/lib/dictado";
 
 /**
- * Dictar una búsqueda, cuando el navegador sabe.
- *
- * Envuelve `SpeechRecognition`, que es un API con dos nombres, sin tipos en
- * TypeScript y con la costumbre de no avisar cuando algo va mal. Las decisiones
- * —si se puede, qué motor, cómo limpiar lo dictado, qué decir cuando falla—
- * viven en `lib/dictado.ts` y están probadas aparte; aquí solo queda el cableado
- * con el navegador y el ciclo de vida.
- *
- * `soportado` empieza en `false` y solo se enciende tras montar: el render de
- * servidor no tiene `window`, y decidir en el primer render rompería la
- * hidratación. Es el mismo patrón que `use-cast.ts`.
+ * Envuelve `SpeechRecognition`: un API con dos nombres, sin tipos y con la
+ * costumbre de no avisar cuando algo va mal. Las decisiones están en
+ * `lib/dictado.ts`, probadas aparte; aquí solo el cableado y el ciclo de vida.
  */
 
 /** Lo mínimo del API, que TypeScript no trae. */
@@ -36,11 +28,8 @@ export function useDictado(alDictar: (texto: string) => void) {
   const [error, setError] = useState("");
 
   const reconocimientoRef = useRef<ReconocimientoLike | null>(null);
-  /**
-   * El callback en una ref: si entrara como dependencia, cada pulsación del
-   * buscador —que cambia `search` y con él el manejador— reconstruiría el
-   * reconocedor a mitad de una frase.
-   */
+  // En una ref: como dependencia, cada pulsación del buscador reconstruiría el
+  // reconocedor a mitad de una frase.
   const alDictarRef = useRef(alDictar);
   useEffect(() => {
     alDictarRef.current = alDictar;

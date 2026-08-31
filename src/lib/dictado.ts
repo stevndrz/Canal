@@ -1,19 +1,12 @@
 /**
- * Las decisiones puras de dictar una búsqueda, fuera del hook por lo mismo que
- * `reproduccion/cast.ts` salió de `use-cast.ts`: se pueden probar sin
- * componente, sin permiso de micrófono y sin hablarle a un ordenador.
+ * Las decisiones puras de dictar una búsqueda, fuera del hook para poder
+ * probarlas sin micrófono — el mismo motivo por el que `cast.ts` salió de
+ * `use-cast.ts`.
  *
- * **Por qué existe esto.** Hay un teclado en pantalla (`tv-keyboard.tsx`)
- * porque en un televisor sin teclado físico un campo de texto a secas es un
- * callejón sin salida: el mando solo mueve el foco, y escribir «guardianes de
- * la galaxia» son cuarenta y tantas pulsaciones. Dictarlo es una.
- *
- * **Y por qué no puede ser la única vía.** El reconocimiento de voz del
- * navegador no está en todas partes, y menos en el parque al que apunta esta
- * app: webOS y Tizen lo traen a ratos, con versiones de Chromium de hace años.
- * Así que esto es un atajo cuando lo hay, nunca un sustituto. La regla es la
- * misma que en `use-cast.ts`: **si no va a funcionar, el botón no existe** — en
- * vez de ofrecerlo y que no pase nada, que es lo que de verdad parece roto.
+ * Es un atajo sobre el teclado en pantalla, nunca un sustituto: webOS y Tizen
+ * traen el reconocimiento de voz a ratos. Regla heredada de `use-cast.ts`: **si
+ * no va a funcionar, el botón no existe**, porque ofrecerlo y que no pase nada
+ * es lo que de verdad parece roto.
  */
 
 /** Lo poco que se necesita del API del navegador para saber si se puede. */
@@ -27,22 +20,15 @@ export interface EntornoDeVoz {
 }
 
 /**
- * El idioma que se le pide al reconocedor.
- *
- * `es-419` es el español de Latinoamérica, que es lo que se habla donde se usa
- * esto — y no da igual: con `es-ES` un reconocedor puede devolver «coger» donde
- * alguien dijo otra cosa, y sobre todo tropieza con los nombres propios y el
- * seseo. Si el navegador no conoce la etiqueta, cae solo a un español genérico.
+ * Español de Latinoamérica, que es donde se usa esto. No da igual: con `es-ES`
+ * el reconocedor tropieza con los nombres propios y el seseo.
  */
 export const IDIOMA = "es-419";
 
 /**
- * ¿Se puede dictar aquí?
- *
- * Las dos condiciones son necesarias y ninguna basta sola. El constructor puede
- * existir y el micrófono estar fuera de alcance —una página servida por `http:`
- * no tiene `mediaDevices`, y esta app se prueba en la red de casa— y entonces
- * el botón saldría para no hacer nada.
+ * Las dos condiciones hacen falta: el constructor puede existir y el micrófono
+ * estar fuera de alcance —una página por `http:` no tiene `mediaDevices`, y
+ * esta app se prueba en la red de casa—, y el botón saldría para nada.
  */
 export function hayDictado(entorno: EntornoDeVoz | undefined): boolean {
   if (!entorno) return false;
@@ -57,14 +43,9 @@ export function motorDeDictado(entorno: EntornoDeVoz | undefined): unknown | nul
 }
 
 /**
- * Deja lo dictado como algo que se pueda buscar.
- *
- * Los reconocedores devuelven una frase con mayúscula inicial y, muy a menudo,
- * un punto final: «Guardianes de la galaxia.» Ese punto no es un detalle
- * cosmético — se manda tal cual a TMDB y a la lista M3U, y en TMDB estropea la
- * coincidencia. Se quita la puntuación de los extremos y los espacios de más,
- * y no se toca nada de dentro: los nombres propios llevan puntos y guiones que
- * sí cuentan («Dr. Who», «Spider-Man»).
+ * Los reconocedores devuelven «Guardianes de la galaxia.» con punto final, y
+ * ese punto se manda tal cual a TMDB, donde estropea la coincidencia. Se quita
+ * la puntuación de los extremos y **no la de dentro**: «Dr. Who» la lleva.
  */
 export function limpiarDictado(texto: string): string {
   return texto
@@ -76,12 +57,8 @@ export function limpiarDictado(texto: string): string {
 }
 
 /**
- * Qué decirle a quien está delante cuando el dictado falla.
- *
- * Los códigos del API son de los que no se pueden enseñar tal cual: `no-speech`
- * y `not-allowed` no significan nada desde el sofá. Y la diferencia entre «no
- * te oí» y «no me dejas oírte» importa, porque una se arregla repitiendo y la
- * otra hay que ir a los ajustes del navegador.
+ * `no-speech` y `not-allowed` no significan nada desde el sofá, y la diferencia
+ * importa: una se arregla repitiendo y la otra yendo a los ajustes.
  */
 export function mensajeDeError(codigo: string): string {
   switch (codigo) {

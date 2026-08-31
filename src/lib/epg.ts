@@ -22,9 +22,8 @@ export interface EpgGuide {
   idByName: Map<string, string>;
 }
 
-// Las guías XMLTV compartidas suelen cubrir cientos de canales de varios
-// países; evitamos cargar/parsear archivos desproporcionados en una función
-// serverless.
+// Las guías compartidas cubren cientos de canales de varios países: sin tope,
+// una función sin servidor se ahoga interpretándolas.
 const MAX_EPG_BYTES = 15 * 1024 * 1024;
 /** Tope tras descomprimir: un .gz pequeño puede expandirse a cientos de MB. */
 const MAX_EPG_TEXT_BYTES = 150 * 1024 * 1024;
@@ -35,30 +34,20 @@ const MAX_CHANNELS = 50_000;
 const EPG_CACHE_MS = 10 * 60 * 1000;
 
 /**
- * Tope de espera de la guía, deliberadamente corto: los horarios son un adorno
- * y la lista tiene que salir aunque el EPG no conteste. Muchas listas apuntan a
- * servicios gratuitos que se duermen medio minuto, y esa espera se comía el
- * tiempo de la función. Un fallo se cachea igual que un acierto.
+ * Corto a propósito: los horarios son un adorno y la lista tiene que salir
+ * aunque el EPG no conteste. Muchas listas apuntan a servicios gratuitos que se
+ * duermen medio minuto. Un fallo se cachea igual que un acierto.
  */
 const EPG_TIMEOUT_MS = 5000;
 
-/**
- * Interpretar un XMLTV de miles de canales cuesta bastante y el resultado
- * cambia como mucho cada pocos minutos, así que se guarda en memoria del
- * proceso en vez de repetirlo en cada visita.
- */
+/** Interpretar un XMLTV de miles de canales cuesta, y cambia cada pocos minutos. */
 let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null = null;
 
 /**
- * `deLaLista` distingue las dos procedencias, y la diferencia es de confianza,
- * no de forma:
- *
- * - `false` — la puso quien despliega en `EPG_URL`. Puede apuntar a donde
- *   quiera, incluido un servidor de la red local: es su propia máquina y su
- *   propia decisión.
- * - `true` — venía dentro del M3U descargado (`url-tvg`). **La eligió quien
- *   controla esa lista**, que con una lista pública no es quien despliega.
- *   Ahí sí se comprueba a dónde apunta.
+ * `deLaLista` es una diferencia de confianza, no de forma: `false` la puso
+ * quien despliega en `EPG_URL` y puede apuntar donde quiera, incluida la red
+ * local; `true` venía dentro del M3U y **la eligió quien controla esa lista**,
+ * que con una lista pública no es quien despliega. Solo esa se comprueba.
  */
 export async function fetchEpg(url: string, deLaLista = false): Promise<EpgGuide | null> {
   if (cachedEpg?.url === url && cachedEpg.expiresAt > Date.now()) return cachedEpg.guide;
@@ -69,19 +58,11 @@ export async function fetchEpg(url: string, deLaLista = false): Promise<EpgGuide
 }
 
 /**
- * ¿Este nombre de máquina apunta a la propia red?
- *
- * Solo mira el texto: literales de IP y los sufijos que designan una red
- * interna. **No resuelve DNS**, y hay que decir claramente lo que eso deja
- * fuera: un nombre público cuyo registro A apunte a `10.0.0.5` pasa esta
- * comprobación, y el reenlace de DNS —resolver a una IP pública al comprobar y
- * a una privada al pedir— también. Cerrar eso de verdad exige resolver el
- * nombre y fijar la IP resuelta en la conexión, y `fetch` no deja hacerlo sin
- * un agente propio.
- *
- * Aun así cubre lo que se intenta primero y cuesta cuatro líneas. Lo que de
- * verdad zanja el asunto está escrito en el README: poner `EPG_URL`, y entonces
- * el `url-tvg` de la lista no se usa.
+ * Solo mira el texto. **No resuelve DNS**, así que un nombre público cuyo
+ * registro A apunte a `10.0.0.5` pasa, y el reenlace de DNS también; cerrarlo
+ * de verdad exige fijar la IP resuelta en la conexión, y `fetch` no deja
+ * hacerlo sin un agente propio. Lo que zanja el asunto es poner `EPG_URL`, y
+ * entonces el `url-tvg` de la lista no se usa.
  */
 function hostInterno(hostname: string): boolean {
   // IPv6 llega entre corchetes en `hostname`; se quitan para poder mirarlo.
@@ -130,17 +111,9 @@ async function downloadAndParseEpg(url: string, deLaLista: boolean): Promise<Epg
   }
 
   /**
-   * `https:` sola no basta contra lo que de verdad se busca con esto.
-   *
-   * Rechaza `file:` y `http://169.254.169.254`, sí. Pero dentro de https queda
-   * toda la red interna: un servicio de la red privada del despliegue, un panel
-   * de administración sin autenticar en `10.x`, o cualquier máquina de la LAN
-   * si esto corre en casa. Y no es ciego del todo: lo que responda se
-   * interpreta como XMLTV y **sus títulos se pintan en la guía**, así que parte
-   * del contenido vuelve a verse en pantalla.
-   *
-   * Solo se comprueba la que viene de la lista. La de quien despliega no: si
-   * pone su propio servidor de guía en la red local, es su decisión.
+   * `https:` sola no basta: dentro de https queda toda la red interna. Y no es
+   * ciego del todo — lo que responda se interpreta como XMLTV y **sus títulos
+   * se pintan en la guía**, así que parte del contenido vuelve a verse.
    */
   if (deLaLista && hostInterno(destino.hostname)) {
     console.error(
@@ -349,17 +322,11 @@ function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): Ep
 }
 
 /**
- * Los programas de un canal que caen dentro de una franja horaria.
+ * Lo que consume la parrilla: `getEpgEntry` responde «ahora y después», que
+ * basta para una fila, pero una rejilla necesita varias horas de golpe.
  *
- * Lo que consume la parrilla. `getEpgEntry` responde «qué dan ahora y qué
- * viene después», que es lo que necesita una fila de lista; una rejilla
- * necesita ver varias horas de golpe, y por eso hace falta esta otra puerta a
- * los mismos datos.
- *
- * Cuenta como dentro de la franja **todo lo que la toca**, no solo lo que
- * empieza dentro: el programa que arrancó a las 19:30 sigue en pantalla a las
- * 20:00, y una parrilla que empezara la fila en blanco hasta el siguiente
- * cambio estaría mintiendo sobre lo que se está viendo.
+ * Cuenta **todo lo que toca la franja**, no solo lo que empieza dentro: el
+ * programa que arrancó a las 19:30 sigue en pantalla a las 20:00.
  */
 export function programasEnFranja(
   guide: EpgGuide,

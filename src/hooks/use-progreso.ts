@@ -13,13 +13,9 @@ import {
 const CLAVE = "canalcasa:progreso";
 
 /**
- * Cada cuánto se escribe mientras algo se reproduce.
- *
- * El evento `timeupdate` se dispara unas cuatro veces por segundo. Guardar en
- * cada uno serían cuatro escrituras en `localStorage` por segundo durante toda
- * una película, y en el navegador de un televisor eso se nota. Cinco segundos
- * es lo peor que se puede perder si alguien apaga de golpe, y nadie echa de
- * menos cinco segundos.
+ * `timeupdate` se dispara cuatro veces por segundo; guardar en cada uno serían
+ * cuatro escrituras en `localStorage` por segundo durante toda una película.
+ * Cinco segundos es lo peor que se pierde si alguien apaga de golpe.
  */
 const CADA_MS = 5_000;
 
@@ -47,30 +43,20 @@ function escribirProgreso(memoria: MemoriaProgreso): void {
 }
 
 /**
- * Lo que hace falta para retomar algo, para quien lo reproduce.
+ * Para quien reproduce. **No usa estado de React**: un `useState` aquí sería un
+ * render cada cinco segundos durante toda la película, encima de un `<video>`
+ * que ya gasta todo lo que el televisor tiene.
  *
- * **No usa estado de React a propósito.** Este hook lo consume el reproductor,
- * y guardar por dónde va no debe repintar nada: se lee cuando hace falta y se
- * escribe directo. Un `useState` aquí significaría un render
- * cada cinco segundos durante toda la película, encima de un `<video>` que ya
- * está gastando todo lo que el televisor tiene.
- *
- * `clave` puede venir vacía —los proveedores por iframe no se pueden seguir— y
- * entonces esto no hace nada, en vez de guardar posiciones de algo que jamás se
- * va a poder retomar.
+ * `clave` vacía —los iframes no se pueden seguir— hace que esto no haga nada.
  */
 export function useSeguirViendo(clave: string | undefined) {
   const ultimaEscrituraRef = useRef(0);
 
   /**
-   * Por dónde iba, preguntado en el momento en que hace falta.
-   *
-   * Es una función y no un valor a propósito. Leerlo al montar obligaría a
-   * tocar `localStorage` durante el render —que además no existe en el
-   * servidor— y a guardarlo en una `ref`, que es justo lo que React pide no
-   * hacer. Preguntarlo dentro del `loadedmetadata`, que es un manejador de
-   * evento, lo resuelve sin rodeos: se lee cuando el `<video>` ya puede
-   * aceptar un `currentTime`, y ni un instante antes.
+   * Función y no valor: leerlo al montar obligaría a tocar `localStorage`
+   * durante el render y guardarlo en una `ref`, justo lo que React pide no
+   * hacer. Dentro de `loadedmetadata` se lee cuando el `<video>` ya acepta un
+   * `currentTime`, y ni un instante antes.
    */
   const posicionParaRetomar = useCallback((): number | undefined => {
     if (!clave || typeof window === "undefined") return undefined;
@@ -78,11 +64,8 @@ export function useSeguirViendo(clave: string | undefined) {
   }, [clave]);
 
   /**
-   * Apunta por dónde va. Limitado en frecuencia salvo que se le insista.
-   *
-   * `forzar` es para los momentos que sí importan —pausar, terminar, salir de
-   * la pantalla—, donde esperar al siguiente turno del reloj perdería
-   * justamente la posición que se quería guardar.
+   * `forzar` es para pausar, terminar y salir: esperar al siguiente turno del
+   * reloj perdería justo la posición que se quería guardar.
    */
   const apuntar = useCallback(
     (posicion: number, duracion: number, forzar = false) => {
@@ -103,15 +86,11 @@ export function useSeguirViendo(clave: string | undefined) {
 }
 
 /**
- * Lo empezado, para quien lo enseña (la fila de «Seguir viendo», las tarjetas).
+ * Para quien lo enseña. Este sí lleva estado, y se lee al montar como el resto
+ * de la persistencia del proyecto.
  *
- * Este sí lleva estado, porque aquí sí hay que repintar. Se lee al montar, como
- * el resto de la persistencia del proyecto: `localStorage` no existe en el
- * render de servidor y leerlo antes rompería la hidratación.
- *
- * No se entera de lo que el reproductor va escribiendo mientras se ve algo, y
- * está bien así: nadie mira la fila mientras ve una película, y al volver a la
- * portada este hook se monta de nuevo y lee lo último.
+ * No se entera de lo que el reproductor escribe mientras se ve algo, y está
+ * bien: nadie mira la fila mientras ve una película, y al volver se remonta.
  */
 export function useProgreso() {
   const [memoria, setMemoria] = useState<MemoriaProgreso>({});

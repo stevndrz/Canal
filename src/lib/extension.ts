@@ -1,30 +1,20 @@
 /**
- * La extensión de una URL, que es de lo único que se puede deducir el formato
- * de un enlace sin salir a la red.
+ * La extensión de una URL: lo único de lo que se puede deducir el formato sin
+ * salir a la red.
  *
- * Existe porque el mismo trozo de código estaba escrito tres veces —en
- * `reproduccion/motor.ts`, en `fuente-propia/url.ts` y en `native-player.tsx`—
- * y cada copia recortaba de forma distinta: una quitaba la consulta, otra la
- * consulta y el ancla, la tercera solo la consulta. Un `.m3u8#t=10` se
- * clasificaba bien en un sitio y mal en otro.
+ * Estaba escrito tres veces —`motor.ts`, `fuente-propia/url.ts`,
+ * `native-player.tsx`— y cada copia recortaba distinto, así que un `.m3u8#t=10`
+ * se clasificaba bien en un sitio y mal en otro.
  *
- * Lo que **no** hace es unificar los tres vocabularios. Cada uno responde a una
- * pregunta distinta y deben seguir separados: `claseDeEmision` responde «qué
- * librería reproduce esto», `claseDeUrl` responde «qué le digo a quien acaba de
- * pegar un enlace». Que `.mkv` sea `native` para uno y `matroska` para el otro
- * no es una incoherencia, es que a un `<video>` se le puede dar y a una persona
- * hay que avisarla.
- *
- * Lo que sí se comparte es esto: de dónde se saca la extensión.
+ * Se comparte de dónde sale la extensión, **no los vocabularios**: que `.mkv`
+ * sea `native` para uno y `matroska` para el otro no es incoherencia — a un
+ * `<video>` se le puede dar y a una persona hay que avisarla.
  */
 
 /**
- * La extensión en minúsculas y sin punto, o cadena vacía si no hay.
- *
- * Se quitan la consulta y el ancla antes de mirar. Los enlaces firmados de los
- * servidores de descarga directa llevan la firma en la consulta
- * (`...mp4?token=…&e=43200`), así que sin recortarla la extensión sería
- * `mp4?token=…` y no coincidiría con nada.
+ * En minúsculas y sin punto, o vacío. Se recortan consulta y ancla: los enlaces
+ * firmados llevan la firma en la consulta (`...mp4?token=…`) y sin recortarla
+ * la extensión no coincidiría con nada.
  */
 export function extensionDe(url: string): string {
   const ruta = url.toLowerCase().split("?")[0].split("#")[0];

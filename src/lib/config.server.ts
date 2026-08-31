@@ -5,107 +5,66 @@ import "server-only";
  *
  * Vivía junto a `publicConfig` en `config.ts`, y la fuga era real: un
  * componente cliente importa `providers.ts`, que importa `publicConfig`, así
- * que el módulo cruzaba al grafo del navegador y **solo el tree-shaking
- * decidía qué literal sobrevivía**. En producción el token no sobrevivía; con
- * `next dev` SÍ, y esta app se usa así en la red de casa.
+ * que el módulo cruzaba al grafo del navegador y **solo el tree-shaking decidía
+ * qué literal sobrevivía**. En producción el token no sobrevivía; con
+ * `next dev` SÍ, y esta app se usa así en la red de casa. Prueba de que la
+ * frontera era porosa: `CLAVE_VIMEUS`, del mismo grafo, sí llega al paquete de
+ * producción.
  *
- * Prueba de que la frontera era porosa: `CLAVE_VIMEUS`, del mismo grafo, sí
- * llega al paquete de producción. Es inocua, pero demuestra que cruzaba.
+ * El `import "server-only"` convierte esa fuga en un error de compilación en
+ * vez de dejarla al criterio del optimizador.
  *
- * El `import "server-only"` convierte esa fuga en un **error de compilación**
- * en vez de dejarla al criterio del optimizador.
+ * **Aquí no va ninguna credencial escrita a fuego.** Hubo un token de TMDB de
+ * reserva y hay que darlo por comprometido; ver `docs/SEGURIDAD.md`.
  */
 
-/**
- * Lista M3U por defecto.
- *
- * Está en el código a propósito: la aplicación tiene que funcionar recién
- * clonada, sin preparar nada. `M3U_URL` la sustituye.
- */
+/** Para que la app funcione recién clonada. `M3U_URL` la sustituye. */
 const M3U_POR_DEFECTO =
   "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
 
-/**
- * **Aquí NO va ninguna credencial de TMDB.**
- *
- * Hubo una escrita a fuego como reserva, «para que arranque sin configurar
- * nada». El repositorio **es público**, así que ese token lo podía leer
- * cualquiera, y sigue en el historial de git: quitarlo del código no lo
- * desactiva — hay que regenerarlo en themoviedb.org.
- *
- * Sin `TMDB_API_KEY` la app sigue funcionando: los canales en directo no
- * dependen de TMDB, y Cine y series lo dice en pantalla en vez de salir vacía.
- * Ver `isTmdbConfigured()` en `catalog/tmdb.ts`.
- */
+const TMDB_POR_DEFECTO = "https://api.themoviedb.org/3";
 
 /**
- * Lo que solo existe en el servidor.
- *
- * Es una función y no un objeto constante porque en el navegador
- * `process.env` de estas claves está vacío, y un objeto evaluado al importar
- * congelaría ese vacío. Llamarla desde código de cliente es un error, y el
- * comentario de cada campo dice desde dónde se usa.
+ * Es una función y no un objeto constante porque en el navegador `process.env`
+ * de estas claves está vacío, y un objeto evaluado al importar congelaría ese
+ * vacío.
  */
 export function serverConfig() {
   return {
-    /** Lista de canales. La lee `src/lib/m3u.ts`, siempre en el servidor. */
+    /** Lista de canales. La lee `m3u.ts`. */
     m3uUrl: process.env.M3U_URL || M3U_POR_DEFECTO,
 
-    /**
-     * Marcha atrás del recorte de la portada: manda los 7.822 canales dentro
-     * del HTML, como se hacía antes. La lee `src/app/page.tsx`.
-     *
-     * Estaba leída con `process.env` allí mismo. Es un interruptor de
-     * emergencia para producción, así que conviene que salga en la lista de lo
-     * que se puede configurar y no escondido en el cuerpo de una función.
-     */
+    /** Interruptor de emergencia: manda los 7.822 canales en el HTML, como antes. */
     canalesEnHtml: process.env.CANALES_EN_HTML?.trim() === "todos",
 
-    /**
-     * Guía de programación en XMLTV. Sin ella la app funciona igual, solo que
-     * las filas de canal no muestran qué están dando ahora.
-     */
+    /** Guía XMLTV. Sin ella las filas no dicen qué están dando. */
     epgUrl: process.env.EPG_URL || "",
 
-    /** Credencial de TMDB. La lee `src/lib/catalog/tmdb.ts`. */
+    /** Credencial de TMDB. La lee `catalog/tmdb.ts`. */
     tmdbCredencial: process.env.TMDB_API_KEY?.trim() || "",
 
-    /**
-     * Manifiestos de addons de Stremio que sirven enlaces directos
-     * (.mp4/.m3u8) sin anuncios, separados por comas. Opcional: sin esta
-     * lista la ficha queda solo con los embeds.
-     */
+    /** Addons de Stremio con enlaces directos, separados por comas. */
     stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
 
     /**
-     * A dónde se le pregunta a TMDB. La lee `src/lib/catalog/tmdb.ts`.
+     * A dónde se le pregunta a TMDB.
      *
-     * Vivía ahí, leída con `process.env` directo, y era el único sitio del
-     * proyecto que se saltaba la regla de arriba. Importa más de lo que
-     * parece: **la credencial se adjunta a lo que diga esta variable**, en la
-     * URL o en una cabecera `Authorization`. Quien pueda escribir una variable
-     * de entorno en el despliegue se lleva el token con solo apuntar aquí.
-     * Sacarla a este archivo no lo impide —quien toca el entorno toca lo que
-     * quiere— pero la pone donde se revisa, en vez de escondida en un módulo.
+     * Está aquí y no en `tmdb.ts` porque **la credencial se adjunta a lo que
+     * diga esta variable**, en la URL o en una cabecera `Authorization`. Que se
+     * lea donde se revisan las credenciales, no escondida en un módulo.
      */
     tmdbApiBase: baseDeTmdb(),
   };
 }
 
-/** La base de TMDB por defecto: la API pública. */
-const TMDB_POR_DEFECTO = "https://api.themoviedb.org/3";
-
 /**
- * Comprueba la forma, **no el esquema**.
+ * Comprueba la forma, **no el esquema**: `tmdb.ts` documenta que esto sirve
+ * para apuntar a un espejo o a un simulador local, y eso vive en
+ * `http://localhost`. Exigir https rompería el único caso de uso que justifica
+ * la variable.
  *
- * Deliberadamente no se exige `https`. `tmdb.ts` documenta para qué existe
- * esto: apuntar a un espejo, o a un simulador local para probar lentitud y
- * caídas sin tocar producción — y eso vive en `http://localhost`. Exigir https
- * rompería el único caso de uso que justifica la variable.
- *
- * Lo que sí se comprueba es que sea una URL y que no acabe en barra: quien la
- * lee concatena `${base}${ruta}` con rutas que ya empiezan por `/`, así que una
- * barra de más produce `//movie/1` y una petición rota difícil de explicar.
+ * La barra final sí se quita: quien lee concatena `${base}${ruta}` con rutas
+ * que ya empiezan por `/`, y una de más produce `//movie/1`.
  */
 function baseDeTmdb(): string {
   const crudo = process.env.TMDB_API_BASE?.trim();

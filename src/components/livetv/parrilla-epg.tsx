@@ -17,43 +17,26 @@ import {
 /**
  * La guía en rejilla: canales en filas, el tiempo en horizontal.
  *
- * Estaba aplazada desde el rediseño —«Fuera el conmutador Lista/Guía y la
- * parrilla EPG: decidido dejarlo para una tanda posterior»— y es la vista que
- * más se parece a una televisión de verdad.
+ * Tres cosas la gobiernan, todas del televisor:
  *
- * **Tres cosas que gobiernan cómo está escrita, todas del televisor:**
+ * 1. **Solo se piden los canales que se ven** — la programación de varias horas
+ *    no puede viajar con la lista; el porqué está en `/api/guia`.
+ * 2. **Filas con `flex`, sin posicionamiento absoluto.** `filaDeParrilla`
+ *    devuelve bloques que suman el 100% justo para permitirlo: decenas de
+ *    elementos absolutos por fila cuestan mucho más en un televisor viejo.
+ * 3. **Ni un `gap` en flex.** En webOS y Tizen vale cero; margen y borde. Ver
+ *    `soporte-gap.ts`.
  *
- * 1. **Solo se piden los canales que se ven.** La programación de varias horas
- *    no viaja con la lista (ver `/api/guia` para el porqué), así que esta
- *    pantalla pide una ventana de canales y nada más. Bajar pide la siguiente.
- * 2. **Las filas se pintan con `flex`, sin posicionamiento absoluto.**
- *    `filaDeParrilla` devuelve bloques que suman siempre el 100% del ancho,
- *    huecos incluidos, justamente para que esto sea posible: en un televisor
- *    viejo, decenas de elementos absolutos por fila cuestan mucho más.
- * 3. **Nada de `gap` en flex, en ningún sitio de este archivo.** En webOS y
- *    Tizen vale cero, así que las filas quedarían pegadas y los bloques sin
- *    separar. Se usan margen y borde, que sí funcionan en todas partes. Ver
- *    `soporte-gap.ts`, que documenta que esto afecta a setenta y siete sitios
- *    del proyecto y que no se había visto nunca porque no hay forma de probar
- *    en esos aparatos.
- *
- * Va con utilidades de Tailwind en línea y no con clases de `shell.css`: ese
- * archivo lo lleva el agente de diseño. Esto es lo justo para que la parrilla
- * se vea y se navegue bien; la pasada visual de verdad es suya.
- *
- * Y como el resto de la app: todo lo pulsable lleva `data-nav`, porque
- * `useSpatialNav` solo recoge eso y en un televisor no hay Tab.
+ * Con utilidades de Tailwind y no clases de `shell.css`, que lo lleva el agente
+ * de diseño. Todo lo pulsable lleva `data-nav`: en un televisor no hay Tab.
  */
 
 /** Cuántos canales se piden de una vez. Cuadra con `MAX_CANALES` de la ruta. */
 const POR_TANDA = 40;
 
 /**
- * El array que reciben las filas sin programación.
- *
  * Constante y no `[]` en línea: un literal nuevo por render le cambia la
- * identidad de las props a cada fila y anula el `memo` de abajo, que es justo
- * lo que evita repintar cuarenta filas cada vez que avanza el reloj.
+ * identidad de las props a cada fila y anula el `memo` de abajo.
  */
 const SIN_PROGRAMAS: [number, number, string][] = [];
 
@@ -79,14 +62,10 @@ export function ParrillaEpg({
   ahora: number;
 }) {
   /**
-   * Cuántos canales se están pidiendo, **atados a la lista para la que se
-   * pidieron**.
-   *
-   * Guardar la lista junto al número es lo que hace que cambiar de categoría o
-   * escribir en el buscador vuelva a empezar por arriba sin necesidad de un
-   * efecto que lo reponga: si la lista que llega no es la misma que produjo
-   * este número, el número no vale y se usa la primera tanda. Un efecto aquí
-   * sería un render en cascada por cada pulsación del buscador.
+   * El número va atado a la lista para la que se pidió: si llega otra, no vale
+   * y se empieza por arriba. Así cambiar de categoría o escribir en el buscador
+   * no necesita un efecto que lo reponga, que sería un render en cascada por
+   * pulsación.
    */
   const [tanda, setTanda] = useState<{ lista: Channel[]; cuantos: number }>({
     lista: canales,
@@ -96,12 +75,8 @@ export function ParrillaEpg({
   const [porCanal, setPorCanal] = useState<Map<string, [number, number, string][]>>(new Map());
   const [estado, setEstado] = useState<"cargando" | "listo" | "sin-guia" | "error">("cargando");
 
-  /**
-   * La franja se ancla a la media hora en punto y **no se recalcula con el
-   * reloj**: si dependiera de `ahora`, la parrilla se redibujaría cada vez que
-   * el reloj avanza y el foco del mando bailaría bajo los dedos de quien la
-   * está recorriendo. Ver `inicioDeFranja`.
-   */
+  // Anclada a la media hora en punto: si se moviera con el reloj, el foco del
+  // mando bailaría bajo los dedos de quien recorre la parrilla.
   const desde = useMemo(() => inicioDeFranja(ahora), [ahora]);
   const hasta = desde + HORAS_VISIBLES * 60 * 60 * 1000;
   const columnas = useMemo(() => columnasDeFranja(desde), [desde]);
@@ -109,14 +84,9 @@ export function ParrillaEpg({
   const enPantalla = useMemo(() => canales.slice(0, cuantos), [canales, cuantos]);
 
   /**
-   * El reloj, redondeado al minuto, es lo que reciben las filas.
-   *
-   * `useInstante` avanza cada 20 segundos y la línea del «ahora» de arriba lo
-   * necesita así de fino para moverse. Las filas no: lo único que sacan del
-   * reloj es qué bloque está en emisión, y eso cambia en los cambios de
-   * programa, no cada veinte segundos. Pasarles el instante crudo repintaba
-   * cuarenta filas —con sus bloques dentro— tres veces por minuto, en el
-   * aparato que menos lo puede pagar.
+   * Las filas reciben el minuto, no el instante. Lo único que sacan del reloj
+   * es qué bloque está en emisión, y eso cambia en los cambios de programa;
+   * con el instante crudo se repintaban cuarenta filas tres veces por minuto.
    */
   const minuto = Math.floor(ahora / 60_000);
 

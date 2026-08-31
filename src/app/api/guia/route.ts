@@ -6,30 +6,18 @@ import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-
 /**
  * La programación de unos pocos canales, para la parrilla.
  *
- * **Por qué hace falta una ruta y no basta con lo que ya viaja.** Cada canal
- * llega al navegador con cinco campos de guía —lo que dan ahora, lo que viene
- * después y sus horas—, y no más, porque `types.ts` lo prohíbe con un motivo
- * medido: cada campo que se añada a `Channel` **viaja 7.822 veces**, y ya se
- * retiraron cuatro campos que sumaban 1,4 MB. Una parrilla necesita varias
- * horas de programación por canal, o sea decenas de programas donde hoy viajan
- * dos. Mandarlo con la lista sería deshacer ese trabajo entero.
+ * Hace falta una ruta porque la programación **no puede viajar con la lista**:
+ * cada campo que se añada a `Channel` viaja 7.822 veces, y ya se retiraron
+ * cuatro que sumaban 1,4 MB (ver `types.ts`). Una parrilla necesita decenas de
+ * programas por canal donde hoy viajan dos.
  *
- * Así que la parrilla se paga por lo que se mira: se piden los canales que se
- * ven en pantalla y la franja que se está mirando, y nada más. Bajar por la
- * parrilla pide el siguiente puñado.
- *
- * La respuesta va en tuplas y no en objetos, por lo mismo que
- * `canales-empaquetados.ts`: `[inicio, fin, titulo]` en vez de tres claves
- * repetidas en cada programa.
+ * Así que se paga por lo que se mira: los canales en pantalla y la franja que
+ * se está mirando. En tuplas, por lo mismo que `canales-empaquetados.ts`.
  */
 
 /**
- * Tope de canales por petición.
- *
- * Es lo que cabe en una pantalla de televisor con holgura para desplazarse.
- * Además de un tope de trabajo, es un tope de amplificación: sin él, esta ruta
- * sería otra forma de hacer que el servidor recorra la guía entera tantas veces
- * como alguien quiera.
+ * Además de un tope de trabajo es un tope de amplificación: sin él, esta ruta
+ * hace que el servidor recorra la guía tantas veces como alguien quiera.
  */
 const MAX_CANALES = 40;
 
@@ -37,15 +25,9 @@ const MAX_CANALES = 40;
 const MAX_HORAS = 6;
 
 /**
- * Cuánto se puede pedir hacia atrás o hacia delante desde ahora.
- *
- * Esta respuesta se cachea en el borde, y la URL entera es la clave. Sin tope,
- * `desde` admite cualquier entero: son infinitas URLs distintas que caducan
- * sin que nadie las vuelva a pedir, y cada una es una petición al origen. Es
- * el mismo agujero que se cerró en `/api/stream` acotando el `tmdbId`, y se me
- * escapó aquí.
- *
- * Siete días cubren de sobra lo que una guía XMLTV trae.
+ * La respuesta se cachea en el borde con la URL entera por clave, así que un
+ * `desde` sin tope son infinitas URLs que caducan sin que nadie las repita.
+ * Mismo agujero que se cerró en `/api/stream` acotando el `tmdbId`.
  */
 const MARGEN_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -94,22 +76,17 @@ export async function GET(request: Request) {
   const hasta = desde + horas * 60 * 60 * 1000;
 
   try {
-    /**
-     * La guía se elige igual que en `lista-canales.ts`, y con la misma
-     * distinción de confianza: la de `EPG_URL` la puso quien despliega, la de
-     * la lista la eligió quien controla esa lista. Ver `fetchEpg`.
-     */
+    // Misma distinción de confianza que en `lista-canales.ts`: la de `EPG_URL`
+    // la puso quien despliega, la de la lista la eligió otro. Ver `fetchEpg`.
     const { epgUrl: epgDeLaLista } = await loadM3uPlaylist();
     const propia = serverConfig().epgUrl;
     const url = propia || epgDeLaLista || "";
     const guia = url ? await fetchEpg(url, !propia) : null;
 
     if (!guia) {
-      /**
-       * Sin guía configurada esto no es un error: es el caso por defecto de la
-       * app. Se responde con la forma correcta y vacía para que el cliente
-       * pinte una parrilla de huecos —que dice la verdad— en vez de un fallo.
-       */
+      // Sin guía no es un error, es el caso por defecto: se responde con la
+      // forma correcta y vacía para que la parrilla salga de huecos, que dice
+      // la verdad, en vez de un fallo.
       return Response.json(
         { programas: nombres.map(() => [] as ProgramaTupla[]), hayGuia: false },
         { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600" } },
