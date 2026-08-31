@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { olvidarDisponibilidad, servidoresConElTitulo } from "./disponibilidad";
+import {
+  TOPES,
+  cuantasRecordadas,
+  olvidarDisponibilidad,
+  servidoresConElTitulo,
+} from "./disponibilidad";
 import type { ServidorStream } from "@/lib/resolvers/types";
 
 /** Un servidor como los que arma `servidoresEmbed`. */
@@ -87,5 +92,42 @@ describe("servidoresConElTitulo", () => {
       servidor("vidlink", true),
     ]);
     expect(quedan.map((s) => s.id)).toEqual(["vidsrc", "vidlink"]);
+  });
+});
+
+describe("la memoria no se puede vaciar desde fuera", () => {
+  /** Una consulta a un título distinto cada vez, como haría quien barre ids. */
+  async function preguntarPor(n: number) {
+    await servidoresConElTitulo([
+      { id: "vimeus", label: "1", url: `https://vimeus.test/movie/${n}`, compruebaPorEstado: true },
+    ]);
+  }
+
+  it("desaloja lo menos usado en vez de tirarlo todo", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respuesta(200)));
+
+    // Un título que se está viendo: se pregunta al principio y se sigue
+    // consultando mientras alguien barre ids inventados.
+    await preguntarPor(0);
+    for (let i = 1; i <= TOPES.MAX_ENTRADAS + TOPES.A_TIRAR; i++) {
+      await preguntarPor(i);
+      if (i % 100 === 0) await preguntarPor(0);
+    }
+
+    // Antes esto vaciaba el mapa entero y el título caliente volvía a
+    // preguntarse a los proveedores. Ahora sigue dentro.
+    expect(cuantasRecordadas()).toBeLessThanOrEqual(TOPES.MAX_ENTRADAS);
+    const llamadasPrevias = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length;
+    await preguntarPor(0);
+    expect(
+      (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.length,
+      "el título consultado a menudo no debería volver a preguntarse",
+    ).toBe(llamadasPrevias);
+  });
+
+  it("nunca pasa del tope", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => respuesta(200)));
+    for (let i = 0; i < TOPES.MAX_ENTRADAS * 2; i++) await preguntarPor(i);
+    expect(cuantasRecordadas()).toBeLessThanOrEqual(TOPES.MAX_ENTRADAS);
   });
 });

@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { MediaType } from "./types";
 import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
@@ -12,22 +14,28 @@ import { serverConfig } from "@/lib/config.server";
  * La base es sustituible por entorno (`TMDB_API_BASE`) para pruebas —simular
  * lentitud o caídas sin tocar producción— y para quien accede a la API desde
  * un espejo. El defecto es la API pública.
+ *
+ * Se pide a `serverConfig()` y no a `process.env`: es la regla del proyecto, y
+ * aquí además hay un motivo concreto — la credencial viaja a donde esto diga,
+ * así que conviene que se lea y se valide en el archivo donde se revisan las
+ * credenciales. Es una función y no una constante de módulo porque el valor se
+ * evalúa por petición, igual que el resto de `serverConfig()`.
  */
-const TMDB_API = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
+function baseTmdb(): string {
+  return serverConfig().tmdbApiBase;
+}
+
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 
 /**
- * Se piden ya en el tamaño final: sin optimizador y sin gastar RAM de más.
- * Medido con `curl` sobre imágenes reales, no a ojo:
+ * En el tamaño final, sin optimizador. Medido con `curl`, no a ojo:
  *
- *     póster    w342  →   43 KB      w780 →  171 KB      original → 1,35 MB
- *     fondo     w780  →   43 KB     w1280 →  173 KB      original → 1,24 MB
+ *     póster    w342 → 43 KB    w780 → 171 KB    original → 1,35 MB
+ *     fondo     w780 → 43 KB   w1280 → 173 KB    original → 1,24 MB
  *
- * `w780` para una tarjeta de 180-240px era pedir cuatro veces lo necesario, y
- * no es solo red: son 780×1170 px, o sea **3,6 MB de RGBA en memoria** ya
- * descodificado. Inicio pinta 200 pósters y un televisor tiene 1-1,5 GB para
- * todo. El fondo en `original` era peor —1,24 MB— y es justo el LCP de
- * `/peliculas`; `w1280` llena una pantalla 1080p de sobra.
+ * `w780` para una tarjeta de 180-240px no es solo red: son **3,6 MB de RGBA en
+ * memoria** ya descodificado, e Inicio pinta 200 pósters en un televisor que
+ * tiene 1-1,5 GB para todo.
  */
 export const POSTER_SIZE = "w342";
 export const BACKDROP_SIZE = "w1280";
@@ -76,12 +84,7 @@ interface TmdbSeason {
   }[];
 }
 
-/**
- * Tope de espera, por la misma razón que en la lista M3U y la guía EPG: una
- * API externa lenta no debe poder agotar el tiempo de la función y dejar la
- * página sin pintar. Sin clave o sin respuesta, la sección usa el catálogo
- * local.
- */
+/** Una API lenta no debe agotar el tiempo de la función y dejar la página sin pintar. */
 const TMDB_TIMEOUT_MS = 5000;
 
 function tmdbCredential(): string {
@@ -95,11 +98,9 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
 }
 
 /**
- * La petición real a TMDB, **cacheada como función** (`use cache`): bajo
- * `cacheComponents` el `next: { revalidate }` de fetch ya no cachea, lo hace
- * la directiva. La credencial entra como argumento para que la caché de una
- * clave vieja no sirva las respuestas de la nueva, y el perfil «days» mantiene
- * el criterio de antes: el reparto de una película no cambia cada hora.
+ * Cacheada como función (`use cache`): bajo `cacheComponents` el
+ * `next: { revalidate }` de fetch ya no cachea. La credencial entra como
+ * argumento para que la caché de una clave vieja no sirva a la nueva.
  */
 async function tmdbConClave<T>(path: string, credential: string): Promise<T | null> {
   "use cache";
@@ -113,7 +114,7 @@ async function tmdbConClave<T>(path: string, credential: string): Promise<T | nu
 
   try {
     const url =
-      `${TMDB_API}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
+      `${baseTmdb()}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
       (isReadAccessToken ? "" : `&api_key=${encodeURIComponent(credential)}`);
     const response = await fetch(url, {
       signal: AbortSignal.timeout(TMDB_TIMEOUT_MS),

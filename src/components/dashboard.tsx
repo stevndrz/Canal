@@ -26,6 +26,7 @@ import {
   type PaqueteCanales,
 } from "@/lib/canales-empaquetados";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
+import { useMarcado } from "@/hooks/use-marcado";
 import {
   usePersistedJson,
   usePersistedRecents,
@@ -338,14 +339,14 @@ export function Dashboard({
     }
   }, [view, lastView, navigate]);
 
-  /** 0-9 del mando: salta a la centena de esa categoría (101, 201, …). */
-  const handleDigit = useCallback(
-    (digit: string) => {
-      const match = channels.find((channel) => channel.number.startsWith(digit));
-      if (match) tune(match);
-    },
-    [channels, tune],
-  );
+  /**
+   * 0-9 del mando: se marca el número del canal, como en una tele.
+   *
+   * Antes cada dígito saltaba al primer canal cuyo número empezara por él, así
+   * que «3» llevaba al 301 y no había forma de llegar al 307. Cada fila lleva
+   * su número escrito al lado; ahora teclearlo lleva ahí. Ver `lib/marcado.ts`.
+   */
+  const { marcado, noExiste, pulsarDigito } = useMarcado(channels, tune);
 
   // El vídeo se despega del borde superior si la página scrollea por debajo.
   // Esta marca en <html> es la que globals.css consulta para bloquearlo.
@@ -359,7 +360,7 @@ export function Dashboard({
   const { focusFirst } = useSpatialNav({
     rootRef: shellRef,
     onBack: handleBack,
-    onDigit: handleDigit,
+    onDigit: pulsarDigito,
     enabled: view !== "player",
   });
 
@@ -402,6 +403,19 @@ export function Dashboard({
       {/* Fuera durante la reproducción: es `fixed` con z-60 y el reproductor
           va en z-50, así que si no flotaría por encima del vídeo. */}
       {view !== "player" && <TopNav view={view} onNavigate={navigate} />}
+
+      {/* Lo que se está marcando, grande y arriba a la derecha, como en un
+          televisor. Sin esto el marcado es invisible y no se sabe si el mando
+          registró la tecla. `aria-live` para que también se anuncie. */}
+      {(marcado || noExiste) && (
+        <div
+          className="pointer-events-none fixed right-6 top-6 z-50 rounded-xl bg-black/85 px-5 py-3 font-mono text-3xl tabular-nums tracking-widest text-white ring-1 ring-white/20"
+          role="status"
+          aria-live="polite"
+        >
+          {noExiste ? <span className="text-xl tracking-normal">Sin canal</span> : marcado}
+        </div>
+      )}
 
       <section className="content">
         {/* Solo Inicio y Canales: en las demás no se monta, y así no se gasta

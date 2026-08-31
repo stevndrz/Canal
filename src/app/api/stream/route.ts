@@ -24,6 +24,32 @@ import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
  * vivo —lee la petición y consulta disponibilidad por request— porque no hay
  * nada que cachear aquí, igual que antes.
  */
+/**
+ * Techos de lo que se acepta en la consulta.
+ *
+ * No son validación de formato —eso ya estaba— sino de **tamaño del espacio de
+ * claves**. Estos tres valores viajan dentro de la URL que se le pregunta a
+ * cada proveedor, y esa URL es la clave de la caché de `disponibilidad.ts`.
+ * Aceptando cualquier entero hasta 2^53, quien llama dispone de un espacio de
+ * claves infinito: cada petición es un fallo de caché garantizado y, con él,
+ * peticiones salientes de verdad hacia los proveedores.
+ *
+ * Los topes van holgados sobre lo que existe —TMDB anda por el millón largo de
+ * ids, y ninguna serie tiene mil temporadas— así que no rechazan nada real; lo
+ * que hacen es dejar el espacio de claves en algo finito y del tamaño del
+ * catálogo, no del tamaño de un entero.
+ */
+const MAX_TMDB_ID = 100_000_000;
+const MAX_TEMPORADA = 1_000;
+const MAX_EPISODIO = 10_000;
+
+/** El número si está dentro de lo razonable; si no, nada. */
+function enRango(valor: string | null, tope: number): number | undefined {
+  const numero = Number(valor);
+  if (!Number.isInteger(numero) || numero <= 0 || numero > tope) return undefined;
+  return numero;
+}
+
 export async function GET(request: Request) {
   /**
    * Esta es la ruta que más amplifica de la app: con `STREMIO_MANIFESTS`
@@ -36,14 +62,14 @@ export async function GET(request: Request) {
   const params = new URL(request.url).searchParams;
 
   const tmdbId = Number(params.get("tmdbId"));
-  if (!Number.isInteger(tmdbId) || tmdbId <= 0) {
+  if (!Number.isInteger(tmdbId) || tmdbId <= 0 || tmdbId > MAX_TMDB_ID) {
     return Response.json({ error: "Falta un tmdbId válido" }, { status: 400 });
   }
 
   // Lo desconocido se trata como película: es el caso sin temporada/episodio.
   const type: MediaType = params.get("type") === "tv" ? "tv" : "movie";
-  const season = Number(params.get("season")) || undefined;
-  const episode = Number(params.get("episode")) || undefined;
+  const season = enRango(params.get("season"), MAX_TEMPORADA);
+  const episode = enRango(params.get("episode"), MAX_EPISODIO);
 
   /**
    * En un televisor, los de puerta antirrobot van los últimos. Ver

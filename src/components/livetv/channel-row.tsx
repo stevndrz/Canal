@@ -9,46 +9,63 @@ import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 /**
  * Una fila de canal en la lista.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/livetv/LiveTvScreen.tsx (su `ChannelRow` interno)
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
- *
- * MODIFICADO respecto al original (Apache 2.0 §4b):
- *   - Extraído a su propio archivo; en el origen vive dentro de la pantalla.
- *   - Sin el `IntersectionObserver` que allí dispara la carga perezosa de la
- *     guía por fila: aquí el EPG llega entero con la página, así que no hay
- *     nada que pedir al aparecer.
- *   - Añadidos el número de canal y el monograma de respaldo.
+ * Va memoizada porque la lista llega a 7.822 filas y sin eso cada tecleo del
+ * buscador repinta todas las montadas. De ahí dos decisiones que si no
+ * parecerían rodeos: los tres manejadores **reciben el canal** para que el
+ * padre pueda tenerlos estables —sin argumento habría que crear tres flechas
+ * nuevas por fila y por render, y el `memo` no acertaría nunca—, y el estado
+ * del logo roto vive en `LogoCanal` y no aquí, porque en la fila un logo que
+ * falla repintaba la fila entera, barra de progreso incluida.
  */
-interface ChannelRowProps {
-  channel: Channel;
-  favorite: boolean;
-  /**
-   * Ha dejado de responder en este aparato.
-   *
-   * Se apaga un poco y lleva una marca, pero **sigue siendo pulsable**: estos
-   * canales resucitan constantemente y esconder cosas en silencio ya fue un
-   * error antes en este proyecto. Ver `canales-caidos.ts`.
-   */
-  caido?: boolean;
-  selected: boolean;
-  /**
-   * Los tres reciben el canal a propósito.
-   *
-   * Sin argumento, quien pinta la lista tenía que crear tres flechas nuevas por
-   * fila y por render, y eso **anulaba el `memo` de abajo**: cualquier cambio
-   * repintaba las ~50 filas montadas enteras, iconos incluidos. Pasando el
-   * canal, el padre puede tener manejadores estables y el `memo` por fin
-   * acierta. Las flechas de aquí dentro no molestan: solo son escuchadores de
-   * DOM, no props que comparar.
-   */
-  onFocus: (channel: Channel) => void;
-  onPlay: (channel: Channel) => void;
-  onToggleFavorite: (channel: Channel) => void;
+
+/**
+ * El logo, con su propio estado de fallo.
+ *
+ * `<img>` plano y no `next/image`: las URLs salen de cientos de dominios de
+ * listas IPTV y `next/image` exige declarar cada uno en `remotePatterns`.
+ */
+const LogoCanal = memo(function LogoCanal({ canal }: { canal: Channel }) {
+  const [falla, setFalla] = useState(false);
+
+  if (canal.logoUrl && !falla) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={canal.logoUrl} alt="" loading="lazy" onError={() => setFalla(true)} />
+    );
+  }
+  if (canal.name) return <b className="livetv-row-mark">{channelMark(canal)}</b>;
+  return <Tv size={20} />;
+});
+
+/** Lo que dan ahora, con la barra de cuánto lleva; o la categoría si no hay guía. */
+function EnEmision({ canal }: { canal: Channel }) {
+  // El reloj se lee al montar y no en un temporizador: una barra por fila son
+  // hasta 120 intervalos vivos, y en una tele eso cuesta más que la precisión
+  // que da.
+  // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
+  const progreso = porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now());
+
+  if (!canal.currentProgram) {
+    return (
+      <span className="livetv-row-now">
+        <em className="is-muted">{canal.category}</em>
+      </span>
+    );
+  }
+
+  return (
+    <span className="livetv-row-now">
+      <em>{canal.currentProgram}</em>
+      {progreso !== null && (
+        <span className="livetv-progress">
+          <span style={{ width: `${progreso}%` }} />
+        </span>
+      )}
+    </span>
+  );
 }
 
-function ChannelRowBase({
+export const ChannelRow = memo(function ChannelRow({
   channel,
   favorite,
   caido,
@@ -56,57 +73,48 @@ function ChannelRowBase({
   onFocus,
   onPlay,
   onToggleFavorite,
-}: ChannelRowProps) {
-  const [logoFalla, setLogoFalla] = useState(false);
-  // El reloj se lee aquí y no en un temporizador: una barra de progreso por
-  // fila son hasta 120 intervalos vivos, y en una tele eso cuesta más que la
-  // precisión que da. Se queda en la hora del montaje.
-  // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
-  const progreso = porcentajeDelPrograma(channel.currentStart, channel.currentEnd, Date.now());
-  const hayLogo = Boolean(channel.logoUrl) && !logoFalla;
-
+}: {
+  channel: Channel;
+  favorite: boolean;
+  /**
+   * Ha dejado de responder en este aparato. Se apaga un poco y lleva una marca,
+   * pero **sigue siendo pulsable**: estos canales resucitan constantemente y
+   * esconder cosas en silencio ya fue un error antes. Ver `canales-caidos.ts`.
+   */
+  caido?: boolean;
+  selected: boolean;
+  onFocus: (channel: Channel) => void;
+  onPlay: (channel: Channel) => void;
+  onToggleFavorite: (channel: Channel) => void;
+}) {
   return (
     <article
       className={`livetv-row row-virtual ${selected ? "is-selected" : ""} ${caido ? "is-caido" : ""}`}
       onMouseEnter={() => onFocus(channel)}
       onFocus={() => onFocus(channel)}
     >
-      <button type="button" data-nav="row" className="livetv-row-main" onClick={() => onPlay(channel)}>
+      <button
+        type="button"
+        data-nav="row"
+        className="livetv-row-main"
+        onClick={() => onPlay(channel)}
+      >
         <span className="livetv-row-logo">
-          {hayLogo ? (
-            // Igual que en el resto del diseño: `<img>` plano. Las URLs de logo
-            // salen de cientos de dominios de listas IPTV y `next/image` exige
-            // declarar cada uno en `remotePatterns`.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={channel.logoUrl} alt="" loading="lazy" onError={() => setLogoFalla(true)} />
-          ) : channel.name ? (
-            <b className="livetv-row-mark">{channelMark(channel)}</b>
-          ) : (
-            <Tv size={20} />
-          )}
+          <LogoCanal canal={channel} />
         </span>
 
         <span className="livetv-row-copy">
           <span className="livetv-row-title">
             <strong>{channel.name}</strong>
             <i className="livetv-quality">{channel.number}</i>
-            {caido && <i className="livetv-caido" title="No respondió las últimas veces">sin señal</i>}
+            {caido && (
+              <i className="livetv-caido" title="No respondió las últimas veces">
+                sin señal
+              </i>
+            )}
           </span>
 
-          {channel.currentProgram ? (
-            <span className="livetv-row-now">
-              <em>{channel.currentProgram}</em>
-              {progreso !== null && (
-                <span className="livetv-progress">
-                  <span style={{ width: `${progreso}%` }} />
-                </span>
-              )}
-            </span>
-          ) : (
-            <span className="livetv-row-now">
-              <em className="is-muted">{channel.category}</em>
-            </span>
-          )}
+          <EnEmision canal={channel} />
 
           {channel.nextProgram && (
             <small>
@@ -127,13 +135,14 @@ function ChannelRowBase({
         className={`livetv-row-star ${favorite ? "is-active" : ""}`}
         onClick={() => onToggleFavorite(channel)}
         aria-pressed={favorite}
-        aria-label={favorite ? `Quitar ${channel.name} de favoritos` : `Añadir ${channel.name} a favoritos`}
+        aria-label={
+          favorite
+            ? `Quitar ${channel.name} de favoritos`
+            : `Añadir ${channel.name} a favoritos`
+        }
       >
         <Star size={17} fill={favorite ? "currentColor" : "none"} />
       </button>
     </article>
   );
-}
-
-/** Listas de más de 500 canales: sin memoizar, cada tecleo repinta todas. */
-export const ChannelRow = memo(ChannelRowBase);
+});

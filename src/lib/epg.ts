@@ -1,5 +1,6 @@
 import { gunzipSync } from "node:zlib";
 import { channelNameVariants, normalizeChannelName } from "./text";
+import { paraRegistro } from "./url-segura";
 
 export interface EpgProgramme {
   title: string;
@@ -21,9 +22,8 @@ export interface EpgGuide {
   idByName: Map<string, string>;
 }
 
-// Las guías XMLTV compartidas suelen cubrir cientos de canales de varios
-// países; evitamos cargar/parsear archivos desproporcionados en una función
-// serverless.
+// Las guías compartidas cubren cientos de canales de varios países: sin tope,
+// una función sin servidor se ahoga interpretándolas.
 const MAX_EPG_BYTES = 15 * 1024 * 1024;
 /** Tope tras descomprimir: un .gz pequeño puede expandirse a cientos de MB. */
 const MAX_EPG_TEXT_BYTES = 150 * 1024 * 1024;
@@ -34,29 +34,63 @@ const MAX_CHANNELS = 50_000;
 const EPG_CACHE_MS = 10 * 60 * 1000;
 
 /**
- * Tope de espera de la guía, deliberadamente corto: los horarios son un adorno
- * y la lista tiene que salir aunque el EPG no conteste. Muchas listas apuntan a
- * servicios gratuitos que se duermen medio minuto, y esa espera se comía el
- * tiempo de la función. Un fallo se cachea igual que un acierto.
+ * Corto a propósito: los horarios son un adorno y la lista tiene que salir
+ * aunque el EPG no conteste. Muchas listas apuntan a servicios gratuitos que se
+ * duermen medio minuto. Un fallo se cachea igual que un acierto.
  */
 const EPG_TIMEOUT_MS = 5000;
 
-/**
- * Interpretar un XMLTV de miles de canales cuesta bastante y el resultado
- * cambia como mucho cada pocos minutos, así que se guarda en memoria del
- * proceso en vez de repetirlo en cada visita.
- */
+/** Interpretar un XMLTV de miles de canales cuesta, y cambia cada pocos minutos. */
 let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null = null;
 
-export async function fetchEpg(url: string): Promise<EpgGuide | null> {
+/**
+ * `deLaLista` es una diferencia de confianza, no de forma: `false` la puso
+ * quien despliega en `EPG_URL` y puede apuntar donde quiera, incluida la red
+ * local; `true` venía dentro del M3U y **la eligió quien controla esa lista**,
+ * que con una lista pública no es quien despliega. Solo esa se comprueba.
+ */
+export async function fetchEpg(url: string, deLaLista = false): Promise<EpgGuide | null> {
   if (cachedEpg?.url === url && cachedEpg.expiresAt > Date.now()) return cachedEpg.guide;
 
-  const guide = await downloadAndParseEpg(url);
+  const guide = await downloadAndParseEpg(url, deLaLista);
   cachedEpg = { url, guide, expiresAt: Date.now() + EPG_CACHE_MS };
   return guide;
 }
 
-async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
+/**
+ * Solo mira el texto. **No resuelve DNS**, así que un nombre público cuyo
+ * registro A apunte a `10.0.0.5` pasa, y el reenlace de DNS también; cerrarlo
+ * de verdad exige fijar la IP resuelta en la conexión, y `fetch` no deja
+ * hacerlo sin un agente propio. Lo que zanja el asunto es poner `EPG_URL`, y
+ * entonces el `url-tvg` de la lista no se usa.
+ */
+function hostInterno(hostname: string): boolean {
+  // IPv6 llega entre corchetes en `hostname`; se quitan para poder mirarlo.
+  const host = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+
+  if (host === "localhost" || /\.(localhost|local|internal|home\.arpa)$/.test(host)) return true;
+
+  // IPv6: bucle local (::1), únicas locales (fc00::/7) y de enlace (fe80::/10).
+  if (host === "::1" || /^f[cd][0-9a-f]{2}:/.test(host) || /^fe[89ab][0-9a-f]:/.test(host)) {
+    return true;
+  }
+
+  // IPv4, también en su forma mapeada a IPv6 (`::ffff:10.0.0.1`).
+  const ipv4 = /(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!ipv4) return false;
+  const [a, b] = [Number(ipv4[1]), Number(ipv4[2])];
+  return (
+    a === 0 || // 0.0.0.0/8
+    a === 10 || // privada
+    a === 127 || // bucle local
+    (a === 100 && b >= 64 && b <= 127) || // CGNAT
+    (a === 169 && b === 254) || // enlace local: metadatos de la nube
+    (a === 172 && b >= 16 && b <= 31) || // privada
+    (a === 192 && b === 168) // privada
+  );
+}
+
+async function downloadAndParseEpg(url: string, deLaLista: boolean): Promise<EpgGuide | null> {
   /**
    * Solo `https:`. Es el ÚNICO punto donde contenido remoto —el `url-tvg` de
    * dentro del M3U— decide a dónde sale una petición del servidor: quien
@@ -68,11 +102,24 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
   try {
     destino = new URL(url);
   } catch {
-    console.error(`❌ La URL de la guía EPG no es válida — ${url}`);
+    console.error(`❌ La URL de la guía EPG no es válida — ${paraRegistro(url)}`);
     return null;
   }
   if (destino.protocol !== "https:") {
-    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${url}`);
+    console.error(`❌ Guía EPG rechazada: solo se aceptan URLs https — ${paraRegistro(url)}`);
+    return null;
+  }
+
+  /**
+   * `https:` sola no basta: dentro de https queda toda la red interna. Y no es
+   * ciego del todo — lo que responda se interpreta como XMLTV y **sus títulos
+   * se pintan en la guía**, así que parte del contenido vuelve a verse.
+   */
+  if (deLaLista && hostInterno(destino.hostname)) {
+    console.error(
+      `❌ Guía EPG rechazada: la lista M3U apunta a una dirección interna — ${paraRegistro(url)}. ` +
+        "Configura EPG_URL si esa guía es tuya.",
+    );
     return null;
   }
 
@@ -82,7 +129,7 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
       signal: AbortSignal.timeout(EPG_TIMEOUT_MS),
     });
     if (!res.ok) {
-      console.error(`❌ La guía EPG respondió HTTP ${res.status} — ${url}`);
+      console.error(`❌ La guía EPG respondió HTTP ${res.status} — ${paraRegistro(url)}`);
       return null;
     }
 
@@ -111,7 +158,7 @@ async function downloadAndParseEpg(url: string): Promise<EpgGuide | null> {
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${EPG_TIMEOUT_MS / 1000}s (¿servidor dormido?)`
         : String(error);
-    console.error(`❌ Guía EPG descartada: ${reason} — ${url}`);
+    console.error(`❌ Guía EPG descartada: ${reason} — ${paraRegistro(url)}`);
     return null;
   }
 }
@@ -272,6 +319,27 @@ function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): Ep
   }
 
   return null;
+}
+
+/**
+ * Lo que consume la parrilla: `getEpgEntry` responde «ahora y después», que
+ * basta para una fila, pero una rejilla necesita varias horas de golpe.
+ *
+ * Cuenta **todo lo que toca la franja**, no solo lo que empieza dentro: el
+ * programa que arrancó a las 19:30 sigue en pantalla a las 20:00.
+ */
+export function programasEnFranja(
+  guide: EpgGuide,
+  tvgId: string,
+  channelName: string,
+  desde: number,
+  hasta: number,
+): EpgProgramme[] {
+  const programmes = findProgrammes(guide, tvgId, channelName);
+  if (!programmes) return [];
+  return programmes
+    .filter((programme) => programme.stop > desde && programme.start < hasta)
+    .sort((a, b) => a.start - b.start);
 }
 
 export function getEpgEntry(guide: EpgGuide, tvgId: string, channelName: string, now: number): EpgEntry | null {

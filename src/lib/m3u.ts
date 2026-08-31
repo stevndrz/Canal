@@ -4,6 +4,7 @@ import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
 import { serverConfig } from "@/lib/config.server";
+import { paraRegistro } from "./url-segura";
 
 /**
  * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
@@ -42,6 +43,24 @@ type RawM3uChannel = {
 const ADULT_CONTENT = /\b(xxx|adult|porn|erotic|erotico|hentai|playboy)\b/i;
 
 /**
+ * Los únicos esquemas que llegan a reproducirse, y por tanto los únicos que se
+ * dejan pasar.
+ *
+ * Esta lista la escribe quien controle el M3U, no quien despliega, y su `url`
+ * acaba en `hls.loadSource()`, en `video.src` y en lo que se manda al
+ * Chromecast. Todos los demás sitios de la app que reciben una URL de fuera ya
+ * comprueban el esquema —`stremio.ts`, `buildEmbedUrl`, `urlUtilizable`— y este
+ * era el único que no: entraba tal cual.
+ *
+ * No cambia lo que se ve. `rtmp:`, `rtsp:` y compañía no los reproduce ningún
+ * navegador, así que las entradas que se descartan son las que habrían dado
+ * pantalla negra. Lo que se evita es que un `javascript:` o un `data:` de una
+ * lista ajena viaje hasta el cliente esperando encontrar un hueco donde sí
+ * cuente.
+ */
+const ESQUEMA_REPRODUCIBLE = /^https?:\/\//i;
+
+/**
  * Tope de espera al descargar la lista. Sin él, un origen que no responde deja
  * la petición colgada hasta que la plataforma corta la función entera y la
  * página no llega a pintarse.
@@ -77,7 +96,7 @@ async function fetchM3uText(): Promise<string | null> {
       const declarado = Number(response.headers.get("content-length") || 0);
       if (declarado && declarado > MAX_M3U_BYTES) {
         console.error(
-          `❌ Lista M3U descartada por tamaño (${Math.round(declarado / 1024 / 1024)} MB) — ${source}`
+          `❌ Lista M3U descartada por tamaño (${Math.round(declarado / 1024 / 1024)} MB) — ${paraRegistro(source)}`
         );
         return null;
       }
@@ -86,19 +105,19 @@ async function fetchM3uText(): Promise<string | null> {
       const texto = await response.text();
       if (texto.length > MAX_M3U_BYTES) {
         console.error(
-          `❌ Lista M3U descartada por tamaño (${Math.round(texto.length / 1024 / 1024)} MB) — ${source}`
+          `❌ Lista M3U descartada por tamaño (${Math.round(texto.length / 1024 / 1024)} MB) — ${paraRegistro(source)}`
         );
         return null;
       }
       return texto;
     }
-    console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${source}`);
+    console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${paraRegistro(source)}`);
   } catch (error) {
     const reason =
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
         : String(error);
-    console.error(`❌ Error descargando la lista M3U (${reason}) — ${source}`);
+    console.error(`❌ Error descargando la lista M3U (${reason}) — ${paraRegistro(source)}`);
   }
   return null;
 }
@@ -231,7 +250,7 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
 
   const unique = new Map<string, RawM3uChannel>();
   for (const item of rawChannels) {
-    if (!item?.url) continue;
+    if (!item?.url || !ESQUEMA_REPRODUCIBLE.test(item.url.trim())) continue;
     if (ADULT_CONTENT.test(`${item.name || item.title || ""} ${getGroupTitle(item)}`)) continue;
     const key = getDeduplicationKey(item);
     if (!unique.has(key)) unique.set(key, item);
@@ -242,7 +261,12 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const group = getGroupTitle(item);
     const tvgId = item.tvg?.id?.trim() ?? "";
     // El logo de la lista manda; si no trae, se busca por nombre en el índice local.
-    const logoUrl = item.tvg?.logo || item.logo || findLogoUrl(name) || "";
+    // El logo sale de la lista y acaba en un `<img src>`: mismo criterio. Sin
+    // esquema válido se cae al índice local, que es el camino que ya existía
+    // para las entradas sin logo.
+    const deLaLista = item.tvg?.logo || item.logo || "";
+    const logoUrl =
+      (ESQUEMA_REPRODUCIBLE.test(deLaLista.trim()) ? deLaLista : "") || findLogoUrl(name) || "";
 
     return {
       name,

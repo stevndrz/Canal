@@ -1,5 +1,6 @@
 import { avisoDeMagnet, esMagnet, fuenteReproducible, leerMagnet } from "./magnet";
 import type { ClaseFuente } from "./types";
+import { extensionDe } from "@/lib/extension";
 
 /**
  * Qué es un enlace, mirando solo su forma.
@@ -9,17 +10,30 @@ import type { ClaseFuente } from "./types";
  * que intentar reproducir directamente. La extensión acierta en la práctica, y
  * cuando no acierta, `desconocida` cae en HLS, que es el formato dominante.
  *
- * Misma regla que `getStreamKind` en `stream-player.tsx`, a propósito: si un
- * día cambia una, tiene que cambiar la otra.
+ * Comparte con `claseDeEmision` de dónde saca la extensión (`extensionDe`),
+ * pero **no el vocabulario**: aquí `.mkv` es `matroska` porque a quien pega el
+ * enlace hay que avisarle, y allí es `native` porque al `<video>` se le puede
+ * dar igualmente. Una prueba comprueba que las dos coincidan en lo que ambas
+ * saben clasificar.
  */
 export function claseDeUrl(url: string): ClaseFuente {
   if (esMagnet(url)) return "magnet";
-  const limpia = url.toLowerCase().split("?")[0].split("#")[0];
-  if (/\.m3u8$/.test(limpia)) return "hls";
-  if (/\.(ts|flv)$/.test(limpia)) return "mpegts";
-  if (/\.mkv$/.test(limpia)) return "matroska";
-  if (/\.(mp4|webm|mov|m4v)$/.test(limpia)) return "nativo";
-  return "desconocida";
+  switch (extensionDe(url)) {
+    case "m3u8":
+      return "hls";
+    case "ts":
+    case "flv":
+      return "mpegts";
+    case "mkv":
+      return "matroska";
+    case "mp4":
+    case "webm":
+    case "mov":
+    case "m4v":
+      return "nativo";
+    default:
+      return "desconocida";
+  }
 }
 
 /**

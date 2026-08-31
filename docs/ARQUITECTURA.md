@@ -56,7 +56,9 @@ src/
 │   ├── reproduccion/         Qué librería reproduce cada enlace
 │   ├── catalog/              TMDB, proveedores de iframe, catálogo propio
 │   ├── fuente-propia/        Mi enlace: clasificar URLs, leer magnets
-│   └── resolvers/            Contrato de /api/stream (tipos compartidos)
+│   ├── resolvers/            Contrato de /api/stream (tipos compartidos)
+│   ├── parrilla.ts           Las cuentas de la guía en rejilla
+│   └── progreso.ts           Por dónde iba cada cosa que se estaba viendo
 ```
 
 ---
@@ -183,11 +185,28 @@ Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 |---|---|---|
 | `M3U_URL` | Lista de canales | Un gist público |
 | `EPG_URL` | Guía XMLTV | La que declare la lista, o ninguna |
-| `TMDB_API_KEY` | Catálogo de películas | Token de solo lectura incluido |
+| `TMDB_API_KEY` | Catálogo de películas | **Ninguno.** Sin ella, Cine y series lo dice en pantalla |
+| `TMDB_API_BASE` | Espejo o simulador de TMDB, para pruebas | La API pública |
+| `STREMIO_MANIFESTS` | Addons que sirven enlaces directos, sin anuncios | Ninguno |
 | `NEXT_PUBLIC_CANAL_INICIAL` | Canal de arranque | `Canal 7` |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales de la casa, separados por comas | `Canal 3, Canal 7, Guatevision` |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
-| `NEXT_PUBLIC_PUSHER_KEY` / `_CLUSTER` + `PUSHER_SECRET` | Watch Party | Sin ellas, «Ver en familia» se desactiva sola |
+| `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML | Recortado a ~200 |
 
-> ⚠️ El token de TMDB de reserva está en el historial de Git. Es de solo
-> lectura del catálogo público y nunca sale hacia el navegador, pero si este
-> repositorio deja de ser privado hay que rotarlo y dejar solo la variable.
+> 🚨 **El token de TMDB que hubo escrito en el código está comprometido y hay
+> que rotarlo.**
+>
+> Esta advertencia estaba escrita en condicional —«si este repositorio deja de
+> ser privado hay que rotarlo»— y **esa condición ya se cumple**: el
+> repositorio es público (comprobado el 31-ago-2026 contra la API de GitHub:
+> `"visibility": "public"`). El token sigue en el historial de Git, así que
+> haberlo quitado del código no lo desactiva: cualquiera puede leerlo con un
+> `git log`.
+>
+> Qué hacer, en este orden: regenerarlo en themoviedb.org, ponerlo en Vercel
+> como `TMDB_API_KEY`, y comprobar que el viejo ya no responde. Reescribir el
+> historial NO es la solución —los clones y forks existentes conservarían el
+> token— y rotarlo lo vuelve irrelevante.
+>
+> Ya no hay ningún token de reserva en el código: `config.server.ts` lo explica
+> y la app funciona sin él (los canales en vivo no dependen de TMDB).

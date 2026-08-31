@@ -32,3 +32,30 @@ export function useReloj(): string {
 
   return hora;
 }
+
+/**
+ * El mismo reloj, pero en milisegundos.
+ *
+ * Lo pide la parrilla: para colocar la línea del «ahora» y saber qué bloque
+ * está en emisión hace falta el instante, no la hora ya formateada. Va aquí y
+ * no en un hook aparte para que las dos formas de mirar la hora compartan
+ * cadencia; dos temporizadores distintos despertando el televisor por lo mismo
+ * es exactamente lo que `useReloj` vino a evitar cuando estaba duplicado.
+ *
+ * Empieza en `0` por el mismo motivo que el otro empieza vacío: el instante del
+ * servidor no es el del navegador, y quien lo consuma debe poder distinguir
+ * «todavía no se sabe» de una hora de verdad.
+ */
+export function useInstante(): number {
+  const [instante, setInstante] = useState(0);
+
+  useEffect(() => {
+    const actualizar = () => setInstante(Date.now());
+
+    actualizar();
+    const temporizador = setInterval(actualizar, 20_000);
+    return () => clearInterval(temporizador);
+  }, []);
+
+  return instante;
+}

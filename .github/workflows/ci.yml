@@ -32,6 +32,13 @@ jobs:
       # package-lock.json y falla si los dos archivos no concuerdan.
       - run: npm ci
 
+      # Antes que nada: si una dependencia tiene un fallo conocido, conviene
+      # saberlo aunque el resto pase. `--audit-level=high` a propósito — con
+      # `low` esto se pondría rojo por cosas que no afectan a una app sin
+      # servidor propio, y un CI que se ignora no sirve de nada.
+      - name: Vulnerabilidades
+        run: npm audit --audit-level=high
+
       - name: Tipos
         run: npm run typecheck
 

@@ -1,0 +1,31 @@
+# Actualizaciones de dependencias.
+#
+# El CI ya corre `npm audit` en cada cambio, pero eso solo avisa de lo que ya
+# está: para que llegue el arreglo hace falta que alguien suba la versión, y
+# esto lo hace sin que nadie se acuerde.
+#
+# Semanal y agrupado a propósito. Este proyecto es de una persona y el ruido de
+# un PR por paquete acabaría en no mirar ninguno; una tanda a la semana sí se
+# revisa. Las de seguridad no esperan a la tanda: Dependabot las manda aparte
+# en cuanto se publican.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Lo de desarrollo puede ir junto: si rompe algo, rompe el CI y ya está.
+      desarrollo:
+        dependency-type: development
+      # Lo de producción, por tipo de cambio: un parche se fusiona leyendo el
+      # diff, una versión mayor de `next` o `hls.js` se prueba en la tele.
+      produccion-menores:
+        dependency-type: production
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

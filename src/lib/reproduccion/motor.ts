@@ -1,4 +1,5 @@
 import type HlsType from "hls.js";
+import { extensionDe } from "@/lib/extension";
 import type MpegtsType from "mpegts.js";
 
 
@@ -18,15 +19,25 @@ export type ClaseDeEmision = "hls" | "mpegts" | "flv" | "native";
  * Por defecto se asume HLS: es el formato dominante en listas IPTV públicas,
  * incluso cuando la URL no termina en `.m3u8`.
  *
- * Misma regla que `claseDeUrl` en `src/lib/fuente-propia/url.ts`, a propósito:
- * si un día cambia una, tiene que cambiar la otra.
+ * Comparte con `claseDeUrl` de dónde saca la extensión, no el vocabulario. Que
+ * las dos sigan de acuerdo lo comprueba `extension.test.ts`, no un comentario:
+ * el que había nombraba una función que llevaba tiempo sin existir.
  */
 export function claseDeEmision(url: string): ClaseDeEmision {
-  const limpia = url.toLowerCase().split("?")[0];
-  if (/\.flv$/.test(limpia)) return "flv";
-  if (/\.ts$/.test(limpia)) return "mpegts";
-  if (/\.(mp4|webm|mkv|mov)$/.test(limpia)) return "native";
-  return "hls";
+  switch (extensionDe(url)) {
+    case "flv":
+      return "flv";
+    case "ts":
+      return "mpegts";
+    case "mp4":
+    case "webm":
+    case "mkv":
+    case "mov":
+      return "native";
+    // Lo desconocido cae en HLS, que es lo que emite casi toda lista M3U.
+    default:
+      return "hls";
+  }
 }
 
 /**

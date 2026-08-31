@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import type { CardItem } from "@/lib/media-item";
@@ -7,17 +8,12 @@ import { MediaCard } from "./media-card";
 import { RailScroller } from "./rail-scroller";
 
 /**
- * Una fila con título y sus tarjetas.
+ * Una fila con título y sus tarjetas, en tres pesos.
  *
- * Derivado de ARVIO — https://github.com/ProdigyV21/ARVIO
- * Origen:  web/components/media/MediaRail.tsx
- * Commit:  5bd6a760068ee909692c3df1386af9d6a0d808af
- * Licencia: Apache License 2.0 — ver LICENSES/ARVIO-Apache-2.0.txt
- *
- * MODIFICADO respecto al original (Apache 2.0 §4b): el modo póster llega por
- * prop en lugar de leerse de un store global, el recuento del lado derecho
- * es propio y, cuando la fila corresponde a un filtro real del catálogo, el
- * título es un enlace a su cuadrilla completa.
+ * `posterMode` para el catálogo (carátulas 2:3 y flechas flotantes) y
+ * `compacto` para las filas que son **historial y no oferta** —«Seguir
+ * viendo», «Tus favoritos»—: informan de lo que ya hiciste, no proponen nada,
+ * así que no tienen por qué pesar lo mismo que una sección que sí ofrece algo.
  */
 export function MediaRail({
   title,
@@ -35,14 +31,6 @@ export function MediaRail({
   onOpen: (item: CardItem) => void;
   onFocus?: (item: CardItem) => void;
   posterMode?: boolean;
-  /**
-   * Más pequeño y más callado.
-   *
-   * Para las filas que son **historial y no oferta** —«Seguir viendo», «Tus
-   * favoritos»—: informan de lo que ya hiciste, no proponen nada nuevo, así
-   * que no tienen por qué pesar lo mismo que una sección que sí está
-   * ofreciendo algo. Mismo mecanismo que `posterMode`, en la otra dirección.
-   */
   compacto?: boolean;
   activeKey?: string | null;
   count?: string;
@@ -53,6 +41,14 @@ export function MediaRail({
   // un hueco. Favoritos y Seguir viendo empiezan vacíos siempre.
   if (items.length === 0) return null;
 
+  /**
+   * En modo póster cada tarjeta va envuelta, y el ancho lo pone el CSS del riel
+   * (`--carteles` por breakpoint): carteles enteros por pantalla, sin cortes en
+   * el borde. En los demás la tarjeta va suelta y fluida, como en la rejilla de
+   * búsqueda. `Fragment` evita repetir la tarjeta entera solo por el envoltorio.
+   */
+  const Envoltorio = posterMode ? "div" : Fragment;
+
   return (
     <section className={`rail ${posterMode ? "is-poster" : ""} ${compacto ? "is-compacto" : ""}`}>
       <div className="rail-head">
@@ -60,45 +56,31 @@ export function MediaRail({
           <Link
             data-nav="button"
             href={href}
-            className="group flex items-center gap-2 hover:text-red-500 transition-colors"
+            className="group flex items-center gap-2 transition-colors hover:text-red-500"
           >
             <h3>{title}</h3>
             {/* La flecha se desliza al pasar el foco o el ratón: señala que el
-                título lleva a más contenido, no que la fila sea un botón. */}
-            <ChevronRight className="w-5 h-5 shrink-0 transition-transform group-hover:translate-x-1" />
+                título lleva a más, no que la fila entera sea un botón. */}
+            <ChevronRight className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" />
           </Link>
         ) : (
           <h3>{title}</h3>
         )}
         {count && <span>{count}</span>}
       </div>
+
       <RailScroller className="rail-strip" ariaLabel={title} overlay={posterMode}>
-        {items.map((item) =>
-          /* El ancho lo pone el CSS del riel (`--carteles` por breakpoint):
-             carteles enteros por pantalla, sin cortes en el borde. La tarjeta
-             se mantiene fluida (100 %) donde no hay carrusel, como en la
-             rejilla de búsqueda. */
-          posterMode ? (
-            <div key={item.key}>
-              <MediaCard
-                item={item}
-                onOpen={onOpen}
-                onFocus={onFocus}
-                posterMode={posterMode}
-                active={activeKey === item.key}
-              />
-            </div>
-          ) : (
+        {items.map((item) => (
+          <Envoltorio key={item.key}>
             <MediaCard
-              key={item.key}
               item={item}
               onOpen={onOpen}
               onFocus={onFocus}
               posterMode={posterMode}
               active={activeKey === item.key}
             />
-          )
-        )}
+          </Envoltorio>
+        ))}
       </RailScroller>
     </section>
   );

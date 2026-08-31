@@ -1,19 +1,10 @@
 /**
- * Fuente propia: un enlace que aporta la persona, no el catálogo ni la lista.
+ * Fuente propia: un enlace que aporta la persona, y el único de los tres
+ * orígenes con reproductor propio. Canales es señal en directo —no hay
+ * progreso que ofrecer— y las películas viven en un iframe de otro dominio,
+ * donde leer o controlar el `<video>` es imposible, no difícil.
  *
- * Es el tercer origen de la app, y el único con reproductor propio:
- *
- *  - **Canales** (lista M3U) es señal en directo: no se puede pausar ni buscar
- *    en una emisión en vivo, así que no hay barra de progreso que ofrecer.
- *  - **Películas** se reproducen dentro del iframe de un proveedor externo.
- *    Desde aquí no se puede leer ni controlar ese `<video>` —es otro dominio—,
- *    así que tocar su reproducción es imposible, no difícil.
- *  - **Fuente propia** es un `<video>` nuestro, con su tiempo y sus controles
- *    al alcance.
- *
- * Este módulo define el contrato y no implementa la pantalla: es la base sobre
- * la que construir la funcionalidad, para que quien la escriba no tenga que
- * decidir otra vez estas cosas.
+ * Aquí solo el contrato; la pantalla es `views/fuente-view.tsx`.
  */
 
 /** Cómo se va a reproducir el enlace. */
@@ -26,10 +17,7 @@ export type ClaseFuente =
   | "hls"
   /** Transporte MPEG-TS o FLV. Se reproduce con mpegts.js. */
   | "mpegts"
-  /**
-   * Enlace magnet. Solo llega a guardarse si traía una réplica HTTP dentro;
-   * ver `magnet.ts`, que explica por qué los demás no pueden reproducirse.
-   */
+  /** Magnet. Solo se guarda si traía réplica HTTP dentro; ver `magnet.ts`. */
   | "magnet"
   /** No se reconoce por la extensión; se intentará como HLS, que es lo común. */
   | "desconocida";
@@ -46,6 +34,10 @@ export interface FuentePropia {
   magnet?: string;
   /** Marca de tiempo de alta, para ordenar «lo último que añadí». */
   creadaEn: number;
-  /** Segundo por el que iba, para poder continuar. */
+  /**
+   * @deprecated Lo reemplaza `lib/progreso.ts`, que guarda el progreso de todo
+   * con la misma forma. Guardarlo también aquí serían dos verdades que se
+   * desincronizan. Se conserva para no romper lo ya guardado en algún aparato.
+   */
   progreso?: number;
 }

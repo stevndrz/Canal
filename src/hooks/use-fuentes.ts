@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
-import { claseDeUrl, tituloDesdeUrl } from "@/lib/fuente-propia/url";
+import { claseDeUrl, tituloDesdeUrl, urlUtilizable } from "@/lib/fuente-propia/url";
 
 const CLAVE = "canalcasa:fuentes";
 
@@ -19,11 +19,40 @@ const CLAVE = "canalcasa:fuentes";
 function leerGuardadas(): FuentePropia[] {
   try {
     const crudo = window.localStorage.getItem(CLAVE);
-    return crudo ? (JSON.parse(crudo) as FuentePropia[]) : [];
+    if (!crudo) return [];
+    const guardadas = JSON.parse(crudo) as unknown;
+    if (!Array.isArray(guardadas)) return [];
+    return guardadas.filter(esFuenteUtilizable);
   } catch {
     // Un JSON corrupto no debe impedir usar la pantalla: se empieza vacío.
     return [];
   }
+}
+
+/**
+ * Lo guardado se vuelve a comprobar al leerlo, no solo al escribirlo.
+ *
+ * `resolverFuente` ya filtra al dar de alta, así que lo que hay aquí debería
+ * estar bien. «Debería» es la palabra: esto sale de `localStorage`, que es
+ * texto que puede haber escrito otra versión de la app con otras reglas, la
+ * consola del navegador, o una extensión. Y de aquí la `url` va derecha al
+ * `src` de un `<video>` y a `hls.loadSource()`.
+ *
+ * Es la misma disciplina que el resto del proyecto aplica a la lista M3U y a
+ * los addons de Stremio —comprobar el esquema en el borde, no confiar en que
+ * ya venía comprobado— aplicada al borde que faltaba. Lo que no pase se
+ * descarta en silencio: quien tenga una entrada corrupta ve una fuente menos,
+ * no una pantalla rota.
+ */
+function esFuenteUtilizable(fuente: unknown): fuente is FuentePropia {
+  if (typeof fuente !== "object" || fuente === null) return false;
+  const { id, titulo, url } = fuente as Partial<FuentePropia>;
+  return (
+    typeof id === "string" &&
+    typeof titulo === "string" &&
+    typeof url === "string" &&
+    urlUtilizable(url)
+  );
 }
 
 export function useFuentes() {

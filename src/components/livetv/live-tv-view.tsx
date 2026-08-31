@@ -1,11 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Play, Search, Star, Tv, X } from "lucide-react";
+import { CalendarClock, List, Search, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
-import { channelMark } from "@/lib/channels";
-import { describirCanal } from "@/lib/describir-canal";
-import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import {
   calcularVentana,
@@ -13,6 +10,9 @@ import {
   type Ventana,
 } from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
+import { ParrillaEpg } from "./parrilla-epg";
+import { PanelCanal } from "./panel-canal";
+import { useInstante } from "@/hooks/use-reloj";
 
 /**
  * Canales: categorías, lista y detalle.
@@ -26,8 +26,11 @@ import { ChannelRow } from "./channel-row";
  *   - Fuera la gestión de listas de reproducción. En el origen se añaden y
  *     quitan listas M3U desde la propia pantalla; en CanalCasa la lista se
  *     configura con la variable `M3U_URL` y no hay nada que administrar aquí.
- *   - Fuera el conmutador Lista/Guía y la parrilla EPG: decidido dejarlo para
- *     una tanda posterior.
+ *   - El conmutador Lista/Parrilla SÍ está, aunque estuvo aplazado mucho
+ *     tiempo («decidido dejarlo para una tanda posterior»). La parrilla es
+ *     propia, no la del origen: aquí la programación no viaja con la lista
+ *     —`Channel` no puede engordar, ver `types.ts`— así que se pide por
+ *     ventana de canales a `/api/guia`. Ver `parrilla-epg.tsx`.
  *   - Fuera Catch-up, el lanzamiento en VLC y los avisos de Xtream, que
  *     dependen de infraestructura que esta app no tiene.
  *   - Textos en español y filtrado delegado al shell, que ya lo hacía.
@@ -128,6 +131,15 @@ export function LiveTvView({
     },
     [onSelect],
   );
+
+  /**
+   * Lista o parrilla. **La lista manda por defecto**, y no es indecisión: es
+   * la que funciona siempre. La parrilla depende de que haya guía EPG
+   * configurada, y el caso por defecto de esta app es no tenerla — abrir en una
+   * rejilla vacía sería una primera impresión falsa.
+   */
+  const [modo, setModo] = useState<"lista" | "parrilla">("lista");
+  const instante = useInstante();
 
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   // Estables, para que el `memo` de `ChannelRow` sirva de algo. Ver allí.
@@ -259,11 +271,9 @@ export function LiveTvView({
     search.trim() ? 0 : category === "Todas" ? totalCanales : (recuentos.get(category) ?? 0),
   );
 
+  // Lo seleccionado, o lo que se está viendo, o el primero de la lista: la
+  // columna de detalle nunca se queda vacía teniendo algo que enseñar.
   const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
-  const progreso = canal
-    ? // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
-      porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now())
-    : null;
   const esFavorito = canal ? favorites.has(canal.id) : false;
 
   return (
@@ -296,6 +306,36 @@ export function LiveTvView({
             </button>
           )}
         </div>
+
+        {/* Dos botones y no un interruptor: en un mando, un interruptor obliga
+            a saber en qué estado está antes de pulsarlo, y dos botones dicen a
+            dónde llevan. `aria-pressed` marca cuál está puesto. */}
+        <div className="flex shrink-0 items-center rounded-full border border-white/15 p-1">
+          <button
+            type="button"
+            data-nav="button"
+            onClick={() => setModo("lista")}
+            aria-pressed={modo === "lista"}
+            className={`flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
+              modo === "lista" ? "bg-white/15 text-white" : "text-muted hover:text-white"
+            }`}
+          >
+            <List size={16} aria-hidden="true" />
+            <span className="ml-1.5">Lista</span>
+          </button>
+          <button
+            type="button"
+            data-nav="button"
+            onClick={() => setModo("parrilla")}
+            aria-pressed={modo === "parrilla"}
+            className={`ml-1 flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
+              modo === "parrilla" ? "bg-white/15 text-white" : "text-muted hover:text-white"
+            }`}
+          >
+            <CalendarClock size={16} aria-hidden="true" />
+            <span className="ml-1.5">Parrilla</span>
+          </button>
+        </div>
       </header>
 
       <div className="livetv-columns">
@@ -318,6 +358,21 @@ export function LiveTvView({
           ))}
         </nav>
 
+        {modo === "parrilla" ? (
+          /* La parrilla ocupa el sitio de la lista Y del panel de detalle:
+             una rejilla de tiempo en una columna estrecha no se lee. Las
+             categorías se quedan, que es el filtro que sí sigue teniendo
+             sentido aquí. Se sintoniza desde la propia parrilla. */
+          <main className="livetv-list" aria-label={`Parrilla de ${category}`}>
+            <ParrillaEpg
+              canales={visible}
+              sintonizado={tuned}
+              onSelect={sintonizar}
+              ahora={instante}
+            />
+          </main>
+        ) : (
+          <>
         <main className="livetv-list" aria-label={category}>
           <div className="livetv-list-head">
             <h3>{category}</h3>
@@ -379,110 +434,15 @@ export function LiveTvView({
           )}
         </main>
 
-        <aside className="livetv-detail" aria-label="Detalle del canal">
-          {canal ? (
-            <>
-              <div className="livetv-detail-art">
-                {canal.logoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={canal.logoUrl} alt="" loading="lazy" />
-                ) : (
-                  <b className="livetv-row-mark">{channelMark(canal)}</b>
-                )}
-              </div>
-
-              <p className="livetv-detail-group">
-                {canal.number} · {canal.category}
-              </p>
-              <h2>{canal.name}</h2>
-
-              {canal.currentProgram ? (
-                <div className="livetv-program">
-                  <div className="livetv-program-head">
-                    <span>AHORA</span>
-                    {canal.currentStart && (
-                      <em>
-                        {hora(canal.currentStart)} – {hora(canal.currentEnd)}
-                      </em>
-                    )}
-                  </div>
-                  <strong>{canal.currentProgram}</strong>
-                  {progreso !== null && (
-                    <span className="livetv-progress">
-                      <span style={{ width: `${progreso}%` }} />
-                    </span>
-                  )}
-                </div>
-              ) : (
-                /* Sin guía, el panel cuenta lo que sí se sabe del canal en vez
-                   de quedarse en «no hay datos» y dejar la columna vacía. Todo
-                   se deriva en el cliente: cero peticiones, cero bytes de más
-                   en los 7.822 canales que viajan en el HTML. */
-                <AcercaDelCanal canal={canal} />
-              )}
-
-              {canal.nextProgram && (
-                <div className="livetv-program is-next">
-                  <div className="livetv-program-head">
-                    <span>DESPUÉS</span>
-                    {canal.nextStart && <em>{hora(canal.nextStart)}</em>}
-                  </div>
-                  <strong>{canal.nextProgram}</strong>
-                </div>
-              )}
-
-              <div className="livetv-detail-actions">
-                <button type="button" data-nav="button" className="primary" onClick={() => onTune(canal)}>
-                  <Play size={17} fill="currentColor" /> Ver ahora
-                </button>
-                <button
-                  type="button"
-                  data-nav="button"
-                  className={esFavorito ? "secondary is-active" : "secondary"}
-                  aria-pressed={esFavorito}
-                  onClick={() => onToggleFavorite(canal.id)}
-                >
-                  <Star size={17} fill={esFavorito ? "currentColor" : "none"} />
-                  {esFavorito ? "En favoritos" : "Favorito"}
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="livetv-detail-empty-state">
-              <Tv size={44} />
-              <p>Elige un canal para ver su información.</p>
-            </div>
-          )}
-        </aside>
+        <PanelCanal
+          canal={canal}
+          esFavorito={esFavorito}
+          onTune={onTune}
+          onToggleFavorite={onToggleFavorite}
+        />
+          </>
+        )}
       </div>
-    </div>
-  );
-}
-
-/**
- * Qué es este canal, cuando no hay guía que contar.
- *
- * Es lo que ocupa la columna de detalle en la mayoría de los casos: casi
- * ninguna lista M3U pública trae EPG, así que antes ahí solo se leía «Este
- * canal no tiene guía de programación» y debajo, nada.
- */
-function AcercaDelCanal({ canal }: { canal: Channel }) {
-  const { descripcion, datos } = describirCanal(canal);
-
-  return (
-    <div className="livetv-acerca">
-      <p className="livetv-acerca-texto">{descripcion}</p>
-
-      <dl className="livetv-acerca-datos">
-        {datos.map(({ termino, valor }) => (
-          <div key={termino}>
-            <dt>{termino}</dt>
-            <dd>{valor}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="livetv-acerca-nota">Este canal no publica guía de programación.</p>
     </div>
   );
 }

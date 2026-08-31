@@ -126,12 +126,6 @@ function ChannelGlassCard({
           </span>
         )}
 
-        {item.badge && (
-          <span className="absolute right-2 top-2 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
-            {item.badge}
-          </span>
-        )}
-
         {showProgress && (
           <span className="absolute inset-x-3 bottom-2 h-[3px] overflow-hidden rounded-full bg-white/10">
             <span className="block h-full bg-accent" style={{ width: `${progress}%` }} />
@@ -217,12 +211,6 @@ function PosterCard({
         ) : (
           <span className="absolute inset-0 grid place-items-center text-soft">
             <Tv size={42} aria-hidden="true" />
-          </span>
-        )}
-
-        {item.badge && (
-          <span className="absolute right-2 top-2 z-10 rounded-md bg-black/70 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted ring-1 ring-white/10">
-            {item.badge}
           </span>
         )}
 

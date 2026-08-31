@@ -22,9 +22,6 @@ import { DEFAULT_PLAYBACK } from "@/lib/types";
  * - se expone un handle imperativo para que los controles vivan fuera.
  */
 
-// Determina el motor de reproducción según el formato del stream.
-
-
 export interface StreamPlayerHandle {
   togglePlay: () => void;
   toggleMute: () => void;

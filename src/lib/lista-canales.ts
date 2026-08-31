@@ -62,8 +62,12 @@ async function conProgramacion(
 ): Promise<Omit<Channel, "id" | "number">[]> {
   // La guía es opcional: si la lista M3U no referencia ninguna y no hay EPG_URL
   // configurada, la app funciona igual, solo sin horarios.
-  const url = serverConfig().epgUrl || epgDeLaLista || "";
-  const epg = url ? await fetchEpg(url) : null;
+  // Cuál de las dos se usa decide también cuánto se la comprueba: la de
+  // `EPG_URL` la eligió quien despliega, la de la lista la eligió quien
+  // controla esa lista. Ver `fetchEpg`.
+  const propia = serverConfig().epgUrl;
+  const url = propia || epgDeLaLista || "";
+  const epg = url ? await fetchEpg(url, !propia) : null;
   if (!epg) return canales;
 
   // Corre una vez por descarga en el servidor, no en cada re-render.

@@ -1,6 +1,7 @@
 import type { Channel } from "@/lib/types";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { channelMark } from "@/lib/channels";
+import { porcentaje, valeLaPena, type MemoriaProgreso } from "@/lib/progreso";
 
 /**
  * Lo mínimo que una tarjeta necesita saber para pintarse.
@@ -26,8 +27,6 @@ export interface CardItem {
   meta: string;
   /** Línea inferior derecha: duración, nota, número de canal. */
   metaRight?: string;
-  /** Distintivo de la esquina superior derecha, ej. "EN VIVO". */
-  badge?: string;
   /** 0-100. Pinta la barra de progreso sobre el arte. */
   progress?: number;
   /** Monograma de respaldo cuando no hay ninguna imagen. */
@@ -45,8 +44,15 @@ export interface CardItem {
  * pinta, no se manda.
  */
 
-/** Un canal en vivo visto como tarjeta. */
-export function channelToCard(channel: Channel, options?: { live?: boolean }): CardItem {
+/**
+ * Un canal en vivo visto como tarjeta.
+ *
+ * Tenía un `options.live` que ponía un distintivo «EN VIVO», y **nadie lo pasó
+ * nunca**. No es casualidad ni olvido: en esta app todos los canales están en
+ * vivo, así que el distintivo no distinguiría nada. Es la misma razón por la
+ * que `isLive` se retiró de `Channel` — valía `true` en los 7.822.
+ */
+export function channelToCard(channel: Channel): CardItem {
   return {
     key: `canal-${channel.id}`,
     title: channel.name,
@@ -56,9 +62,29 @@ export function channelToCard(channel: Channel, options?: { live?: boolean }): C
     poster: channel.logoUrl || null,
     meta: channel.currentProgram || channel.category,
     metaRight: channel.number,
-    badge: options?.live ? "EN VIVO" : undefined,
     mark: channelMark(channel),
   };
+}
+
+/**
+ * La misma tarjeta, con la barra de por dónde iba.
+ *
+ * La clave de una tarjeta del catálogo (`movie-123`) y la de su progreso son la
+ * misma cadena a propósito: `claveDeTitulo()` produce ese formato, así que
+ * cruzarlas es una búsqueda directa y no hay que llevar un índice aparte.
+ *
+ * Esto no puede hacerse en el servidor —el progreso vive en `localStorage` de
+ * cada aparato— así que lo aplica quien pinta, ya en el navegador.
+ *
+ * Los episodios se guardan con su propia clave (`tv-42-t1e3`), que no coincide
+ * con la de la serie (`tv-42`): la tarjeta de una serie no enseña la barra del
+ * capítulo suelto que alguien dejó a medias. Es lo correcto — una serie no está
+ * «al 40%» porque su tercer capítulo lo esté.
+ */
+export function conProgreso(item: CardItem, memoria: MemoriaProgreso): CardItem {
+  const marca = memoria[item.key];
+  if (!marca || !valeLaPena(marca)) return item;
+  return { ...item, progress: porcentaje(marca) };
 }
 
 /** Una ficha del catálogo vista como tarjeta. */
