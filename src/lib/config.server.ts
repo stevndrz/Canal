@@ -52,6 +52,16 @@ export function serverConfig() {
     m3uUrl: process.env.M3U_URL || M3U_POR_DEFECTO,
 
     /**
+     * Marcha atrás del recorte de la portada: manda los 7.822 canales dentro
+     * del HTML, como se hacía antes. La lee `src/app/page.tsx`.
+     *
+     * Estaba leída con `process.env` allí mismo. Es un interruptor de
+     * emergencia para producción, así que conviene que salga en la lista de lo
+     * que se puede configurar y no escondido en el cuerpo de una función.
+     */
+    canalesEnHtml: process.env.CANALES_EN_HTML?.trim() === "todos",
+
+    /**
      * Guía de programación en XMLTV. Sin ella la app funciona igual, solo que
      * las filas de canal no muestran qué están dando ahora.
      */
@@ -66,5 +76,47 @@ export function serverConfig() {
      * lista la ficha queda solo con los embeds.
      */
     stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
+
+    /**
+     * A dónde se le pregunta a TMDB. La lee `src/lib/catalog/tmdb.ts`.
+     *
+     * Vivía ahí, leída con `process.env` directo, y era el único sitio del
+     * proyecto que se saltaba la regla de arriba. Importa más de lo que
+     * parece: **la credencial se adjunta a lo que diga esta variable**, en la
+     * URL o en una cabecera `Authorization`. Quien pueda escribir una variable
+     * de entorno en el despliegue se lleva el token con solo apuntar aquí.
+     * Sacarla a este archivo no lo impide —quien toca el entorno toca lo que
+     * quiere— pero la pone donde se revisa, en vez de escondida en un módulo.
+     */
+    tmdbApiBase: baseDeTmdb(),
   };
+}
+
+/** La base de TMDB por defecto: la API pública. */
+const TMDB_POR_DEFECTO = "https://api.themoviedb.org/3";
+
+/**
+ * Comprueba la forma, **no el esquema**.
+ *
+ * Deliberadamente no se exige `https`. `tmdb.ts` documenta para qué existe
+ * esto: apuntar a un espejo, o a un simulador local para probar lentitud y
+ * caídas sin tocar producción — y eso vive en `http://localhost`. Exigir https
+ * rompería el único caso de uso que justifica la variable.
+ *
+ * Lo que sí se comprueba es que sea una URL y que no acabe en barra: quien la
+ * lee concatena `${base}${ruta}` con rutas que ya empiezan por `/`, así que una
+ * barra de más produce `//movie/1` y una petición rota difícil de explicar.
+ */
+function baseDeTmdb(): string {
+  const crudo = process.env.TMDB_API_BASE?.trim();
+  if (!crudo) return TMDB_POR_DEFECTO;
+
+  try {
+    new URL(crudo);
+  } catch {
+    console.error(`❌ TMDB_API_BASE no es una URL válida; se usa la API pública — ${crudo}`);
+    return TMDB_POR_DEFECTO;
+  }
+
+  return crudo.replace(/\/+$/, "");
 }

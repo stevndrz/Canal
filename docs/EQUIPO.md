@@ -110,4 +110,5 @@ interpretar. Ya se retiraron cuatro campos por esto: sumaban 1,4 MB.
 | [`SALUD-CODIGO.md`](SALUD-CODIGO.md) | Informe de CodeScene y hoja de ruta |
 | [`PLAN-ARVIO.md`](PLAN-ARVIO.md) | Historia del rediseño, fase por fase |
 | [`FUENTE-PROPIA.md`](FUENTE-PROPIA.md) | El contrato de «Mi enlace» |
+| [`SEGURIDAD.md`](SEGURIDAD.md) | Qué se protege, qué **no**, y por qué |
 | `equipo/<nombre>.md` | La memoria de cada agente |

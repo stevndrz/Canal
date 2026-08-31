@@ -13,6 +13,7 @@ import {
   type PaqueteCanales,
 } from "@/lib/canales-empaquetados";
 import { paqueteDeCanales } from "@/lib/lista-canales";
+import { serverConfig } from "@/lib/config.server";
 import { publicConfig } from "@/lib/config";
 import { normalizeChannelName } from "@/lib/text";
 
@@ -36,7 +37,7 @@ import { normalizeChannelName } from "@/lib/text";
  * producción conviene poder deshacerlo en un minuto, no en un redespliegue.
  */
 function mandarlosTodos(): boolean {
-  return process.env.CANALES_EN_HTML === "todos";
+  return serverConfig().canalesEnHtml;
 }
 
 /**

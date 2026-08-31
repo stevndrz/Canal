@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { MediaType } from "./types";
 import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
@@ -12,8 +14,17 @@ import { serverConfig } from "@/lib/config.server";
  * La base es sustituible por entorno (`TMDB_API_BASE`) para pruebas —simular
  * lentitud o caídas sin tocar producción— y para quien accede a la API desde
  * un espejo. El defecto es la API pública.
+ *
+ * Se pide a `serverConfig()` y no a `process.env`: es la regla del proyecto, y
+ * aquí además hay un motivo concreto — la credencial viaja a donde esto diga,
+ * así que conviene que se lea y se valide en el archivo donde se revisan las
+ * credenciales. Es una función y no una constante de módulo porque el valor se
+ * evalúa por petición, igual que el resto de `serverConfig()`.
  */
-const TMDB_API = process.env.TMDB_API_BASE || "https://api.themoviedb.org/3";
+function baseTmdb(): string {
+  return serverConfig().tmdbApiBase;
+}
+
 const IMAGE_BASE = "https://image.tmdb.org/t/p";
 
 /**
@@ -113,7 +124,7 @@ async function tmdbConClave<T>(path: string, credential: string): Promise<T | nu
 
   try {
     const url =
-      `${TMDB_API}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
+      `${baseTmdb()}${path}${path.includes("?") ? "&" : "?"}language=es-MX` +
       (isReadAccessToken ? "" : `&api_key=${encodeURIComponent(credential)}`);
     const response = await fetch(url, {
       signal: AbortSignal.timeout(TMDB_TIMEOUT_MS),

@@ -46,7 +46,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 
 | Variable             | Para qué                                                        |
 |----------------------|-----------------------------------------------------------------|
-| `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código        |
+| `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código. ⚠️ **No apuntes a una lista de pago en un despliegue público**: sus URLs de emisión llevan tu usuario y contraseña dentro, y `/api/canales` las reparte a quien las pida ([por qué](docs/SEGURIDAD.md)) |
 | `EPG_URL`            | Guía de programación en XMLTV. Sin ella las filas no dicen qué dan. Ponerla además **desactiva** el `url-tvg` que venga dentro de la lista, que lo elige quien controle esa lista y no tú |
 | `TMDB_API_KEY`       | Credencial de TMDB. **No hay ninguna de reserva**: sin ella, Cine y series lo dice en pantalla y los canales siguen igual |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |

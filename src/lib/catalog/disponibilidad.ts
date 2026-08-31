@@ -40,7 +40,54 @@ const VIGENCIA_MS = 60 * 60 * 1000;
 /** Tope de entradas recordadas, para que la memoria no crezca sin fin. */
 const MAX_ENTRADAS = 2_000;
 
-const memoria = new Map<string, { tiene: boolean; caduca: number }>();
+/**
+ * Cuántas se tiran cuando se llega al tope: una cuarta parte, las menos usadas.
+ *
+ * **Antes se vaciaba la memoria entera** (`memoria.clear()`), y eso era el
+ * agujero: la clave lleva dentro el `tmdbId`, que lo elige quien llama. Alguien
+ * recorriendo ids inventados llenaba el mapa una y otra vez, y cada vaciado se
+ * llevaba por delante lo aprendido sobre los títulos que la gente sí está
+ * viendo — que volvían a preguntarse a los proveedores, en peticiones
+ * salientes de verdad. O sea que el freno de memoria se podía usar como
+ * palanca para provocar justo el trabajo que esta caché existe para evitar.
+ *
+ * Tirando un cuarto por las menos usadas, lo caliente sobrevive a cualquier
+ * barrido: para desalojar un título que se está viendo ahora hay que dejarlo
+ * sin tocar más tiempo que a otras 1.500 entradas.
+ */
+const A_TIRAR = Math.floor(MAX_ENTRADAS / 4);
+
+interface Recuerdo {
+  tiene: boolean;
+  caduca: number;
+  /**
+   * Cuándo se consultó por última vez, no cuándo se guardó.
+   *
+   * Es lo que distingue «viejo» de «no lo usa nadie». Sin esto, un título
+   * popular envejece igual que uno inventado y el desalojo no protege nada.
+   */
+  visto: number;
+}
+
+const memoria = new Map<string, Recuerdo>();
+
+/**
+ * Hace sitio tirando lo más viejo, nunca vaciando entero.
+ *
+ * Primero caduca lo caducado, que es gratis y a menudo basta. Si aun así no
+ * cabe, se ordena por última consulta y se tiran las más antiguas.
+ */
+function hacerSitio(ahora: number): void {
+  if (memoria.size < MAX_ENTRADAS) return;
+
+  for (const [clave, recuerdo] of memoria) {
+    if (recuerdo.caduca <= ahora) memoria.delete(clave);
+  }
+  if (memoria.size < MAX_ENTRADAS) return;
+
+  const porAntiguedad = [...memoria.entries()].sort((a, b) => a[1].visto - b[1].visto);
+  for (const [clave] of porAntiguedad.slice(0, A_TIRAR)) memoria.delete(clave);
+}
 
 /**
  * Filtra los servidores que han dicho que no tienen el título.
@@ -68,7 +115,11 @@ async function tieneElTitulo(id: string, url: string): Promise<boolean> {
   const ahora = Date.now();
 
   const guardado = memoria.get(clave);
-  if (guardado && guardado.caduca > ahora) return guardado.tiene;
+  if (guardado && guardado.caduca > ahora) {
+    // Consultarla la mantiene viva de cara al desalojo. Ver `hacerSitio`.
+    guardado.visto = ahora;
+    return guardado.tiene;
+  }
 
   let tiene = true;
   try {
@@ -92,8 +143,8 @@ async function tieneElTitulo(id: string, url: string): Promise<boolean> {
     tiene = true;
   }
 
-  if (memoria.size >= MAX_ENTRADAS) memoria.clear();
-  memoria.set(clave, { tiene, caduca: ahora + VIGENCIA_MS });
+  hacerSitio(ahora);
+  memoria.set(clave, { tiene, caduca: ahora + VIGENCIA_MS, visto: ahora });
   return tiene;
 }
 
@@ -101,3 +152,10 @@ async function tieneElTitulo(id: string, url: string): Promise<boolean> {
 export function olvidarDisponibilidad(): void {
   memoria.clear();
 }
+
+/** Solo para las pruebas: cuántas respuestas se recuerdan ahora mismo. */
+export function cuantasRecordadas(): number {
+  return memoria.size;
+}
+
+export const TOPES = { MAX_ENTRADAS, A_TIRAR, VIGENCIA_MS } as const;
