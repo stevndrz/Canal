@@ -81,16 +81,17 @@ funciona, empaquetarlo no lo va a arreglar: es la misma página.
 Lo que hay en [`empaque/tizen/`](../empaque/tizen) es el paquete entero: tres
 archivos.
 
-### 1. Poner la dirección
+### 1. Comprobar la dirección
 
 En `empaque/tizen/index.html`, una línea:
 
 ```js
-var URL_APP = "https://tu-app.vercel.app/";
+var URL_APP = "https://canal-sable.vercel.app/";
 ```
 
-Es lo único que hay que cambiar. Si se te olvida, la app arranca y te lo dice
-en pantalla en vez de quedarse en negro.
+Viene puesta la del despliegue actual, así que si no has cambiado de dominio no
+hay nada que tocar. Si la cambias por una que no exista, la app arranca y se
+queda en negro: es el navegador del televisor el que decide, y no avisa.
 
 ### 2. Instalar Tizen Studio
 
@@ -195,12 +196,13 @@ así que lo más probable es que estés en el primer caso.
 
 ### Android TV / Google TV → archivo `.apk`
 
-#### 1. Poner la dirección
+#### 1. Comprobar la dirección
 
-En `empaque/android/app/src/main/res/values/strings.xml`:
+En `empaque/android/app/src/main/res/values/strings.xml`, ya con la del
+despliegue actual:
 
 ```xml
-<string name="url_app" translatable="false">https://tu-app.vercel.app/</string>
+<string name="url_app" translatable="false">https://canal-sable.vercel.app/</string>
 ```
 
 #### 2. Conseguir el APK — dos caminos

@@ -6,13 +6,17 @@
       ═══════════════════════════════════════════════════════════════════════
       LO ÚNICO QUE HAY QUE CAMBIAR EN TODO EL PAQUETE.
 
-      La dirección donde vive la aplicación. Tiene que ser HTTPS: el manifiesto
-      declara `usesCleartextTraffic="false"`, así que un `http://` no cargaría
-      —y con razón: por HTTP cualquiera en la red de casa puede ver y cambiar
-      lo que la tele recibe—.
+      La dirección donde vive la aplicación. Viene puesta la del despliegue
+      actual; si la app se muda a un dominio propio, se cambia aquí y se vuelve
+      a compilar (o se pasa por el formulario del flujo de Actions, sin tocar
+      el repositorio).
+
+      Tiene que ser HTTPS: el manifiesto declara `usesCleartextTraffic="false"`,
+      así que un `http://` no cargaría —y con razón: por HTTP cualquiera en la
+      red de casa ve y cambia lo que la tele recibe—.
       ═══════════════════════════════════════════════════════════════════════
     -->
-    <string name="url_app" translatable="false">https://CAMBIA-ESTO.vercel.app/</string>
+    <string name="url_app" translatable="false">https://canal-sable.vercel.app/</string>
 
     <string name="sin_conexion">Sin conexión. Comprueba el wifi del televisor y vuelve a intentarlo.</string>
     <string name="reintentar">Reintentar</string>

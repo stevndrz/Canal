@@ -54,11 +54,14 @@
 /* ─────────────────────────────────────────────────────────────────────────
    LO ÚNICO QUE HAY QUE CAMBIAR EN TODO EL PAQUETE.
 
-   La dirección donde vive la aplicación de verdad. Tiene que ser HTTPS: el
-   navegador del televisor bloquea el contenido mixto, y una app servida por
-   HTTP no puede pedir vídeo por HTTPS ni al revés.
+   La dirección donde vive la aplicación de verdad. Viene puesta la del
+   despliegue actual; si algún día la app se muda a un dominio propio, se
+   cambia aquí y se vuelve a empaquetar.
+
+   Tiene que ser HTTPS: el navegador del televisor bloquea el contenido mixto,
+   así que una app servida por HTTP no podría pedir vídeo por HTTPS ni al revés.
    ───────────────────────────────────────────────────────────────────────── */
-var URL_APP = "https://CAMBIA-ESTO.vercel.app/";
+var URL_APP = "https://canal-sable.vercel.app/";
 
 /* Las mismas de `TECLAS_A_REGISTRAR` en `src/lib/teclas-mando.ts`. */
 var TECLAS = ["MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "ChannelUp", "ChannelDown"];
