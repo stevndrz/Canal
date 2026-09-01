@@ -127,11 +127,11 @@ que es justo para lo que existe esa ruta.
 
 ## Lo que hay que hacer y no es código
 
-- 🚨 **Rotar el token de TMDB.** Hubo uno escrito en el código como reserva y
-  **sigue en el historial de Git**, que es público: quitarlo del código no lo
-  desactiva. Se regenera en themoviedb.org y se pone en Vercel como
-  `TMDB_API_KEY`. Reescribir el historial no sirve —los clones y forks
-  existentes conservan el token—; rotarlo lo vuelve irrelevante.
+- ✅ **Token de TMDB rotado** (31-ago-2026). Hubo uno escrito en el código
+  como reserva que quedó en el historial de Git, público: quitarlo del código
+  no lo desactivaba. Se regeneró en themoviedb.org y se cargó en Vercel como
+  `TMDB_API_KEY`. El viejo sigue legible en el historial —reescribirlo no
+  habría servido, los clones y forks ya lo tenían— pero ahora es irrelevante.
 - **No apuntar `M3U_URL` a una lista de pago** en un despliegue público. Ver el
   riesgo 2.
 - **Revisar los avisos de Dependabot.** El CI corre `npm audit` en cada cambio,
