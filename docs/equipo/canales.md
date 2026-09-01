@@ -45,8 +45,7 @@ después: qué cambió, por qué, y qué me sorprendió.
 
 ### 2026-08-21 — Equipo creado
 
-Nazco con la app ya funcionando. El estado de partida está en `PLAN-ARVIO.md`
-(fases 0 a 6.5) y en `SALUD-CODIGO.md`.
+Nazco con la app ya funcionando.
 
 ---
 
