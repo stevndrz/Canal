@@ -12,6 +12,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -40,6 +41,18 @@ class MainActivity : ComponentActivity() {
      * ninguna salida.
      */
     private var paginaViva = false
+
+    /**
+     * La vista que el propio contenido pide poner a pantalla completa.
+     *
+     * En un navegador, `requestFullscreen()` lo resuelve el navegador. En una
+     * WebView **no hay navegador**: la petición se entrega a la aplicación, y
+     * si esta no hace nada, no pasa nada — la promesa se rechaza en silencio y
+     * el botón de pantalla completa queda muerto. Aquí se guarda la vista
+     * mientras dura, para poder quitarla al salir o al pulsar Atrás.
+     */
+    private var vistaAPantallaCompleta: View? = null
+    private var avisoDeSalida: WebChromeClient.CustomViewCallback? = null
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -150,7 +163,42 @@ class MainActivity : ComponentActivity() {
 
         vista.setBackgroundColor(android.graphics.Color.BLACK)
 
-        vista.webChromeClient = WebChromeClient()
+        /**
+         * El cliente que hace que la pantalla completa exista.
+         *
+         * Sin estos dos métodos, `requestFullscreen()` desde la página no tiene
+         * a quién pedírselo: `use-fullscreen.ts` intenta el contenedor, luego
+         * `<html>`, luego el modo nativo del vídeo, y se queda sin opciones —
+         * con el botón visible y sin efecto. Con esto, la vista que pide el
+         * contenido se pone encima de todo y ocupa la ventana entera.
+         */
+        vista.webChromeClient = object : WebChromeClient() {
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
+                // Una segunda petición sin haber cerrado la primera: se rechaza
+                // en vez de apilar vistas, que dejaría la de abajo inalcanzable.
+                if (vistaAPantallaCompleta != null) {
+                    callback.onCustomViewHidden()
+                    return
+                }
+                vistaAPantallaCompleta = view
+                avisoDeSalida = callback
+                (window.decorView as FrameLayout).addView(
+                    view,
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                    ),
+                )
+                // La WebView se esconde, no se pausa: pausarla pararía el vídeo
+                // que es justo lo que se está poniendo a pantalla completa.
+                vista.visibility = View.GONE
+                aPantallaCompleta()
+            }
+
+            override fun onHideCustomView() {
+                cerrarPantallaCompleta()
+            }
+        }
         vista.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 paginaViva = true
@@ -200,6 +248,24 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
+     * Quitar la vista de pantalla completa y devolver la página a su sitio.
+     *
+     * Hay que avisar al contenido con `onCustomViewHidden()`, y no solo quitar
+     * la vista: si no, la página sigue creyéndose a pantalla completa y su
+     * botón se queda invertido, ofreciendo salir de un modo del que ya se salió.
+     */
+    private fun cerrarPantallaCompleta(): Boolean {
+        val vista = vistaAPantallaCompleta ?: return false
+        (window.decorView as FrameLayout).removeView(vista)
+        vistaAPantallaCompleta = null
+        webView.visibility = View.VISIBLE
+        avisoDeSalida?.onCustomViewHidden()
+        avisoDeSalida = null
+        aPantallaCompleta()
+        return true
+    }
+
+    /**
      * La tecla Atrás del mando.
      *
      * Android no la entrega a la página como un evento de teclado, así que hay
@@ -213,6 +279,9 @@ class MainActivity : ComponentActivity() {
      * puente y cierra esto.
      */
     private fun alPulsarAtras() {
+        // Con algo a pantalla completa, Atrás sale de ahí y no de la pantalla:
+        // es lo que hace el mismo botón en cualquier reproductor.
+        if (cerrarPantallaCompleta()) return
         if (!paginaViva) {
             finish()
             return
