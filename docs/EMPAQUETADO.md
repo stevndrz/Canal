@@ -208,8 +208,17 @@ despliegue actual:
 #### 2. Conseguir el APK — dos caminos
 
 **Camino corto (sin instalar nada):** en GitHub, pestaña **Actions** →
-*APK para Android TV* → **Run workflow**. Puedes escribir ahí la dirección y no
-tocar el repositorio. Al terminar, el APK se descarga del apartado *Artifacts*.
+*APK para Android TV*. Cada empujón que toque `empaque/android/` compila uno
+solo, y el APK se descarga del apartado **Artifacts** de esa ejecución (dentro
+va un `.zip`; el `.apk` está dentro). Los artefactos caducan a los 90 días.
+
+> **El botón «Run workflow» solo aparece cuando este archivo está en la rama
+> principal.** Es una regla de GitHub, no un fallo: los flujos con
+> `workflow_dispatch` no se pueden lanzar a mano hasta que existen en la rama
+> por defecto. Mientras `apk.yml` viva solo en una rama de trabajo, el APK sale
+> igual —lo compila el empujón— pero sin el formulario para cambiar la
+> dirección. Una vez fusionado a `main`, aparece el botón y con él la casilla
+> para apuntar el APK a otra dirección sin tocar el repositorio.
 
 **Camino local:** hace falta Java 17 y el SDK de Android (con Android Studio
 viene todo).
