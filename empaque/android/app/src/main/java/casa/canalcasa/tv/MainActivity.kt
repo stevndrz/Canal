@@ -233,11 +233,20 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private inner class PuenteDeSalida {
+    /**
+     * **Pública a propósito, aunque solo se use aquí dentro.**
+     *
+     * WebView localiza los métodos del puente por reflexión, y sobre una clase
+     * que no sea pública la invocación falla en tiempo de ejecución. En Kotlin,
+     * `private inner class` compila a una clase de visibilidad de paquete: el
+     * código compilaría igual, el puente existiría, y `salir()` simplemente no
+     * haría nada. Es el mismo fallo silencioso que la anotación de abajo.
+     */
+    inner class PuenteDeSalida {
         /**
          * `@JavascriptInterface` es obligatorio desde Android 4.2: sin la
          * anotación el método existe, JavaScript lo ve y la llamada no hace
-         * nada, sin ningún error. Es un fallo silencioso clásico.
+         * nada, sin ningún error.
          *
          * `runOnUiThread` porque esto llega desde el hilo de JavaScript, y
          * `finish()` desde otro hilo lanza.

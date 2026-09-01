@@ -228,26 +228,56 @@ Sale en `app/build/outputs/apk/debug/app-debug.apk`.
 
 #### 3. Modo desarrollador en el televisor
 
+El menú cambia de nombre entre Android TV (el viejo) y Google TV (el nuevo, que
+es lo que llevan los TCL recientes). El camino es el mismo:
+
 1. **Ajustes → Sistema → Acerca de**.
-2. Pulsa **7 veces** sobre «Compilación» (o «Build»). Sale «Ya eres
-   desarrollador».
-3. **Ajustes → Sistema → Opciones de desarrollador → Depuración por USB: ON**.
-4. Apunta la IP: **Ajustes → Red → Estado**.
+2. Baja hasta **«Compilación»** (o «Build», o «Versión de compilación de
+   Android TV OS») y pulsa **OK siete veces seguidas**. A partir de la cuarta
+   te va contando: «Ya falta poco para ser desarrollador». Al final sale «Ya
+   eres desarrollador».
+3. **Ajustes → Sistema → Opciones para desarrolladores → Depuración por USB:
+   ON**. En algunos TCL está en **Ajustes → Preferencias del dispositivo →
+   Opciones para desarrolladores**.
+4. Apunta la IP: **Ajustes → Red e Internet → (tu wifi) → Estado / Dirección
+   IP**.
+
+> En un televisor, «Depuración por USB» habilita también la depuración por red
+> en el puerto 5555. No hace falta ningún cable: el televisor y el PC solo
+> tienen que estar en **el mismo wifi**.
 
 #### 4. Instalar
 
 ```bash
 adb connect 192.168.1.XX:5555     # la IP del televisor
-# En la tele sale un aviso de autorización: acéptalo con el mando
+adb devices                       # tiene que salir "device", no "unauthorized"
 adb install -r app-debug.apk
 ```
 
-`-r` reinstala encima si ya estaba. Si dice `INSTALL_FAILED_VERSION_DOWNGRADE`,
-sube el `versionCode` en `app/build.gradle.kts`.
+Al ejecutar `adb connect`, **en la tele aparece un aviso pidiendo autorizar
+este ordenador**. Hay que aceptarlo con el mando, y conviene marcar «Permitir
+siempre desde este ordenador». Si `adb devices` dice `unauthorized`, es que ese
+aviso está esperando en la pantalla.
 
-**Sin PC:** instala *Downloader* (de AFTVnews) desde Google Play en el
-televisor, sube el APK a cualquier sitio con enlace directo, y ábrelo desde
-ahí. Hay que permitir «Instalar apps desconocidas» para Downloader.
+`-r` reinstala encima si ya estaba, conservando los datos.
+
+**Sin PC**, que es lo más cómodo si ya tienes el APK del flujo de Actions:
+instala **Downloader** (de AFTVnews) desde Google Play en el propio televisor,
+mete la dirección de descarga directa del APK, y ábrelo. Te pedirá permitir
+«Instalar aplicaciones desconocidas» para Downloader; es un permiso por app, no
+global.
+
+#### Si algo sale mal
+
+| Lo que dice | Qué es | Qué hacer |
+|---|---|---|
+| `unauthorized` en `adb devices` | El aviso de autorización sigue en la tele | Acéptalo con el mando |
+| `failed to connect ... 10061` | La depuración por red no está activa, o hay otra red | Reactiva Depuración por USB; comprueba que PC y tele están en el mismo wifi (no una en la de 5 GHz y otra en la de invitados) |
+| `INSTALL_FAILED_VERSION_DOWNGRADE` | Ya hay instalada una versión igual o mayor | Sube `versionCode` en `app/build.gradle.kts`, o `adb uninstall casa.canalcasa.tv` |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Está instalada firmada con otra clave | `adb uninstall casa.canalcasa.tv` y vuelve a instalar |
+| `INSTALL_PARSE_FAILED_NO_CERTIFICATES` | El APK no está firmado | Estás usando `assembleRelease`; usa `assembleDebug` |
+| Se instala pero **no aparece** en el menú | Falta `LEANBACK_LAUNCHER` | Ya está puesto; comprueba que no estás mirando la fila de «Apps de Google» sino la de todas las aplicaciones |
+| Abre en negro y nada más | La dirección de `url_app` no responde | Ábrela en el navegador de otro aparato de la misma red |
 
 #### 5. Comprobar en el televisor
 
