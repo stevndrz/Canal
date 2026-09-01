@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El banner de la fila de aplicaciones del televisor: 320×180 de proporción.
+
+  No es opcional. El lanzador de Android TV pinta este rectángulo y NO el
+  icono; sin `android:banner` en el manifiesto, la app sale como un cuadro gris
+  con el nombre encima y parece rota antes de abrirla.
+
+  Se compone en vez de dibujarse: fondo negro a sangre y la marca centrada con
+  aire alrededor, que es lo que pide la guía de Google (nada importante a menos
+  de un 5% del borde, porque el lanzador recorta al enfocarla).
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/black"/>
+    <item
+        android:drawable="@drawable/marca_canalcasa"
+        android:gravity="center"
+        android:top="24dp"
+        android:bottom="24dp"
+        android:left="24dp"
+        android:right="24dp"/>
+</layer-list>

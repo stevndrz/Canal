@@ -16,6 +16,7 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
+import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { useReloj } from "@/hooks/use-reloj";
@@ -253,10 +254,6 @@ export function FullscreenPlayer({
           if (showGuide) setShowGuide(false);
           else openGuide();
           return;
-        case "MediaPlayPause":
-        case "MediaPlay":
-        case "MediaPause":
-        case "MediaStop":
         case " ":
         case "k":
           event.preventDefault();
@@ -267,6 +264,38 @@ export function FullscreenPlayer({
         case "M":
           playerRef.current?.toggleMute();
           wake();
+          return;
+        default:
+          break;
+      }
+
+      /**
+       * Las teclas del mando, que en un televisor llegan sin nombre.
+       *
+       * Va **después** del `switch` y no dentro: en Tizen 4 y 5 `event.key`
+       * viene "Unidentified" para todas ellas, así que ningún `case` por
+       * nombre las alcanzaría. Ver `teclas-mando.ts` para los códigos.
+       */
+      switch (accionDeTecla(event)) {
+        // Parar hace lo mismo que pausar, y es a propósito: aquí no hay a qué
+        // volver después de un stop —esto es una emisión en directo, no un
+        // archivo con principio—, así que detenerla del todo dejaría un
+        // rectángulo negro sin forma de recuperarlo con el mando.
+        case "reproducir":
+        case "parar":
+          event.preventDefault();
+          playerRef.current?.togglePlay();
+          wake();
+          return;
+        // Los botones de canal del mando hacen lo mismo que ↑ y ↓: es lo que
+        // dice el dibujo de la tecla, y no hay dos formas de zapear.
+        case "canal-arriba":
+          event.preventDefault();
+          zap(-1);
+          return;
+        case "canal-abajo":
+          event.preventDefault();
+          zap(1);
           return;
         default:
           wake();

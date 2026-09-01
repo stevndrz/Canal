@@ -26,6 +26,7 @@ import {
   type PaqueteCanales,
 } from "@/lib/canales-empaquetados";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
+import { salirDeLaApp } from "@/lib/salir-de-la-app";
 import {
   usePersistedJson,
   usePersistedRecents,
@@ -335,6 +336,16 @@ export function Dashboard({
       navigate(lastView === "player" ? "canales" : lastView);
     } else if (view !== "home") {
       navigate("home");
+    } else {
+      /**
+       * En Inicio ya no hay adónde volver, y en un navegador eso está bien.
+       *
+       * Empaquetada en un televisor, no: el mando no tiene más salida que
+       * Atrás, y comérsela aquí obliga a apagar la tele para salir. Samsung
+       * además lo pide para publicar. En el navegador `salirDeLaApp` devuelve
+       * `false` y esto sigue sin hacer nada, que es lo correcto allí.
+       */
+      salirDeLaApp();
     }
   }, [view, lastView, navigate]);
 

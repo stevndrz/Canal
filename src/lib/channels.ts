@@ -1,6 +1,6 @@
 import type { Channel } from "@/lib/types";
 import { CATEGORY_ORDER } from "@/lib/categories";
-import { normalizeChannelName } from "@/lib/text";
+import { normalizeChannelName, normalizeText } from "@/lib/text";
 import { publicConfig } from "@/lib/config";
 
 // CATEGORY_ORDER vive en categories.ts: es también quien clasifica cada canal
@@ -33,13 +33,6 @@ export function withChannelNumbers(channels: Channel[]): Channel[] {
   });
 }
 
-function fold(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
 export interface ChannelQuery {
   search?: string;
   category?: string;
@@ -48,14 +41,14 @@ export interface ChannelQuery {
 }
 
 export function filterChannels(channels: Channel[], query: ChannelQuery): Channel[] {
-  const q = fold((query.search ?? "").trim());
+  const q = normalizeText((query.search ?? "").trim());
   const { category, favoritesOnly, favorites } = query;
 
   return channels.filter((channel) => {
     if (favoritesOnly && !favorites?.has(channel.id)) return false;
     if (category && category !== "Todas" && channel.category !== category) return false;
     if (!q) return true;
-    return fold(channel.name).includes(q) || channel.number.startsWith(q);
+    return normalizeText(channel.name).includes(q) || channel.number.startsWith(q);
   });
 }
 

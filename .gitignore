@@ -38,3 +38,15 @@ next-env.d.ts
 __pycache__/
 *.py[cod]
 .venv/
+
+# Paquetes de televisor (empaque/). Se genera el instalable, no se guarda:
+# pesan megas y caducan con el certificado.
+empaque/tizen/.buildResult/
+empaque/tizen/*.wgt
+empaque/android/.gradle/
+empaque/android/build/
+empaque/android/app/build/
+empaque/android/local.properties
+empaque/android/gradlew
+empaque/android/gradlew.bat
+empaque/android/gradle/wrapper/gradle-wrapper.jar

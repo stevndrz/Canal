@@ -40,6 +40,16 @@ La importación elimina duplicados por URL de stream y organiza los canales prio
 
 ---
 
+## 📺 Instalarla en un televisor
+
+Samsung (Tizen) y TCL/Android TV se instalan generando un archivo — `.wgt` y
+`.apk` respectivamente — que **no lleva la aplicación dentro**: la abre desde
+donde esté desplegada. Los dos paquetes están en [`empaque/`](empaque) y el
+procedimiento completo, con certificados, modo desarrollador y qué comprobar en
+cada tele, en [`docs/EMPAQUETADO.md`](docs/EMPAQUETADO.md).
+
+---
+
 ## ⚙️ Variables de entorno
 
 Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
@@ -48,9 +58,10 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 |----------------------|-----------------------------------------------------------------|
 | `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código        |
 | `EPG_URL`            | Guía de programación en XMLTV. Sin ella las filas no dicen qué dan |
-| `TMDB_API_KEY`       | Credencial propia de TMDB. Hay una de reserva en el código       |
+| `TMDB_API_KEY`       | Credencial de TMDB. **Sin ella, Cine y series lo dice en pantalla**; los canales en directo no la necesitan |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+| `NEXT_PUBLIC_CANAL_INICIAL` | Canal que se sintoniza al abrir. Se busca por nombre; si no está, el primero |
 | `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 

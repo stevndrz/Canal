@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CanalCasa</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; }
+  .arranque {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    color: #f5f5f7;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    text-align: center;
+    padding: 0 8vw;
+  }
+  /* Del tamaño que se lee a tres metros, que es la distancia real de uso. */
+  .marca { font-size: 44px; font-weight: 600; letter-spacing: -0.02em; }
+  .pista { font-size: 24px; color: #a1a1aa; max-width: 22em; line-height: 1.5; }
+  .fallo { color: #ff453a; }
+</style>
+</head>
+<body>
+  <div class="arranque">
+    <p class="marca">CanalCasa</p>
+    <p class="pista" id="pista">Abriendo…</p>
+  </div>
+
+<script>
+/*
+ * La cáscara de Tizen: registra las teclas del mando y se aparta.
+ *
+ * Esta página existe por dos motivos, y solo por dos:
+ *
+ *  1. `tizen.tvinputdevice.registerKey` SOLO se puede llamar desde una página
+ *     local del widget. Las teclas de reproducción del mando no llegan a la
+ *     aplicación hasta que alguien las reclama, y ese alguien tiene que ser
+ *     este archivo. La lista está en `src/lib/teclas-mando.ts` (constante
+ *     `TECLAS_A_REGISTRAR`) y hay que mantener las dos iguales.
+ *
+ *  2. Dar una pantalla que diga algo mientras carga. Sin ella, el arranque de
+ *     la aplicación es un rectángulo negro de varios segundos, que en un
+ *     televisor se lee como «se rompió».
+ *
+ * Después se quita de en medio con `location.replace` y no con `href`: así no
+ * queda en el historial, y la tecla Atrás desde la app no vuelve aquí —
+ * volvería a redirigir, y el usuario quedaría en un bucle sin salida.
+ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   LO ÚNICO QUE HAY QUE CAMBIAR EN TODO EL PAQUETE.
+
+   La dirección donde vive la aplicación de verdad. Tiene que ser HTTPS: el
+   navegador del televisor bloquea el contenido mixto, y una app servida por
+   HTTP no puede pedir vídeo por HTTPS ni al revés.
+   ───────────────────────────────────────────────────────────────────────── */
+var URL_APP = "https://CAMBIA-ESTO.vercel.app/";
+
+/* Las mismas de `TECLAS_A_REGISTRAR` en `src/lib/teclas-mando.ts`. */
+var TECLAS = ["MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "ChannelUp", "ChannelDown"];
+
+function registrarTeclas() {
+  /*
+   * Fuera de un televisor Samsung esto no existe, y no pasa nada: la app
+   * funciona igual con las flechas y OK, que llegan siempre.
+   */
+  if (typeof tizen === "undefined" || !tizen.tvinputdevice) return;
+  for (var i = 0; i < TECLAS.length; i++) {
+    try {
+      tizen.tvinputdevice.registerKey(TECLAS[i]);
+    } catch (error) {
+      /*
+       * Una tecla que este modelo no tiene lanza, y las demás sí se registran.
+       * Por eso el try va DENTRO del bucle: fuera, el primer mando sin botón
+       * de canal dejaría la app sin ⏯ tampoco.
+       */
+    }
+  }
+}
+
+function arrancar() {
+  if (URL_APP.indexOf("CAMBIA-ESTO") !== -1) {
+    var pista = document.getElementById("pista");
+    pista.className = "pista fallo";
+    pista.textContent =
+      "Falta poner la dirección de la aplicación en empaque/tizen/index.html (URL_APP).";
+    return;
+  }
+  registrarTeclas();
+  window.location.replace(URL_APP);
+}
+
+/*
+ * `onload` y no en línea: en Tizen 4 el objeto `tizen` puede no estar inyectado
+ * todavía mientras el documento se está analizando.
+ */
+window.addEventListener("load", arrancar);
+</script>
+</body>
+</html>

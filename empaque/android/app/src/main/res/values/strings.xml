@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CanalCasa</string>
+
+    <!--
+      ═══════════════════════════════════════════════════════════════════════
+      LO ÚNICO QUE HAY QUE CAMBIAR EN TODO EL PAQUETE.
+
+      La dirección donde vive la aplicación. Tiene que ser HTTPS: el manifiesto
+      declara `usesCleartextTraffic="false"`, así que un `http://` no cargaría
+      —y con razón: por HTTP cualquiera en la red de casa puede ver y cambiar
+      lo que la tele recibe—.
+      ═══════════════════════════════════════════════════════════════════════
+    -->
+    <string name="url_app" translatable="false">https://CAMBIA-ESTO.vercel.app/</string>
+
+    <string name="sin_conexion">Sin conexión. Comprueba el wifi del televisor y vuelve a intentarlo.</string>
+    <string name="reintentar">Reintentar</string>
+    <string name="falta_url">Falta poner la dirección de la aplicación en res/values/strings.xml (url_app).</string>
+</resources>

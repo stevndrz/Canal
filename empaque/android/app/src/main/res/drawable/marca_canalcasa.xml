@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  El mismo televisor de `src/app/icon.svg`, redibujado como VectorDrawable.
+
+  Está copiado a mano y no convertido con una herramienta porque el SVG usa
+  `<rect rx>` y `<circle>`, y VectorDrawable solo entiende `<path>`. Si el
+  icono de la web cambia, hay que cambiar los dos: no hay forma de compartirlos.
+
+  Se dibuja sobre 64×64 (`viewport`) y se estira al tamaño que pida cada uso —
+  el banner de 320×180 y el icono del lanzador—, que es la ventaja de que sea
+  vectorial: una sola definición para todas las densidades de pantalla.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="64dp"
+    android:viewportWidth="64"
+    android:viewportHeight="64">
+
+    <!-- Antenas. -->
+    <path
+        android:pathData="M24,18 L14,8"
+        android:strokeColor="#F5F5F7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M40,18 L50,8"
+        android:strokeColor="#F5F5F7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"/>
+
+    <!-- La caja y su pantalla. -->
+    <path
+        android:pathData="M16,18 h32 a6,6 0 0 1 6,6 v18 a6,6 0 0 1 -6,6 h-32 a6,6 0 0 1 -6,-6 v-18 a6,6 0 0 1 6,-6 z"
+        android:strokeColor="#F5F5F7"
+        android:strokeWidth="3"
+        android:strokeLineJoin="round"/>
+
+    <!-- Las patas. -->
+    <path
+        android:pathData="M22,48 L22,53"
+        android:strokeColor="#F5F5F7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"/>
+    <path
+        android:pathData="M42,48 L42,53"
+        android:strokeColor="#F5F5F7"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"/>
+
+    <!-- La perilla, del rojo del directo: lo único con color. -->
+    <path
+        android:pathData="M46,29.6 a3.4,3.4 0 1 1 0,6.8 a3.4,3.4 0 1 1 0,-6.8 z"
+        android:fillColor="#FF453A"/>
+</vector>

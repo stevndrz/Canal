@@ -1,6 +1,8 @@
 # Arquitectura de CanalCasa
 
 > Si trabajas con el equipo de agentes, empieza por [`EQUIPO.md`](EQUIPO.md).
+> Para llevar la aplicación a un televisor Samsung o TCL,
+> [`EMPAQUETADO.md`](EMPAQUETADO.md).
 
 Este documento explica **dónde vive cada cosa y por qué**, para no tener que
 deducirlo leyendo el árbol. Si añades algo y no sabes dónde ponerlo, la
@@ -63,7 +65,7 @@ src/
 
 ## Reglas que sostienen todo esto
 
-### 1. `process.env` solo se lee en `src/lib/config.ts`
+### 1. `process.env` solo se lee en `config.ts` y `config.server.ts`
 
 Antes lo leían siete archivos con siete criterios distintos para el valor por
 defecto, y no había forma de responder de un vistazo a «¿qué se puede
@@ -179,15 +181,19 @@ Si da 0: matar el servidor, `rm -rf .next` y volver a arrancar.
 
 Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 
-| Variable | Para qué | Por defecto |
-|---|---|---|
-| `M3U_URL` | Lista de canales | Un gist público |
-| `EPG_URL` | Guía XMLTV | La que declare la lista, o ninguna |
-| `TMDB_API_KEY` | Catálogo de películas | Token de solo lectura incluido |
-| `NEXT_PUBLIC_CANAL_INICIAL` | Canal de arranque | `Canal 7` |
-| `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
-| `NEXT_PUBLIC_PUSHER_KEY` / `_CLUSTER` + `PUSHER_SECRET` | Watch Party | Sin ellas, «Ver en familia» se desactiva sola |
+| Variable | Dónde | Para qué | Por defecto |
+|---|---|---|---|
+| `M3U_URL` | Servidor | Lista de canales | Un gist público |
+| `EPG_URL` | Servidor | Guía XMLTV | La que declare la lista, o ninguna |
+| `TMDB_API_KEY` | Servidor | Catálogo de películas | **Ninguno** |
+| `STREMIO_MANIFESTS` | Servidor | Addons de enlaces directos, sin anuncios | Ninguno |
+| `NEXT_PUBLIC_CANAL_INICIAL` | Navegador | Canal de arranque | `Canal 7` |
+| `NEXT_PUBLIC_CANALES_CASA` | Navegador | Los canales de la casa | `Canal 3, Canal 7, Guatevision` |
+| `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Navegador | Servidor propio de reproducción | Ninguno |
 
-> ⚠️ El token de TMDB de reserva está en el historial de Git. Es de solo
-> lectura del catálogo público y nunca sale hacia el navegador, pero si este
-> repositorio deja de ser privado hay que rotarlo y dejar solo la variable.
+Sin `TMDB_API_KEY` la aplicación arranca igual: los canales en directo no
+dependen de TMDB y Cine y series lo dice en pantalla en vez de salir vacía. **No
+hay ningún token de reserva escrito en el código**, y no debe volver a haberlo:
+el que hubo acabó en los paquetes de desarrollo del navegador por importarse
+junto a `publicConfig`. Es lo que separa hoy `config.server.ts`, con su
+`import "server-only"`, de `config.ts`.
