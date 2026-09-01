@@ -2,12 +2,12 @@
 
 **Lo primero que hago al empezar es leer este archivo. Lo último, actualizarlo.**
 
-No tengo definición en `.claude/agents/` todavía — no existía como agente del
-equipo antes de esta sesión (ver `docs/EQUIPO.md`, que solo lista `canales`,
-`catalogo`, `diseno`, `calidad`, `dispositivos`). Tampoco existe `MAIN.md` en
-ningún punto del historial ni de las ramas. Uso `docs/SEGURIDAD.md` y
-`docs/EQUIPO.md` como contexto equivalente hasta que alguien decida si este rol
-se formaliza con su propia definición de agente.
+No tengo definición en `.claude/agents/` todavía. Cuando empecé esta sesión no
+existía ni `MAIN.md` ni `docs/EQUIPO.md` me mencionaba (listaba solo `canales`,
+`catalogo`, `diseno`, `calidad`, `dispositivos`). A mitad de sesión apareció
+`MAIN.md` en la raíz del repo, formalizando diez agentes — `config-seguridad`
+entre ellos, dueño de `config*.ts`, `url-segura.ts`, `next.config.ts` y CSP.
+Falta que `docs/EQUIPO.md` se actualice para que coincida con `MAIN.md`.
 
 ---
 
@@ -74,3 +74,11 @@ Lo más reciente arriba.
   (paso que sugería el propio `docs/ARQUITECTURA.md`). No es urgente: el
   nuevo token ya está activo en Vercel y es lo único que importa para que la
   app funcione.
+- El commit `c4c0a8f` en `main` creó este mismo archivo como stub vacío a la
+  vez que yo lo creaba con contenido real en mi rama — conflicto *add/add* al
+  intentar fusionar el PR #14. Se resolvió quedándose con el contenido de
+  abajo. **Lección para el resto del equipo:** si `MAIN.md` u otro orquestador
+  va a crear stubs de `docs/equipo/<agente>.md` para agentes que ya están
+  trabajando en su propia rama, hacedlo *antes* de que esos agentes empiecen,
+  o dejad que cada agente cree el suyo — crear el mismo archivo en dos sitios
+  a la vez garantiza este conflicto.
