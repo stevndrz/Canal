@@ -55,8 +55,7 @@ lea. Con cinco agentes trabajando, eso pasaría de incómodo a peligroso.
 ### 2. Cada agente escribe su memoria
 
 En `docs/equipo/<nombre>.md`. Qué hizo, qué decidió y qué aprendió. Es lo que
-hace que la sesión siguiente no empiece de cero — el mismo truco que ya te
-funcionó con `PLAN-ARVIO.md`.
+hace que la sesión siguiente no empiece de cero.
 
 **Lo primero que hace un agente es leer su documento. Lo último, actualizarlo.**
 
@@ -108,7 +107,6 @@ interpretar. Ya se retiraron cuatro campos por esto: sumaban 1,4 MB.
 |---|---|
 | [`ARQUITECTURA.md`](ARQUITECTURA.md) | Dónde vive cada cosa y por qué. **Lectura obligatoria.** |
 | [`SALUD-CODIGO.md`](SALUD-CODIGO.md) | Informe de CodeScene y hoja de ruta |
-| [`PLAN-ARVIO.md`](PLAN-ARVIO.md) | Historia del rediseño, fase por fase |
 | [`FUENTE-PROPIA.md`](FUENTE-PROPIA.md) | El contrato de «Mi enlace» |
 | [`SEGURIDAD.md`](SEGURIDAD.md) | Qué se protege, qué **no**, y por qué |
 | `equipo/<nombre>.md` | La memoria de cada agente |
