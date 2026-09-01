@@ -193,20 +193,11 @@ Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML | Recortado a ~200 |
 
-> 🚨 **El token de TMDB que hubo escrito en el código está comprometido y hay
-> que rotarlo.**
->
-> Esta advertencia estaba escrita en condicional —«si este repositorio deja de
-> ser privado hay que rotarlo»— y **esa condición ya se cumple**: el
-> repositorio es público (comprobado el 31-ago-2026 contra la API de GitHub:
-> `"visibility": "public"`). El token sigue en el historial de Git, así que
-> haberlo quitado del código no lo desactiva: cualquiera puede leerlo con un
-> `git log`.
->
-> Qué hacer, en este orden: regenerarlo en themoviedb.org, ponerlo en Vercel
-> como `TMDB_API_KEY`, y comprobar que el viejo ya no responde. Reescribir el
-> historial NO es la solución —los clones y forks existentes conservarían el
-> token— y rotarlo lo vuelve irrelevante.
+> ✅ **El token de TMDB que hubo escrito en el código estuvo comprometido y ya
+> se rotó** (31-ago-2026): regenerado en themoviedb.org y cargado en Vercel
+> como `TMDB_API_KEY`. El token viejo sigue legible en el historial de Git —
+> reescribir el historial no lo habría desactivado, por eso la solución fue
+> rotarlo, no borrarlo del pasado.
 >
 > Ya no hay ningún token de reserva en el código: `config.server.ts` lo explica
 > y la app funciona sin él (los canales en vivo no dependen de TMDB).
