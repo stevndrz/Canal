@@ -1,8 +1,0 @@
-`ic_launcher.png` es una copia de `public/icono-192.png`, y es el icono para
-Android 7 y anteriores: los iconos adaptativos (la carpeta `mipmap-anydpi-v26`)
-existen desde Android 8, y sin este respaldo el APK no instala en `minSdk 21`.
-
-192×192 es exactamente la medida de xxxhdpi, así que no hay que reescalar nada.
-Si cambia el icono de la web, se vuelve a copiar:
-
-    cp public/icono-192.png empaque/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
