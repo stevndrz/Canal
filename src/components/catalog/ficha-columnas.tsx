@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { ExternalLink } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 
 /** Los pocos idiomas que aparecen de verdad en este catálogo. */
@@ -109,19 +110,36 @@ function FichaTecnica({
     datos.push({ termino: "Temporadas", valor: String(item.seasons.length) });
   }
 
-  if (datos.length === 0) return null;
+  if (datos.length === 0 && !item.imdbId) return null;
 
   return (
     <aside className="ficha-tecnica">
       <h2>Ficha</h2>
-      <dl>
-        {datos.map(({ termino, valor }) => (
-          <div key={termino}>
-            <dt>{termino}</dt>
-            <dd>{valor}</dd>
-          </div>
-        ))}
-      </dl>
+      {datos.length > 0 && (
+        <dl>
+          {datos.map(({ termino, valor }) => (
+            <div key={termino}>
+              <dt>{termino}</dt>
+              <dd>{valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {/* Solo cuando se sabe con certeza: `imdbId` llega vacío si TMDB no lo
+          tiene, y aquí no se adivina una URL que podría llevar a otro título. */}
+      {item.imdbId && (
+        <a
+          href={`https://www.imdb.com/title/${item.imdbId}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="secondary mt-3"
+          data-nav="button"
+        >
+          <ExternalLink aria-hidden="true" />
+          Ver en IMDB
+        </a>
+      )}
     </aside>
   );
 }

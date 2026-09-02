@@ -1,4 +1,4 @@
-import { fetchList, fetchPagina, searchTitles, type TmdbListEntry } from "./tmdb";
+import { fetchList, fetchPagina, fetchRecommendations, searchTitles, type TmdbListEntry } from "./tmdb";
 import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
 /**
@@ -149,6 +149,10 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
     generos: [],
     reparto: [],
     autoria: [],
+    // Igual que arriba: se piden aparte, y solo para el único título que los
+    // necesita en cada caso (la ficha, o el héroe elegido). Ver `types.ts`.
+    imdbId: null,
+    trailerUrl: null,
   };
 }
 
@@ -243,4 +247,13 @@ export async function fetchFiltered(
 /** Resultados de búsqueda, ya listos para pintar como cualquier otra ficha. */
 export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[]> {
   return (await searchTitles(query)).map(toCatalogItem);
+}
+
+/**
+ * «También te puede interesar», al final de una ficha. Reusa `toCatalogItem`
+ * —el mismo mapeo que arma las filas curadas— para no duplicar qué campos
+ * hacen falta para pintar una tarjeta.
+ */
+export async function fetchSimilar(mediaType: MediaType, tmdbId: number): Promise<ResolvedCatalogItem[]> {
+  return (await fetchRecommendations(mediaType, tmdbId)).map(toCatalogItem);
 }

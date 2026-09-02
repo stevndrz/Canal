@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, Film, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 
 /**
@@ -32,10 +32,25 @@ export function FichaPortada({
       style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
     >
       <div className="ficha-cabecera">
-        <Link href="/peliculas" data-nav="button" className="ficha-volver">
-          <ArrowLeft aria-hidden="true" />
-          Volver al catálogo
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/peliculas" data-nav="button" className="ficha-volver">
+            <ArrowLeft aria-hidden="true" />
+            Volver al catálogo
+          </Link>
+
+          {item.trailerUrl && (
+            <a
+              href={item.trailerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="secondary"
+              data-nav="button"
+            >
+              <Film aria-hidden="true" />
+              Ver tráiler
+            </a>
+          )}
+        </div>
 
         <div className="ficha-titular">
           {item.poster && (

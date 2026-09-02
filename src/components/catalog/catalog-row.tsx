@@ -25,19 +25,26 @@ function abrir(router: ReturnType<typeof useRouter>, card: CardItem) {
 }
 
 /**
+ * Abrir una ficha desde una tarjeta de catálogo, con una función estable.
+ *
+ * Compartida por `CatalogGrid`, `CatalogRows` y quien más necesite navegar
+ * desde una tarjeta (la fila de recomendados de la propia ficha, por
+ * ejemplo): una función nueva por render anularía el `memo` de `MediaCard`.
+ */
+export function useAbrirTitulo() {
+  const router = useRouter();
+  return useCallback((card: CardItem) => abrir(router, card), [router]);
+}
+
+/**
  * Resultados de búsqueda o de un filtro.
  *
  * Aquí sí es una rejilla que envuelve, no un carril: una búsqueda devuelve una
  * lista sin orden temático, y obligar a recorrerla en horizontal con un mando
  * sería peor que dejarla fluir en varias líneas.
- *
- * `onAbrir` es estable a propósito: una función nueva por render anularía el
- * `memo` de cada tarjeta y una cuadrilla entera se volvería a pintar por un
- * cambio que no la afecta.
  */
 export function CatalogGrid({ tarjetas }: { tarjetas: CardItem[] }) {
-  const router = useRouter();
-  const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
+  const onAbrir = useAbrirTitulo();
   return (
     <div className="grid-results">
       {tarjetas.map((card) => (
@@ -70,8 +77,7 @@ export interface FilaDeTarjetas {
  * la red es solo lo que se ve.
  */
 export function CatalogRows({ filas }: { filas: FilaDeTarjetas[] }) {
-  const router = useRouter();
-  const onAbrir = useCallback((card: CardItem) => abrir(router, card), [router]);
+  const onAbrir = useAbrirTitulo();
   return (
     <>
       {filas.map((fila) => (
