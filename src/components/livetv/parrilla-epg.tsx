@@ -1,15 +1,18 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { hora } from "@/lib/guia-epg";
 import {
   HORAS_VISIBLES,
+  MARGEN_FRANJA_MS,
   columnasDeFranja,
   estaEnEmision,
   filaDeParrilla,
   inicioDeFranja,
+  moverFranja,
   posicionEnFranja,
   type BloqueParrilla,
 } from "@/lib/parrilla";
@@ -75,11 +78,29 @@ export function ParrillaEpg({
   const [porCanal, setPorCanal] = useState<Map<string, [number, number, string][]>>(new Map());
   const [estado, setEstado] = useState<"cargando" | "listo" | "sin-guia" | "error">("cargando");
 
-  // Anclada a la media hora en punto: si se moviera con el reloj, el foco del
-  // mando bailaría bajo los dedos de quien recorre la parrilla.
-  const desde = useMemo(() => inicioDeFranja(ahora), [ahora]);
+  /**
+   * `null` mientras se sigue el reloj: la franja anclada a la media hora en
+   * punto, igual que antes. En cuanto la persona pulsa anterior/siguiente deja
+   * de seguirlo —si no, cada tic de `ahora` la devolvería al presente bajo el
+   * foco del mando— y solo vuelve a `null` con el botón "Ahora".
+   */
+  const [desdeManual, setDesdeManual] = useState<number | null>(null);
+  const desde = desdeManual ?? inicioDeFranja(ahora);
   const hasta = desde + HORAS_VISIBLES * 60 * 60 * 1000;
   const columnas = useMemo(() => columnasDeFranja(desde), [desde]);
+  const siguiendoElReloj = desdeManual === null;
+
+  const irAtras = useCallback(
+    () => setDesdeManual(moverFranja(desde, -HORAS_VISIBLES, ahora)),
+    [desde, ahora],
+  );
+  const irAdelante = useCallback(
+    () => setDesdeManual(moverFranja(desde, HORAS_VISIBLES, ahora)),
+    [desde, ahora],
+  );
+  const volverAhora = useCallback(() => setDesdeManual(null), []);
+  const enLimiteAtras = desde <= ahora - MARGEN_FRANJA_MS;
+  const enLimiteAdelante = desde >= ahora + MARGEN_FRANJA_MS;
 
   const enPantalla = useMemo(() => canales.slice(0, cuantos), [canales, cuantos]);
 
@@ -140,6 +161,45 @@ export function ParrillaEpg({
           configurar una con <code>EPG_URL</code>.
         </p>
       )}
+
+      {/* Navegar la franja: el backend ya acepta cualquier `desde` dentro de
+          ±7 días (`/api/guia`), esto solo mueve el parámetro. Sin `gap`, como
+          el resto del archivo: margen en el botón de en medio. */}
+      <div className="mb-2 flex items-center">
+        <button
+          type="button"
+          data-nav="button"
+          onClick={irAtras}
+          disabled={enLimiteAtras}
+          aria-label="Horas anteriores"
+          className="rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          data-nav="button"
+          onClick={irAdelante}
+          disabled={enLimiteAdelante}
+          aria-label="Horas siguientes"
+          className="ml-1 rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+        >
+          <ChevronRight size={16} />
+        </button>
+        <span className="ml-3 text-xs text-muted">
+          {hora(desde)} – {hora(hasta)}
+        </span>
+        {!siguiendoElReloj && (
+          <button
+            type="button"
+            data-nav="button"
+            onClick={volverAhora}
+            className="ml-3 rounded-full border border-white/15 px-3 py-1 text-xs text-muted transition-colors hover:text-white"
+          >
+            Ahora
+          </button>
+        )}
+      </div>
 
       {/* Cabecera de horas. Sticky para que al bajar por los canales se siga
           sabiendo qué hora se está mirando. */}
