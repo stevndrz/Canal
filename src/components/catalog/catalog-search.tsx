@@ -172,9 +172,15 @@ export function CatalogSearch({
 
       {buscando ? (
         cargando && resultados.length === 0 ? (
-          <p className="catalogo-aviso" role="status">
-            Buscando «{valor.trim()}»…
-          </p>
+          // Mismas piezas que `esqueleto-catalogo.tsx`: un cartel gris con la
+          // proporción 2:3 de una carátula real, no solo un texto. El primer
+          // tecleo ya no es una frase sola en medio de la pantalla — es la
+          // forma de lo que va a llegar.
+          <div className="grid-results" role="status" aria-label={`Buscando «${valor.trim()}»`}>
+            {Array.from({ length: 10 }, (_, indice) => (
+              <div className="esqueleto-cartel" key={indice} />
+            ))}
+          </div>
         ) : resultados.length === 0 ? (
           <EstadoVacio
             Icono={SearchX}
