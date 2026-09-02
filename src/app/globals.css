@@ -54,6 +54,25 @@
   --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
+  /**
+   * La fuente de instrumento: solo para el reproductor (T+, bitrate, el
+   * scrubber de "Mi enlace", las etiquetas de la barra de controles). Nunca
+   * para prosa — un párrafo entero en mono se lee como un terminal, no como
+   * una app de vídeo.
+   */
+  --font-mono: var(--font-jetbrains-mono), "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  /**
+   * El acento de sala de control. Ámbar y no azul/verde a propósito: es el
+   * color de las luces de estado en un panel de vuelo real (caution, no
+   * alarma), y en esta app no compite con nada — el rojo sigue siendo solo
+   * de `--color-live`/error, y el acento neutro (`--color-accent`) sigue
+   * siendo blanco para todo lo que no es el reproductor.
+   */
+  --color-mission: #ffb300;
+  --color-mission-dim: rgba(255, 179, 0, 0.16);
+  --color-mission-line: rgba(255, 179, 0, 0.4);
+
   --ease-native: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -421,17 +440,22 @@ html[data-player="on"] body {
 }
 
 /* ── La barra de controles del reproductor ───────────────────────────
-   Sustituye a los seis círculos de cristal idénticos que había antes.
+   Lenguaje de instrumento, no de app de móvil: esquinas de visor, línea
+   superior ámbar, radio pequeño en vez de píldora, y las etiquetas en
+   mono/versalitas — el mismo vocabulario que ya hablaba `panel-emision.tsx`
+   con "T+" y sus módulos. La barra de controles y la cabecera de la emisión
+   ahora son un mismo panel, partido en dos por el vídeo.
 
-   Fondo sólido y no translúcido a propósito: el desenfoque se veía bien sobre
-   una escena oscura y desaparecía sobre una clara, así que la legibilidad
-   dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
+   Fondo sólido y no translúcido, eso no cambia: el desenfoque se veía bien
+   sobre una escena oscura y desaparecía sobre una clara, así que la
+   legibilidad dependía de lo que estuvieran emitiendo. Un fondo opaco se ve
+   siempre.
 
-   Y jerarquía: el control primario es más grande y de color invertido, los
-   secundarios llevan su palabra, y los ocasionales quedan a la derecha en un
-   tamaño menor. Antes todo medía 58px y pausar pesaba lo mismo que "ver en
-   familia". */
+   Y jerarquía: el control primario es más grande, los secundarios llevan su
+   palabra, y los ocasionales quedan a la derecha en un tamaño menor. Antes
+   todo medía 58px y pausar pesaba lo mismo que "ver en familia". */
 .player-bar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -441,15 +465,42 @@ html[data-player="on"] body {
   justify-content: center;
   gap: clamp(8px, 0.8vw, 16px);
   padding: clamp(10px, 1vw, 18px) clamp(12px, 1.2vw, 22px);
-  border-radius: clamp(14px, 1.1vw, 20px);
-  background: rgba(12, 13, 16, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: clamp(8px, 0.7vw, 12px);
+  background: rgba(6, 7, 9, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: var(--color-mission-line);
 }
 
 .player-bar.is-fullscreen {
-  border-radius: clamp(16px, 1.3vw, 24px);
-  background: rgba(8, 9, 11, 0.94);
+  border-radius: clamp(10px, 0.9vw, 14px);
+  background: rgba(5, 6, 7, 0.95);
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* Dos remates ámbar sobre la línea superior, como las marcas de esquina de un
+   visor. Es el único adorno puramente decorativo de toda la barra — el
+   resto de este bloque cambia algo funcional (radio, foco, tipografía). */
+.player-bar::before,
+.player-bar::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  width: clamp(12px, 1vw, 18px);
+  height: 7px;
+  border-top: 1.5px solid var(--color-mission);
+  pointer-events: none;
+}
+
+.player-bar::before {
+  left: clamp(10px, 1vw, 18px);
+  border-left: 1.5px solid var(--color-mission);
+  border-top-left-radius: 3px;
+}
+
+.player-bar::after {
+  right: clamp(10px, 1vw, 18px);
+  border-right: 1.5px solid var(--color-mission);
+  border-top-right-radius: 3px;
 }
 
 .player-bar-main,
@@ -468,25 +519,37 @@ html[data-player="on"] body {
   align-items: center;
   gap: 9px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  /* Radio pequeño, no píldora: un módulo de panel es un rectángulo con las
+     esquinas cortadas, no una cápsula de app de móvil. */
+  border-radius: clamp(6px, 0.5vw, 9px);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: clamp(13px, 0.92vw, 16px);
+  /* Mono y versalitas: las etiquetas se leen como legendas de un panel
+     ("REPRODUCIR", "SIGUIENTE"), no como texto de interfaz suelto. Es la
+     misma fuente que ya lleva el "T+" de `panel-emision.tsx`. */
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.78vw, 13px);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .player-btn svg {
   width: clamp(19px, 1.3vw, 24px);
   height: clamp(19px, 1.3vw, 24px);
+  /* Trazo más fino que el 2 por defecto de lucide: a este tamaño, más grueso
+     se ve a bulto; 1.6 es la línea de un esquema técnico. */
+  stroke-width: 1.6;
   flex-shrink: 0;
 }
 
 .player-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--color-mission-dim);
+  border-color: var(--color-mission-line);
+  color: var(--color-mission);
   transform: scale(1.04);
 }
 
@@ -496,40 +559,39 @@ html[data-player="on"] body {
  * Con el ratón encima basta con aclarar el fondo: la persona ya sabe dónde
  * está porque su mano lo ha llevado ahí. Con un mando no: el foco es lo único
  * que dice dónde estás, y a tres metros un fondo del 20% frente a uno del 8%
- * son el mismo gris. Invertido —blanco sobre negro— se ve desde el sofá y de
- * un vistazo, que es lo que hacen los reproductores de televisor.
+ * son el mismo gris. Invertido se ve desde el sofá y de un vistazo, que es lo
+ * que hacen los reproductores de televisor.
  *
- * El contorno blanco global sigue puesto encima; sobre un botón ya blanco no
- * estorba y es lo que lo separa del fondo del vídeo.
+ * Ámbar y no blanco: es el único momento en que el acento de sala de control
+ * llena un botón entero — «esto es lo que vas a activar», como el botón que
+ * se ilumina al ponerle el dedo encima en un panel de mandos real.
  */
 .player-btn:focus-visible,
 [data-input="dpad"] .player-btn:focus {
-  background: var(--text, #f5f5f7);
+  background: var(--color-mission);
   border-color: transparent;
   color: #0a0a0a;
   transform: scale(1.06);
 }
 
-/* El primario: más alto, invertido y separado del resto. Es el único control
-   que alguien busca a ciegas. */
+/* El primario: más alto y con el acento por defecto, no solo al enfocarlo —
+   es el único control que alguien busca a ciegas, así que se distingue antes
+   de que nadie lo toque. La regla de foco de arriba ya lo llena de ámbar
+   sólido al enfocarlo: no necesita su propia excepción. */
 .player-btn.is-primary {
   min-height: 60px;
   padding: 0 clamp(16px, 1.3vw, 26px);
   margin-right: clamp(4px, 0.5vw, 10px);
-  background: #fff;
-  color: #0a0a0a;
-  border-color: transparent;
+  background: var(--color-mission-dim);
+  border-color: var(--color-mission-line);
+  color: var(--color-mission);
   font-weight: 700;
 }
 
-/* El primario ya es blanco, así que no puede invertirse más: se distingue
-   creciendo, y del contorno blanco se encarga la regla global. */
-.player-btn.is-primary:hover,
-.player-btn.is-primary:focus-visible,
-[data-input="dpad"] .player-btn.is-primary:focus {
-  background: #e6e6e6;
-  color: #0a0a0a;
-  transform: scale(1.06);
+.player-btn.is-primary:hover {
+  background: rgba(255, 179, 0, 0.24);
+  border-color: var(--color-mission);
+  transform: scale(1.04);
 }
 
 /* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
@@ -637,6 +699,7 @@ html[data-player="on"] body {
   display: flex;
   align-items: center;
   gap: 12px;
+  font-family: var(--font-mono);
   font-size: clamp(11px, 0.85vw, 14px);
   font-variant-numeric: tabular-nums;
   color: var(--muted, rgba(245, 245, 247, 0.72));
@@ -652,17 +715,22 @@ html[data-player="on"] body {
 }
 
 /**
- * El acento es blanco, como todo lo demás.
+ * El acento aquí sí es el ámbar de sala de control, y no el blanco que usa el
+ * resto de la app.
+ *
+ * Esta barra solo existe en "Mi enlace" (vídeo bajo demanda, se busca): en
+ * directo no hay `.player-barra-tiempo` que la comparta, así que el ámbar no
+ * compite con nada — el blanco de foco y el rojo de directo siguen intactos
+ * en todos los demás controles.
  *
  * `accent-color` es lo que pinta el pulgar y la barra rellena de un `range`
  * sin tener que recrear el control entero; los televisores que no lo entienden
- * caen al control nativo, que sigue funcionando. Antes era esmeralda, un color
- * que no está en ningún otro control de la app.
+ * caen al control nativo, que sigue funcionando.
  */
 .player-barra-tiempo input[type="range"] {
   flex: 1;
   height: 20px;
-  accent-color: var(--text, #f5f5f7);
+  accent-color: var(--color-mission);
   cursor: pointer;
 }
 
@@ -714,10 +782,12 @@ html[data-player="on"] body {
 
 /* El botón de pantalla completa conserva su palabra aunque sea "extra": es el
    único control que cambia el modo entero, y sin texto nadie que no reconozca
-   el icono sabe cómo volver. */
+   el icono sabe cómo volver. El borde ámbar en reposo (no solo al enfocarlo)
+   lo distingue en frío de un icono ocasional como guía o cast. */
 .player-btn.is-extra.is-mode {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
+  border-color: var(--color-mission-line);
 }
 
 .player-btn.is-extra.is-mode span {
@@ -800,6 +870,7 @@ html[data-player="on"] body {
   padding: 5px clamp(8px, 0.7vw, 12px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
+  font-family: var(--font-mono);
   font-size: clamp(11px, 0.8vw, 13px);
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -889,6 +960,7 @@ html[data-player="on"] body {
 }
 
 .panel-modulo small {
+  font-family: var(--font-mono);
   font-size: clamp(9px, 0.62vw, 11px);
   font-weight: 600;
   text-transform: uppercase;
@@ -898,6 +970,7 @@ html[data-player="on"] body {
 
 .panel-modulo b {
   margin-top: 2px;
+  font-family: var(--font-mono);
   font-size: clamp(13px, 1vw, 16px);
   font-weight: 600;
 }
@@ -918,6 +991,13 @@ html[data-player="on"] body {
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
 
+/* El porcentaje sí es mono: es una cifra de instrumento, no el nombre del
+   programa que va justo al lado. */
+.panel-programa-texto > span:last-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .panel-programa-texto > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -932,9 +1012,12 @@ html[data-player="on"] body {
   overflow: hidden;
 }
 
+/* Ámbar y no rojo: esto es progreso, no una alerta. El rojo se queda
+   reservado a `.panel-estado.is-vivo`/`is-sin-senal`, lo único que de verdad
+   pide llamar la atención. */
 .panel-programa-barra {
   height: 100%;
-  background: var(--live, #e50914);
+  background: var(--color-mission);
 }
 
 /* Sin guía la regla se queda, apagada y sin texto: marca el borde inferior de
@@ -1069,7 +1152,7 @@ html[data-player="on"] body {
   .player-bar {
     padding: 7px 10px;
     gap: 6px;
-    border-radius: 14px;
+    border-radius: 8px;
   }
 
   .player-btn {
