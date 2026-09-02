@@ -68,12 +68,30 @@ Lo más reciente arriba.
 
 ## Lo siguiente
 
-- Si este rol se formaliza, falta su definición en `.claude/agents/` y su
-  entrada en `docs/EQUIPO.md`.
 - Nadie ha verificado en vivo que el token viejo de TMDB ya no responde
   (paso que sugería el propio `docs/ARQUITECTURA.md`). No es urgente: el
   nuevo token ya está activo en Vercel y es lo único que importa para que la
   app funcione.
+- **Los avisos de Dependabot están desactivados a nivel de repositorio**
+  (`gh api repos/stevndrz/Canal/dependabot/alerts` → `403: Dependabot alerts
+  are disabled for this repository`). `dependabot.yml` sí existe y abre PRs de
+  actualización, pero la función de alertas de seguridad de GitHub (distinta
+  de las PRs de versión) está apagada — es un ajuste en Settings → Security
+  del repo, no algo que se arregle con código. `npm audit --audit-level=high`
+  local está limpio (0 vulnerabilidades) a 2026-09-02.
+- Quedaron sin explorar, porque el usuario priorizó formalizar el rol primero:
+  secret scanning en CI (gitleaks/trufflehog, para atrapar credenciales antes
+  del commit — directamente relacionado con el incidente del token TMDB) y
+  CSP en modo `report-only` con endpoint de reporte.
+
+### 2026-09-02 — Rol formalizado
+
+- Creado `.claude/agents/config-seguridad.md` (faltaba; era el único de los
+  diez agentes de `MAIN.md` sin definición).
+- Añadida la fila de `config-seguridad` a la tabla de `docs/EQUIPO.md`, y una
+  nota arriba de la tabla aclarando que aún no cubre los diez agentes de
+  `MAIN.md` (faltan canales, reproducción, datos-m3u, epg-guía, catálogo,
+  fuente propia).
 - El commit `c4c0a8f` en `main` creó este mismo archivo como stub vacío a la
   vez que yo lo creaba con contenido real en mi rama — conflicto *add/add* al
   intentar fusionar el PR #14. Se resolvió quedándose con el contenido de
