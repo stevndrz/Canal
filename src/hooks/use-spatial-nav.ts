@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
+import { esPunteroTosco } from "@/lib/dispositivo";
 
 /** Códigos de tecla de los mandos reales, además de las flechas del teclado. */
 const BACK_KEYCODES = new Set([
@@ -180,7 +181,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
      * mando-puntero es «coarse» y ahí el anillo tampoco ayuda, mientras que
      * una ventana estrecha en un ordenador sí lo necesita.
      */
-    if (window.matchMedia?.("(pointer: coarse)").matches) return;
+    if (esPunteroTosco()) return;
     const active = document.activeElement as HTMLElement | null;
     if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
     const candidates = collect(root);
