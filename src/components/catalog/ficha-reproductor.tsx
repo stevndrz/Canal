@@ -168,11 +168,7 @@ function ReproductorCatalogo({
    *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
    *   el código, nunca.
    */
-  const [descartados, setDescartados] = useState<Map<string, string>>(
-    new Map(),
-  );
-  // Map<idServidor, razon>: por qué se descartó cada servidor.
-  // Razones posibles: "timeout", "puertaAntirrobot", "playerError", "sandbox"
+  const [descartados, setDescartados] = useState<Set<string>>(new Set());
   const cargas = useRef<ConteoDeCargas | null>(null);
   /**
    * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
@@ -261,16 +257,11 @@ function ReproductorCatalogo({
    * evento). Ese caso se evita ordenando los proveedores, y si aun así pasa lo
    * corta la persona con el botón de abajo.
    */
-  const descartar = useCallback(
-    (servidorId: string, razon: string) => {
-      setDescartados((previos) => {
-        const mapa = new Map(previos);
-        mapa.set(servidorId, razon);
-        return mapa;
-      });
-    },
-    [],
-  );
+  const descartar = useCallback((servidorId: string) => {
+    setDescartados((previos) =>
+      previos.has(servidorId) ? previos : new Set(previos).add(servidorId),
+    );
+  }, []);
 
   /**
    * El reloj de «esto no arranca». No mide si el vídeo va —desde fuera de un
@@ -303,12 +294,12 @@ function ReproductorCatalogo({
 
   const ofrecerCambio = avisarPara === servidorActivoId;
 
-  const alCargarMarco = useCallback((razon?: string) => {
+  const alCargarMarco = useCallback(() => {
     const servidorId = activo?.id;
     if (!servidorId) return;
     const veredicto = registrarCarga(cargas.current, servidorId, Date.now());
     cargas.current = veredicto.conteo;
-    if (veredicto.enBucle) descartar(servidorId, razon ?? "playerError");
+    if (veredicto.enBucle) descartar(servidorId);
   }, [activo?.id, descartar]);
 
   /**
@@ -380,7 +371,7 @@ function ReproductorCatalogo({
               ref={marcoRef}
               src={activo.url}
               title={titulo}
-              onLoad={() => alCargarMarco("puertaAntirrobot")}
+              onLoad={alCargarMarco}
               /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta
                  los pop-ups: sin gesto dentro del marco, el navegador ya
                  bloquea `window.open` por su cuenta. Ver `marcoAbierto`. */
@@ -420,19 +411,9 @@ function ReproductorCatalogo({
         <div className="ficha-aviso" role="status">
           {descartados.size > 0 && (
             <span>
-              {Array.from(descartados.entries())
-                .map(([id, razon]) => {
-                  const etiquetas: Record<string, string> = {
-                    timeout: "tiempo out",
-                    puertaAntirrobot: "puerta antirrobot",
-                    playerError: "error reproductor",
-                    sandbox: "sandbox bloqueado",
-                  };
-                  return `${id}: ${etiquetas[razon] || razon}`;
-                })
-                .join(", ")}.
+              Se {descartados.size === 1 ? "saltó" : "saltaron"} {descartados.size}{" "}
+              servidor{descartados.size === 1 ? "" : "es"}.
             </span>
-          )}
           )}
 
           {/* La salida primero: cuando hace falta, es lo que se busca. */}
@@ -441,7 +422,7 @@ function ReproductorCatalogo({
               type="button"
               data-nav="button"
               className="ficha-aviso-accion"
-              onClick={() => descartar(activo.id, "timeout")}
+              onClick={() => descartar(activo.id)}
             >
               Probar otro servidor
             </button>

@@ -1,7 +1,5 @@
 import { CATEGORY_ORDER } from "@/lib/categories";
 import type { Channel } from "@/lib/types";
-import { normalizeChannelName } from "./text";
-import type { EpgGuide } from "./epg";
 
 /**
  * Cómo viajan los canales del servidor al navegador.
@@ -49,17 +47,6 @@ export type CanalEmpaquetado = [
 ];
 
 /**
- * Cuántos programas de guía hay para este canal en la franja actual.
- * Se usa en la portada para mostrar "ahora/dando" sin necesidad de una
- * petición extra al endpoint /api/epg.
- */
-export function countGuiaProgramas(paquete: PaqueteCanales, nombre: string): number {
-  const canales = desempaquetarCanales(paquete);
-  const canal = canales.find((c) => c.name === nombre);
-  return canal ? (canal.currentProgram ? 1 : 0) + (canal.nextProgram ? 1 : 0) : 0;
-}
-
-/**
  * Lo que hace falta para reconstruir un canal que **no viaja solo**: en un
  * paquete recortado faltan canales por el camino, así que ni la posición ni el
  * número IPTV se pueden deducir y los dos viajan.
@@ -99,7 +86,7 @@ type CanalDeOrigen = Omit<Channel, "id" | "number">;
  * entera: una lista M3U puede traer una categoría que no esté en el orden
  * conocido, y perderla al empaquetar cambiaría la clasificación.
  */
-export function empaquetarCanales(canales: CanalDeOrigen[], epgGuide: EpgGuide | null = null): PaqueteCanales {
+export function empaquetarCanales(canales: CanalDeOrigen[]): PaqueteCanales {
   const indices = new Map<string, number>();
   const categorias: string[] = [];
   const cuentas: number[] = [];
@@ -114,7 +101,7 @@ export function empaquetarCanales(canales: CanalDeOrigen[], epgGuide: EpgGuide |
     }
     cuentas[indice] += 1;
 
-    const guia = guiaDe(canal, epgGuide);
+    const guia = guiaDe(canal);
     return guia
       ? [canal.name, indice, canal.logoUrl, canal.streamUrl, guia]
       : [canal.name, indice, canal.logoUrl, canal.streamUrl];
@@ -124,42 +111,13 @@ export function empaquetarCanales(canales: CanalDeOrigen[], epgGuide: EpgGuide |
 }
 
 /** Los cinco campos de guía, o nada si el canal no trae ninguno. */
-function guiaDe(canal: CanalDeOrigen, epgGuide: EpgGuide | null = null): GuiaEmpaquetada | undefined {
+function guiaDe(canal: CanalDeOrigen): GuiaEmpaquetada | undefined {
   const guia: GuiaEmpaquetada = {};
-
-  // Usar datos del propio canal (establecidos por conProgramacion en lista-canales.ts)
   if (canal.currentProgram !== undefined) guia.currentProgram = canal.currentProgram;
   if (canal.nextProgram !== undefined) guia.nextProgram = canal.nextProgram;
   if (canal.currentStart !== undefined) guia.currentStart = canal.currentStart;
   if (canal.currentEnd !== undefined) guia.currentEnd = canal.currentEnd;
   if (canal.nextStart !== undefined) guia.nextStart = canal.nextStart;
-
-  // Enriquecer con datos EPG externos si están disponibles: buscar programa actual/siguiente
-  // por nombre normalizado usando el índice EPG (solo añadir título si no hay uno ya del canal)
-  if (epgGuide) {
-    const canalNombre = normalizeChannelName(canal.name);
-    const id = epgGuide.idByName.get(canalNombre);
-    if (id && epgGuide.programmesByChannel.has(id.toLowerCase())) {
-      const programmes = epgGuide.programmesByChannel.get(id.toLowerCase());
-      if (programmes) {
-        const now = Date.now();
-        const current = programmes.find(
-          (p): p is { title: string; start: number; stop: number } => p != null,
-        );
-        const next = programmes.find(
-          (p): p is { title: string; start: number; stop: number } => p != null && p.start > now,
-        );
-
-        // Solo llenar campos vacíos: no sobrescribir datos que ya vengan del servidor
-        if (current && !guia.currentProgram) guia.currentProgram = current.title;
-        if (next && !guia.nextProgram) guia.nextProgram = next.title;
-        if (current && !guia.currentStart) guia.currentStart = current.start;
-        if (current && !guia.currentEnd) guia.currentEnd = current.stop;
-        if (next && !guia.nextStart) guia.nextStart = next.start;
-      }
-    }
-  }
-
   return Object.keys(guia).length > 0 ? guia : undefined;
 }
 
@@ -208,17 +166,7 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
       streamUrl,
     };
 
-    if (guia) {
-      Object.assign(canal, {
-        currentProgram: guia.currentProgram,
-        nextProgram: guia.nextProgram,
-        currentStart: guia.currentStart,
-        currentEnd: guia.currentEnd,
-        nextStart: guia.nextStart,
-      });
-    }
-
-    return canal;
+    return guia ? Object.assign(canal, guia) : canal;
   });
 }
 
