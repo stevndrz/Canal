@@ -168,7 +168,7 @@ function ReproductorCatalogo({
    *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
    *   el código, nunca.
    */
-  const [descartados, setDescartados] = useState<string[]>([]);
+  const [descartados, setDescartados] = useState<Set<string>>(new Set());
   const cargas = useRef<ConteoDeCargas | null>(null);
   /**
    * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
@@ -239,7 +239,7 @@ function ReproductorCatalogo({
   const activo: ServidorStream | null = useMemo(() => {
     // Un servidor que se recarga en bucle no es una opción: se salta, aunque
     // sea el elegido a mano, porque ahí no se ve nada de todos modos.
-    const sirve = (servidor: ServidorStream) => !descartados.includes(servidor.id);
+    const sirve = (servidor: ServidorStream) => !descartados.has(servidor.id);
     const utiles = servidores.filter(sirve);
     const elegido = utiles.find((servidor) => servidor.id === elegidoId);
     const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
@@ -259,7 +259,7 @@ function ReproductorCatalogo({
    */
   const descartar = useCallback((servidorId: string) => {
     setDescartados((previos) =>
-      previos.includes(servidorId) ? previos : [...previos, servidorId],
+      previos.has(servidorId) ? previos : new Set(previos).add(servidorId),
     );
   }, []);
 
@@ -316,7 +316,7 @@ function ReproductorCatalogo({
 
   // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
   // rueda girando para siempre como hacía antes.
-  if (!activo && descartados.length > 0) {
+  if (!activo && descartados.size > 0) {
     return (
       <section className="ficha-reproductor">
         <div className="ficha-sin-fuente">
@@ -407,12 +407,12 @@ function ReproductorCatalogo({
         {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
             siempre un texto de relleno para que no quedara una caja vacía, y
             la respuesta correcta es no pintar la caja. */}
-        {(descartados.length > 0 || (ofrecerCambio && activo) || !abierto) && (
+        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto) && (
         <div className="ficha-aviso" role="status">
-          {descartados.length > 0 && (
+          {descartados.size > 0 && (
             <span>
-              Se {descartados.length === 1 ? "saltó" : "saltaron"} {descartados.length}{" "}
-              servidor{descartados.length === 1 ? "" : "es"}.
+              Se {descartados.size === 1 ? "saltó" : "saltaron"} {descartados.size}{" "}
+              servidor{descartados.size === 1 ? "" : "es"}.
             </span>
           )}
 
@@ -436,7 +436,7 @@ function ReproductorCatalogo({
               type="button"
               data-nav="button"
               className="ficha-aviso-accion is-suave"
-              onClick={abrirMarco}
+              onClick={() => abrirMarco()}
             >
               Usar los controles del servidor
             </button>
