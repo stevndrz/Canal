@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { type CardItem } from "@/lib/media-item";
+import { conEnLista, conProgreso, type CardItem } from "@/lib/media-item";
+import { useProgreso } from "@/hooks/use-progreso";
+import { useWatchlist } from "@/hooks/use-watchlist";
 import { MediaCard } from "@/components/media/media-card";
 import { MediaRail } from "@/components/media/media-rail";
 
@@ -45,9 +47,13 @@ export function useAbrirTitulo() {
  */
 export function CatalogGrid({ tarjetas }: { tarjetas: CardItem[] }) {
   const onAbrir = useAbrirTitulo();
+  // «Mi lista» vive en localStorage: no se puede saber en el servidor que
+  // sirvió estas tarjetas, así que se marca aquí, en el navegador.
+  const { ids } = useWatchlist();
+  const marcadas = useMemo(() => tarjetas.map((tarjeta) => conEnLista(tarjeta, ids)), [tarjetas, ids]);
   return (
     <div className="grid-results">
-      {tarjetas.map((card) => (
+      {marcadas.map((card) => (
         <MediaCard key={card.key} item={card} onOpen={onAbrir} posterMode />
       ))}
     </div>
@@ -75,12 +81,26 @@ export interface FilaDeTarjetas {
  * Es la misma regla que `types.ts` aplica a los canales: si un campo no se
  * pinta, no se manda. Convertir en el servidor cuesta lo mismo y lo que cruza
  * la red es solo lo que se ve.
+ *
+ * El progreso y «Mi lista» se añaden aquí, y no en el servidor: los dos viven
+ * en `localStorage` de este aparato, que el servidor no puede leer. Mismo
+ * criterio que `catalogoConProgreso` en `home-view.tsx`.
  */
 export function CatalogRows({ filas }: { filas: FilaDeTarjetas[] }) {
   const onAbrir = useAbrirTitulo();
+  const { memoria } = useProgreso();
+  const { ids } = useWatchlist();
+  const filasMarcadas = useMemo(
+    () =>
+      filas.map((fila) => ({
+        ...fila,
+        tarjetas: fila.tarjetas.map((tarjeta) => conEnLista(conProgreso(tarjeta, memoria), ids)),
+      })),
+    [filas, memoria, ids],
+  );
   return (
     <>
-      {filas.map((fila) => (
+      {filasMarcadas.map((fila) => (
         <MediaRail
           key={fila.title}
           title={fila.title}

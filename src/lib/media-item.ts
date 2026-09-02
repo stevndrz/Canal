@@ -1,7 +1,7 @@
 import type { Channel } from "@/lib/types";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { channelMark } from "@/lib/channels";
-import { porcentaje, valeLaPena, type MemoriaProgreso } from "@/lib/progreso";
+import { enOrden, porcentaje, valeLaPena, type MemoriaProgreso } from "@/lib/progreso";
 
 /**
  * Lo mínimo que una tarjeta necesita saber para pintarse.
@@ -31,6 +31,8 @@ export interface CardItem {
   progress?: number;
   /** Monograma de respaldo cuando no hay ninguna imagen. */
   mark?: string;
+  /** Está en «Mi lista» de este aparato. Ver `conEnLista`. */
+  enLista?: boolean;
 }
 
 /**
@@ -87,10 +89,21 @@ export function conProgreso(item: CardItem, memoria: MemoriaProgreso): CardItem 
   return { ...item, progress: porcentaje(marca) };
 }
 
+/**
+ * La clave de un título del catálogo, compartida por la tarjeta
+ * (`catalogToCard`) y por «Mi lista» (`use-watchlist.ts`).
+ *
+ * Con el `id` a secas, una película y una serie con el mismo `tmdbId`
+ * chocarían en el mismo `Set`; con el `mediaType` delante, no.
+ */
+export function claveCatalogo(item: Pick<ResolvedCatalogItem, "mediaType" | "id">): string {
+  return `${item.mediaType}-${item.id}`;
+}
+
 /** Una ficha del catálogo vista como tarjeta. */
 export function catalogToCard(item: ResolvedCatalogItem): CardItem {
   return {
-    key: `${item.mediaType}-${item.id}`,
+    key: claveCatalogo(item),
     title: item.title,
     backdrop: item.backdrop ?? item.poster ?? null,
     poster: item.poster ?? item.backdrop ?? null,
@@ -98,4 +111,62 @@ export function catalogToCard(item: ResolvedCatalogItem): CardItem {
     metaRight: item.year ? String(item.year) : undefined,
     mark: item.title.slice(0, 2).toUpperCase(),
   };
+}
+
+/**
+ * La misma tarjeta, marcada si está en «Mi lista».
+ *
+ * Mismo patrón que `conProgreso`: devuelve el MISMO objeto cuando no hay nada
+ * que cambiar, para no invalidar el `memo` de `MediaCard` en cada tarjeta de
+ * un riel entero por marcar una sola.
+ */
+export function conEnLista(item: CardItem, ids: Set<string>): CardItem {
+  const marcado = ids.has(item.key);
+  if (Boolean(item.enLista) === marcado) return item;
+  return { ...item, enLista: marcado };
+}
+
+/**
+ * «Seguir viendo»: los títulos con progreso real, del más reciente al más
+ * viejo, tomados de entre tarjetas que YA llegaron a la pantalla.
+ *
+ * No pide nada nuevo a TMDB por cada progreso guardado —eso sería una
+ * petición por título cada vez que alguien entra al catálogo—, así que solo
+ * puede ofrecer continuar lo que ya estaba entre las filas curadas. Si algo
+ * se dejó a medias y no está ahí (un resultado de búsqueda, por ejemplo), no
+ * aparece: es preferible a inventar una petición nueva por cada entrada de
+ * `localStorage`.
+ */
+export function seguirViendo(
+  filas: { tarjetas: CardItem[] }[],
+  memoria: MemoriaProgreso,
+): CardItem[] {
+  const porClave = new Map<string, CardItem>();
+  for (const fila of filas) {
+    for (const tarjeta of fila.tarjetas) {
+      if (!porClave.has(tarjeta.key)) porClave.set(tarjeta.key, tarjeta);
+    }
+  }
+  return enOrden(memoria)
+    .map(({ clave }) => porClave.get(clave))
+    .filter((tarjeta): tarjeta is CardItem => tarjeta !== undefined)
+    .map((tarjeta) => conProgreso(tarjeta, memoria));
+}
+
+/**
+ * «Mi lista»: las tarjetas marcadas, en el orden en que aparecen en las filas
+ * curadas. Mismo criterio que `seguirViendo` — sin pedir nada nuevo a TMDB,
+ * solo cruza lo que ya llegó con lo que hay en `localStorage`.
+ */
+export function enMiLista(filas: { tarjetas: CardItem[] }[], ids: Set<string>): CardItem[] {
+  const vistas = new Set<string>();
+  const resultado: CardItem[] = [];
+  for (const fila of filas) {
+    for (const tarjeta of fila.tarjetas) {
+      if (!ids.has(tarjeta.key) || vistas.has(tarjeta.key)) continue;
+      vistas.add(tarjeta.key);
+      resultado.push(conEnLista(tarjeta, ids));
+    }
+  }
+  return resultado;
 }

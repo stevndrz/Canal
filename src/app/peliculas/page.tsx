@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Clapperboard, Info, SearchX } from "lucide-react";
-import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
+import { CatalogGrid } from "@/components/catalog/catalog-row";
+import { CatalogRowsPersonalizadas } from "@/components/catalog/catalog-rows-personalizadas";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
 import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
@@ -150,7 +151,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
       />
     )
   ) : rows.length > 0 ? (
-    <CatalogRows
+    <CatalogRowsPersonalizadas
       filas={rows.map((fila) => ({
         title: fila.title,
         href: fila.href,

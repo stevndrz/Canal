@@ -3,11 +3,17 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 
 /**
- * Set de ids en localStorage. Sin cuenta ni base de datos: favoritos y
- * recientes viven en el dispositivo (la TV de la sala, el teléfono).
+ * Set de ids en localStorage. Sin cuenta ni base de datos: favoritos,
+ * recientes y «Mi lista» viven en el dispositivo (la TV de la sala, el
+ * teléfono).
+ *
+ * `T` por defecto es `number` — los canales se identifican por su id
+ * numérico— pero admite `string`: «Mi lista» (`use-watchlist.ts`) necesita
+ * `"movie-tmdb-550"` y no un número a secas, porque una película y una serie
+ * pueden compartir el mismo `tmdbId`.
  */
-export function usePersistedSet(key: string) {
-  const [ids, setIds] = useState<Set<number>>(new Set());
+export function usePersistedSet<T extends string | number = number>(key: string) {
+  const [ids, setIds] = useState<Set<T>>(new Set());
 
   useEffect(() => {
     try {
@@ -15,14 +21,14 @@ export function usePersistedSet(key: string) {
       // localStorage no existe en el render de servidor, así que la
       // hidratación inicial solo puede ocurrir después del montaje.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setIds(new Set(JSON.parse(raw) as number[]));
+      if (raw) setIds(new Set(JSON.parse(raw) as T[]));
     } catch {
       /* almacenamiento bloqueado (modo privado en webOS) */
     }
   }, [key]);
 
   const persist = useCallback(
-    (next: Set<number>) => {
+    (next: Set<T>) => {
       setIds(next);
       try {
         window.localStorage.setItem(key, JSON.stringify([...next]));
@@ -34,7 +40,7 @@ export function usePersistedSet(key: string) {
   );
 
   const toggle = useCallback(
-    (id: number) => {
+    (id: T) => {
       setIds((current) => {
         const next = new Set(current);
         if (next.has(id)) next.delete(id);
