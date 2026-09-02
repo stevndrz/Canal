@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import { DetectorInput } from "@/components/detector-input";
 import { SoporteHuecos } from "@/components/soporte-huecos";
 import "./globals.css";
 
@@ -64,6 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             no existe y todos los huecos de la app valen cero. Ver
             `soporte-gap.ts`. No pinta nada. */}
         <SoporteHuecos />
+        <DetectorInput />
         {children}
       </body>
     </html>

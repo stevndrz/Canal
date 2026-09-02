@@ -14,6 +14,47 @@ export function esIPhone(): boolean {
 }
 
 /**
+ * ¿Es una tableta (iPad o Android sin "Mobile")?
+ *
+ * El iPad se anuncia como "Macintosh", así que se busca por el nombre
+ * explícito. Las Android tabletas no tienen "Mobile" en el UA.
+ */
+export function esTableta(): boolean {
+  return /iPad|Android(?!.*Mobile)/i.test(navigator.userAgent);
+}
+
+/**
+ * ¿Es un display inteligente (Google Nest Hub, Amazon Fire TV Stick,
+ * dispositivos tipo "computadora de TV")?
+ *
+ * Se distingue de las tabletas por no tener "Mobile" en el UA y no ser iPad,
+ * y de los televisores por no tener las siglas de marca conocidas de TV.
+ */
+export function esDisplayInteligente(): boolean {
+  const ua = navigator.userAgent;
+  return (
+    /Android/i.test(ua) &&
+    /Mobile|Tablet/.test(ua) === false &&
+    /iPad/.test(ua) === false &&
+    !/(Tizen|Web0S|WebOS|SmartTV|Smart-TV|HbbTV|NetCast|VIDAA|BRAVIA|AppleTV|GoogleTV|Android TV|CrKey|Roku|PhilipsTV|AFT[A-Z])/i.test(
+      ua,
+    )
+  );
+}
+
+/**
+ * ¿Se está usando un mando (DPAD) vs pantalla táctil?
+ *
+ * En televisores y displays inteligentes el puntero es "coarse" y las
+ * flechas del teclado son los códigos de mando reales. En teléfonos/tabletas
+ * es "fine" touch. Este hook actualiza el atributo `data-input` en <html>.
+ */
+export function usarMando(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
+}
+
+/**
  * ¿Es el navegador de un televisor?
  *
  * Se decide con el `User-Agent` para poder hacerlo en el SERVIDOR: la ficha
@@ -33,4 +74,40 @@ export function esTelevisorUA(userAgent: string): boolean {
   return /Tizen|Web0S|WebOS|SmartTV|Smart-TV|HbbTV|NetCast|VIDAA|BRAVIA|AppleTV|GoogleTV|Android TV|CrKey|Roku|PhilipsTV|AFT[A-Z]/i.test(
     userAgent,
   );
+}
+
+/**
+ * Versión granular del detector de televisor.
+ * Devuelve el nombre de plataforma o null si no es TV.
+ *
+ * Usado en el renderizador servidor-side para elegir el servidor de respaldo
+ * correcto en el primer render (el UA no cambia al hidratar).
+ */
+export function versionTV(): string | null {
+  const ua = navigator.userAgent;
+  const plataformas: Record<string, string> = {
+    Tizen: "samsung-tizen",
+    Web0S: "webos-old",
+    WebOS: "webos",
+    SmartTV: "tv-generico",
+    "Smart-TV": "tv-generico",
+    HbbTV: "tv-generico",
+    NetCast: "lg-webos-v2",
+    VIDAA: "philips-hbbtv",
+    BRAVIA: "sony-bravia",
+    AppleTV: "apple-tv",
+    GoogleTV: "google-tv",
+    "Android TV": "android-tv",
+    CrKey: "chromecast-build",
+    Roku: "rokudeveloper",
+    PhilipsTV: "philips-tv",
+    AFT: "amazon-fire-tv",
+  };
+
+  for (const [patron, version] of Object.entries(plataformas)) {
+    if (new RegExp(patron, "i").test(ua)) {
+      return version;
+    }
+  }
+  return null;
 }
