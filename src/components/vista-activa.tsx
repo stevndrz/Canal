@@ -92,6 +92,7 @@ export function VistaActiva(props: VistaActivaProps) {
           visible={props.visible}
           tuned={props.tuned}
           favorites={props.favorites.ids}
+          recents={props.recentChannels}
           categories={props.categories}
           category={props.category}
           search={props.search}

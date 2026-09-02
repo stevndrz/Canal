@@ -84,7 +84,14 @@ export function PanelEmision({
             <span>{channel.currentProgram}</span>
             <span>{Math.round(progreso)}%</span>
           </div>
-          <div className="panel-programa-riel">
+          <div
+            className="panel-programa-riel"
+            role="progressbar"
+            aria-valuenow={Math.round(progreso)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${channel.currentProgram}, ${Math.round(progreso)}% emitido`}
+          >
             <div className="panel-programa-barra" style={{ width: `${progreso}%` }} />
           </div>
         </div>
