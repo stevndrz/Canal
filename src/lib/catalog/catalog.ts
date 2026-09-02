@@ -50,6 +50,8 @@ export async function resolveItem(item: CatalogItem): Promise<ResolvedCatalogIte
     generos: tmdb?.generos ?? [],
     reparto: tmdb?.reparto ?? [],
     autoria: tmdb?.autoria ?? [],
+    imdbId: tmdb?.imdbId ?? null,
+    trailerUrl: tmdb?.trailerUrl ?? null,
   };
 }
 

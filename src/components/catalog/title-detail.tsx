@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { TopNav } from "@/components/shell/top-nav";
+import { MediaRail } from "@/components/media/media-rail";
 import { FichaColumnas } from "./ficha-columnas";
 import { FichaEpisodios } from "./ficha-episodios";
 import { FichaPortada } from "./ficha-portada";
 import { FichaReproductor } from "./ficha-reproductor";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 import { NavegacionCatalogo } from "./navegacion-catalogo";
+import { useAbrirTitulo } from "./catalog-row";
 import type { ServidorStream } from "@/lib/resolvers/types";
+import type { CardItem } from "@/lib/media-item";
 
 /**
  * La ficha de un título: portada, reproductor, datos y —si es serie—
@@ -35,6 +38,7 @@ export function TitleDetail({
   selectedSeason,
   enTelevisor,
   servidoresIniciales,
+  recomendados,
 }: {
   item: ResolvedCatalogItem;
   episodes: ResolvedEpisode[];
@@ -47,8 +51,15 @@ export function TitleDetail({
    * Ver `lib/catalog/disponibilidad.ts`.
    */
   servidoresIniciales?: ServidorStream[];
+  /**
+   * «También te puede interesar», ya convertido a tarjeta en el servidor —
+   * mismo motivo que `CatalogRows`: no serializar la ficha de TMDB entera por
+   * cada recomendación cuando solo se pinta título, póster, año y nota.
+   */
+  recomendados?: CardItem[];
 }) {
   const isSeries = item.mediaType === "tv";
+  const abrirRecomendado = useAbrirTitulo();
   const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
     isSeries ? (episodes[0] ?? null) : null,
   );
@@ -99,6 +110,19 @@ export function TitleDetail({
           />
         )}
       </div>
+
+      {/* Fuera de `.ficha-cuerpo` y no dentro: ese contenedor ya pone su
+          propio `--margen` como padding, y `.rail` pone el suyo — anidados,
+          el carril habría quedado con el doble de sangría a la izquierda que
+          el resto de la ficha. Directo en `.app-shell`, como en Inicio y en
+          el catálogo. `MediaRail` no se anuncia sola cuando TMDB no tiene
+          ninguna recomendación para este título. */}
+      <MediaRail
+        title="También te puede interesar"
+        items={recomendados ?? []}
+        onOpen={abrirRecomendado}
+        posterMode
+      />
     </div>
     </NavegacionCatalogo>
   );

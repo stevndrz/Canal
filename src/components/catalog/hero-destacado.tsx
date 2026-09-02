@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Info, Play, Star } from "lucide-react";
+import { Film, Info, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 
 /**
@@ -23,7 +23,18 @@ import type { ResolvedCatalogItem } from "@/lib/catalog/types";
  * No rota sola. Un carrusel automático mueve el fondo mientras alguien está
  * leyendo la sinopsis, y en un mando obliga a perseguir el botón.
  */
-export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
+export function HeroDestacado({
+  item,
+  trailerUrl,
+}: {
+  item: ResolvedCatalogItem;
+  /**
+   * Se pide aparte de `item`: las filas del catálogo no traen vídeos —ver
+   * `discover.ts`—, así que quien elige al héroe lo pide solo para ese único
+   * título. Sin tráiler, el botón simplemente no existe.
+   */
+  trailerUrl?: string | null;
+}) {
   const arte = item.backdrop ?? item.poster;
   const ficha = `/peliculas/${item.mediaType}/${item.id}`;
 
@@ -90,6 +101,12 @@ export function HeroDestacado({ item }: { item: ResolvedCatalogItem }) {
             <Info aria-hidden="true" />
             Más info
           </Link>
+          {trailerUrl && (
+            <a href={trailerUrl} target="_blank" rel="noopener noreferrer" className="secondary" data-nav="button">
+              <Film aria-hidden="true" />
+              Ver tráiler
+            </a>
+          )}
         </div>
         </div>
       </div>
