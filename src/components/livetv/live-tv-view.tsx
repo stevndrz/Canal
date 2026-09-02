@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { CalendarClock, List, Search, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
+import { channelToCard, type CardItem } from "@/lib/media-item";
 import {
   calcularVentana,
   ventanaCambio,
   type Ventana,
 } from "@/lib/ventana-lista";
+import { MediaRail } from "@/components/media/media-rail";
 import { ChannelRow } from "./channel-row";
 import { ParrillaEpg } from "./parrilla-epg";
 import { PanelCanal } from "./panel-canal";
@@ -28,6 +30,8 @@ interface LiveTvViewProps {
   visible: Channel[];
   tuned: Channel | null;
   favorites: Set<number>;
+  /** Los vistos hace poco, ya resueltos a `Channel`. Ver `dashboard.tsx`. */
+  recents: Channel[];
   categories: string[];
   category: string;
   search: string;
@@ -47,6 +51,7 @@ export function LiveTvView({
   visible,
   tuned,
   favorites,
+  recents,
   categories,
   category,
   search,
@@ -63,6 +68,21 @@ export function LiveTvView({
       window.scrollTo({ top: 0, behavior: "smooth" });
     },
     [onSelect],
+  );
+
+  /**
+   * Las mismas tarjetas que ya pinta «Seguir viendo» en Inicio: no hacía falta
+   * un componente nuevo, solo traer el riel aquí. Calculado una vez y no en el
+   * JSX porque `channelToCard` devuelve un objeto nuevo cada vez, y `MediaRail`
+   * compara por identidad para no repintar.
+   */
+  const tarjetasRecientes = useMemo(() => recents.map((canal) => channelToCard(canal)), [recents]);
+  const abrirReciente = useCallback(
+    (card: CardItem) => {
+      const canal = recents.find((item) => `canal-${item.id}` === card.key);
+      if (canal) sintonizar(canal);
+    },
+    [recents, sintonizar],
   );
 
   const [modo, setModo] = useState<"lista" | "parrilla">("lista");
@@ -218,6 +238,16 @@ export function LiveTvView({
           </button>
         </div>
       </header>
+
+      {/* Historial, no oferta: mismo riel compacto que «Seguir viendo» en
+          Inicio. Se recorta solo si no hay nada que contar (ver `MediaRail`). */}
+      <MediaRail
+        compacto
+        title="Vistos recientemente"
+        items={tarjetasRecientes}
+        onOpen={abrirReciente}
+        activeKey={tuned ? `canal-${tuned.id}` : null}
+      />
 
       <div className="livetv-columns">
         <nav className="livetv-cats" aria-label="Categorías de canales">
