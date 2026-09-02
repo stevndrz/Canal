@@ -46,6 +46,45 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-02 (segunda pasada) — El dial, no solo el color
+
+La entrada de abajo cambió el color y la tipografía y se quedó ahí: seguía
+siendo la misma fila de siete rectángulos casi idénticos, solo que ahora
+ámbar. La corrección fue justa — "eso no puede ser lo mejor que se te
+ocurra" — y con razón: en la app se navega con un mando, no con el dedo, así
+que el ORDEN y la FORMA de los controles importan tanto como el color, y ahí
+no había cambiado nada.
+
+- **Reordenado al orden físico de un mando de verdad**: antes era
+  Reproducir-Anterior-Siguiente-Silenciar (el orden en que se habían escrito
+  las líneas); ahora es Anterior-Reproducir-Siguiente (⏮ ⏯ ⏭), con Silenciar
+  movido a la tira de sistema. `player-controls.tsx`.
+- **Dos formas, no una**: `anterior`/`siguiente` llevan `is-transport`
+  (círculo perfecto, solo icono, sin margen) y quedan pegados al primario
+  —que sigue siendo un rectángulo—, así que se leen como un solo mecanismo de
+  tres piezas y no como tres botones sueltos.
+- **Una línea real entre grupos**: `.player-bar-extras` lleva
+  `border-left` — la separación entre "esto decide qué se ve" y "esto es
+  ajuste" ya no es solo un hueco de flexbox, es una frontera visible.
+- **La barra de Inicio, más chica de verdad** (`.player-bar.is-embedded`):
+  botones de 40px en vez de 52px, y el botón de expandir pierde su palabra
+  ahí —la red de seguridad de "sin texto no sabes volver" es para SALIR de
+  pantalla completa, no para entrar desde una miniatura—. Esto es lo que
+  ataca directamente "video chiquito, barra enorme" del reporte original de
+  `dispositivos`, no solo el color de esa barra.
+
+Cero cambios de comportamiento: mismos props, mismos handlers, mismo orden
+en el DOM salvo mover `Silenciar` de un `<div>` a otro — así que el foco por
+teclado/mando (`moverFoco` en `fullscreen-player.tsx`) sigue el mismo orden
+de siempre sin tocar ese archivo.
+
+`npm run typecheck` y los 289 tests, limpios. Verificado de nuevo con
+capturas reales — esta vez sí tuve que matar y relanzar `next dev`: el
+primer intento de HMR no recogió los cambios (sospecho que `inotify` no
+avisa de escrituras en `/mnt/c/...` bajo WSL2/DrvFs con la fiabilidad de un
+filesystem nativo). Si algo similar vuelve a pasar, borrar `.next/` y
+relanzar en frío antes de sospechar del CSS.
+
 ### 2026-09-02 — La barra de controles, en lenguaje de sala de control
 
 Motivo: `dispositivos` reportó que en el APK de Android TV el reproductor se

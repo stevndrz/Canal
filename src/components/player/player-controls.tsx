@@ -23,20 +23,26 @@ import type { CastMethod } from "@/hooks/use-cast";
  * Es un componente y no dos porque la queja era justamente esa: dos sitios que
  * hacían lo mismo con aspectos distintos. Aprender una vale para los dos.
  *
- * Tres decisiones de diseño, y ninguna es de gusto:
+ * **Dos grupos, no una fila.** Se navega con un mando (flechas, no dedo), así
+ * que lo primero que importa es cuántas paradas hay y en qué orden — no solo
+ * el color:
  *
- * 1. **Jerarquía, no uniformidad.** Antes eran seis círculos idénticos de 58px:
- *    pausar pesaba lo mismo que un ajuste ocasional. Si todo parece igual de
- *    importante, no lo parece nada. Ahora hay un control primario, unos
- *    secundarios y unos terciarios, y el tamaño lo dice.
+ * 1. **El dial** (`player-bar-main`): anterior, reproducir, siguiente, en ese
+ *    orden físico — el de cualquier mando de verdad (⏮ ⏯ ⏭), no el orden en
+ *    que se escribieron las líneas. Redondos los dos que zapean
+ *    (`is-transport`), rectangular el que decide la imagen (`is-primary`): la
+ *    forma dice cuál es cuál sin leer la etiqueta.
+ * 2. **La tira** (`player-bar-extras`): silencio, lo ocasional (guía, cast) y
+ *    el que cambia de modo entero. Nada de esto zapea, así que vive aparte —
+ *    una línea entre grupos, no seis botones seguidos que parecen el mismo.
  *
- * 2. **Fondo sólido, no cristal.** El translúcido con desenfoque se veía bien
- *    sobre una escena oscura y desaparecía sobre una clara: el contraste
- *    dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
+ * Y lo que no cambió:
  *
- * 3. **Las palabras se ven.** Un icono solo funciona para quien ya lo conoce.
- *    Los controles principales llevan su etiqueta escrita, y con el ajuste
- *    `bigControls` la llevan todos.
+ * - **Fondo sólido, no cristal.** El translúcido se veía bien sobre una
+ *   escena oscura y desaparecía sobre una clara. Opaco se ve siempre.
+ * - **Las palabras se ven** en el primario y en el que cambia de modo — los
+ *   dos que alguien busca sin conocer el icono. El dial y la tira restantes
+ *   son solo icono a propósito: siete etiquetas escritas es ruido, no ayuda.
  */
 export interface PlayerAction {
   id: string;
@@ -82,7 +88,24 @@ export function PlayerControls({
 
   return (
     <div className={clases} role="group" aria-label="Controles de reproducción">
+      {/* El dial de transporte: anterior-reproducir-siguiente, en ESE orden.
+          Antes iba Reproducir-Anterior-Siguiente-Silenciar, cuatro rectángulos
+          idénticos en fila — ni el orden ni la forma decían nada. Ahora el
+          orden es el de cualquier mando físico (⏮ ⏯ ⏭) y la forma también
+          separa: redondos los que zapean, rectangular el que decide qué pasa
+          con la imagen. Es un dial, no una fila. */}
       <div className="player-bar-main">
+        <button
+          type="button"
+          data-nav="button"
+          className="player-btn is-extra is-transport"
+          aria-label="Canal anterior"
+          onClick={onPrev}
+        >
+          <SkipBack aria-hidden="true" />
+          <span>Anterior</span>
+        </button>
+
         <button
           type="button"
           data-nav="button"
@@ -97,29 +120,23 @@ export function PlayerControls({
         <button
           type="button"
           data-nav="button"
-          className="player-btn"
-          aria-label="Canal anterior"
-          onClick={onPrev}
-        >
-          <SkipBack aria-hidden="true" />
-          <span>Anterior</span>
-        </button>
-
-        <button
-          type="button"
-          data-nav="button"
-          className="player-btn"
+          className="player-btn is-extra is-transport"
           aria-label="Canal siguiente"
           onClick={onNext}
         >
           <SkipForward aria-hidden="true" />
           <span>Siguiente</span>
         </button>
+      </div>
 
+      {/* La tira de sistema: silencio, lo ocasional (guía, cast) y el que
+          cambia de modo. Nada de esto zapea ni decide qué se ve — por eso
+          vive separado del dial por una línea, no mezclado en la misma fila. */}
+      <div className="player-bar-extras">
         <button
           type="button"
           data-nav="button"
-          className="player-btn"
+          className="player-btn is-extra"
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
           aria-pressed={isMuted}
           onClick={onToggleMute}
@@ -127,9 +144,7 @@ export function PlayerControls({
           {isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
           <span>{isMuted ? "Sonido" : "Silenciar"}</span>
         </button>
-      </div>
 
-      <div className="player-bar-extras">
         {extras.map((accion) => (
           <button
             key={accion.id}

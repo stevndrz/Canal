@@ -507,8 +507,23 @@ html[data-player="on"] body {
 .player-bar-extras {
   display: flex;
   align-items: center;
-  gap: clamp(6px, 0.6vw, 12px);
   min-width: 0;
+}
+
+/* El dial: hueco corto para que anterior/reproducir/siguiente se lean como
+   un solo mecanismo, no tres botones sueltos que casualmente están juntos. */
+.player-bar-main {
+  gap: clamp(3px, 0.35vw, 6px);
+}
+
+/* La tira: hueco normal entre sus propios botones, y una línea que la separa
+   del dial — es el corte real entre "esto cambia lo que se ve" y "esto es
+   ajuste". Sin la línea, mover el silencio aquí no habría cambiado nada. */
+.player-bar-extras {
+  gap: clamp(6px, 0.6vw, 12px);
+  padding-left: clamp(10px, 1vw, 16px);
+  margin-left: clamp(2px, 0.4vw, 6px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .player-btn {
@@ -576,12 +591,12 @@ html[data-player="on"] body {
 
 /* El primario: más alto y con el acento por defecto, no solo al enfocarlo —
    es el único control que alguien busca a ciegas, así que se distingue antes
-   de que nadie lo toque. La regla de foco de arriba ya lo llena de ámbar
-   sólido al enfocarlo: no necesita su propia excepción. */
+   de que nadie lo toque. Va en el CENTRO del dial (anterior-reproducir-
+   siguiente), así que ya no necesita separarse del resto con un margen: la
+   forma —rectángulo entre dos círculos— es la que dice "este es distinto". */
 .player-btn.is-primary {
   min-height: 60px;
   padding: 0 clamp(16px, 1.3vw, 26px);
-  margin-right: clamp(4px, 0.5vw, 10px);
   background: var(--color-mission-dim);
   border-color: var(--color-mission-line);
   color: var(--color-mission);
@@ -603,6 +618,13 @@ html[data-player="on"] body {
 
 .player-btn.is-extra span {
   display: none;
+}
+
+/* El dial de zapeo: redondo y sin margen extra, para que anterior/siguiente
+   se lean como las dos mitades de un mismo mecanismo alrededor del
+   primario, no como dos `is-extra` sueltos que se parecen al de silencio. */
+.player-btn.is-transport {
+  border-radius: 999px;
 }
 
 .player-btn.is-extra.is-active {
@@ -749,12 +771,15 @@ html[data-player="on"] body {
   height: clamp(22px, 1.5vw, 28px);
 }
 
-.player-bar.is-big .player-btn.is-extra {
+/* `:not(.is-transport)`: anterior/siguiente se quedan redondos e icono-solo
+   incluso con controles grandes — crecen, pero no se convierten en píldoras
+   con palabra. Solo el primario y el modo llevan texto en el dial/tira. */
+.player-bar.is-big .player-btn.is-extra:not(.is-transport) {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
 }
 
-.player-bar.is-big .player-btn.is-extra span {
+.player-bar.is-big .player-btn.is-extra:not(.is-transport) span {
   display: inline;
 }
 
@@ -803,6 +828,49 @@ html[data-player="on"] body {
   .player-btn.is-extra.is-mode span {
     display: inline;
   }
+}
+
+/**
+ * La barra de Inicio, más chica que la de pantalla completa a propósito.
+ *
+ * Es la misma tarjeta que se veía "un vídeo diminuto con una barra enorme
+ * encima" en el APK de televisor. La barra de pantalla completa manda sobre
+ * toda la pantalla y puede pesar; esta vive sobre una miniatura y tiene que
+ * pesar menos — todo el bloque de abajo son tamaños más pequeños, nunca
+ * controles distintos.
+ *
+ * El de expandir tampoco necesita su palabra aquí: la red de seguridad de
+ * "sin texto no sabes volver" es para SALIR de pantalla completa (abajo, en
+ * `.is-fullscreen`), no para entrar desde una miniatura donde no hay nada
+ * que perder si no se pulsa.
+ */
+.player-bar.is-embedded {
+  padding: clamp(6px, 0.9vh, 10px) clamp(8px, 1vw, 14px);
+}
+
+.player-bar.is-embedded .player-btn {
+  min-height: 40px;
+  min-width: 40px;
+  font-size: clamp(10px, 0.7vw, 12px);
+}
+
+.player-bar.is-embedded .player-btn.is-primary {
+  min-height: 46px;
+}
+
+.player-bar.is-embedded .player-btn.is-extra.is-mode {
+  width: 40px;
+  padding: 0;
+}
+
+.player-bar.is-embedded .player-btn.is-extra.is-mode span {
+  display: none;
+}
+
+.player-bar.is-embedded::before,
+.player-bar.is-embedded::after {
+  width: 10px;
+  height: 5px;
 }
 
 /* ── El riel compacto, lo que le gana a Tailwind ──────────────────────
@@ -2863,7 +2931,10 @@ body {
    empuja el borde derecho y la barra queda descentrada.
 
    En un navegador moderno este bloque no existe. */
-[data-sin-gap] .player-bar-main > *:not(:last-child),
+[data-sin-gap] .player-bar-main > *:not(:last-child) {
+  margin-right: clamp(3px, 0.35vw, 6px);
+}
+
 [data-sin-gap] .player-bar-extras > *:not(:last-child) {
   margin-right: clamp(6px, 0.6vw, 12px);
 }
