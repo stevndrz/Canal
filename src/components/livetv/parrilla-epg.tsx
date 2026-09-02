@@ -169,18 +169,26 @@ export function ParrillaEpg({
       </div>
 
       <div className="flex flex-col">
-        {enPantalla.map((canal) => (
-          <FilaParrilla
-            key={canal.id}
-            canal={canal}
-            programas={porCanal.get(canal.name) ?? SIN_PROGRAMAS}
-            desde={desde}
-            hasta={hasta}
-            minuto={minuto}
-            activo={sintonizado?.id === canal.id}
-            onSelect={onSelect}
-          />
-        ))}
+        {estado === "cargando"
+          ? // Antes esto se quedaba en blanco hasta que llegaba la primera
+            // respuesta: se veía igual que un canal sin programación, y no
+            // había forma de distinguir «cargando» de «no hay guía». El canal
+            // ya se conoce —viene en `canales`—, así que se pinta de verdad y
+            // solo la franja de horario, que es lo que falta por llegar, lleva
+            // el brillo.
+            enPantalla.map((canal) => <FilaParrillaEsqueleto key={canal.id} canal={canal} />)
+          : enPantalla.map((canal) => (
+              <FilaParrilla
+                key={canal.id}
+                canal={canal}
+                programas={porCanal.get(canal.name) ?? SIN_PROGRAMAS}
+                desde={desde}
+                hasta={hasta}
+                minuto={minuto}
+                activo={sintonizado?.id === canal.id}
+                onSelect={onSelect}
+              />
+            ))}
       </div>
 
       {cuantos < canales.length && (
@@ -261,6 +269,39 @@ const FilaParrilla = memo(function FilaParrilla({
     </div>
   );
 });
+
+/**
+ * La misma fila, mientras se espera la programación de este canal.
+ *
+ * Mismo patrón que `LiveCardSkeleton`: lo que ya se sabe se pinta de verdad
+ * —logo, nombre— y solo el hueco de la franja de horario, que es el dato que
+ * todavía no llegó, lleva el brillo. `animate-pulse` de Tailwind y no una
+ * clase propia: este archivo no usa `shell.css`, es del agente de diseño.
+ */
+function FilaParrillaEsqueleto({ canal }: { canal: Channel }) {
+  return (
+    <div className="mt-1 flex h-16 items-stretch rounded-lg" aria-hidden="true">
+      <div className="flex w-[8.5rem] shrink-0 items-center overflow-hidden rounded-lg px-2 sm:w-44">
+        {canal.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={canal.logoUrl}
+            alt=""
+            loading="lazy"
+            className="mr-2 h-8 w-8 shrink-0 object-contain opacity-70"
+          />
+        ) : (
+          <b className="livetv-row-mark">{channelMark(canal)}</b>
+        )}
+        <span className="truncate text-sm font-semibold text-muted">{canal.name}</span>
+      </div>
+
+      <div className="flex flex-1 items-center px-2">
+        <div className="h-8 w-full animate-pulse rounded bg-white/5" />
+      </div>
+    </div>
+  );
+}
 
 function BloqueDePrograma({
   bloque,
