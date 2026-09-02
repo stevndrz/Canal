@@ -168,7 +168,11 @@ function ReproductorCatalogo({
    *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
    *   el código, nunca.
    */
-  const [descartados, setDescartados] = useState<string[]>([]);
+  const [descartados, setDescartados] = useState<Map<string, string>>(
+    new Map(),
+  );
+  // Map<idServidor, razon>: por qué se descartó cada servidor.
+  // Razones posibles: "timeout", "puertaAntirrobot", "playerError", "sandbox"
   const cargas = useRef<ConteoDeCargas | null>(null);
   /**
    * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
@@ -239,7 +243,7 @@ function ReproductorCatalogo({
   const activo: ServidorStream | null = useMemo(() => {
     // Un servidor que se recarga en bucle no es una opción: se salta, aunque
     // sea el elegido a mano, porque ahí no se ve nada de todos modos.
-    const sirve = (servidor: ServidorStream) => !descartados.includes(servidor.id);
+    const sirve = (servidor: ServidorStream) => !descartados.has(servidor.id);
     const utiles = servidores.filter(sirve);
     const elegido = utiles.find((servidor) => servidor.id === elegidoId);
     const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
@@ -257,11 +261,16 @@ function ReproductorCatalogo({
    * evento). Ese caso se evita ordenando los proveedores, y si aun así pasa lo
    * corta la persona con el botón de abajo.
    */
-  const descartar = useCallback((servidorId: string) => {
-    setDescartados((previos) =>
-      previos.includes(servidorId) ? previos : [...previos, servidorId],
-    );
-  }, []);
+  const descartar = useCallback(
+    (servidorId: string, razon: string) => {
+      setDescartados((previos) => {
+        const mapa = new Map(previos);
+        mapa.set(servidorId, razon);
+        return mapa;
+      });
+    },
+    [],
+  );
 
   /**
    * El reloj de «esto no arranca». No mide si el vídeo va —desde fuera de un
@@ -294,12 +303,12 @@ function ReproductorCatalogo({
 
   const ofrecerCambio = avisarPara === servidorActivoId;
 
-  const alCargarMarco = useCallback(() => {
+  const alCargarMarco = useCallback((razon?: string) => {
     const servidorId = activo?.id;
     if (!servidorId) return;
     const veredicto = registrarCarga(cargas.current, servidorId, Date.now());
     cargas.current = veredicto.conteo;
-    if (veredicto.enBucle) descartar(servidorId);
+    if (veredicto.enBucle) descartar(servidorId, razon ?? "playerError");
   }, [activo?.id, descartar]);
 
   /**
@@ -316,7 +325,7 @@ function ReproductorCatalogo({
 
   // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
   // rueda girando para siempre como hacía antes.
-  if (!activo && descartados.length > 0) {
+  if (!activo && descartados.size > 0) {
     return (
       <section className="ficha-reproductor">
         <div className="ficha-sin-fuente">
@@ -371,7 +380,7 @@ function ReproductorCatalogo({
               ref={marcoRef}
               src={activo.url}
               title={titulo}
-              onLoad={alCargarMarco}
+              onLoad={() => alCargarMarco("puertaAntirrobot")}
               /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta
                  los pop-ups: sin gesto dentro del marco, el navegador ya
                  bloquea `window.open` por su cuenta. Ver `marcoAbierto`. */
@@ -407,13 +416,23 @@ function ReproductorCatalogo({
         {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
             siempre un texto de relleno para que no quedara una caja vacía, y
             la respuesta correcta es no pintar la caja. */}
-        {(descartados.length > 0 || (ofrecerCambio && activo) || !abierto) && (
+        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto) && (
         <div className="ficha-aviso" role="status">
-          {descartados.length > 0 && (
+          {descartados.size > 0 && (
             <span>
-              Se {descartados.length === 1 ? "saltó" : "saltaron"} {descartados.length}{" "}
-              servidor{descartados.length === 1 ? "" : "es"}.
+              {Array.from(descartados.entries())
+                .map(([id, razon]) => {
+                  const etiquetas: Record<string, string> = {
+                    timeout: "tiempo out",
+                    puertaAntirrobot: "puerta antirrobot",
+                    playerError: "error reproductor",
+                    sandbox: "sandbox bloqueado",
+                  };
+                  return `${id}: ${etiquetas[razon] || razon}`;
+                })
+                .join(", ")}.
             </span>
+          )}
           )}
 
           {/* La salida primero: cuando hace falta, es lo que se busca. */}
@@ -422,7 +441,7 @@ function ReproductorCatalogo({
               type="button"
               data-nav="button"
               className="ficha-aviso-accion"
-              onClick={() => descartar(activo.id)}
+              onClick={() => descartar(activo.id, "timeout")}
             >
               Probar otro servidor
             </button>
@@ -436,7 +455,7 @@ function ReproductorCatalogo({
               type="button"
               data-nav="button"
               className="ficha-aviso-accion is-suave"
-              onClick={abrirMarco}
+              onClick={() => abrirMarco()}
             >
               Usar los controles del servidor
             </button>
