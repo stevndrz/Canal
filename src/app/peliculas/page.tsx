@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Clapperboard, Info, SearchX } from "lucide-react";
-import { CatalogGrid, CatalogRows } from "@/components/catalog/catalog-row";
+import { CatalogGrid } from "@/components/catalog/catalog-row";
+import { CatalogRowsPersonalizadas } from "@/components/catalog/catalog-rows-personalizadas";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
 import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
@@ -12,7 +13,7 @@ import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 import { catalogToCard } from "@/lib/media-item";
 import { getCatalogSections } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
-import { fetchGenres, isTmdbConfigured } from "@/lib/catalog/tmdb";
+import { fetchGenres, fetchTrailer, isTmdbConfigured } from "@/lib/catalog/tmdb";
 
 /**
  * El catálogo es idéntico para todo el mundo: los filtros y la página van en
@@ -121,6 +122,17 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   // eslint-disable-next-line react-hooks/purity -- RSC: corre una vez por request.
   const destacado = candidatos.length > 0 ? candidatos[Math.floor(Math.random() * candidatos.length)] : null;
 
+  /**
+   * El tráiler del héroe, en una petición aparte.
+   *
+   * `destacado` sale de `fetchCatalogRows()`, que no pide vídeos —costaría una
+   * petición por cada título de cada fila, veinte de sobra para lo que se
+   * pinta—. Aquí ya se eligió a UNO solo, así que una petición extra es
+   * barata, y `tmdbConClave` la deja cacheada un día igual que el resto.
+   */
+  const heroTrailer =
+    destacado?.tmdbId != null ? await fetchTrailer(destacado.tmdbId, destacado.mediaType) : null;
+
   /** El contenido bajo el buscador: filas curadas o cuadrilla + paginación. */
   const contenido = cuadricula ? (
     cuadricula.items.length > 0 ? (
@@ -139,7 +151,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
       />
     )
   ) : rows.length > 0 ? (
-    <CatalogRows
+    <CatalogRowsPersonalizadas
       filas={rows.map((fila) => ({
         title: fila.title,
         href: fila.href,
@@ -160,7 +172,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
 
   return (
     <>
-      {destacado && <HeroDestacado item={destacado} />}
+      {destacado && <HeroDestacado item={destacado} trailerUrl={heroTrailer} />}
 
       {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
           borde y lo reserva ella. La caja centrada (max-w-7xl) vive dentro de

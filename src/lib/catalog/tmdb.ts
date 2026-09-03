@@ -73,6 +73,26 @@ interface TmdbTitle {
     cast?: { name: string; character?: string; profile_path?: string | null }[];
     crew?: { name: string; job?: string }[];
   };
+  /** Llega solo con `append_to_response=videos`. */
+  videos?: { results?: TmdbVideo[] };
+}
+
+interface TmdbVideo {
+  type?: string;
+  site?: string;
+  key?: string;
+}
+
+/**
+ * El primer tráiler de YouTube de una lista de vídeos, o ninguno.
+ *
+ * TMDB mezcla tráilers, teasers, clips y detrás-de-cámaras sin distinguir
+ * cuál es «el» tráiler; el primero que cumpla `Trailer`+`YouTube` es la mejor
+ * aproximación sin adivinar más de la cuenta.
+ */
+function primerTrailer(videos?: TmdbVideo[]): string | null {
+  const trailer = videos?.find((video) => video.type === "Trailer" && video.site === "YouTube");
+  return trailer?.key ? `https://www.youtube.com/watch?v=${trailer.key}` : null;
 }
 
 interface TmdbSeason {
@@ -149,8 +169,9 @@ export interface TmdbPersona {
 export interface TmdbTitleData {
   title: string | null;
   /**
-   * Id de IMDB («tt…»), que consumen los servidores que indexan por él.
-   * Nunca sale hacia el cliente: es dato interno del servidor.
+   * Id de IMDB («tt…»). Lo consumen los servidores que indexan por él, y
+   * también se enseña en la ficha como enlace «Ver en IMDB» — ver
+   * `ficha-columnas.tsx`.
    */
   imdbId: string | null;
   /** Idioma en que se rodó (`es`, `en`…). Ver ResolvedCatalogItem. */
@@ -169,17 +190,22 @@ export interface TmdbTitleData {
   reparto: TmdbPersona[];
   /** Dirección en películas; creación en series. */
   autoria: string[];
+  /** Enlace a YouTube del primer tráiler, o `null` si TMDB no tiene ninguno. */
+  trailerUrl: string | null;
 }
 
 /**
  * Ficha completa en **una sola petición**.
  *
- * `append_to_response=credits` trae el reparto en la misma llamada en lugar de
- * en otra: TMDB lo cuenta como una, y una ficha que ya tarda no debería tardar
- * el doble por enseñar quién sale.
+ * `append_to_response=credits,external_ids,videos` trae reparto, id de IMDB
+ * y vídeos en la misma llamada en lugar de en tres: TMDB lo cuenta como una
+ * sola, y una ficha que ya tarda no debería tardar el triple por enseñar
+ * quién sale, el enlace a IMDB y el botón del tráiler.
  */
 export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<TmdbTitleData | null> {
-  const data = await tmdbFetch<TmdbTitle>(`/${mediaType}/${tmdbId}?append_to_response=credits,external_ids`);
+  const data = await tmdbFetch<TmdbTitle>(
+    `/${mediaType}/${tmdbId}?append_to_response=credits,external_ids,videos`
+  );
   if (!data) return null;
 
   const date = data.release_date || data.first_air_date || "";
@@ -217,6 +243,7 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
       foto: tmdbImage(persona.profile_path, PROFILE_SIZE),
     })),
     autoria: autoria.slice(0, 3),
+    trailerUrl: primerTrailer(data.videos?.results),
   };
 }
 
@@ -356,6 +383,29 @@ export async function searchTitles(query: string): Promise<TmdbListEntry[]> {
     .filter((item) => item.media_type === "movie" || item.media_type === "tv")
     .map((item) => toListEntry(item, "movie"))
     .filter((entry): entry is TmdbListEntry => entry !== null);
+}
+
+/**
+ * Solo el tráiler de un título, en su propia petición.
+ *
+ * Para la ficha, `fetchTitle` ya lo trae gratis con `append_to_response`. Esto
+ * es para el héroe de `/peliculas`: ahí no hace falta el resto de la ficha
+ * —reparto, sinopsis, temporadas— solo para un botón que necesita una URL, y
+ * pedir la ficha completa de los diez candidatos del héroe habría sido diez
+ * peticiones de sobra para uno solo que se enseña.
+ */
+export async function fetchTrailer(tmdbId: number, mediaType: MediaType): Promise<string | null> {
+  const data = await tmdbFetch<{ results?: TmdbVideo[] }>(`/${mediaType}/${tmdbId}/videos`);
+  return primerTrailer(data?.results);
+}
+
+/**
+ * «A la gente que vio esto también le gustó…». Mismo endpoint de lista que
+ * discover o trending —una petición trae toda la fila—, así que se puede
+ * pedir para cada ficha sin que cueste una petición por título.
+ */
+export async function fetchRecommendations(mediaType: MediaType, tmdbId: number): Promise<TmdbListEntry[]> {
+  return fetchList(`/${mediaType}/${tmdbId}/recommendations`, mediaType);
 }
 
 export interface TmdbGenre {

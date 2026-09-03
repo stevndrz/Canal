@@ -23,15 +23,19 @@ import type { CastMethod } from "@/hooks/use-cast";
  * Es un componente y no dos porque la queja era justamente esa: dos sitios que
  * hacían lo mismo con aspectos distintos. Aprender una vale para los dos.
  *
- * Estilo Apple TV: píldora de cristal flotante con botones circulares solo de
- * icono (con `title` y `aria-label` para quien no los reconozca) y un play
- * central grande en blanco. En directo no hay progreso que buscar —zapear es
- * el único movimiento—, así que la barra es transporte puro más una pastilla
- * «EN VIVO» con el canal sintonizado.
+ * Estilo Apple TV sobre estructura de dial: píldora de cristal flotante con
+ * botones circulares solo de icono (con `title` y `aria-label` para quien no
+ * los reconozca), play central grande en blanco y pastilla «EN VIVO» con el
+ * canal. En directo no hay progreso que buscar —zapear es el único
+ * movimiento—, así que la barra es transporte puro más la pastilla.
  *
  * Se mantienen los nombres de clase (`player-bar`, `player-btn`…) a propósito:
  * la navegación por mando, el detector de toques en el vídeo y el CSS que
  * coloca la barra encima del vídeo los usan como ganchos.
+ *
+ * El orden físico es el de cualquier mando de verdad (⏮ ⏯ ⏭): anterior,
+ * reproducir y siguiente forman el dial, y silencio, lo ocasional (guía,
+ * cast) y el cambio de modo viven en la tira separada por una línea.
  */
 export interface PlayerAction {
   id: string;
@@ -85,7 +89,6 @@ export function PlayerControls({
   meta,
 }: PlayerControlsProps) {
   const clases = ["player-bar", `is-${variant}`, big ? "is-big" : ""].filter(Boolean).join(" ");
-  const hayExtras = extras.length > 0;
 
   return (
     <div className={clases} role="group" aria-label="Controles de reproducción">
@@ -102,7 +105,22 @@ export function PlayerControls({
         </span>
       )}
 
+      {/* El dial de transporte: anterior-reproducir-siguiente, en ESE orden.
+          El orden es el de cualquier mando físico (⏮ ⏯ ⏭) y la forma también
+          separa: redondos los que zapean, blanco el que decide qué pasa con
+          la imagen. Es un dial, no una fila. */}
       <div className="player-bar-main">
+        <button
+          type="button"
+          data-nav="button"
+          className="player-btn is-extra is-transport"
+          aria-label="Canal anterior"
+          title="Canal anterior"
+          onClick={onPrev}
+        >
+          <SkipBack aria-hidden="true" />
+        </button>
+
         <button
           type="button"
           data-nav="button"
@@ -117,29 +135,23 @@ export function PlayerControls({
         <button
           type="button"
           data-nav="button"
-          className="player-btn"
-          aria-label="Canal anterior"
-          title="Canal anterior"
-          onClick={onPrev}
-        >
-          <SkipBack aria-hidden="true" />
-        </button>
-
-        <button
-          type="button"
-          data-nav="button"
-          className="player-btn"
+          className="player-btn is-extra is-transport"
           aria-label="Canal siguiente"
           title="Canal siguiente"
           onClick={onNext}
         >
           <SkipForward aria-hidden="true" />
         </button>
+      </div>
 
+      {/* La tira de sistema: silencio, lo ocasional (guía, cast) y el que
+          cambia de modo. Nada de esto zapea ni decide qué se ve — por eso
+          vive separado del dial por una línea, no mezclado en la misma fila. */}
+      <div className="player-bar-extras">
         <button
           type="button"
           data-nav="button"
-          className="player-btn"
+          className="player-btn is-extra"
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
           title={isMuted ? "Activar sonido" : "Silenciar"}
           aria-pressed={isMuted}
@@ -147,11 +159,7 @@ export function PlayerControls({
         >
           {isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
         </button>
-      </div>
 
-      {hayExtras && <span className="player-sep" aria-hidden="true" />}
-
-      <div className="player-bar-extras">
         {extras.map((accion) => (
           <button
             key={accion.id}

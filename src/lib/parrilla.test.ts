@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   HORAS_VISIBLES,
+  MARGEN_FRANJA_MS,
   PASO_MINUTOS,
   columnasDeFranja,
   estaEnEmision,
   filaDeParrilla,
   inicioDeFranja,
+  moverFranja,
   posicionEnFranja,
 } from "./parrilla";
 
@@ -136,5 +138,30 @@ describe("estaEnEmision", () => {
     const fila = filaDeParrilla([programa(0, 30, "Ahora"), programa(60, 90, "Luego")], DESDE, HASTA);
     const ahora = DESDE + 10 * MINUTO;
     expect(fila.filter((b) => estaEnEmision(b, ahora)).map((b) => b.titulo)).toEqual(["Ahora"]);
+  });
+});
+
+describe("moverFranja", () => {
+  const ahora = DESDE;
+
+  it("adelanta o atrasa el número de horas pedido", () => {
+    expect(moverFranja(DESDE, HORAS_VISIBLES, ahora)).toBe(DESDE + HORAS_VISIBLES * HORA);
+    expect(moverFranja(DESDE, -HORAS_VISIBLES, ahora)).toBe(DESDE - HORAS_VISIBLES * HORA);
+  });
+
+  it("no deja pedir más allá del margen que acepta /api/guia", () => {
+    const lejos = ahora + MARGEN_FRANJA_MS - HORA;
+    expect(moverFranja(lejos, HORAS_VISIBLES, ahora)).toBe(ahora + MARGEN_FRANJA_MS);
+  });
+
+  it("tampoco hacia atrás", () => {
+    const lejos = ahora - MARGEN_FRANJA_MS + HORA;
+    expect(moverFranja(lejos, -HORAS_VISIBLES, ahora)).toBe(ahora - MARGEN_FRANJA_MS);
+  });
+
+  it("dentro del margen no lo toca", () => {
+    const propuesta = moverFranja(DESDE, HORAS_VISIBLES, ahora);
+    expect(propuesta).toBeGreaterThan(ahora - MARGEN_FRANJA_MS);
+    expect(propuesta).toBeLessThan(ahora + MARGEN_FRANJA_MS);
   });
 });

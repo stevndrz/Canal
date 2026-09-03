@@ -54,6 +54,25 @@
   --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
+  /**
+   * La fuente de instrumento: solo para el reproductor (T+, bitrate, el
+   * scrubber de "Mi enlace", las etiquetas de la barra de controles). Nunca
+   * para prosa — un párrafo entero en mono se lee como un terminal, no como
+   * una app de vídeo.
+   */
+  --font-mono: var(--font-jetbrains-mono), "SF Mono", "Cascadia Code", Consolas, monospace;
+
+  /**
+   * El acento de sala de control. Ámbar y no azul/verde a propósito: es el
+   * color de las luces de estado en un panel de vuelo real (caution, no
+   * alarma), y en esta app no compite con nada — el rojo sigue siendo solo
+   * de `--color-live`/error, y el acento neutro (`--color-accent`) sigue
+   * siendo blanco para todo lo que no es el reproductor.
+   */
+  --color-mission: #ffb300;
+  --color-mission-dim: rgba(255, 179, 0, 0.16);
+  --color-mission-line: rgba(255, 179, 0, 0.4);
+
   --ease-native: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
@@ -420,15 +439,20 @@ html[data-player="on"] body {
 }
 
 /* ── La barra de controles del directo ──────────────────────────────────
-   Píldora de cristal flotante estilo Apple TV: botones circulares solo de
-   icono (con `title` para quien no los reconozca), play central grande en
-   blanco y pastilla «EN VIVO» con el canal. En directo no hay progreso que
-   buscar, así que no hay riel: transporte puro.
+   Píldora de cristal flotante estilo Apple TV sobre estructura de dial:
+   botones circulares solo de icono (con `title` para quien no los reconozca),
+   play central grande en blanco y pastilla «EN VIVO» con el canal. En directo
+   no hay progreso que buscar, así que no hay riel: transporte puro.
 
-   Ojo: `.player-btn` a secas también lo usan los avisos de error («Reproducir»,
-   «Reintentar»), que NO viven en la barra y siguen siendo píldoras con texto.
-   Lo circular va acotado bajo `.player-bar` para no romperlos. */
+   El orden físico es el de cualquier mando (⏮ ⏯ ⏭) y la tira de sistema
+   (silencio, guía, cast, modo) se separa del dial con una línea.
+
+   Ojo: `.player-btn` a secas también lo usan los avisos de error
+   («Reproducir», «Reintentar»), que NO viven en la barra y siguen siendo
+   rectangulares con texto. Lo circular va acotado bajo `.player-bar` para no
+   romperlos. */
 .player-bar {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -514,13 +538,20 @@ html[data-player="on"] body {
   color: #fff;
 }
 
-/* Separador vertical entre transporte y ocasionales. */
-.player-sep {
-  width: 1px;
-  height: 26px;
-  margin-inline: 6px;
-  background: rgba(255, 255, 255, 0.14);
-  flex-shrink: 0;
+/* El dial: hueco corto para que anterior/reproducir/siguiente se lean como
+   un solo mecanismo, no tres botones sueltos que casualmente están juntos. */
+.player-bar-main {
+  gap: clamp(3px, 0.35vw, 6px);
+}
+
+/* La tira: hueco normal entre sus propios botones, y una línea que la separa
+   del dial — es el corte real entre "esto cambia lo que se ve" y "esto es
+   ajuste". Sin la línea, mover el silencio aquí no habría cambiado nada. */
+.player-bar-extras {
+  gap: clamp(6px, 0.6vw, 12px);
+  padding-left: clamp(10px, 1vw, 16px);
+  margin-left: clamp(2px, 0.4vw, 6px);
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .player-btn {
@@ -531,25 +562,37 @@ html[data-player="on"] body {
   align-items: center;
   gap: 9px;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  /* Radio pequeño, no píldora: un módulo de panel es un rectángulo con las
+     esquinas cortadas, no una cápsula de app de móvil. */
+  border-radius: clamp(6px, 0.5vw, 9px);
+  background: rgba(255, 255, 255, 0.05);
   color: #fff;
-  font-size: clamp(13px, 0.92vw, 16px);
+  /* Mono y versalitas: las etiquetas se leen como legendas de un panel
+     ("REPRODUCIR", "SIGUIENTE"), no como texto de interfaz suelto. Es la
+     misma fuente que ya lleva el "T+" de `panel-emision.tsx`. */
+  font-family: var(--font-mono);
+  font-size: clamp(11px, 0.78vw, 13px);
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease;
+  transition: background 150ms ease, transform 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
 .player-btn svg {
   width: clamp(19px, 1.3vw, 24px);
   height: clamp(19px, 1.3vw, 24px);
+  /* Trazo más fino que el 2 por defecto de lucide: a este tamaño, más grueso
+     se ve a bulto; 1.6 es la línea de un esquema técnico. */
+  stroke-width: 1.6;
   flex-shrink: 0;
 }
 
 .player-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.28);
+  background: var(--color-mission-dim);
+  border-color: var(--color-mission-line);
+  color: var(--color-mission);
   transform: scale(1.04);
 }
 
@@ -597,40 +640,39 @@ html[data-player="on"] body {
  * Con el ratón encima basta con aclarar el fondo: la persona ya sabe dónde
  * está porque su mano lo ha llevado ahí. Con un mando no: el foco es lo único
  * que dice dónde estás, y a tres metros un fondo del 20% frente a uno del 8%
- * son el mismo gris. Invertido —blanco sobre negro— se ve desde el sofá y de
- * un vistazo, que es lo que hacen los reproductores de televisor.
+ * son el mismo gris. Invertido se ve desde el sofá y de un vistazo, que es lo
+ * que hacen los reproductores de televisor.
  *
- * El contorno blanco global sigue puesto encima; sobre un botón ya blanco no
- * estorba y es lo que lo separa del fondo del vídeo.
+ * Ámbar y no blanco: es el único momento en que el acento de sala de control
+ * llena un botón entero — «esto es lo que vas a activar», como el botón que
+ * se ilumina al ponerle el dedo encima en un panel de mandos real.
  */
 .player-btn:focus-visible,
 [data-input="dpad"] .player-btn:focus {
-  background: var(--text, #f5f5f7);
+  background: var(--color-mission);
   border-color: transparent;
   color: #0a0a0a;
   transform: scale(1.06);
 }
 
-/* El primario: más alto, invertido y separado del resto. Es el único control
-   que alguien busca a ciegas. */
+/* El primario: más alto y con el acento por defecto, no solo al enfocarlo —
+   es el único control que alguien busca a ciegas, así que se distingue antes
+   de que nadie lo toque. Va en el CENTRO del dial (anterior-reproducir-
+   siguiente), así que ya no necesita separarse del resto con un margen: la
+   forma —rectángulo entre dos círculos— es la que dice "este es distinto". */
 .player-btn.is-primary {
   min-height: 60px;
   padding: 0 clamp(16px, 1.3vw, 26px);
-  margin-right: clamp(4px, 0.5vw, 10px);
-  background: #fff;
-  color: #0a0a0a;
-  border-color: transparent;
+  background: var(--color-mission-dim);
+  border-color: var(--color-mission-line);
+  color: var(--color-mission);
   font-weight: 700;
 }
 
-/* El primario ya es blanco, así que no puede invertirse más: se distingue
-   creciendo, y del contorno blanco se encarga la regla global. */
-.player-btn.is-primary:hover,
-.player-btn.is-primary:focus-visible,
-[data-input="dpad"] .player-btn.is-primary:focus {
-  background: #e6e6e6;
-  color: #0a0a0a;
-  transform: scale(1.06);
+.player-btn.is-primary:hover {
+  background: rgba(255, 179, 0, 0.24);
+  border-color: var(--color-mission);
+  transform: scale(1.04);
 }
 
 /* En la barra el primario es el círculo blanco grande central. */
@@ -662,6 +704,13 @@ html[data-player="on"] body {
 
 .player-btn.is-extra span {
   display: none;
+}
+
+/* El dial de zapeo: redondo y sin margen extra, para que anterior/siguiente
+   se lean como las dos mitades de un mismo mecanismo alrededor del
+   primario, no como dos `is-extra` sueltos que se parecen al de silencio. */
+.player-btn.is-transport {
+  border-radius: 999px;
 }
 
 .player-btn.is-extra.is-active {
@@ -1232,6 +1281,7 @@ html[data-player="on"] body {
   display: flex;
   align-items: center;
   gap: 12px;
+  font-family: var(--font-mono);
   font-size: clamp(11px, 0.85vw, 14px);
   font-variant-numeric: tabular-nums;
   color: var(--muted, rgba(245, 245, 247, 0.72));
@@ -1247,17 +1297,22 @@ html[data-player="on"] body {
 }
 
 /**
- * El acento es blanco, como todo lo demás.
+ * El acento aquí sí es el ámbar de sala de control, y no el blanco que usa el
+ * resto de la app.
+ *
+ * Esta barra solo existe en "Mi enlace" (vídeo bajo demanda, se busca): en
+ * directo no hay `.player-barra-tiempo` que la comparta, así que el ámbar no
+ * compite con nada — el blanco de foco y el rojo de directo siguen intactos
+ * en todos los demás controles.
  *
  * `accent-color` es lo que pinta el pulgar y la barra rellena de un `range`
  * sin tener que recrear el control entero; los televisores que no lo entienden
- * caen al control nativo, que sigue funcionando. Antes era esmeralda, un color
- * que no está en ningún otro control de la app.
+ * caen al control nativo, que sigue funcionando.
  */
 .player-barra-tiempo input[type="range"] {
   flex: 1;
   height: 20px;
-  accent-color: var(--text, #f5f5f7);
+  accent-color: var(--color-mission);
   cursor: pointer;
 }
 
@@ -1279,21 +1334,15 @@ html[data-player="on"] body {
   height: clamp(22px, 1.5vw, 28px);
 }
 
-.player-bar.is-big .player-btn.is-extra {
-  width: 52px;
-  padding: 0;
-}
-
-.player-bar.is-big .player-btn.is-extra span {
-  display: none;
-}
-
-.player-bar.is-big .player-btn.is-extra.is-mode {
+/* `:not(.is-transport)`: anterior/siguiente se quedan redondos e icono-solo
+   incluso con controles grandes — crecen, pero no se convierten en píldoras
+   con palabra. Solo el primario y el modo llevan texto en el dial/tira. */
+.player-bar.is-big .player-btn.is-extra:not(.is-transport) {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
 }
 
-.player-bar.is-big .player-btn.is-extra.is-mode span {
+.player-bar.is-big .player-btn.is-extra:not(.is-transport) span {
   display: inline;
 }
 
@@ -1321,13 +1370,15 @@ html[data-player="on"] body {
 
 /* El botón de pantalla completa conserva su palabra aunque sea "extra": es el
    único control que cambia el modo entero, y sin texto nadie que no reconozca
-   el icono sabe cómo volver. */
+   el icono sabe cómo volver. El borde ámbar en reposo (no solo al enfocarlo)
+   lo distingue en frío de un icono ocasional como guía o cast. */
 .player-btn.is-extra.is-mode {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
   font-size: clamp(13px, 0.92vw, 15px);
   font-weight: 600;
   gap: 8px;
+  border-color: var(--color-mission-line);
 }
 
 .player-btn.is-extra.is-mode span {
@@ -1343,6 +1394,81 @@ html[data-player="on"] body {
   .player-btn.is-extra.is-mode span {
     display: inline;
   }
+}
+
+/**
+ * La barra de Inicio, más chica que la de pantalla completa a propósito.
+ *
+ * Es la misma tarjeta que se veía "un vídeo diminuto con una barra enorme
+ * encima" en el APK de televisor. La barra de pantalla completa manda sobre
+ * toda la pantalla y puede pesar; esta vive sobre una miniatura y tiene que
+ * pesar menos — todo el bloque de abajo son tamaños más pequeños, nunca
+ * controles distintos.
+ *
+ * El de expandir tampoco necesita su palabra aquí: la red de seguridad de
+ * "sin texto no sabes volver" es para SALIR de pantalla completa (abajo, en
+ * `.is-fullscreen`), no para entrar desde una miniatura donde no hay nada
+ * que perder si no se pulsa.
+ */
+.player-bar.is-embedded {
+  padding: clamp(6px, 0.9vh, 10px) clamp(8px, 1vw, 14px);
+}
+
+.player-bar.is-embedded .player-btn {
+  min-height: 40px;
+  min-width: 40px;
+  font-size: clamp(10px, 0.7vw, 12px);
+}
+
+.player-bar.is-embedded .player-btn.is-primary {
+  min-height: 46px;
+}
+
+.player-bar.is-embedded .player-btn.is-extra.is-mode {
+  width: 40px;
+  padding: 0;
+}
+
+.player-bar.is-embedded .player-btn.is-extra.is-mode span {
+  display: none;
+}
+
+/* ── Tamaños finales de la botonera ─────────────────────────────────────
+   Un solo sitio, DESPUÉS de `is-extra`, `is-embedded` y los media queries de
+   arriba: por orden de cascada ningún extra, transporte o modo hereda otro
+   ancho de reglas anteriores. Tres tallas —miniatura, base y pantalla
+   completa— y el primario siempre un punto por encima. */
+.player-bar .player-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+}
+
+.player-bar .player-btn.is-primary {
+  width: 56px;
+  height: 56px;
+}
+
+.player-bar.is-fullscreen .player-btn {
+  width: 52px;
+  height: 52px;
+}
+
+.player-bar.is-fullscreen .player-btn.is-primary {
+  width: 64px;
+  height: 64px;
+}
+
+.player-bar.is-embedded .player-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.player-bar.is-embedded .player-btn.is-primary {
+  width: 48px;
+  height: 48px;
 }
 
 /* ── El riel compacto, lo que le gana a Tailwind ──────────────────────
@@ -1410,6 +1536,7 @@ html[data-player="on"] body {
   padding: 5px clamp(8px, 0.7vw, 12px);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
+  font-family: var(--font-mono);
   font-size: clamp(11px, 0.8vw, 13px);
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -1499,6 +1626,7 @@ html[data-player="on"] body {
 }
 
 .panel-modulo small {
+  font-family: var(--font-mono);
   font-size: clamp(9px, 0.62vw, 11px);
   font-weight: 600;
   text-transform: uppercase;
@@ -1508,6 +1636,7 @@ html[data-player="on"] body {
 
 .panel-modulo b {
   margin-top: 2px;
+  font-family: var(--font-mono);
   font-size: clamp(13px, 1vw, 16px);
   font-weight: 600;
 }
@@ -1528,6 +1657,13 @@ html[data-player="on"] body {
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
 
+/* El porcentaje sí es mono: es una cifra de instrumento, no el nombre del
+   programa que va justo al lado. */
+.panel-programa-texto > span:last-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .panel-programa-texto > span:first-child {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1542,9 +1678,12 @@ html[data-player="on"] body {
   overflow: hidden;
 }
 
+/* Ámbar y no rojo: esto es progreso, no una alerta. El rojo se queda
+   reservado a `.panel-estado.is-vivo`/`is-sin-senal`, lo único que de verdad
+   pide llamar la atención. */
 .panel-programa-barra {
   height: 100%;
-  background: var(--live, #e50914);
+  background: var(--color-mission);
 }
 
 /* Sin guía la regla se queda, apagada y sin texto: marca el borde inferior de
@@ -1679,7 +1818,7 @@ html[data-player="on"] body {
   .player-bar {
     padding: 7px 10px;
     gap: 6px;
-    border-radius: 14px;
+    border-radius: 8px;
   }
 
   .player-btn {
@@ -1922,12 +2061,95 @@ html[data-player="on"] body {
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
 
+/**
+ * `.ficha-reproductor-slot` y `.ficha-cuerpo` reparten lo que antes era un
+ * único contenedor: el reproductor por un lado, sinopsis/reparto/episodios
+ * por otro. Se separaron para que en modo cine (TV, ver `title-detail.tsx`)
+ * el reproductor pueda salirse a pantalla completa **sin** llevarse consigo
+ * el ancho de 1440px ni el relleno pensado para texto — y sin desmontarlo,
+ * que reiniciaría el vídeo. El padding se repartió tal cual estaba: arriba
+ * para el primero, abajo para el segundo, ninguno de los dos de más.
+ */
+.ficha-reproductor-slot {
+  width: min(1440px, 100%);
+  margin-inline: auto;
+  padding: clamp(12px, 2vh, 24px) var(--margen) 0;
+}
+
 .ficha-cuerpo {
   /* Columna más ancha: el reproductor aprovecha mejor el horizontal en
      pantallas grandes en vez de quedar acotado a 1200px. */
   width: min(1440px, 100%);
   margin-inline: auto;
-  padding: clamp(12px, 2vh, 24px) var(--margen) clamp(40px, 6vh, 80px);
+  padding: 0 var(--margen) clamp(40px, 6vh, 80px);
+}
+
+/**
+ * Modo cine: el reproductor ES la pantalla, como un canal en vivo. Solo se
+ * activa en el cascarón de un televisor (`enTelevisor`, decidido en el
+ * servidor) y solo mientras `modoCine` está en `true` — Atrás lo cierra y
+ * vuelve a la ficha de siempre, nunca desaparece del todo.
+ */
+.ficha-cine {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  background: #000;
+}
+
+.ficha-cine .ficha-reproductor {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.ficha-cine .ficha-conjunto {
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ficha-cine .ficha-marco {
+  flex: 1;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+/* El enlace propio (`NativePlayer`, "Mi enlace") no pasa por `.ficha-marco`:
+   pinta su propio contenedor de 16:9 con la utilidad `aspect-video` de
+   Tailwind. Sin capa, esta regla la gana igual — ver la nota de capas al
+   principio del archivo. */
+.ficha-cine .player-surface {
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.ficha-cine-salir {
+  position: absolute;
+  top: clamp(14px, 2vh, 24px);
+  left: clamp(14px, 2vw, 28px);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-mission-line);
+  border-radius: 999px;
+  background: rgba(6, 7, 9, 0.85);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ficha-cine-salir:hover,
+.ficha-cine-salir:focus-visible {
+  background: var(--color-mission);
+  color: #0a0a0a;
+  border-color: transparent;
 }
 
 .ficha-reproductor {
@@ -3390,7 +3612,10 @@ body {
    empuja el borde derecho y la barra queda descentrada.
 
    En un navegador moderno este bloque no existe. */
-[data-sin-gap] .player-bar-main > *:not(:last-child),
+[data-sin-gap] .player-bar-main > *:not(:last-child) {
+  margin-right: clamp(3px, 0.35vw, 6px);
+}
+
 [data-sin-gap] .player-bar-extras > *:not(:last-child) {
   margin-right: clamp(6px, 0.6vw, 12px);
 }

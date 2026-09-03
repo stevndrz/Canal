@@ -101,7 +101,14 @@ function EnEmision({ canal }: { canal: Channel }) {
       </div>
       <strong>{canal.currentProgram}</strong>
       {progreso !== null && (
-        <span className="livetv-progress">
+        <span
+          className="livetv-progress"
+          role="progressbar"
+          aria-valuenow={Math.round(progreso)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${canal.currentProgram}, ${Math.round(progreso)}% emitido`}
+        >
           <span style={{ width: `${progreso}%` }} />
         </span>
       )}

@@ -27,6 +27,7 @@ import {
 } from "@/lib/canales-empaquetados";
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { useMarcado } from "@/hooks/use-marcado";
+import { salirDeLaApp } from "@/lib/salir-de-la-app";
 import {
   usePersistedJson,
   usePersistedRecents,
@@ -72,6 +73,7 @@ const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
 export function Dashboard({
   paquete,
   catalog,
+  esTV,
 }: {
   /**
    * Los canales, en formato de transporte. Ver `canales-empaquetados.ts`: no
@@ -80,6 +82,15 @@ export function Dashboard({
    */
   paquete: PaqueteCanales;
   catalog: FilaDeTarjetas[];
+  /**
+   * ¿Es el cascarón de Android TV o Tizen, o su navegador? Decidido en el
+   * servidor con `esTelevisorUA` (ver `app/page.tsx`) y no aquí: si se leyera
+   * `navigator.userAgent` en el cliente, el primer render del servidor
+   * pintaría Inicio, el primero del cliente pintaría el reproductor, y React
+   * marcaría un fallo de hidratación por una rama del árbol entera —Inicio
+   * contra pantalla completa no son primos, son otra pantalla.
+   */
+  esTV: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,12 +140,22 @@ export function Dashboard({
    */
   const channels = useMemo(() => desempaquetarCanales(datos), [datos]);
 
-  // Arranca en Inicio: la pantalla completa es una decisión, no la puerta de
-  // entrada. `?vista=` deja que una ruta de fuera del shell —`/peliculas`—
-  // pida una sección concreta al volver.
+  /**
+   * En un navegador, Inicio: la pantalla completa es una decisión, no la
+   * puerta de entrada.
+   *
+   * En el cascarón de un televisor, al revés. Ahí no hay nada más que ver:
+   * quien abre la app quiere el canal puesto, no una portada con rieles que
+   * hay que recorrer con el mando para llegar al mismo sitio. Salir de la
+   * pantalla completa (Atrás) sigue llevando a Inicio como siempre —el menú
+   * entero sigue a un botón de distancia, no se ha quitado nada—.
+   *
+   * `?vista=` manda sobre las dos: deja que una ruta de fuera del shell
+   * —`/peliculas`— pida una sección concreta al volver.
+   */
   const vistaPedida = searchParams.get("vista") as ViewId | null;
   const [view, setView] = useState<ViewId>(
-    vistaPedida && vistaPedida !== "player" ? vistaPedida : "home",
+    vistaPedida && vistaPedida !== "player" ? vistaPedida : esTV ? "player" : "home",
   );
 
   /**
@@ -336,6 +357,17 @@ export function Dashboard({
       navigate(lastView === "player" ? "canales" : lastView);
     } else if (view !== "home") {
       navigate("home");
+    } else {
+      /**
+       * En Inicio ya no hay adónde volver, y en un navegador eso está bien:
+       * la pestaña se cierra sola.
+       *
+       * Empaquetada en un televisor, no: el mando no tiene más salida que
+       * Atrás, y comérsela aquí obliga a apagar la tele para salir. Samsung
+       * además lo exige para publicar. En el navegador `salirDeLaApp`
+       * devuelve `false` y esto sigue sin hacer nada, que es lo correcto ahí.
+       */
+      salirDeLaApp();
     }
   }, [view, lastView, navigate]);
 

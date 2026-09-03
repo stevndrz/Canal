@@ -165,6 +165,7 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
       logoUrl,
       streamUrl,
     };
+
     return guia ? Object.assign(canal, guia) : canal;
   });
 }

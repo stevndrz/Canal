@@ -16,8 +16,10 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
+import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { useReloj } from "@/hooks/use-reloj";
 import { useCast } from "@/hooks/use-cast";
 
@@ -205,6 +207,20 @@ export function FullscreenPlayer({
   );
 
   /**
+   * Deshace el estado entero: la pantalla completa del navegador, si se
+   * concedió, y la vista inmersiva. Salir a medias dejaba al navegador en
+   * fullscreen enseñando la navegación por debajo.
+   *
+   * Un solo sitio para el botón «Salir» de la barra Y la tecla Atrás: antes
+   * solo el botón lo hacía —la pista en pantalla decía «Atrás salir» y era
+   * mentira, esa tecla no hacía nada—.
+   */
+  const salir = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    onExit();
+  }, [onExit]);
+
+  /**
    * El mando manda:
    *
    *   ↑ ↓        cambiar de canal
@@ -219,6 +235,15 @@ export function FullscreenPlayer({
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Atrás se mira ANTES que nada, con nombre Y con código: Tizen la manda
+      // como 10009 y no como "Escape", y `event.key` por sí solo no la
+      // habría reconocido nunca. Ver `esTeclaAtras`.
+      if (esTeclaAtras(event)) {
+        event.preventDefault();
+        salir();
+        return;
+      }
+
       const enLaBarra = (document.activeElement as HTMLElement | null)?.closest(".player-bar");
 
       switch (event.key) {
@@ -253,10 +278,6 @@ export function FullscreenPlayer({
           if (showGuide) setShowGuide(false);
           else openGuide();
           return;
-        case "MediaPlayPause":
-        case "MediaPlay":
-        case "MediaPause":
-        case "MediaStop":
         case " ":
         case "k":
           event.preventDefault();
@@ -269,13 +290,46 @@ export function FullscreenPlayer({
           wake();
           return;
         default:
+          break;
+      }
+
+      /**
+       * Las teclas del mando que llegan SIN nombre.
+       *
+       * Va DESPUÉS del `switch` de arriba y no dentro: en Tizen 4 y 5
+       * `event.key` viene "Unidentified" para reproducir/pausar/parar y para
+       * los botones de canal, así que ningún `case` por nombre las habría
+       * alcanzado. Ver `teclas-mando.ts` para la tabla de códigos.
+       */
+      switch (accionDeTecla(event)) {
+        // Parar hace lo mismo que pausar, a propósito: esto es una emisión en
+        // directo y no un archivo con principio, así que detenerla del todo
+        // dejaría un rectángulo negro sin ninguna forma de recuperarlo con
+        // el mando.
+        case "reproducir":
+        case "parar":
+          event.preventDefault();
+          playerRef.current?.togglePlay();
+          wake();
+          return;
+        // Los botones de canal del mando hacen lo mismo que ↑ y ↓: es lo que
+        // dice el dibujo de la tecla, y no tiene sentido que zapeen distinto.
+        case "canal-arriba":
+          event.preventDefault();
+          zap(-1);
+          return;
+        case "canal-abajo":
+          event.preventDefault();
+          zap(1);
+          return;
+        default:
           wake();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zap, showGuide, openGuide, wake, moverFoco]);
+  }, [zap, showGuide, openGuide, wake, moverFoco, salir]);
 
   /**
    * Al esconderse la barra, soltar el foco.
@@ -352,13 +406,7 @@ export function FullscreenPlayer({
           onNext={() => zap(1)}
           fullscreen={{
             active: true,
-            onToggle: () => {
-              // Deshace el estado entero: la pantalla completa del navegador,
-              // si se concedió, y la vista inmersiva. Salir a medias dejaba al
-              // navegador en fullscreen enseñando la navegación por debajo.
-              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-              onExit();
-            },
+            onToggle: salir,
           }}
           extras={[
             {
