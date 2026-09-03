@@ -808,8 +808,8 @@ html[data-player="on"] body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent);
+  padding: clamp(12px, 2.5vh, 24px) clamp(14px, 3vw, 32px) clamp(24px, 4vh, 40px);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.7) 0%, transparent 100%);
   pointer-events: none;
 }
 
@@ -916,19 +916,24 @@ html[data-player="on"] body {
   -webkit-backdrop-filter: blur(12px);
 }
 
+/* De cristal, no un disco blanco sólido: la misma familia que los botones de
+   la fila de abajo, solo que más grande y centrada. Un círculo blanco entero
+   a media pantalla competía con la imagen; este se funde con ella. */
 .atv-play-central {
   position: absolute;
   inset: 0;
   z-index: 15;
   margin: auto;
   display: grid;
-  width: 84px;
-  height: 84px;
+  width: clamp(56px, 9vw, 80px);
+  height: clamp(56px, 9vw, 80px);
   place-items: center;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.96);
-  color: #000;
-  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  border: 1.5px solid rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: transform 180ms ease, background 180ms ease, opacity 280ms ease;
 }
 
@@ -939,34 +944,43 @@ html[data-player="on"] body {
 
 .atv-play-central:hover {
   transform: scale(1.06);
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.atv-play-central:focus-visible,
+[data-input="dpad"] .atv-play-central:focus {
+  outline: none;
   background: #fff;
+  color: #000;
+  border-color: transparent;
 }
 
 .atv-barra {
   bottom: 0;
-  padding: 0 14px 12px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 20%, transparent);
+  padding: 0 clamp(14px, 3vw, 32px) clamp(12px, 2vh, 20px);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.4) 65%, transparent 100%);
 }
 
 .atv-progreso-fila {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 4px 10px;
+  padding: 0 2px 10px;
 }
 
+/* Actual/duración, en la fila de botones y no flanqueando el riel — el riel
+   va solo, de borde a borde. */
 .atv-tiempo {
   flex-shrink: 0;
-  min-width: 44px;
-  font-size: 12px;
-  font-weight: 600;
+  padding: 0 6px;
+  font-size: 13px;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.75);
 }
 
-.atv-tiempo.is-total {
-  color: rgba(255, 255, 255, 0.6);
+.atv-tiempo-sep {
+  margin: 0 4px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 .atv-riel {
@@ -990,18 +1004,17 @@ html[data-player="on"] body {
 }
 
 .atv-riel-fondo {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 .atv-riel-buffer {
   width: 0;
-  background: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.18);
 }
 
 .atv-riel-valor {
   width: 0;
-  background: #fff;
-  box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .atv-riel:hover .atv-riel-fondo,
@@ -1053,18 +1066,14 @@ html[data-player="on"] body {
   pointer-events: none;
 }
 
+/* Sin panel propio a propósito: los botones van directo sobre el degradado
+   de `.atv-barra`, como un reproductor nativo — no una barra de herramientas
+   flotando encima del vídeo. */
 .atv-fila {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(18, 18, 22, 0.62);
-  padding: 8px 10px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .atv-grupo {
@@ -1091,8 +1100,13 @@ html[data-player="on"] body {
 }
 
 .atv-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.2);
   transform: scale(1.06);
+}
+
+.atv-btn:active {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(0.9);
 }
 
 .atv-btn:focus-visible,
@@ -1103,16 +1117,33 @@ html[data-player="on"] body {
   transform: scale(1.08);
 }
 
+/* El primario: de cristal y más grande, no blanco sólido — es un círculo
+   más entre círculos, con más peso, no un botón de otra familia. */
 .atv-btn.is-play {
-  width: 46px;
-  height: 46px;
-  margin-inline: 2px;
-  background: #fff;
-  color: #000;
+  width: 56px;
+  height: 56px;
+  margin-inline: 4px;
+  border: 1.5px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
 .atv-btn.is-play:hover {
-  background: #e8e8ea;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Sin esto, el foco del mando se pierde: `.atv-btn.is-play` viene DESPUÉS de
+   `.atv-btn:focus-visible` en la hoja, misma especificidad — su cristal
+   ganaría en silencio sobre el blanco de foco justo en el botón que más
+   hace falta ver desde el sofá. */
+.atv-btn.is-play:focus-visible,
+[data-input="dpad"] .atv-btn.is-play:focus {
+  background: #fff;
+  color: #000;
+  border-color: transparent;
 }
 
 .atv-btn.is-activo {
