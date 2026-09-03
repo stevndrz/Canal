@@ -3,7 +3,6 @@
 import { useRouter } from "next/navigation";
 import { AjustesView } from "@/components/views/ajustes-view";
 import { BuscarView } from "@/components/views/buscar-view";
-import { FavoritosView } from "@/components/views/favoritos-view";
 import { FuenteView } from "@/components/views/fuente-view";
 import { HomeView } from "@/components/views/home-view";
 import { LiveTvView } from "@/components/livetv/live-tv-view";
@@ -101,16 +100,6 @@ export function VistaActiva(props: VistaActivaProps) {
           onSelect={props.onSelect}
           onTune={props.onTune}
           onToggleFavorite={props.favorites.toggle}
-        />
-      );
-
-    case "favoritos":
-      return (
-        <FavoritosView
-          channels={props.channels}
-          favorites={props.favorites.ids}
-          tunedId={props.tuned?.id ?? null}
-          onTune={props.onTune}
         />
       );
 

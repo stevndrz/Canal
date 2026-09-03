@@ -408,6 +408,16 @@ html[data-player="on"] body {
    el vídeo cuesta caro; además esa disposición —imagen arriba, botones grandes
    abajo— es la que hace que se lea como un mando para pasar el canal a la tele. */
 @media (min-width: 681px) {
+  /**
+   * Siempre visible, no al pasar el ratón.
+   *
+   * Antes aparecía solo con `:hover`/`:focus-within`, y al acercarse el
+   * ratón la información se veía "salirse" del marco de la tarjeta — con
+   * mando no hay cursor que la revele nunca, así que en la práctica solo
+   * funcionaba para quien usa ratón, y encima con ese defecto. Visible
+   * siempre es lo que ya hacía el teléfono (ver `max-width: 680px` abajo) y
+   * es lo correcto para una app que se controla sobre todo con mando.
+   */
   .live-card-marco .player-bar.is-embedded {
     position: absolute;
     left: 50%;
@@ -417,18 +427,6 @@ html[data-player="on"] body {
     width: max-content;
     /* Sin fondo propio: la barra ya es su propia píldora de cristal. */
     max-width: calc(100% - 24px);
-    opacity: 0;
-    transition: opacity 200ms ease, transform 200ms ease;
-    pointer-events: none;
-  }
-
-  /* Aparece al acercarse con el ratón o al enfocar con el mando. `:focus-within`
-     es lo que evita que el mando se quede navegando a ciegas por una barra
-     invisible. */
-  .live-card-marco:hover .player-bar.is-embedded,
-  .live-card-marco:focus-within .player-bar.is-embedded {
-    opacity: 1;
-    pointer-events: auto;
   }
 }
 
@@ -1414,14 +1412,13 @@ html[data-player="on"] body {
   padding: clamp(6px, 0.9vh, 10px) clamp(8px, 1vw, 14px);
 }
 
+/* El tamaño real (40/48px) vive en el bloque "Tamaños finales de la
+   botonera" de más abajo, a propósito: es el único sitio que fija
+   width+height —lo que da un círculo de verdad— y no quería un segundo
+   `min-height`/`min-width` aquí discutiéndoselo. Solo queda lo que ese
+   bloque no cubre: el tamaño de letra. */
 .player-bar.is-embedded .player-btn {
-  min-height: 40px;
-  min-width: 40px;
   font-size: clamp(10px, 0.7vw, 12px);
-}
-
-.player-bar.is-embedded .player-btn.is-primary {
-  min-height: 46px;
 }
 
 .player-bar.is-embedded .player-btn.is-extra.is-mode {
