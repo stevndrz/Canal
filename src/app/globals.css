@@ -632,6 +632,480 @@ html[data-player="on"] body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
+/* ── Reproductor web estilo Apple TV ───────────────────────────────────
+   Cristal oscuro flotante sobre el vídeo, riel de progreso con zona
+   amortiguada y botonera circular. La barra se esconde sola (ver
+   `native-player.tsx`): aquí solo el aspecto y las transiciones. */
+.atv {
+  cursor: default;
+}
+
+.atv-oculto {
+  cursor: none;
+}
+
+.atv-top,
+.atv-barra {
+  position: absolute;
+  inset-inline: 0;
+  z-index: 20;
+  opacity: 1;
+  transition: opacity 280ms ease, transform 280ms ease;
+}
+
+.atv-oculto .atv-top,
+.atv-oculto .atv-barra {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.atv-oculto .atv-top {
+  transform: translateY(-8px);
+}
+
+.atv-oculto .atv-barra {
+  transform: translateY(10px);
+}
+
+.atv-top {
+  top: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.62), transparent);
+  pointer-events: none;
+}
+
+.atv-top-titulo {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.atv-top-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.6);
+}
+
+.atv-top-version {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.atv-top-marcas {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.atv-marca {
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.12);
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.atv-marca.is-verde {
+  border-color: rgba(48, 209, 88, 0.5);
+  background: rgba(48, 209, 88, 0.22);
+  color: #b8f5c9;
+}
+
+.atv-subtitulo {
+  white-space: pre-line;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.72);
+  padding: 4px 14px;
+  text-align: center;
+  font-size: clamp(15px, 1.6vw, 22px);
+  font-weight: 600;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.atv-alerta {
+  position: absolute;
+  inset-inline: 12px;
+  top: 64px;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 69, 58, 0.35);
+  background: rgba(40, 6, 6, 0.82);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: #ffd9d6;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.atv-alerta-cerrar {
+  flex-shrink: 0;
+  border-radius: 8px;
+  padding: 4px;
+  color: #ffb3ae;
+  transition: background 150ms ease;
+}
+
+.atv-alerta-cerrar:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.atv-carga {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.atv-play-central {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  margin: auto;
+  display: grid;
+  width: 84px;
+  height: 84px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96);
+  color: #000;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  transition: transform 180ms ease, background 180ms ease, opacity 280ms ease;
+}
+
+.atv-oculto .atv-play-central {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.atv-play-central:hover {
+  transform: scale(1.06);
+  background: #fff;
+}
+
+.atv-barra {
+  bottom: 0;
+  padding: 0 14px 12px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72) 20%, transparent);
+}
+
+.atv-progreso-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px 10px;
+}
+
+.atv-tiempo {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.7);
+}
+
+.atv-tiempo.is-total {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.atv-riel {
+  position: relative;
+  flex: 1;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.atv-riel-fondo,
+.atv-riel-buffer,
+.atv-riel-valor {
+  position: absolute;
+  inset-inline: 0;
+  height: 5px;
+  border-radius: 999px;
+  transition: height 150ms ease;
+}
+
+.atv-riel-fondo {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.atv-riel-buffer {
+  width: 0;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.atv-riel-valor {
+  width: 0;
+  background: #fff;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
+}
+
+.atv-riel:hover .atv-riel-fondo,
+.atv-riel:hover .atv-riel-buffer,
+.atv-riel:hover .atv-riel-valor,
+.atv-riel:focus-visible .atv-riel-fondo,
+.atv-riel:focus-visible .atv-riel-buffer,
+.atv-riel:focus-visible .atv-riel-valor {
+  height: 7px;
+}
+
+.atv-riel:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 4px;
+  border-radius: 999px;
+}
+
+.atv-riel-pomo {
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  transform: translateY(-50%) scale(0);
+  transition: transform 150ms ease;
+}
+
+.atv-riel:hover .atv-riel-pomo,
+.atv-riel:focus-visible .atv-riel-pomo {
+  transform: translateY(-50%) scale(1);
+}
+
+.atv-riel-previa {
+  position: absolute;
+  bottom: calc(100% + 2px);
+  transform: translateX(-50%);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.atv-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(18, 18, 22, 0.62);
+  padding: 8px 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+.atv-grupo {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.atv-grupo.is-derecha {
+  margin-left: auto;
+}
+
+.atv-btn {
+  position: relative;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.92);
+  transition: background 150ms ease, transform 150ms ease, color 150ms ease;
+}
+
+.atv-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: scale(1.06);
+}
+
+.atv-btn:focus-visible,
+[data-input="dpad"] .atv-btn:focus {
+  outline: none;
+  background: #fff;
+  color: #000;
+  transform: scale(1.08);
+}
+
+.atv-btn.is-play {
+  width: 46px;
+  height: 46px;
+  margin-inline: 2px;
+  background: #fff;
+  color: #000;
+}
+
+.atv-btn.is-play:hover {
+  background: #e8e8ea;
+}
+
+.atv-btn.is-activo {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+.atv-btn.is-verde {
+  color: #30d158;
+  background: rgba(48, 209, 88, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(48, 209, 88, 0.45);
+}
+
+.atv-punto {
+  position: absolute;
+  top: 7px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.atv-volumen {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.atv-volumen-riel {
+  width: 0;
+  height: 20px;
+  opacity: 0;
+  accent-color: #fff;
+  cursor: pointer;
+  transition: width 200ms ease, opacity 200ms ease, margin 200ms ease;
+}
+
+.atv-volumen:hover .atv-volumen-riel,
+.atv-volumen:focus-within .atv-volumen-riel {
+  width: 72px;
+  margin-left: 2px;
+  opacity: 1;
+}
+
+.atv-menu {
+  position: absolute;
+  right: 14px;
+  bottom: calc(100% - 64px);
+  z-index: 30;
+  min-width: 220px;
+  max-width: calc(100% - 28px);
+  max-height: 240px;
+  overflow-y: auto;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(22, 22, 26, 0.92);
+  padding: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+.atv-menu-titulo {
+  margin: 0;
+  padding: 8px 12px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.atv-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  transition: background 120ms ease;
+}
+
+.atv-menu-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.atv-menu-item:focus-visible,
+[data-input="dpad"] .atv-menu-item:focus {
+  outline: none;
+  background: #fff;
+  color: #000;
+}
+
+.atv-menu-item.is-elegido {
+  font-weight: 700;
+  color: #fff;
+}
+
+.atv-menu-item.is-elegido:focus-visible,
+[data-input="dpad"] .atv-menu-item.is-elegido:focus {
+  color: #000;
+}
+
+@media (max-width: 640px) {
+  .atv-btn.is-opcional {
+    display: none;
+  }
+
+  .atv-volumen-riel {
+    display: none;
+  }
+
+  .atv-top-nombre {
+    font-size: 13px;
+  }
+
+  .atv-play-central {
+    width: 68px;
+    height: 68px;
+  }
+}
+
 /* ── La barra de tiempo de «Mi enlace» ───────────────────────────────── */
 .player-barra-tiempo {
   display: flex;
