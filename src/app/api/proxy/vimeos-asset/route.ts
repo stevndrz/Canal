@@ -1,8 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { publicConfig } from "@/lib/config";
 
-export const dynamic = "force-dynamic";
-export const runtime = "nodejs";
+/**
+ * No exporta `dynamic` ni `runtime`: con `cacheComponents` activo (ver
+ * `next.config.ts`) esas dos directivas están reñidas con el build de
+ * Turbopack. El proxy ya hace `fetch` con `cache: "no-store"` implícito
+ * al no tener caché compartida, y corre en el runtime por defecto.
+ */
 
 const VIMEOS_BASE = "https://vimeos.net";
 const VIMEUS_REFERER = "https://vimeus.com/";
