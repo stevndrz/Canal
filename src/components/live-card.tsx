@@ -154,7 +154,7 @@ export function LiveCard({
            escritorio; con mando y con el dedo está el botón. */}
       <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/60 backdrop-blur shadow-xl shadow-black/40">
         <div
-          className="live-card-video hover:scale-105 transition-transform duration-200 border border-white/10 bg-black"
+          className="live-card-video border border-white/10 bg-black"
           onClick={alTocar}
           onDoubleClick={expandir}
         >
@@ -206,7 +206,6 @@ export function LiveCard({
           fullscreen={{ active: false, onToggle: expandir }}
           big={settings.bigControls}
           extras={transmision}
-          meta={{ canal: channel.name, enVivo: true }}
         />
       </div>
 
@@ -227,7 +226,7 @@ export function LiveCardSkeleton() {
   return (
     <section className="live-card" aria-hidden="true">
       <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/60 backdrop-blur shadow-xl">
-        <div className="live-card-video is-cargando hover:scale-105 transition-transform duration-200 border border-white/10" />
+        <div className="live-card-video is-cargando border border-white/10" />
       </div>
     </section>
   );
