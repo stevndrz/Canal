@@ -752,9 +752,9 @@ export const NativePlayer = memo(function NativePlayer({
       {/* ── Barra inferior estilo Apple TV ─────────────────────────── */}
       {!hasError && (
         <div className="atv-barra">
-          {/* Progreso: tiempo actual · riel buscable · duración */}
+          {/* El riel solo, sin el tiempo flanqueándolo: el tiempo vive en la
+              fila de botones (a la derecha, junto a pantalla completa). */}
           <div className="atv-progreso-fila">
-            <span className="atv-tiempo">{formatTime(scrubPreview ?? currentTime)}</span>
             <div
               ref={progressRef}
               data-nav="input"
@@ -802,7 +802,6 @@ export const NativePlayer = memo(function NativePlayer({
                 </span>
               )}
             </div>
-            <span className="atv-tiempo is-total">{formatTime(duration)}</span>
           </div>
 
           {/* Botonera */}
@@ -877,6 +876,12 @@ export const NativePlayer = memo(function NativePlayer({
             </div>
 
             <div className="atv-grupo is-derecha">
+              <span className="atv-tiempo">
+                {formatTime(scrubPreview ?? currentTime)}
+                <span className="atv-tiempo-sep">/</span>
+                {formatTime(duration)}
+              </span>
+
               {/* Versiones del mismo título (doblajes, calidades) */}
               {streams.length > 1 && (
                 <button
