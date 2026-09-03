@@ -303,6 +303,13 @@ function ReproductorCatalogo({
   }, [activo?.id, descartar]);
 
   /**
+   * Lo que va al `src` del iframe. Para `vimeus` apunta al proxy propio
+   * (`/api/proxy/vimeus`) que limpia los scripts de anuncios; para los demás
+   * proveedores coincide con `url`.
+   */
+  const urlIframe = activo?.urlEmbed ?? activo?.url ?? "";
+
+  /**
    * La lista de streams debe conservar la identidad entre renders. El
    * reproductor rearranca la emisión cuando cambia el objeto `stream` que
    * recibe; recrear el array inline en cada render —cuando llega la lista de
@@ -369,7 +376,7 @@ function ReproductorCatalogo({
               // el historial del anterior, y con él su bucle de recargas.
               key={activo.id}
               ref={marcoRef}
-              src={activo.url}
+              src={urlIframe}
               title={titulo}
               onLoad={alCargarMarco}
               /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta

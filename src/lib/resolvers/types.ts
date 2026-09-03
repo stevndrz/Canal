@@ -15,6 +15,13 @@ export interface ServidorStream {
   /** Lo que se lee en el botón ("Servidor 1", "Servidor 2"). */
   label: string;
   url: string;
+  /**
+   * URL que va al `src` del iframe. En general coincide con `url`, pero
+   * `vimeus` se sirve del proxy propio para que sus scripts de anuncios no
+   * lleguen al reproductor. `disponibilidad.ts` usa `url` porque la
+   * comprobación 404/500 debe ir contra el origen real.
+   */
+  urlEmbed?: string;
   tipo?: "embed" | "video";
   /**
    * El proveedor esconde su reproductor tras una comprobación antirrobot que
