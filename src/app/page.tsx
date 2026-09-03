@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { headers } from "next/headers";
 import { Dashboard } from "@/components/dashboard";
 import { EsqueletoSuperior } from "@/components/esqueleto-superior";
 import { EsqueletoPortada } from "@/components/esqueleto-portada";
@@ -16,6 +17,7 @@ import { paqueteDeCanales } from "@/lib/lista-canales";
 import { serverConfig } from "@/lib/config.server";
 import { publicConfig } from "@/lib/config";
 import { normalizeChannelName } from "@/lib/text";
+import { esTelevisorUA } from "@/lib/dispositivo";
 
 /**
  * Sin `dynamic = "force-dynamic"`: bajo `cacheComponents` sobra, y el armazón
@@ -71,6 +73,14 @@ function loJusto(paquete: PaqueteCanales): PaqueteCanales {
 async function Portada() {
   const { paquete } = await paqueteDeCanales();
 
+  /**
+   * Solo el cascarón de un televisor arranca directo en el canal: quien lo
+   * abre no quiere una portada que recorrer con el mando, quiere lo que ya
+   * estaba viendo. En un navegador —también el de un televisor visitado a
+   * mano, sin el cascarón— sigue siendo Inicio. Ver `esTelevisorUA`.
+   */
+  const esTV = esTelevisorUA((await headers()).get("user-agent") ?? "");
+
   // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
   // envuelto porque son peticiones a TMDB: si la clave falta o la API se cae,
   // Inicio se queda con los canales —que es lo que de verdad importa en esta
@@ -95,7 +105,7 @@ async function Portada() {
     tarjetas: seccion.items.map(catalogToCard),
   }));
 
-  return <Dashboard paquete={loJusto(paquete)} catalog={filas} />;
+  return <Dashboard paquete={loJusto(paquete)} catalog={filas} esTV={esTV} />;
 }
 
 export default function HomePage() {

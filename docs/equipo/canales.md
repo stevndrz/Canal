@@ -43,6 +43,35 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-02 (tercera pasada) — Arranca en el canal, y una rama entera que se quedó varada
+
+Motivo: probando el APK real en una TV, «es imposible moverme con los
+controles de la app y del reproductor». Dos cosas, no una.
+
+- **`esTelevisorUA` (ya existía, decidido en el servidor) ahora también
+  decide la vista de arranque** en `dashboard.tsx`: en un navegador sigue
+  Inicio, en el cascarón de un televisor arranca directo en el canal a
+  pantalla completa. Atrás sigue llevando al menú entero — no se quita nada,
+  solo cambia la puerta de entrada. `esTV` viaja como prop desde
+  `app/page.tsx` (con `headers()`) y no se lee `navigator` en el cliente:
+  hacerlo así habría hidratado Inicio en el servidor y pantalla completa en
+  el cliente, un fallo de hidratación de una rama del árbol entera.
+- **El hallazgo real**: había una rama —`claude/white-box-tv-pc-bug-qewtf1`—
+  con seis commits *después* de su propio PR ya fusionado, que nunca llegó a
+  `main`. Ahí vivían `teclas-mando.ts` (códigos de mando para Tizen 4/5,
+  donde `event.key` llega "Unidentified") y `salir-de-la-app.ts` (Atrás en
+  Inicio cierra la app, no se queda sin salida). Se rescataron tal cual, con
+  sus pruebas — pero **no** su versión de `handleBack`/dígitos, que en esa
+  rama era anterior a `useMarcado` y lo habría hecho retroceder.
+- **Un bug de verdad, ni siquiera en la rama vieja**: la pista en pantalla de
+  `fullscreen-player.tsx` decía «Atrás salir» desde siempre y era mentira —
+  esa tecla no estaba conectada a nada. Ver `reproduccion.md`.
+
+`npm run typecheck`, `lint` de los archivos tocados y los 300 tests, todos
+limpios. Verificado con Playwright y un User-Agent de Android TV simulado:
+arranca en el canal, Escape saca a Inicio con el menú completo, y sin ese
+UA la web sigue exactamente igual que antes.
+
 ### 2026-09-02 — Pasada de mejoras: accesibilidad, esqueleto, navegación de horas, recientes
 
 Cinco cambios, cinco commits:
