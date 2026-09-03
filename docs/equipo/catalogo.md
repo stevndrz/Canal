@@ -39,6 +39,37 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-02 — Modo cine: el reproductor ocupa la pantalla, pero solo en TV
+
+Pedido explícito: en el cascarón de un televisor, seleccionar un título tiene
+que abrir el reproductor a pantalla completa —como un canal en vivo—, no
+compartir sitio con la carátula. En un navegador, la ficha se queda
+exactamente como estaba.
+
+- **Un estado, no una ruta.** `TitleDetail` guarda `modoCine` (arranca en
+  `enTelevisor`, que decide el servidor con el User-Agent). `FichaReproductor`
+  sigue montado en el MISMO sitio del árbol al entrar y salir del modo cine
+  —solo cambia la clase de su contenedor, `.ficha-reproductor-slot` ↔
+  `.ficha-cine`—, así que el vídeo no se reinicia ni el iframe del proveedor
+  se recarga.
+- **`.ficha-cuerpo` se partió en dos** (`ficha-reproductor-slot` +
+  `ficha-cuerpo`): antes envolvía reproductor+sinopsis+episodios con un solo
+  ancho de 1440px; separarlos es lo que le permite al reproductor salirse a
+  pantalla completa sin llevarse el resto. El padding se repartió tal cual
+  estaba (arriba para uno, abajo para el otro) para no cambiar nada en modo
+  normal.
+- **`NavegacionCatalogo` ahora acepta un `onBack` propio.** Por defecto sigue
+  yendo a Inicio (como hacía siempre en el catálogo); en modo cine, Atrás
+  cierra el reproductor grande y enseña la ficha de siempre — la segunda
+  pulsación de Atrás, ya en la ficha normal, vuelve a ser la de siempre.
+- **Elegir otro episodio en TV vuelve a llenar la pantalla** con él: es la
+  misma acción que abrir el título la primera vez, no una excepción.
+- **Sin probar con un título real**: este sandbox no tiene `TMDB_API_KEY`
+  configurada, así que el catálogo sale vacío y toda ficha da 404. El código
+  pasa `typecheck`/`lint`/tests y sigue el mismo patrón ya verificado en vivo
+  para canales, pero **queda pendiente mirarlo en el preview real** (que sí
+  tiene la clave) antes de darlo por bueno del todo.
+
 ### 2026-09-02 — Pasada de mejoras: error.tsx, Mi lista, Seguir viendo, tráiler, IMDB, recomendados
 
 Seis cambios en cuatro PRs sobre el mismo diagnóstico: había datos que TMDB ya

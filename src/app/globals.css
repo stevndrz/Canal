@@ -1463,12 +1463,95 @@ html[data-player="on"] body {
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
 
+/**
+ * `.ficha-reproductor-slot` y `.ficha-cuerpo` reparten lo que antes era un
+ * único contenedor: el reproductor por un lado, sinopsis/reparto/episodios
+ * por otro. Se separaron para que en modo cine (TV, ver `title-detail.tsx`)
+ * el reproductor pueda salirse a pantalla completa **sin** llevarse consigo
+ * el ancho de 1440px ni el relleno pensado para texto — y sin desmontarlo,
+ * que reiniciaría el vídeo. El padding se repartió tal cual estaba: arriba
+ * para el primero, abajo para el segundo, ninguno de los dos de más.
+ */
+.ficha-reproductor-slot {
+  width: min(1440px, 100%);
+  margin-inline: auto;
+  padding: clamp(12px, 2vh, 24px) var(--margen) 0;
+}
+
 .ficha-cuerpo {
   /* Columna más ancha: el reproductor aprovecha mejor el horizontal en
      pantallas grandes en vez de quedar acotado a 1200px. */
   width: min(1440px, 100%);
   margin-inline: auto;
-  padding: clamp(12px, 2vh, 24px) var(--margen) clamp(40px, 6vh, 80px);
+  padding: 0 var(--margen) clamp(40px, 6vh, 80px);
+}
+
+/**
+ * Modo cine: el reproductor ES la pantalla, como un canal en vivo. Solo se
+ * activa en el cascarón de un televisor (`enTelevisor`, decidido en el
+ * servidor) y solo mientras `modoCine` está en `true` — Atrás lo cierra y
+ * vuelve a la ficha de siempre, nunca desaparece del todo.
+ */
+.ficha-cine {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  background: #000;
+}
+
+.ficha-cine .ficha-reproductor {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.ficha-cine .ficha-conjunto {
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ficha-cine .ficha-marco {
+  flex: 1;
+  aspect-ratio: auto;
+  border-radius: 0;
+}
+
+/* El enlace propio (`NativePlayer`, "Mi enlace") no pasa por `.ficha-marco`:
+   pinta su propio contenedor de 16:9 con la utilidad `aspect-video` de
+   Tailwind. Sin capa, esta regla la gana igual — ver la nota de capas al
+   principio del archivo. */
+.ficha-cine .player-surface {
+  aspect-ratio: auto;
+  height: 100%;
+}
+
+.ficha-cine-salir {
+  position: absolute;
+  top: clamp(14px, 2vh, 24px);
+  left: clamp(14px, 2vw, 28px);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--color-mission-line);
+  border-radius: 999px;
+  background: rgba(6, 7, 9, 0.85);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ficha-cine-salir:hover,
+.ficha-cine-salir:focus-visible {
+  background: var(--color-mission);
+  color: #0a0a0a;
+  border-color: transparent;
 }
 
 .ficha-reproductor {
