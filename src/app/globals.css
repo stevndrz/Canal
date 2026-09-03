@@ -1387,47 +1387,6 @@ html[data-player="on"] body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
-/* Los módulos: etiqueta en versalitas arriba, valor abajo, y una línea fina
-   entre uno y otro en vez de píldoras flotando. Es la diferencia entre un
-   instrumento y una fila de botones. */
-.panel-modulos {
-  display: flex;
-  align-items: stretch;
-  flex-shrink: 0;
-  margin-left: clamp(12px, 1.4vw, 28px);
-}
-
-.panel-modulo {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding-left: clamp(10px, 1vw, 18px);
-  padding-right: clamp(10px, 1vw, 18px);
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
-  text-align: right;
-  white-space: nowrap;
-}
-
-.panel-modulo:last-child {
-  padding-right: 0;
-}
-
-.panel-modulo small {
-  font-family: var(--font-mono);
-  font-size: clamp(9px, 0.62vw, 11px);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-.panel-modulo b {
-  margin-top: 2px;
-  font-family: var(--font-mono);
-  font-size: clamp(13px, 1vw, 16px);
-  font-weight: 600;
-}
-
 /* El programa. Con guía, cuánto lleva; sin ella, una regla que no afirma nada
    que no se sepa. Nunca desaparece del todo: si apareciera y desapareciera
    según el canal traiga EPG, la cabecera cambiaría de alto al zapear. */
@@ -1481,22 +1440,13 @@ html[data-player="on"] body {
   margin-top: clamp(12px, 1.1vw, 20px);
 }
 
-/* En teléfono no cabe todo en una fila: los módulos bajan y el nombre del
-   canal se queda con el ancho entero, que es el dato que más se mira. */
+/* En teléfono, el nombre del canal se queda con el ancho entero si hace
+   falta: es el dato que más se mira. */
 @media (max-width: 720px) {
   .panel-canal {
     flex: 1 1 100%;
     order: 2;
     margin-top: 6px;
-  }
-
-  .panel-modulos {
-    margin-left: auto;
-  }
-
-  .panel-modulo {
-    padding-left: 10px;
-    padding-right: 10px;
   }
 }
 
