@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -127,6 +128,22 @@ const StreamPlayer = memo(
     }>({});
 
     const streamUrl = channel.streamUrl;
+
+    /**
+     * Pausa síncrona al ocultarse. Mismo motivo que en `native-player.tsx`:
+     * `cacheComponents` oculta la vista en vez de desmontarla (`<Activity>`,
+     * `display:none`), y eso no para un `<video>`. Sin esto, al abrir una
+     * ficha desde Canales, el canal seguía sonando de fondo mientras la
+     * película ya arrancaba encima. La limpieza completa (destruir hls/mpegts,
+     * soltar el `src`) se queda en el efecto de abajo; aquí solo se adelanta
+     * lo que sí tiene que ser inmediato: que deje de sonar.
+     */
+    useLayoutEffect(() => {
+      const video = videoRef.current;
+      return () => {
+        video?.pause();
+      };
+    }, []);
 
     /**
      * «Arrancar con sonido» es una preferencia de ARRANQUE, y se lee por `ref`.
