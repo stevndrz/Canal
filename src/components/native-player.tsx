@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Hls from "hls.js";
 import {
   Airplay,
@@ -97,6 +97,24 @@ export const NativePlayer = memo(function NativePlayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<Hls | null>(null);
+
+  /**
+   * Pausa síncrona al ocultarse.
+   *
+   * Con `cacheComponents` activado (ver `next.config.ts`), Next no desmonta
+   * la ficha al navegar a otra sección: la oculta con `<Activity>`, que es
+   * `display:none` conservando el DOM. Eso no para un `<video>` — la limpieza
+   * de más abajo sí lo hace, pero vive en un `useEffect` normal, que corre
+   * DESPUÉS de pintar. Mientras tanto la película seguía sonando de fondo con
+   * el canal ya sintonizado encima: el «duplicado» al cambiar de pestaña.
+   * `useLayoutEffect` corre en el mismo commit que oculta el árbol.
+   */
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    return () => {
+      video?.pause();
+    };
+  }, []);
 
   const [streamIndex, setStreamIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
