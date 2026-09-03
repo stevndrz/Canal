@@ -14,6 +14,8 @@ import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/type
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
 import { claveDeTitulo } from "@/lib/progreso";
+import { esTeclaAtras } from "@/hooks/use-spatial-nav";
+import { accionDeTecla } from "@/lib/teclas-mando";
 
 /**
  * Cuánto se espera antes de ofrecer el cambio de servidor.
@@ -283,6 +285,77 @@ function ReproductorCatalogo({
     requestAnimationFrame(() => marcoRef.current?.focus());
   }, [servidorActivoId]);
 
+  /** El botón de entrar, para devolverle el foco al salir (solo TV). */
+  const entrarBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  /**
+   * Salir de los controles del servidor y devolver el foco a la app.
+   *
+   * El botón de entrar solo existe con el marco cerrado, así que el foco se
+   * devuelve en el siguiente fotograma: pintarlo y enfocarlo en el mismo
+   * turno no llega.
+   */
+  const cerrarMarco = useCallback(() => {
+    setMarcoAbierto(false);
+    requestAnimationFrame(() => entrarBtnRef.current?.focus());
+  }, []);
+
+  /**
+   * En TV el botón de entrar ya viene enfocado: en modo cine es la acción
+   * principal y sin foco inicial el mando no tiene desde dónde partir. Solo
+   * corre al cambiar de servidor o al salir de los controles, nunca mientras
+   * se navega —los efectos no se repiten solos—.
+   */
+  useEffect(() => {
+    if (!enTelevisor || abierto || !servidorActivoId) return;
+    entrarBtnRef.current?.focus({ preventScroll: true });
+  }, [enTelevisor, abierto, servidorActivoId]);
+
+  /**
+   * Atrás sale de los controles ANTES que del modo cine.
+   *
+   * En fase de captura: `NavegacionCatalogo` también escucha Atrás (para
+   * cerrar el modo cine) y se registró antes, así que sin captura las dos
+   * rutas correrían a la vez y un Atrás cerraría controles Y cine de un
+   * tirón. Con `stopPropagation` en captura, el primero consume la tecla.
+   *
+   * Solo vale si la pulsación llega a la página: con el foco DENTRO de un
+   * iframe ajeno las teclas son suyas y aquí no se oye nada —por eso el
+   * botón «Volver a la app» sigue existiendo como salida visible—.
+   */
+  useEffect(() => {
+    if (!abierto) return;
+    const alAtras = (event: KeyboardEvent) => {
+      if (!esTeclaAtras(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      cerrarMarco();
+    };
+    window.addEventListener("keydown", alAtras, true);
+    return () => window.removeEventListener("keydown", alAtras, true);
+  }, [abierto, cerrarMarco]);
+
+  /**
+   * En TV, el botón de reproducir/pausar del mando ENTRA a los controles.
+   *
+   * Es el «play eficiente»: una pulsación mete el foco en el vídeo y la
+   * siguiente ya la oye su reproductor. Sin esto, ese botón no hacía nada en
+   * la ficha hasta entrar a mano. Solo TV y solo con el marco cerrado:
+   * abierto, esas teclas son del servidor. Y solo en embeds: con enlace
+   * directo manda `NativePlayer`, que ya las atiende él mismo.
+   */
+  const esEmbed = activo?.tipo !== "video";
+  useEffect(() => {
+    if (!enTelevisor || !esEmbed || abierto || !servidorActivoId) return;
+    const alMando = (event: KeyboardEvent) => {
+      if (accionDeTecla(event) !== "reproducir") return;
+      event.preventDefault();
+      abrirMarco();
+    };
+    window.addEventListener("keydown", alMando);
+    return () => window.removeEventListener("keydown", alMando);
+  }, [enTelevisor, esEmbed, abierto, servidorActivoId, abrirMarco]);
+
   useEffect(() => {
     if (!servidorActivoId) return;
     const reloj = setTimeout(
@@ -413,8 +486,9 @@ function ReproductorCatalogo({
             fuera de pantalla. */}
         {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
             siempre un texto de relleno para que no quedara una caja vacía, y
-            la respuesta correcta es no pintar la caja. */}
-        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto) && (
+            la respuesta correcta es no pintar la caja. En TV se pinta también
+            con el marco abierto, para enseñar la salida. */}
+        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto || (enTelevisor && abierto)) && (
         <div className="ficha-aviso" role="status">
           {descartados.size > 0 && (
             <span>
@@ -439,14 +513,45 @@ function ReproductorCatalogo({
               se pulse, el foco no entra en el marco y sus popunder se quedan
               sin el gesto que necesitan para abrir pestañas. */}
           {!abierto && (
-            <button
-              type="button"
-              data-nav="button"
-              className="ficha-aviso-accion is-suave"
-              onClick={() => abrirMarco()}
-            >
-              Usar los controles del servidor
-            </button>
+            <>
+              {/* Solo TV: qué va a pasar dentro, en una línea. El volumen no
+                  se selecciona en pantalla en ningún servidor: sale de las
+                  teclas de volumen del mando, que el sistema atiende siempre,
+                  también con el foco dentro del vídeo. */}
+              {enTelevisor && (
+                <span>
+                  Pulsa OK para entrar: ahí valen play, pausa y flechas. El volumen sale de
+                  las teclas de volumen del mando.
+                </span>
+              )}
+              <button
+                ref={entrarBtnRef}
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion is-suave"
+                onClick={() => abrirMarco()}
+              >
+                {enTelevisor ? "Manejar el vídeo con el mando" : "Usar los controles del servidor"}
+              </button>
+            </>
+          )}
+
+          {/* Solo TV, con el marco abierto: la salida visible. Atrás también
+              la hace (ver el efecto de captura de arriba), pero con el foco
+              dentro del iframe ajeno Atrás no llega a la página y el botón es
+              la única salida que se ve. */}
+          {abierto && enTelevisor && (
+            <>
+              <span>Estás manejando el vídeo — Atrás para volver a la app.</span>
+              <button
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion is-suave"
+                onClick={cerrarMarco}
+              >
+                Volver a la app
+              </button>
+            </>
           )}
         </div>
         )}
