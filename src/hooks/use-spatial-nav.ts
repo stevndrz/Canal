@@ -10,6 +10,27 @@ const BACK_KEYCODES = new Set([
   27, // Escape
 ]);
 
+/**
+ * ¿Es la tecla Atrás del mando?
+ *
+ * Exportada porque no solo la necesita este hook: `fullscreen-player.tsx`
+ * desactiva `useSpatialNav` entero mientras se ve la tele —las flechas
+ * zapean, no navegan la rejilla— así que tiene su propio `keydown` y con él
+ * su propia necesidad de reconocer Atrás. Una sola función evita que las dos
+ * rutas un día reconozcan teclas distintas.
+ *
+ * No mira `Backspace`: aquí no hay ningún campo de texto donde esa tecla
+ * pudiera significar «borrar una letra» en vez de «volver».
+ */
+export function esTeclaAtras(event: Pick<KeyboardEvent, "key" | "keyCode">): boolean {
+  return (
+    BACK_KEYCODES.has(event.keyCode) ||
+    event.key === "Escape" ||
+    event.key === "GoBack" ||
+    event.key === "BrowserBack"
+  );
+}
+
 type Dir = "up" | "down" | "left" | "right";
 
 interface Candidate {
@@ -242,12 +263,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       // Atrás se atiende siempre, incluso con el foco desactivado: es lo que
       // saca del reproductor en un televisor. Escribiendo en un campo,
       // Retroceso borra una letra y no debe salir de la pantalla.
-      const esAtras =
-        BACK_KEYCODES.has(event.keyCode) ||
-        event.key === "Escape" ||
-        event.key === "GoBack" ||
-        event.key === "BrowserBack" ||
-        (event.key === "Backspace" && !typing);
+      const esAtras = esTeclaAtras(event) || (event.key === "Backspace" && !typing);
 
       if (esAtras) {
         event.preventDefault();
