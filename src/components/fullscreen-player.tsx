@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast } from "lucide-react";
 import {
   extrasCast,
@@ -20,7 +20,6 @@ import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
-import { useReloj } from "@/hooks/use-reloj";
 import { useCast } from "@/hooks/use-cast";
 
 interface FullscreenPlayerProps {
@@ -81,14 +80,6 @@ export function FullscreenPlayer({
    */
   const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
-  /**
-   * El reloj vive AQUÍ, el único sitio donde se pinta. En `Dashboard` bajaba
-   * como prop, y como `useReloj` cambia cada 20 segundos **re-renderizaba el
-   * árbol entero** —hasta 200 tarjetas— por un dato que allí no lee nadie. Ese
-   * era el tirón periódico en una tele vieja.
-   */
-  const clock = useReloj();
-
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el
   // elemento primero, ambos leen `.current` en el momento de actuar.
@@ -107,24 +98,6 @@ export function FullscreenPlayer({
 
 
   /**
-   * Desde cuándo se está en ESTE canal. Se marca al montar y al zapear, no al
-   * empezar a reproducir: cuenta el rato que llevas viendo, y una recarga del
-   * stream a mitad de partido no lo reinicia.
-   *
-   * El reloj es un sistema externo, así que leerlo va en un efecto y no en el
-   * render — de ahí la excepción de abajo. El precio es un render de más al
-   * zapear; a un segundo de resolución no se ve.
-   */
-  // `undefined` hasta que el efecto la fije: sin marca no hay módulo, que es
-  // justo lo que hace `modulosDeEmision` con un dato ausente. Un cero aquí
-  // sacaría un «T+ 490.000:00:00» en el primer fotograma.
-  const [desde, setDesde] = useState<number | undefined>(undefined);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDesde(Date.now());
-  }, [channel.id]);
-
-  /**
    * En qué está la emisión, dicho sin inventar nada.
    *
    * `sintonizando` no es un adorno: mientras el `<video>` no tenga altura no ha
@@ -138,11 +111,6 @@ export function FullscreenPlayer({
       : state.alto
         ? "vivo"
         : "sintonizando";
-
-  const lectura = useMemo(
-    () => ({ ancho: state.ancho, alto: state.alto, bitrate: state.bitrate, desde }),
-    [state.ancho, state.alto, state.bitrate, desde],
-  );
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -369,13 +337,7 @@ export function FullscreenPlayer({
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <PanelEmision
-          channel={channel}
-          estado={estado}
-          lectura={lectura}
-          reloj={clock}
-          activo={showControls}
-        />
+        <PanelEmision channel={channel} estado={estado} activo={showControls} />
       </div>
 
       {/* Controles */}
@@ -418,7 +380,6 @@ export function FullscreenPlayer({
             },
             ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
           ]}
-          meta={{ canal: channel.name, enVivo: estado === "vivo" }}
         />
 
         {/* La pista cambia con el contexto, porque las teclas cambian: con la
