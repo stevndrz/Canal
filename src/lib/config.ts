@@ -35,4 +35,15 @@ export const publicConfig = {
    */
   embedPropioPelicula: process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE?.trim() || "",
   embedPropioSerie: process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV?.trim() || "",
+
+  /**
+   * Origen ABSOLUTO de esta app (sin barra final). Lo usa el HTML del proxy
+   * de vimeus para reescribir las requests internas del player (fetch /
+   * XHR) y mandarlas a `/api/proxy/vimeos-asset`, que es la única forma de
+   * que `vimeos.net` no rechace las requests por `Referer` con un 403.
+   *
+   * En local sin definir, las requests van directas a `vimeos.net` y pueden
+   * caer al 403; en Vercel con dominio propio se pone `https://tu-dominio`.
+   */
+  sitioUrl: process.env.NEXT_PUBLIC_SITIO_URL?.trim().replace(/\/+$/, "") || "",
 } as const;
