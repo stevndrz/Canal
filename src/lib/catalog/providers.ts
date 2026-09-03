@@ -76,18 +76,14 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
  * pero en una app de TV no hay reglas— sale una pestaña y un anuncio de 30 s
  * delante del contenido.
  *
- * La ruta `/api/proxy/vimeus` reescribe el HTML servido por `vimeus.com`
- * quitando esos dos guiones y pasando los assets por `/api/proxy/vimeos-asset`
- * con el `Referer` correcto para no caer en el 403 de Cloudflare. Ver esos
- * dos `route.ts` para los detalles.
- *
- * Solo se aplica al iframe: la URL REAL queda en `url` porque
- * `disponibilidad.ts` la necesita para comprobar si el servidor tiene el
- * título (vimeus devuelve 404 cuando no).
+ * Hubo un intento de arreglarlo con un proxy propio (`/api/proxy/vimeus`,
+ * `/api/proxy/vimeos-asset`) que reescribía el HTML de `vimeus.com` quitando
+ * esos dos guiones. Se desconectó: servir ese HTML reescrito desde nuestro
+ * propio origen —en vez de `vimeus.com` cargado en un iframe cruzado, que es
+ * como espera correr— dejó a JWPlayer sin reproducir nada. Las dos rutas
+ * siguen en el repo por si se retoma, pero antes hay que resolver por qué
+ * cambiar de origen rompe el reproductor, no solo limpiar los anuncios.
  */
-function proxyDeVimeus(tmdbId: number): string {
-  return `/api/proxy/vimeus?tmdb=${tmdbId}&autoplay=1`;
-}
 
 /**
  * El orden es el producto: decide qué se ve al abrir una ficha. Vimeus primero
@@ -245,23 +241,16 @@ export function buildEmbedUrl(
 }
 
 /**
- * URL que se carga en el iframe. Para la mayoría de proveedores coincide con
- * la URL real, pero en `vimeus` apunta al proxy propio: es el que quita los
- * scripts de anuncios antes de entregar el HTML.
- *
- * Devuelve `null` si no se puede armar (igual que `buildEmbedUrl`).
+ * URL que se carga en el iframe. Siempre la real —ver el comentario de
+ * arriba sobre por qué el proxy de Vimeus está desconectado—. Devuelve
+ * `null` si no se puede armar (igual que `buildEmbedUrl`).
  */
 export function buildIframeUrl(
   provider: EmbedProvider,
   mediaType: MediaType,
   target: EmbedTarget
 ): string | null {
-  const url = buildEmbedUrl(provider, mediaType, target);
-  if (!url) return null;
-  if (provider.id === "vimeus" && mediaType === "movie" && target.tmdbId) {
-    return proxyDeVimeus(target.tmdbId);
-  }
-  return url;
+  return buildEmbedUrl(provider, mediaType, target);
 }
 
 /**

@@ -303,9 +303,9 @@ function ReproductorCatalogo({
   }, [activo?.id, descartar]);
 
   /**
-   * Lo que va al `src` del iframe. Para `vimeus` apunta al proxy propio
-   * (`/api/proxy/vimeus`) que limpia los scripts de anuncios; para los demás
-   * proveedores coincide con `url`.
+   * Lo que va al `src` del iframe. Hoy coincide siempre con `url` — el proxy
+   * de Vimeus que reescribía este campo está desconectado, ver
+   * `buildIframeUrl` en `lib/catalog/providers.ts` para el porqué.
    */
   const urlIframe = activo?.urlEmbed ?? activo?.url ?? "";
 
