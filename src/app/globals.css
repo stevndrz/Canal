@@ -396,9 +396,8 @@ html[data-player="on"] body {
     transform: translateX(-50%);
     z-index: 5;
     width: max-content;
+    /* Sin fondo propio: la barra ya es su propia píldora de cristal. */
     max-width: calc(100% - 24px);
-    background: rgba(8, 9, 11, 0.9);
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
     opacity: 0;
     transition: opacity 200ms ease, transform 200ms ease;
     pointer-events: none;
@@ -420,17 +419,15 @@ html[data-player="on"] body {
   }
 }
 
-/* ── La barra de controles del reproductor ───────────────────────────
-   Sustituye a los seis círculos de cristal idénticos que había antes.
+/* ── La barra de controles del directo ──────────────────────────────────
+   Píldora de cristal flotante estilo Apple TV: botones circulares solo de
+   icono (con `title` para quien no los reconozca), play central grande en
+   blanco y pastilla «EN VIVO» con el canal. En directo no hay progreso que
+   buscar, así que no hay riel: transporte puro.
 
-   Fondo sólido y no translúcido a propósito: el desenfoque se veía bien sobre
-   una escena oscura y desaparecía sobre una clara, así que la legibilidad
-   dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
-
-   Y jerarquía: el control primario es más grande y de color invertido, los
-   secundarios llevan su palabra, y los ocasionales quedan a la derecha en un
-   tamaño menor. Antes todo medía 58px y pausar pesaba lo mismo que "ver en
-   familia". */
+   Ojo: `.player-btn` a secas también lo usan los avisos de error («Reproducir»,
+   «Reintentar»), que NO viven en la barra y siguen siendo píldoras con texto.
+   Lo circular va acotado bajo `.player-bar` para no romperlos. */
 .player-bar {
   display: flex;
   flex-wrap: wrap;
@@ -439,16 +436,19 @@ html[data-player="on"] body {
      envolverse en una pantalla estrecha quedaban pegados a la izquierda en dos
      filas desalineadas: es lo que se veía al girar el teléfono. */
   justify-content: center;
-  gap: clamp(8px, 0.8vw, 16px);
-  padding: clamp(10px, 1vw, 18px) clamp(12px, 1.2vw, 22px);
-  border-radius: clamp(14px, 1.1vw, 20px);
-  background: rgba(12, 13, 16, 0.96);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 4px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(18, 18, 22, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .player-bar.is-fullscreen {
-  border-radius: clamp(16px, 1.3vw, 24px);
-  background: rgba(8, 9, 11, 0.94);
+  padding: 10px 14px;
+  gap: 6px;
   box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
 }
 
@@ -456,8 +456,71 @@ html[data-player="on"] body {
 .player-bar-extras {
   display: flex;
   align-items: center;
-  gap: clamp(6px, 0.6vw, 12px);
+  gap: 2px;
   min-width: 0;
+}
+
+/* La pastilla «EN VIVO · canal», a la izquierda de la botonera. */
+.player-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-right: 6px;
+  padding: 6px 12px 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 69, 58, 0.14);
+  border: 1px solid rgba(255, 69, 58, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.player-live-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #ff453a;
+  box-shadow: 0 0 10px rgba(255, 69, 58, 0.9);
+  animation: player-live-pulso 1.8s ease-in-out infinite;
+}
+
+@keyframes player-live-pulso {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.8);
+  }
+}
+
+.player-live-texto {
+  text-transform: uppercase;
+  color: #ff8a80;
+}
+
+.player-live-sep {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+.player-live-canal {
+  overflow: hidden;
+  max-width: 22ch;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+
+/* Separador vertical entre transporte y ocasionales. */
+.player-sep {
+  width: 1px;
+  height: 26px;
+  margin-inline: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  flex-shrink: 0;
 }
 
 .player-btn {
@@ -488,6 +551,44 @@ html[data-player="on"] body {
   background: rgba(255, 255, 255, 0.2);
   border-color: rgba(255, 255, 255, 0.28);
   transform: scale(1.04);
+}
+
+/* Dentro de la barra los botones son círculos de icono, no píldoras con
+   texto: caben los seis en un teléfono y se lee como un reproductor de TV.
+   Fuera de la barra (avisos de error) `.player-btn` sigue siendo píldora. */
+.player-bar .player-btn {
+  width: 44px;
+  height: 44px;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+  border-color: transparent;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 0;
+}
+
+.player-bar .player-btn svg {
+  width: 21px;
+  height: 21px;
+}
+
+.player-bar .player-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: transparent;
+  transform: scale(1.08);
+}
+
+.player-bar.is-fullscreen .player-btn {
+  width: 48px;
+  height: 48px;
+}
+
+.player-bar.is-fullscreen .player-btn svg {
+  width: 23px;
+  height: 23px;
 }
 
 /**
@@ -530,6 +631,26 @@ html[data-player="on"] body {
   background: #e6e6e6;
   color: #0a0a0a;
   transform: scale(1.06);
+}
+
+/* En la barra el primario es el círculo blanco grande central. */
+.player-bar .player-btn.is-primary {
+  width: 56px;
+  height: 56px;
+  min-height: 0;
+  margin-right: 4px;
+  padding: 0;
+  font-size: 0;
+}
+
+.player-bar .player-btn.is-primary svg {
+  width: 24px;
+  height: 24px;
+}
+
+.player-bar.is-fullscreen .player-btn.is-primary {
+  width: 62px;
+  height: 62px;
 }
 
 /* Los ocasionales: solo icono, salvo que se pidan controles grandes. */
@@ -1140,14 +1261,17 @@ html[data-player="on"] body {
   cursor: pointer;
 }
 
-/* Controles grandes: todo sube y aparecen todas las palabras. */
+/* Controles grandes: todo sube un punto. Ya no hay palabras que sacar: la
+   barra es solo icono desde el principio. */
 .player-bar.is-big .player-btn {
-  min-height: 62px;
-  font-size: clamp(15px, 1.05vw, 19px);
+  width: 52px;
+  height: 52px;
 }
 
 .player-bar.is-big .player-btn.is-primary {
-  min-height: 70px;
+  width: 64px;
+  height: 64px;
+  min-height: 0;
 }
 
 .player-bar.is-big .player-btn svg {
@@ -1156,16 +1280,25 @@ html[data-player="on"] body {
 }
 
 .player-bar.is-big .player-btn.is-extra {
+  width: 52px;
+  padding: 0;
+}
+
+.player-bar.is-big .player-btn.is-extra span {
+  display: none;
+}
+
+.player-bar.is-big .player-btn.is-extra.is-mode {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
 }
 
-.player-bar.is-big .player-btn.is-extra span {
+.player-bar.is-big .player-btn.is-extra.is-mode span {
   display: inline;
 }
 
-/* En teléfono la barra se parte en dos filas antes que salirse de la pantalla,
-   y los secundarios pierden la palabra para que quepan los seis. */
+/* En teléfono los círculos crecen un punto: el dedo es menos fino que el
+   ratón. La palabra solo la conserva el botón de pantalla completa. */
 @media (max-width: 720px) {
   .player-bar {
     justify-content: center;
@@ -1192,6 +1325,9 @@ html[data-player="on"] body {
 .player-btn.is-extra.is-mode {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
+  font-size: clamp(13px, 0.92vw, 15px);
+  font-weight: 600;
+  gap: 8px;
 }
 
 .player-btn.is-extra.is-mode span {

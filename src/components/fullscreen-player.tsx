@@ -370,6 +370,7 @@ export function FullscreenPlayer({
             },
             ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
           ]}
+          meta={{ canal: channel.name, enVivo: estado === "vivo" }}
         />
 
         {/* La pista cambia con el contexto, porque las teclas cambian: con la

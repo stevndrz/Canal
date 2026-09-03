@@ -23,20 +23,15 @@ import type { CastMethod } from "@/hooks/use-cast";
  * Es un componente y no dos porque la queja era justamente esa: dos sitios que
  * hacían lo mismo con aspectos distintos. Aprender una vale para los dos.
  *
- * Tres decisiones de diseño, y ninguna es de gusto:
+ * Estilo Apple TV: píldora de cristal flotante con botones circulares solo de
+ * icono (con `title` y `aria-label` para quien no los reconozca) y un play
+ * central grande en blanco. En directo no hay progreso que buscar —zapear es
+ * el único movimiento—, así que la barra es transporte puro más una pastilla
+ * «EN VIVO» con el canal sintonizado.
  *
- * 1. **Jerarquía, no uniformidad.** Antes eran seis círculos idénticos de 58px:
- *    pausar pesaba lo mismo que un ajuste ocasional. Si todo parece igual de
- *    importante, no lo parece nada. Ahora hay un control primario, unos
- *    secundarios y unos terciarios, y el tamaño lo dice.
- *
- * 2. **Fondo sólido, no cristal.** El translúcido con desenfoque se veía bien
- *    sobre una escena oscura y desaparecía sobre una clara: el contraste
- *    dependía de lo que estuvieran emitiendo. Un fondo opaco se ve siempre.
- *
- * 3. **Las palabras se ven.** Un icono solo funciona para quien ya lo conoce.
- *    Los controles principales llevan su etiqueta escrita, y con el ajuste
- *    `bigControls` la llevan todos.
+ * Se mantienen los nombres de clase (`player-bar`, `player-btn`…) a propósito:
+ * la navegación por mando, el detector de toques en el vídeo y el CSS que
+ * coloca la barra encima del vídeo los usan como ganchos.
  */
 export interface PlayerAction {
   id: string;
@@ -47,6 +42,14 @@ export interface PlayerAction {
   active?: boolean;
   pressed?: boolean;
   expanded?: boolean;
+}
+
+/** Lo que la pastilla enseña a la izquierda de la botonera. */
+export interface PlayerMeta {
+  /** Nombre del canal sintonizado. */
+  canal?: string;
+  /** La pastilla «EN VIVO» con su punto rojo. En diferido, no. */
+  enVivo?: boolean;
 }
 
 interface PlayerControlsProps {
@@ -60,10 +63,12 @@ interface PlayerControlsProps {
   fullscreen: { active: boolean; onToggle: () => void };
   /** Guía, cast… Lo que no se usa en cada minuto. */
   extras?: PlayerAction[];
-  /** Sube tamaños y saca las etiquetas de los secundarios. */
+  /** Sube tamaños. */
   big?: boolean;
   /** `embedded` vive debajo del vídeo; `fullscreen`, encima. */
   variant: "embedded" | "fullscreen";
+  /** Pastilla informativa (canal + EN VIVO). Sin ella no se pinta nada. */
+  meta?: PlayerMeta;
 }
 
 export function PlayerControls({
@@ -77,21 +82,36 @@ export function PlayerControls({
   extras = [],
   big = false,
   variant,
+  meta,
 }: PlayerControlsProps) {
   const clases = ["player-bar", `is-${variant}`, big ? "is-big" : ""].filter(Boolean).join(" ");
+  const hayExtras = extras.length > 0;
 
   return (
     <div className={clases} role="group" aria-label="Controles de reproducción">
+      {(meta?.enVivo || meta?.canal) && (
+        <span className="player-live" aria-label={meta.canal ? `En directo: ${meta.canal}` : "En directo"}>
+          {meta.enVivo && <span className="player-live-dot" aria-hidden="true" />}
+          {meta.enVivo && <span className="player-live-texto">En vivo</span>}
+          {meta.enVivo && meta.canal && (
+            <span className="player-live-sep" aria-hidden="true">
+              ·
+            </span>
+          )}
+          {meta.canal && <span className="player-live-canal">{meta.canal}</span>}
+        </span>
+      )}
+
       <div className="player-bar-main">
         <button
           type="button"
           data-nav="button"
           className="player-btn is-primary"
           aria-label={isPlaying ? "Pausar" : "Reproducir"}
+          title={isPlaying ? "Pausar" : "Reproducir"}
           onClick={onTogglePlay}
         >
           {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
-          <span>{isPlaying ? "Pausar" : "Reproducir"}</span>
         </button>
 
         <button
@@ -99,10 +119,10 @@ export function PlayerControls({
           data-nav="button"
           className="player-btn"
           aria-label="Canal anterior"
+          title="Canal anterior"
           onClick={onPrev}
         >
           <SkipBack aria-hidden="true" />
-          <span>Anterior</span>
         </button>
 
         <button
@@ -110,10 +130,10 @@ export function PlayerControls({
           data-nav="button"
           className="player-btn"
           aria-label="Canal siguiente"
+          title="Canal siguiente"
           onClick={onNext}
         >
           <SkipForward aria-hidden="true" />
-          <span>Siguiente</span>
         </button>
 
         <button
@@ -121,13 +141,15 @@ export function PlayerControls({
           data-nav="button"
           className="player-btn"
           aria-label={isMuted ? "Activar sonido" : "Silenciar"}
+          title={isMuted ? "Activar sonido" : "Silenciar"}
           aria-pressed={isMuted}
           onClick={onToggleMute}
         >
           {isMuted ? <VolumeX aria-hidden="true" /> : <Volume2 aria-hidden="true" />}
-          <span>{isMuted ? "Sonido" : "Silenciar"}</span>
         </button>
       </div>
+
+      {hayExtras && <span className="player-sep" aria-hidden="true" />}
 
       <div className="player-bar-extras">
         {extras.map((accion) => (
@@ -137,28 +159,29 @@ export function PlayerControls({
             data-nav="button"
             className={`player-btn is-extra ${accion.active ? "is-active" : ""}`}
             aria-label={accion.label}
+            title={accion.label}
             aria-pressed={accion.pressed}
             aria-expanded={accion.expanded}
             onClick={accion.onClick}
           >
             {accion.icon}
-            <span>{accion.label}</span>
           </button>
         ))}
 
         <button
           type="button"
           data-nav="button"
-          /* `is-mode`: este no se calla nunca. Guía y cast pueden ser
-             solo icono porque son ocasionales, pero entrar y salir de pantalla
+          /* `is-mode`: este no se calla nunca. Entrar y salir de pantalla
              completa cambia el modo entero de la aplicación, y quien no
-             reconozca las cuatro esquinitas se queda sin saber cómo volver. */
+             reconozca las cuatro esquinitas se queda sin saber cómo volver:
+             por eso conserva su palabra corta. */
           className="player-btn is-extra is-mode"
           aria-label={fullscreen.active ? "Salir de pantalla completa" : "Pantalla completa"}
+          title={fullscreen.active ? "Salir de pantalla completa" : "Pantalla completa"}
           onClick={fullscreen.onToggle}
         >
           {fullscreen.active ? <Minimize aria-hidden="true" /> : <Maximize aria-hidden="true" />}
-          <span>{fullscreen.active ? "Salir" : "Pantalla completa"}</span>
+          <span>{fullscreen.active ? "Salir" : "Pantalla"}</span>
         </button>
       </div>
     </div>

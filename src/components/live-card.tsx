@@ -199,6 +199,7 @@ export function LiveCard({
           fullscreen={{ active: false, onToggle: expandir }}
           big={settings.bigControls}
           extras={transmision}
+          meta={{ canal: channel.name, enVivo: true }}
         />
       </div>
 
