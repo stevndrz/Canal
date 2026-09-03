@@ -1,4 +1,4 @@
-import { Clapperboard, Heart, House, Link2, Search, Settings, Tv, type LucideIcon } from "lucide-react";
+import { Clapperboard, House, Link2, Search, Settings, Tv, type LucideIcon } from "lucide-react";
 import type { ViewId } from "@/lib/types";
 
 /**
@@ -38,7 +38,6 @@ export const NAV_ITEMS: NavItem[] = [
      al shell. */
   { kind: "link", key: "peliculas", href: "/peliculas", label: "Cine y series", Icon: Clapperboard },
   { kind: "view", key: "fuente", label: "Mi enlace", Icon: Link2 },
-  { kind: "view", key: "favoritos", label: "Favoritos", Icon: Heart },
   { kind: "view", key: "buscar", label: "Buscar", Icon: Search },
   { kind: "view", key: "ajustes", label: "Ajustes", Icon: Settings },
 ];
@@ -46,14 +45,16 @@ export const NAV_ITEMS: NavItem[] = [
 /**
  * Destinos de la barra inferior del teléfono, en dos grupos.
  *
- * Los ocho no caben. En un iPhone de 393px cada casilla quedaba en 49px: por
+ * Los siete no caben. En un iPhone de 393px cada casilla quedaba en 49px: por
  * encima del mínimo táctil de 44px, sí, pero con la etiqueta partida a
  * «Categoría…» y todo apelmazado. Y las etiquetas no son opcionales aquí —
  * esta aplicación la usa gente que reconoce la palabra antes que el icono.
  *
- * Así que cinco a la vista y tres detrás de «Más», que es el patrón que
- * cualquiera ya conoce de su teléfono. Los cinco elegidos son los que se usan
- * mientras se ve algo; los otros tres se visitan de vez en cuando.
+ * Así que cuatro a la vista y el resto detrás de «Más», que es el patrón que
+ * cualquiera ya conoce de su teléfono. Los cuatro elegidos son los que se usan
+ * mientras se ve algo; los otros se visitan de vez en cuando. Favoritos ya no
+ * es uno de los siete: vive como riel en Inicio («Tus favoritos»), no como
+ * pantalla propia — ver `home-view.tsx`.
  *
  * Ninguna sección queda inalcanzable, que fue el motivo de meterlas todas en
  * su día: la barra superior se oculta por debajo de 680px, así que lo que no
@@ -64,7 +65,6 @@ export const MOBILE_PRIMARY_KEYS: NavItem["key"][] = [
   "canales",
   "peliculas",
   "buscar",
-  "favoritos",
 ];
 
 export const MOBILE_OVERFLOW_KEYS: NavItem["key"][] = NAV_ITEMS.map((item) => item.key).filter(
