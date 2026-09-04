@@ -35,7 +35,7 @@ import {
 } from "@/hooks/use-persisted-set";
 import { TopNav } from "@/components/shell/top-nav";
 import { VistaActiva } from "@/components/vista-activa";
-import { LiveCardSkeleton } from "@/components/live-card";
+import { LiveCardSkeleton } from "@/components/live-card-skeleton";
 
 /**
  * `ssr: false` porque `hls.js`/`mpegts.js` tocan `self` al importarse: con un

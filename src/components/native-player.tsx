@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Hls from "hls.js";
+import type HlsType from "hls.js";
 import {
   Airplay,
   Captions,
@@ -27,10 +27,12 @@ import { useSeguirViendo } from "@/hooks/use-progreso";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esIPhone } from "@/lib/dispositivo";
 import { extensionDe } from "@/lib/extension";
+import { accionDeTecla } from "@/lib/teclas-mando";
 import type { ManualStream } from "@/lib/catalog/types";
 import {
   planAnteErrorFatal,
   prefiereNativoPorAirplay,
+  cargarHls,
   type EstadoRecuperacion,
 } from "@/lib/reproduccion/motor";
 
@@ -96,7 +98,7 @@ export const NativePlayer = memo(function NativePlayer({
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hlsRef = useRef<Hls | null>(null);
+  const hlsRef = useRef<HlsType | null>(null);
 
   const [streamIndex, setStreamIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -190,55 +192,81 @@ export const NativePlayer = memo(function NativePlayer({
 
     // Misma regla que el motor de canales: en los WebKit con AirPlay el HLS
     // va nativo (ver `prefiereNativoPorAirplay`), hls.js solo para el resto.
-    if (detectKind(stream) === "hls" && !prefiereNativoPorAirplay(video) && Hls.isSupported()) {
-      const hls = new Hls({ enableWorker: true });
-      hlsRef.current = hls;
+    // Y la librería se descarga SOLO aquí dentro (`cargarHls`, promesa
+    // cacheada en el motor): un `import` de nivel de módulo la metía en el
+    // chunk del reproductor aunque el enlace fuera un `.mp4` que el `<video>`
+    // lee solo —~580 KB pagados por nada—.
+    if (detectKind(stream) === "hls" && !prefiereNativoPorAirplay(video)) {
+      const urlActual = stream.url;
+      cargarHls()
+        .then((Hls) => {
+          if (cancelled) return;
+          // Sin MSE no hay hls.js que valga: se entrega al `<video>` tal
+          // cual, igual que hacía la rama nativa de antes.
+          if (!Hls.isSupported()) {
+            video.src = urlActual;
+            return;
+          }
+          const hls = new Hls({ enableWorker: true });
+          // Llegó tarde (cambió el enlace mientras se descargaba): fuera,
+          // que el efecto nuevo ya montó lo suyo.
+          if (cancelled) {
+            hls.destroy();
+            return;
+          }
+          hlsRef.current = hls;
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (cancelled) return;
-        // Las pistas de audio solo son accesibles de forma fiable por hls.js:
-        // Chrome no expone video.audioTracks.
-        const tracks = hls.audioTracks ?? [];
-        setAudioTracks(tracks.map((track, index) => ({ id: index, label: track.name || track.lang || `Pista ${index + 1}` })));
-        setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
-      });
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            if (cancelled) return;
+            // Las pistas de audio solo son accesibles de forma fiable por hls.js:
+            // Chrome no expone video.audioTracks.
+            const tracks = hls.audioTracks ?? [];
+            setAudioTracks(tracks.map((track, index) => ({ id: index, label: track.name || track.lang || `Pista ${index + 1}` })));
+            setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
+          });
 
-      /**
-       * Recuperación acotada según la política común del motor
-       * (`planAnteErrorFatal`). Abandonar NO es rendirse del todo: antes de
-       * dar el enlace por muerto se prueba UNA vía más — entregarlo al
-       * `<video>` tal cual, porque varios televisores leen HLS de forma
-       * nativa aunque su MSE falle; si tampoco puede, `error` cae en
-       * `onNativeError`, que ya enseña el aviso de siempre.
-       */
-      const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
-      hls.on(Hls.Events.ERROR, (_event, data) => {
-        if (cancelled || !data.fatal) return;
-        const plan = planAnteErrorFatal(
-          recuperacion,
-          data.type === Hls.ErrorTypes.NETWORK_ERROR
-            ? "red"
-            : data.type === Hls.ErrorTypes.MEDIA_ERROR
-              ? "medios"
-              : "otro",
-        );
-        if (plan === "abandonar") {
-          hls.destroy();
-          hlsRef.current = null;
-          video.src = stream.url;
-          return;
-        }
-        recuperacion.intentos++;
-        if (plan === "reintentar-medios") {
-          recuperacion.mediosRecuperados = true;
-          hls.recoverMediaError();
-        } else {
-          hls.startLoad();
-        }
-      });
+          /**
+           * Recuperación acotada según la política común del motor
+           * (`planAnteErrorFatal`). Abandonar NO es rendirse del todo: antes de
+           * dar el enlace por muerto se prueba UNA vía más — entregarlo al
+           * `<video>` tal cual, porque varios televisores leen HLS de forma
+           * nativa aunque su MSE falle; si tampoco puede, `error` cae en
+           * `onNativeError`, que ya enseña el aviso de siempre.
+           */
+          const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (cancelled || !data.fatal) return;
+            const plan = planAnteErrorFatal(
+              recuperacion,
+              data.type === Hls.ErrorTypes.NETWORK_ERROR
+                ? "red"
+                : data.type === Hls.ErrorTypes.MEDIA_ERROR
+                  ? "medios"
+                  : "otro",
+            );
+            if (plan === "abandonar") {
+              hls.destroy();
+              hlsRef.current = null;
+              video.src = urlActual;
+              return;
+            }
+            recuperacion.intentos++;
+            if (plan === "reintentar-medios") {
+              recuperacion.mediosRecuperados = true;
+              hls.recoverMediaError();
+            } else {
+              hls.startLoad();
+            }
+          });
 
-      hls.loadSource(stream.url);
-      hls.attachMedia(video);
+          hls.loadSource(urlActual);
+          hls.attachMedia(video);
+        })
+        .catch(() => {
+          // La librería no se pudo descargar: el `<video>` lo intenta solo.
+          if (cancelled) return;
+          video.src = urlActual;
+        });
     } else {
       video.src = stream.url;
     }
@@ -561,6 +589,17 @@ export const NativePlayer = memo(function NativePlayer({
    * pausa, J/L saltos de 10 s, flechas buscar/volumen, F pantalla completa,
    * M silencio. Igual que YouTube/tvOS: quien viene de otro reproductor no
    * tiene que aprender nada.
+   *
+   * Las cuatro flechas cortan la propagación además de `preventDefault`: en
+   * la ficha de un título, `useSpatialNav` (`navegacion-catalogo.tsx`) sigue
+   * escuchando `keydown` en `window` para mover el foco por la pantalla — ahí
+   * es correcto, es lo único que hace navegar con el mando en el resto de la
+   * ficha. Pero mientras el foco está DENTRO de este reproductor, sin cortar
+   * la propagación las dos rutas atendían la misma pulsación: retroceder 10s
+   * aquí Y saltar el foco a otro botón de la ficha a la vez, con lo que la
+   * siguiente flecha ya no llegaba a este `onKeyDown` — el mando se sentía
+   * roto a la segunda pulsación. `stopPropagation` es lo mismo que ya hace el
+   * riel de progreso más abajo para este mismo problema.
    */
   const alTecla = useCallback(
     (evento: React.KeyboardEvent) => {
@@ -584,18 +623,22 @@ export const NativePlayer = memo(function NativePlayer({
           break;
         case "ArrowLeft":
           evento.preventDefault();
+          evento.stopPropagation();
           seekBy(-SALTO_S);
           break;
         case "ArrowRight":
           evento.preventDefault();
+          evento.stopPropagation();
           seekBy(SALTO_S);
           break;
         case "ArrowUp":
           evento.preventDefault();
+          evento.stopPropagation();
           changeVolume(volume + 0.1);
           break;
         case "ArrowDown":
           evento.preventDefault();
+          evento.stopPropagation();
           changeVolume(volume - 0.1);
           break;
         case "f":
@@ -615,6 +658,33 @@ export const NativePlayer = memo(function NativePlayer({
     },
     [togglePlay, seekBy, changeVolume, volume, toggleFullscreen, toggleMute, wake],
   );
+
+  /**
+   * Los botones de reproducir/pausar/parar del propio mando —no del teclado—,
+   * que en Tizen 4/5 y varios Android TV llegan SIN nombre (`event.key`
+   * "Unidentified", solo `keyCode`). `alTecla` de arriba es un `onKeyDown` de
+   * React: solo se dispara con el foco dentro de este contenedor. Estos
+   * botones del mando tienen que funcionar aunque el foco todavía no haya
+   * entrado aquí —por ejemplo, la primera pulsación tras abrir la ficha—, así
+   * que van en un listener de `window`, igual que en `fullscreen-player.tsx`.
+   * Ver `teclas-mando.ts` para la tabla de códigos.
+   */
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      switch (accionDeTecla(event)) {
+        case "reproducir":
+        case "parar":
+          event.preventDefault();
+          togglePlay();
+          wake();
+          return;
+        default:
+          return;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [togglePlay, wake]);
 
   const progresoPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const bufferPct = duration > 0 ? Math.min(100, (bufferedEnd / duration) * 100) : 0;
