@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast } from "lucide-react";
 import {
   extrasCast,
@@ -16,9 +16,10 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
+import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
-import { useReloj } from "@/hooks/use-reloj";
+import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { useCast } from "@/hooks/use-cast";
 
 interface FullscreenPlayerProps {
@@ -79,14 +80,6 @@ export function FullscreenPlayer({
    */
   const { toggleFullscreen } = useFullscreen(containerRef, videoElRef);
 
-  /**
-   * El reloj vive AQUÍ, el único sitio donde se pinta. En `Dashboard` bajaba
-   * como prop, y como `useReloj` cambia cada 20 segundos **re-renderizaba el
-   * árbol entero** —hasta 200 tarjetas— por un dato que allí no lee nadie. Ese
-   * era el tirón periódico en una tele vieja.
-   */
-  const clock = useReloj();
-
   // Transmitir a una TV desde el teléfono. `videoElRef` es el mismo <video>
   // real que usa la pantalla completa: da igual cuál de los dos consuma el
   // elemento primero, ambos leen `.current` en el momento de actuar.
@@ -105,24 +98,6 @@ export function FullscreenPlayer({
 
 
   /**
-   * Desde cuándo se está en ESTE canal. Se marca al montar y al zapear, no al
-   * empezar a reproducir: cuenta el rato que llevas viendo, y una recarga del
-   * stream a mitad de partido no lo reinicia.
-   *
-   * El reloj es un sistema externo, así que leerlo va en un efecto y no en el
-   * render — de ahí la excepción de abajo. El precio es un render de más al
-   * zapear; a un segundo de resolución no se ve.
-   */
-  // `undefined` hasta que el efecto la fije: sin marca no hay módulo, que es
-  // justo lo que hace `modulosDeEmision` con un dato ausente. Un cero aquí
-  // sacaría un «T+ 490.000:00:00» en el primer fotograma.
-  const [desde, setDesde] = useState<number | undefined>(undefined);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDesde(Date.now());
-  }, [channel.id]);
-
-  /**
    * En qué está la emisión, dicho sin inventar nada.
    *
    * `sintonizando` no es un adorno: mientras el `<video>` no tenga altura no ha
@@ -138,19 +113,6 @@ export function FullscreenPlayer({
         : state.alto
           ? "vivo"
           : "sintonizando";
-
-  const lectura = useMemo(
-    () => ({
-      ancho: state.ancho,
-      alto: state.alto,
-      bitrate: state.bitrate,
-      stalls: state.stalls,
-      caidos: state.dropped,
-      ttffMs: state.ttffMs,
-      desde,
-    }),
-    [state.ancho, state.alto, state.bitrate, state.stalls, state.dropped, state.ttffMs, desde],
-  );
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -215,6 +177,20 @@ export function FullscreenPlayer({
   );
 
   /**
+   * Deshace el estado entero: la pantalla completa del navegador, si se
+   * concedió, y la vista inmersiva. Salir a medias dejaba al navegador en
+   * fullscreen enseñando la navegación por debajo.
+   *
+   * Un solo sitio para el botón «Salir» de la barra Y la tecla Atrás: antes
+   * solo el botón lo hacía —la pista en pantalla decía «Atrás salir» y era
+   * mentira, esa tecla no hacía nada—.
+   */
+  const salir = useCallback(() => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    onExit();
+  }, [onExit]);
+
+  /**
    * El mando manda:
    *
    *   ↑ ↓        cambiar de canal
@@ -229,6 +205,15 @@ export function FullscreenPlayer({
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // Atrás se mira ANTES que nada, con nombre Y con código: Tizen la manda
+      // como 10009 y no como "Escape", y `event.key` por sí solo no la
+      // habría reconocido nunca. Ver `esTeclaAtras`.
+      if (esTeclaAtras(event)) {
+        event.preventDefault();
+        salir();
+        return;
+      }
+
       const enLaBarra = (document.activeElement as HTMLElement | null)?.closest(".player-bar");
 
       switch (event.key) {
@@ -263,10 +248,6 @@ export function FullscreenPlayer({
           if (showGuide) setShowGuide(false);
           else openGuide();
           return;
-        case "MediaPlayPause":
-        case "MediaPlay":
-        case "MediaPause":
-        case "MediaStop":
         case " ":
         case "k":
           event.preventDefault();
@@ -279,13 +260,46 @@ export function FullscreenPlayer({
           wake();
           return;
         default:
+          break;
+      }
+
+      /**
+       * Las teclas del mando que llegan SIN nombre.
+       *
+       * Va DESPUÉS del `switch` de arriba y no dentro: en Tizen 4 y 5
+       * `event.key` viene "Unidentified" para reproducir/pausar/parar y para
+       * los botones de canal, así que ningún `case` por nombre las habría
+       * alcanzado. Ver `teclas-mando.ts` para la tabla de códigos.
+       */
+      switch (accionDeTecla(event)) {
+        // Parar hace lo mismo que pausar, a propósito: esto es una emisión en
+        // directo y no un archivo con principio, así que detenerla del todo
+        // dejaría un rectángulo negro sin ninguna forma de recuperarlo con
+        // el mando.
+        case "reproducir":
+        case "parar":
+          event.preventDefault();
+          playerRef.current?.togglePlay();
+          wake();
+          return;
+        // Los botones de canal del mando hacen lo mismo que ↑ y ↓: es lo que
+        // dice el dibujo de la tecla, y no tiene sentido que zapeen distinto.
+        case "canal-arriba":
+          event.preventDefault();
+          zap(-1);
+          return;
+        case "canal-abajo":
+          event.preventDefault();
+          zap(1);
+          return;
+        default:
           wake();
       }
     };
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zap, showGuide, openGuide, wake, moverFoco]);
+  }, [zap, showGuide, openGuide, wake, moverFoco, salir]);
 
   /**
    * Al esconderse la barra, soltar el foco.
@@ -325,13 +339,7 @@ export function FullscreenPlayer({
           showControls ? "opacity-100" : "opacity-0"
         }`}
       >
-        <PanelEmision
-          channel={channel}
-          estado={estado}
-          lectura={lectura}
-          reloj={clock}
-          activo={showControls}
-        />
+        <PanelEmision channel={channel} estado={estado} activo={showControls} />
       </div>
 
       {/* Controles */}
@@ -362,13 +370,7 @@ export function FullscreenPlayer({
           onNext={() => zap(1)}
           fullscreen={{
             active: true,
-            onToggle: () => {
-              // Deshace el estado entero: la pantalla completa del navegador,
-              // si se concedió, y la vista inmersiva. Salir a medias dejaba al
-              // navegador en fullscreen enseñando la navegación por debajo.
-              if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-              onExit();
-            },
+            onToggle: salir,
           }}
           extras={[
             {

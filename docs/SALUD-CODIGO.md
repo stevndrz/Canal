@@ -156,6 +156,28 @@ auditoría de Playwright sobre las 7 pantallas a 1920 y a 390 px.
 | **`epg.ts` no tenía ni una prueba** | 12 pruebas, incluidas las rarezas reales: entidades XML, sufijo `@SD` del id, desfase horario y ausencia de él |
 | **`fullscreen-player.tsx` (8,29)**: la guía de canales sale a `player/guia-canales.tsx` con su propio efecto de scroll | 351 → 307 líneas, y una preocupación menos en el componente |
 
+### Fase 1c — CSS del reproductor, tras tres oleadas de rediseño sin coordinar ✅
+
+Auditoría de 2026-09-02 sobre los commits del proxy anti-anuncios de Vimeus,
+la barra estilo Apple TV y la reescritura de `native-player.tsx`. No es
+hotspot de CodeScene (`globals.css` no aparece en la tabla de arriba porque
+CSS no entra en su análisis de complejidad), pero sí es deuda real: tres
+rediseños del reproductor (mission control/ámbar, Apple TV/cristal, la
+reescritura de `native-player.tsx`) tocaron el mismo archivo de 3800 líneas
+sin coordinarse. PR [#28](https://github.com/stevndrz/Canal/pull/28).
+
+| Qué | Resultado |
+|---|---|
+| `.player-bar.is-fullscreen .player-btn`/`.is-primary` tenían dos declaraciones de ancho/alto con la misma especificidad (48/62px muertos, 52/64px los que de verdad se pintaban) | Se borra la pareja muerta; el patrón es el mismo que ya motivó consolidar `.is-embedded` en la sesión anterior |
+| `.player-select` y `.player-barra-tiempo`: CSS del `<select>` de audio/subtítulos y del `<input type="range">` de "Mi enlace" de la versión del reproductor previa a `native-player.tsx` | Huérfanos confirmados por grep (incluidas plantillas dinámicas de className) — se borran |
+| `globals.css` | 3795 → 3722 líneas |
+
+Detalle completo, incluidos los hallazgos que se reportaron pero NO se
+tocaron (una tercera implementación de clasificación de URL en
+`native-player.tsx`, un posible doble manejo de flechas entre `alTecla` y
+`useSpatialNav` sin confirmar con Playwright), en `docs/equipo/calidad.md`,
+entrada del 2026-09-02.
+
 ### Fase 2 — Lo siguiente, por orden de retorno
 
 1. **Extraer los hooks de `dashboard.tsx`.** Sigue siendo el hotspot número
@@ -171,8 +193,11 @@ auditoría de Playwright sobre las 7 pantallas a 1920 y a 390 px.
    (8,29). Los dos marcan *Large Method*: el componente entero. El siguiente
    corte natural es sacar los controles y el Cast a sus propias piezas.
 
-3. **Unificar la clasificación de URLs.** `claseDeEmision` y `claseDeUrl` hacen
-   lo mismo. Una sola función, un solo juego de pruebas.
+3. **Unificar la clasificación de URLs.** `claseDeEmision`, `claseDeUrl` y
+   ahora también `detectKind` (`native-player.tsx`) hacen lo mismo en tres
+   sitios: cada reescritura del reproductor sumó una implementación más en
+   vez de reusar una de las dos que ya había. Una sola función, un solo juego
+   de pruebas.
 
 4. **`m3u.ts`: separar descargar de interpretar.** 20 cambios y 19
    condicionales. Hoy un mismo módulo baja el archivo, lo cachea, lo analiza,

@@ -53,7 +53,6 @@ export interface Channel {
 export type ViewId =
   | "home"
   | "canales"
-  | "favoritos"
   | "buscar"
   | "fuente"
   | "ajustes"

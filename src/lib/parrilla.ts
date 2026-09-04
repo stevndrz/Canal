@@ -48,6 +48,13 @@ export const PASO_MINUTOS = 30;
 export const HUECO_MINIMO_MS = 60_000;
 
 /**
+ * Mismo margen que acepta `/api/guia` (`MARGEN_MS` en la ruta): no tiene
+ * sentido dejar que los botones de la parrilla pidan una franja que el
+ * servidor va a rechazar.
+ */
+export const MARGEN_FRANJA_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
  * La media hora en punto anterior a `ahora`. Empezar en «20:07» no se lee, y
  * una franja que se mueve sola hace bailar la parrilla bajo el foco del mando.
  */
@@ -140,4 +147,19 @@ export function filaDeParrilla(
  */
 export function estaEnEmision(bloque: BloqueParrilla, ahora: number): boolean {
   return !bloque.hueco && bloque.inicio <= ahora && ahora < bloque.fin;
+}
+
+/**
+ * Mueve el inicio de una franja un número de horas —negativo hacia atrás—,
+ * sin salirse del margen que acepta `/api/guia`. Pura y probada aparte porque
+ * es el único sitio donde se decide hasta dónde puede navegar la persona: un
+ * error aquí deja botones que piden una franja que el servidor rechaza en
+ * silencio, o un botón "anterior" que en el borde deja de moverse sin decir
+ * por qué.
+ */
+export function moverFranja(desde: number, horas: number, ahora: number): number {
+  const propuesta = desde + horas * 60 * 60 * 1000;
+  const minimo = ahora - MARGEN_FRANJA_MS;
+  const maximo = ahora + MARGEN_FRANJA_MS;
+  return Math.min(maximo, Math.max(minimo, propuesta));
 }

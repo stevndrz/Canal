@@ -71,6 +71,21 @@ export interface EmbedProvider {
 const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
 
 /**
+ * `Vimeus` carga `pop.js` (popunder) y `vast.js` (preroll VAST) desde
+ * `vimeos.net` antes del vídeo. Sin bloqueador —AdBlock lo corta por reglas,
+ * pero en una app de TV no hay reglas— sale una pestaña y un anuncio de 30 s
+ * delante del contenido.
+ *
+ * Hubo un intento de arreglarlo con un proxy propio (`/api/proxy/vimeus`,
+ * `/api/proxy/vimeos-asset`) que reescribía el HTML de `vimeus.com` quitando
+ * esos dos guiones. Se desconectó: servir ese HTML reescrito desde nuestro
+ * propio origen —en vez de `vimeus.com` cargado en un iframe cruzado, que es
+ * como espera correr— dejó a JWPlayer sin reproducir nada. Las dos rutas
+ * siguen en el repo por si se retoma, pero antes hay que resolver por qué
+ * cambiar de origen rompe el reproductor, no solo limpiar los anuncios.
+ */
+
+/**
  * El orden es el producto: decide qué se ve al abrir una ficha. Vimeus primero
  * en películas (doblaje latino), VidSrc primero en series (los únicos
  * subtítulos de verdad), Videasy y Vidlink de relevo, Multiembed el último.
@@ -226,6 +241,19 @@ export function buildEmbedUrl(
 }
 
 /**
+ * URL que se carga en el iframe. Siempre la real —ver el comentario de
+ * arriba sobre por qué el proxy de Vimeus está desconectado—. Devuelve
+ * `null` si no se puede armar (igual que `buildEmbedUrl`).
+ */
+export function buildIframeUrl(
+  provider: EmbedProvider,
+  mediaType: MediaType,
+  target: EmbedTarget
+): string | null {
+  return buildEmbedUrl(provider, mediaType, target);
+}
+
+/**
  * Los servidores embed de un título, sin numerar.
  *
  * Vivía repetido en `/api/stream` y hacía falta también en la ficha, que es
@@ -245,11 +273,13 @@ export function servidoresEmbed(
   const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
   return lista.flatMap((provider) => {
     const url = buildEmbedUrl(provider, mediaType, target);
+    const urlEmbed = buildIframeUrl(provider, mediaType, target);
     return url
       ? [{
           id: provider.id,
           label: provider.label,
           url,
+          urlEmbed: urlEmbed ?? url,
           puertaAntirrobot: provider.puertaAntirrobot,
           subtitulos: provider.spanishSubtitles,
           compruebaPorEstado: provider.compruebaPorEstado,
@@ -263,6 +293,14 @@ export interface ServidorEmbed {
   id: string;
   label: string;
   url: string;
+  /**
+   * Lo que va al `src` del iframe. En general coincide con `url`, pero en
+   * `vimeus` apunta al proxy propio que limpia los scripts de anuncios antes
+   * de entregar el HTML. `disponibilidad.ts` debe seguir usando `url`, que es
+   * la real y sobre la que el proveedor responde 404 cuando no tiene el
+   * título.
+   */
+  urlEmbed?: string;
   puertaAntirrobot?: boolean;
   subtitulos?: boolean;
   compruebaPorEstado?: boolean;

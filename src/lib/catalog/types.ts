@@ -104,6 +104,23 @@ export interface ResolvedCatalogItem extends Omit<CatalogItem, "title" | "poster
   reparto: { nombre: string; personaje: string; foto: string | null }[];
   /** Dirección en películas, creación en series. */
   autoria: string[];
+  /**
+   * Id de IMDB («tt…»), para el enlace «Ver en IMDB» de la ficha.
+   *
+   * Solo llega poblado cuando el título se resolvió con `fetchTitle` (la
+   * ficha); las filas del catálogo (`toCatalogItem` en `discover.ts`) no lo
+   * piden —costaría una petición extra por cada título de cada fila— así que
+   * ahí siempre es `null`.
+   */
+  imdbId: string | null;
+  /**
+   * Enlace a YouTube del primer tráiler, o `null` si no hay o no se pidió.
+   *
+   * Igual que `imdbId`: solo `fetchTitle` (la ficha) lo trae gratis con
+   * `append_to_response`. El héroe de `/peliculas` lo pide aparte para su
+   * único título elegido; ver `fetchTrailer` en `tmdb.ts`.
+   */
+  trailerUrl: string | null;
 }
 
 export interface ResolvedEpisode {

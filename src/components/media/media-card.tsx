@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useState } from "react";
-import { Tv } from "lucide-react";
+import { Bookmark, Tv } from "lucide-react";
 import type { CardItem } from "@/lib/media-item";
 
 interface MediaCardProps {
@@ -141,6 +141,15 @@ function PosterCard({
       <div
         className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-app shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
       >
+        {item.enLista && (
+          <span
+            className="absolute right-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white"
+            aria-hidden="true"
+          >
+            <Bookmark size={13} fill="currentColor" />
+          </span>
+        )}
+
         {showArt ? (
           <img
             src={artwork as string}

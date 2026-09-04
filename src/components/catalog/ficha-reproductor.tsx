@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
@@ -14,6 +14,8 @@ import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/type
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
 import { claveDeTitulo } from "@/lib/progreso";
+import { esTeclaAtras } from "@/hooks/use-spatial-nav";
+import { accionDeTecla } from "@/lib/teclas-mando";
 
 /**
  * Cuánto se espera antes de ofrecer el cambio de servidor.
@@ -168,7 +170,7 @@ function ReproductorCatalogo({
    *   arrancó ni si el proveedor dio error. La persona lo ve en un segundo;
    *   el código, nunca.
    */
-  const [descartados, setDescartados] = useState<string[]>([]);
+  const [descartados, setDescartados] = useState<Set<string>>(new Set());
   const cargas = useRef<ConteoDeCargas | null>(null);
   /**
    * Servidor para el que ya toca ofrecer el cambio. Se guarda el ID y no un
@@ -239,7 +241,7 @@ function ReproductorCatalogo({
   const activo: ServidorStream | null = useMemo(() => {
     // Un servidor que se recarga en bucle no es una opción: se salta, aunque
     // sea el elegido a mano, porque ahí no se ve nada de todos modos.
-    const sirve = (servidor: ServidorStream) => !descartados.includes(servidor.id);
+    const sirve = (servidor: ServidorStream) => !descartados.has(servidor.id);
     const utiles = servidores.filter(sirve);
     const elegido = utiles.find((servidor) => servidor.id === elegidoId);
     const deRespaldo = respaldo && sirve(respaldo) ? respaldo : null;
@@ -259,7 +261,7 @@ function ReproductorCatalogo({
    */
   const descartar = useCallback((servidorId: string) => {
     setDescartados((previos) =>
-      previos.includes(servidorId) ? previos : [...previos, servidorId],
+      previos.has(servidorId) ? previos : new Set(previos).add(servidorId),
     );
   }, []);
 
@@ -283,6 +285,77 @@ function ReproductorCatalogo({
     requestAnimationFrame(() => marcoRef.current?.focus());
   }, [servidorActivoId]);
 
+  /** El botón de entrar, para devolverle el foco al salir (solo TV). */
+  const entrarBtnRef = useRef<HTMLButtonElement | null>(null);
+
+  /**
+   * Salir de los controles del servidor y devolver el foco a la app.
+   *
+   * El botón de entrar solo existe con el marco cerrado, así que el foco se
+   * devuelve en el siguiente fotograma: pintarlo y enfocarlo en el mismo
+   * turno no llega.
+   */
+  const cerrarMarco = useCallback(() => {
+    setMarcoAbierto(false);
+    requestAnimationFrame(() => entrarBtnRef.current?.focus());
+  }, []);
+
+  /**
+   * En TV el botón de entrar ya viene enfocado: en modo cine es la acción
+   * principal y sin foco inicial el mando no tiene desde dónde partir. Solo
+   * corre al cambiar de servidor o al salir de los controles, nunca mientras
+   * se navega —los efectos no se repiten solos—.
+   */
+  useEffect(() => {
+    if (!enTelevisor || abierto || !servidorActivoId) return;
+    entrarBtnRef.current?.focus({ preventScroll: true });
+  }, [enTelevisor, abierto, servidorActivoId]);
+
+  /**
+   * Atrás sale de los controles ANTES que del modo cine.
+   *
+   * En fase de captura: `NavegacionCatalogo` también escucha Atrás (para
+   * cerrar el modo cine) y se registró antes, así que sin captura las dos
+   * rutas correrían a la vez y un Atrás cerraría controles Y cine de un
+   * tirón. Con `stopPropagation` en captura, el primero consume la tecla.
+   *
+   * Solo vale si la pulsación llega a la página: con el foco DENTRO de un
+   * iframe ajeno las teclas son suyas y aquí no se oye nada —por eso el
+   * botón «Volver a la app» sigue existiendo como salida visible—.
+   */
+  useEffect(() => {
+    if (!abierto) return;
+    const alAtras = (event: KeyboardEvent) => {
+      if (!esTeclaAtras(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      cerrarMarco();
+    };
+    window.addEventListener("keydown", alAtras, true);
+    return () => window.removeEventListener("keydown", alAtras, true);
+  }, [abierto, cerrarMarco]);
+
+  /**
+   * En TV, el botón de reproducir/pausar del mando ENTRA a los controles.
+   *
+   * Es el «play eficiente»: una pulsación mete el foco en el vídeo y la
+   * siguiente ya la oye su reproductor. Sin esto, ese botón no hacía nada en
+   * la ficha hasta entrar a mano. Solo TV y solo con el marco cerrado:
+   * abierto, esas teclas son del servidor. Y solo en embeds: con enlace
+   * directo manda `NativePlayer`, que ya las atiende él mismo.
+   */
+  const esEmbed = activo?.tipo !== "video";
+  useEffect(() => {
+    if (!enTelevisor || !esEmbed || abierto || !servidorActivoId) return;
+    const alMando = (event: KeyboardEvent) => {
+      if (accionDeTecla(event) !== "reproducir") return;
+      event.preventDefault();
+      abrirMarco();
+    };
+    window.addEventListener("keydown", alMando);
+    return () => window.removeEventListener("keydown", alMando);
+  }, [enTelevisor, esEmbed, abierto, servidorActivoId, abrirMarco]);
+
   useEffect(() => {
     if (!servidorActivoId) return;
     const reloj = setTimeout(
@@ -303,6 +376,39 @@ function ReproductorCatalogo({
   }, [activo?.id, descartar]);
 
   /**
+   * Lo que va al `src` del iframe. Hoy coincide siempre con `url` — el proxy
+   * de Vimeus que reescribía este campo está desconectado, ver
+   * `buildIframeUrl` en `lib/catalog/providers.ts` para el porqué.
+   */
+  const urlIframe = activo?.urlEmbed ?? activo?.url ?? "";
+
+  /**
+   * Descargar el marco al ocultarse.
+   *
+   * `cacheComponents` (ver `next.config.ts`) no desmonta esta ficha al pasar
+   * a Canales: la oculta con `<Activity>`, `display:none` conservando el DOM.
+   * Un `<video>` propio se pausa (ver `native-player.tsx`), pero un iframe de
+   * otro dominio no se puede ni pausar ni silenciar por JS — la única forma
+   * de que el vídeo del proveedor deje de sonar de fondo es vaciarle el
+   * `src`. Sin esto, la película embebida seguía reproduciéndose oculta
+   * mientras el canal ya sonaba encima: el «duplicado» al cambiar de sección.
+   *
+   * Al volver a mostrarse, el efecto corre de nuevo — `<Activity>` repite el
+   * ciclo de montaje en cada aparición, no solo la primera vez — y repone la
+   * URL: el proveedor recarga desde cero, que es peor que retomar donde iba
+   * pero mejor que dos audios a la vez. La comparación evita recargarlo en el
+   * primer montaje, cuando el JSX ya dejó puesto el mismo `src`.
+   */
+  useLayoutEffect(() => {
+    const marco = marcoRef.current;
+    if (!marco || !urlIframe) return;
+    if (marco.getAttribute("src") !== urlIframe) marco.src = urlIframe;
+    return () => {
+      marco.src = "about:blank";
+    };
+  }, [urlIframe]);
+
+  /**
    * La lista de streams debe conservar la identidad entre renders. El
    * reproductor rearranca la emisión cuando cambia el objeto `stream` que
    * recibe; recrear el array inline en cada render —cuando llega la lista de
@@ -316,7 +422,7 @@ function ReproductorCatalogo({
 
   // Todos los servidores se quedaron en bucle: decirlo, en vez de dejar una
   // rueda girando para siempre como hacía antes.
-  if (!activo && descartados.length > 0) {
+  if (!activo && descartados.size > 0) {
     return (
       <section className="ficha-reproductor">
         <div className="ficha-sin-fuente">
@@ -369,7 +475,7 @@ function ReproductorCatalogo({
               // el historial del anterior, y con él su bucle de recargas.
               key={activo.id}
               ref={marcoRef}
-              src={activo.url}
+              src={urlIframe}
               title={titulo}
               onLoad={alCargarMarco}
               /* Con `-1` el mando no puede entrar aquí, y eso es lo que corta
@@ -406,13 +512,14 @@ function ReproductorCatalogo({
             fuera de pantalla. */}
         {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
             siempre un texto de relleno para que no quedara una caja vacía, y
-            la respuesta correcta es no pintar la caja. */}
-        {(descartados.length > 0 || (ofrecerCambio && activo) || !abierto) && (
+            la respuesta correcta es no pintar la caja. En TV se pinta también
+            con el marco abierto, para enseñar la salida. */}
+        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto || (enTelevisor && abierto)) && (
         <div className="ficha-aviso" role="status">
-          {descartados.length > 0 && (
+          {descartados.size > 0 && (
             <span>
-              Se {descartados.length === 1 ? "saltó" : "saltaron"} {descartados.length}{" "}
-              servidor{descartados.length === 1 ? "" : "es"}.
+              Se {descartados.size === 1 ? "saltó" : "saltaron"} {descartados.size}{" "}
+              servidor{descartados.size === 1 ? "" : "es"}.
             </span>
           )}
 
@@ -432,14 +539,45 @@ function ReproductorCatalogo({
               se pulse, el foco no entra en el marco y sus popunder se quedan
               sin el gesto que necesitan para abrir pestañas. */}
           {!abierto && (
-            <button
-              type="button"
-              data-nav="button"
-              className="ficha-aviso-accion is-suave"
-              onClick={abrirMarco}
-            >
-              Usar los controles del servidor
-            </button>
+            <>
+              {/* Solo TV: qué va a pasar dentro, en una línea. El volumen no
+                  se selecciona en pantalla en ningún servidor: sale de las
+                  teclas de volumen del mando, que el sistema atiende siempre,
+                  también con el foco dentro del vídeo. */}
+              {enTelevisor && (
+                <span>
+                  Pulsa OK para entrar: ahí valen play, pausa y flechas. El volumen sale de
+                  las teclas de volumen del mando.
+                </span>
+              )}
+              <button
+                ref={entrarBtnRef}
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion is-suave"
+                onClick={() => abrirMarco()}
+              >
+                {enTelevisor ? "Manejar el vídeo con el mando" : "Usar los controles del servidor"}
+              </button>
+            </>
+          )}
+
+          {/* Solo TV, con el marco abierto: la salida visible. Atrás también
+              la hace (ver el efecto de captura de arriba), pero con el foco
+              dentro del iframe ajeno Atrás no llega a la página y el botón es
+              la única salida que se ve. */}
+          {abierto && enTelevisor && (
+            <>
+              <span>Estás manejando el vídeo — Atrás para volver a la app.</span>
+              <button
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion is-suave"
+                onClick={cerrarMarco}
+              >
+                Volver a la app
+              </button>
+            </>
           )}
         </div>
         )}
