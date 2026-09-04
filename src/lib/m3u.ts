@@ -256,7 +256,19 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     if (!unique.has(key)) unique.set(key, item);
   }
 
-  const channels = Array.from(unique.values()).map<ParsedChannel>((item, index) => {
+  /**
+   * Segunda fuente del mismo canal: la misma señal suele venir dos veces con
+   * URLs distintas («ESPN», «ESPN HD», «ESPN FHD» → todo es «ESPN» tras
+   * `cleanChannelName`). Guardar las dos como canales distintos duplicaba la
+   * lista y partía la memoria de caídos; guardar la segunda como
+   * `streamUrlBackup` da un reintento gratis cuando la primera no responde.
+   */
+  const porNombre = new Map<string, ParsedChannel>();
+  const enOrden: ParsedChannel[] = [];
+  const claveNombre = (nombre: string, categoria: string) =>
+    `${categoria}::${normalizeText(nombre)}`;
+
+  for (const [index, item] of Array.from(unique.values()).entries()) {
     const name = cleanChannelName(item.name || item.title || item.tvg?.name || `Canal ${index + 1}`);
     const group = getGroupTitle(item);
     const tvgId = item.tvg?.id?.trim() ?? "";
@@ -267,21 +279,31 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const deLaLista = item.tvg?.logo || item.logo || "";
     const logoUrl =
       (ESQUEMA_REPRODUCIBLE.test(deLaLista.trim()) ? deLaLista : "") || findLogoUrl(name) || "";
-
-    return {
+    const category = classifyChannel({
       name,
-      category: classifyChannel({
-        name,
-        group,
-        country: item.tvg?.country || countryFromTvgId(tvgId),
-        language: item.tvg?.language ?? "",
-      }),
-      logoUrl,
-      streamUrl: item.url ?? "",
-    };
-  });
+      group,
+      country: item.tvg?.country || countryFromTvgId(tvgId),
+      language: item.tvg?.language ?? "",
+    });
+    const streamUrl = (item.url ?? "").trim();
+    if (!streamUrl) continue;
 
-  return sortChannels(channels);
+    const clave = claveNombre(name, category);
+    const existente = porNombre.get(clave);
+    if (!existente) {
+      const canal: ParsedChannel = { name, category, logoUrl, streamUrl };
+      porNombre.set(clave, canal);
+      enOrden.push(canal);
+      continue;
+    }
+    // Misma señal, otra URL: respaldo si no hay ya uno y no es la misma.
+    if (!existente.streamUrlBackup && existente.streamUrl !== streamUrl) {
+      existente.streamUrlBackup = streamUrl;
+      if (!existente.logoUrl && logoUrl) existente.logoUrl = logoUrl;
+    }
+  }
+
+  return sortChannels(enOrden);
 }
 
 /**

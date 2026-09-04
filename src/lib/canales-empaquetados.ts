@@ -35,16 +35,15 @@ export type GuiaEmpaquetada = Pick<
 /**
  * Un canal, en el orden en que se empaqueta.
  *
- * El quinto hueco solo aparece con guía; sin ella —el caso por defecto— cada
- * canal son cuatro valores y nada más.
+ * El quinto hueco es polimorfo a propósito: sin guía es la URL de respaldo
+ * (`string`) cuando la hay, y con guía es el objeto de guía. Con guía Y
+ * respaldo, el respaldo va en el sexto. Así el canal normal sigue siendo
+ * cuatro valores y el respaldo solo cuesta donde existe.
  */
-export type CanalEmpaquetado = [
-  nombre: string,
-  categoria: number,
-  logoUrl: string,
-  streamUrl: string,
-  guia?: GuiaEmpaquetada,
-];
+export type CanalEmpaquetado =
+  | [nombre: string, categoria: number, logoUrl: string, streamUrl: string]
+  | [nombre: string, categoria: number, logoUrl: string, streamUrl: string, guia: GuiaEmpaquetada, respaldo?: string]
+  | [nombre: string, categoria: number, logoUrl: string, streamUrl: string, respaldo: string];
 
 /**
  * Lo que hace falta para reconstruir un canal que **no viaja solo**: en un
@@ -102,9 +101,12 @@ export function empaquetarCanales(canales: CanalDeOrigen[]): PaqueteCanales {
     cuentas[indice] += 1;
 
     const guia = guiaDe(canal);
-    return guia
-      ? [canal.name, indice, canal.logoUrl, canal.streamUrl, guia]
-      : [canal.name, indice, canal.logoUrl, canal.streamUrl];
+    const respaldo = canal.streamUrlBackup || undefined;
+    if (guia && respaldo) return [canal.name, indice, canal.logoUrl, canal.streamUrl, guia, respaldo];
+    if (guia) return [canal.name, indice, canal.logoUrl, canal.streamUrl, guia];
+    // Sin guía el respaldo ocupa el quinto hueco como cadena: ver el tipo.
+    if (respaldo) return [canal.name, indice, canal.logoUrl, canal.streamUrl, respaldo];
+    return [canal.name, indice, canal.logoUrl, canal.streamUrl];
   });
 
   return { categorias, cuentas, total: empaquetados.length, canales: empaquetados };
@@ -145,7 +147,20 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
   const vistos = new Map<number, number>();
   const recorte = paquete.recorte;
 
-  return paquete.canales.map(([nombre, indiceCategoria, logoUrl, streamUrl, guia], indice) => {
+  return paquete.canales.map((tupla, indice) => {
+    const [nombre, indiceCategoria, logoUrl, streamUrl, quinto, sexto] = tupla as unknown as [
+      string,
+      number,
+      string,
+      string,
+      GuiaEmpaquetada | string | undefined,
+      string | undefined,
+    ];
+    // Quinto como cadena = respaldo sin guía; como objeto = guía (y el sexto,
+    // si es cadena, el respaldo).
+    const guia = typeof quinto === "object" && quinto !== null ? (quinto as GuiaEmpaquetada) : undefined;
+    const respaldo =
+      typeof quinto === "string" ? quinto : typeof sexto === "string" ? sexto : undefined;
     const category = paquete.categorias[indiceCategoria] ?? "Entretenimiento";
     const centena = ordenDeCategoria(category) * 100;
 
@@ -165,7 +180,7 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
       logoUrl,
       streamUrl,
     };
-
+    if (respaldo) canal.streamUrlBackup = respaldo;
     return guia ? Object.assign(canal, guia) : canal;
   });
 }
