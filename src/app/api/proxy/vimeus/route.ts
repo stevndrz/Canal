@@ -49,6 +49,28 @@ function neutralizarScripts(html: string): string {
 }
 
 /**
+ * Fija la base del documento en `vimeus.com`, lo primero del `<head>`.
+ *
+ * El reproductor «v2» (2026-09) trae rutas RELATIVAS
+ * (`/player-assets/index-v2.js`, `/<hash>.jpg` en el JSON de datos). Como el
+ * iframe carga este HTML desde NUESTRO origen, sin base esas rutas resuelven
+ * contra nosotros y caen en 404: el reproductor queda muerto («no podía
+ * reproducirse»). Con la base, el documento se comporta como si viniera de
+ * vimeus.com: el JS, el CSS y las carátulas cargan directos de allí, y los
+ * `import` relativos dentro del módulo siguen resolviendo bien —algo que no
+ * pasaría si se reescribieran a mano contra nuestro proxy—.
+ *
+ * Las peticiones a `vimeos.net` (vídeo y API) siguen pasando por
+ * `/api/proxy/vimeos-asset` gracias al guion de runtime de
+ * `inyectarProxyDeAssets`, que solo entiende URLs absolutas: la base no lo
+ * estorba porque `location.href` no cambia.
+ */
+function fijarBase(html: string): string {
+  if (/<base\b/i.test(html)) return html;
+  return html.replace(/<head([^>]*)>/i, `<head$1><base href="${VIMEUS_BASE}/">`);
+}
+
+/**
  * Reescribe las URLs ABSOLUTAS a `vimeos.net` para que pasen por nuestro
  * proxy de assets (`/api/proxy/vimeos-asset`). Esto es necesario porque
  * Cloudflare valida el `Referer`: si el iframe carga el HTML desde nuestro
@@ -213,7 +235,8 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const html = await upstream.text();
   const sinAnuncios = neutralizarScripts(html);
-  const conProxy = inyectarProxyDeAssets(sinAnuncios);
+  const conBase = fijarBase(sinAnuncios);
+  const conProxy = inyectarProxyDeAssets(conBase);
 
   return new NextResponse(conProxy, {
     status: 200,

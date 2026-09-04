@@ -20,6 +20,22 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-04 — Vimeus muerto por su reproductor «v2» (base href en el proxy)
+
+Reporte: Vimeus decía «no podía reproducirse» y ningún servidor arrancaba
+nada manipulable. Medido con curl: el upstream vive y TIENE los títulos, pero
+migró a un reproductor «v2» con rutas RELATIVAS (`/player-assets/index-v2.js`,
+carátulas `/<hash>.jpg`). Como el iframe carga nuestro HTML proxeado desde
+nuestro origen, esas rutas resolvían contra nosotros → 404 → reproductor
+muerto. Arreglo en `src/app/api/proxy/vimeus/route.ts`: `fijarBase()` inyecta
+`<base href="https://vimeus.com/">` lo primero del `<head>`. Así el JS/CSS
+carga directo de ellos (verificado: `index-v2.js` da 200 con 405 KB) y los
+`import` relativos del módulo siguen resolviendo —reescribirlos a mano contra
+nuestro asset-proxy los habría roto—. Las peticiones a `vimeos.net` siguen por
+el asset-proxy vía el guion de runtime, que no se estorba porque
+`location.href` no cambia. Verificado en local con dev+curl: proxy 200 con la
+base inyectada. `typecheck`, `lint` y los 300 tests limpios.
+
 ### 2026-09-03 — Foco directo al reproductor externo en TV (fichas)
 
 Reporte real desde el APK en Android TV: dentro de una peli no se llegaba al
