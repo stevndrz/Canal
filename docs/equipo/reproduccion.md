@@ -20,6 +20,30 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-04 — Velocidad: poda de iconos, esqueleto propio y hls.js perezoso
+
+Pedido: optimizar velocidad en toda la app. Auditoría previa (dos pasadas:
+datos-servidor y bundle-cliente). Lo implementado, todo verificado con
+`typecheck` + `lint` + 300 tests + `next build`:
+
+- `next.config.ts`: `experimental.optimizePackageImports: ["lucide-react"]`.
+  Treinta y un ficheros importan iconos de la raíz y cada uno arrastraba el
+  barril entero a su chunk. Ahora solo viaja el icono usado.
+- `src/components/live-card-skeleton.tsx` (nuevo): el esqueleto vivía en
+  `live-card.tsx` y `dashboard.tsx` lo importaba estático como `loading` del
+  `dynamic()` de `LiveCard` —eso metía `StreamPlayer` y motores al bundle
+  inicial y anulaba el `dynamic`. Mismo marcado, archivo propio.
+- `native-player.tsx`: `import Hls from "hls.js"` estático → `cargarHls()`
+  (nuevo export de `motor.ts`, promesa cacheada) dentro del efecto. Un `.mp4`
+  ya no descarga ~580 KB de librería; sin MSE o si la descarga falla, cae al
+  `<video>` nativo como antes. Comportamiento idéntico, solo cambia cuándo se
+  descarga.
+
+Lo que la auditoría dejó SOBRE LA MESA (no tocado, territorio ajeno o riesgo):
+`vista-activa.tsx` trae las 6 vistas estáticas cuando solo se ve Inicio;
+`page.tsx`/`peliculas` hacen N+10 TMDB por visita; M3U/EPG se re-parsean por
+proceso frío. Si se quiere seguir, ese es el orden por impacto.
+
 ### 2026-09-04 — Vimeus muerto por su reproductor «v2» (base href en el proxy)
 
 Reporte: Vimeus decía «no podía reproducirse» y ningún servidor arrancaba

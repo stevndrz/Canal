@@ -106,7 +106,14 @@ export function claseDeEmision(url: string): ClaseDeEmision {
 let moduloHls: Promise<typeof HlsType> | null = null;
 let moduloMpegts: Promise<typeof MpegtsType> | null = null;
 
-function cargarHls(): Promise<typeof HlsType> {
+/**
+ * `hls.js` bajo demanda, compartido con quien lo necesite.
+ *
+ * `native-player.tsx` (fichas con enlace propio) lo usa para no pagar ~580 KB
+ * cuando el enlace es un `.mp4` que el `<video>` lee solo. La promesa queda
+ * cacheada igual que aquí: el segundo reproductor no lo vuelve a descargar.
+ */
+export function cargarHls(): Promise<typeof HlsType> {
   moduloHls ??= import("hls.js").then((m) => m.default);
   return moduloHls;
 }
