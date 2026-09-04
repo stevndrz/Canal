@@ -133,13 +133,23 @@ export function FullscreenPlayer({
     ? "sin-senal"
     : !state.isPlaying
       ? "pausa"
-      : state.alto
-        ? "vivo"
-        : "sintonizando";
+      : state.buffering
+        ? "buffering"
+        : state.alto
+          ? "vivo"
+          : "sintonizando";
 
   const lectura = useMemo(
-    () => ({ ancho: state.ancho, alto: state.alto, bitrate: state.bitrate, desde }),
-    [state.ancho, state.alto, state.bitrate, desde],
+    () => ({
+      ancho: state.ancho,
+      alto: state.alto,
+      bitrate: state.bitrate,
+      stalls: state.stalls,
+      caidos: state.dropped,
+      ttffMs: state.ttffMs,
+      desde,
+    }),
+    [state.ancho, state.alto, state.bitrate, state.stalls, state.dropped, state.ttffMs, desde],
   );
 
   const wake = useCallback(() => {

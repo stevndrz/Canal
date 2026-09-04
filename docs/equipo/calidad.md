@@ -36,6 +36,26 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-04 — Calidad de vivo: ABR afinado, multi-fuente, sonda y selector
+
+Excepción a mi regla: esto SÍ cambia comportamiento, a petición directa del
+usuario (quería las 5 mejoras de calidad de vivo implementadas). Toca la zona
+de `canales` y `reproduccion` — ver sus memorias antes del PR.
+
+- `motor.ts`: reintentos y búfer para vivo inestable + `resolverCalidad`,
+  `nivelMaxParaCalidad`, `fijarCalidad` (cambio en caliente sin reiniciar),
+  `precargarCanal`. Todo probado en `motor.test.ts`.
+- `stream-player.tsx`: fallback a `streamUrlBackup` antes de «Sin señal»,
+  stalls/TTFF/dropped reales, calidad de arranque por `ref` para no reiniciar.
+- `m3u.ts` fusiona duplicados en `streamUrlBackup`; viaja en el paquete sin
+  coste para el canal normal (quinto hueco polimorfo).
+- Nuevo `GET /api/salud?url=` con puntuación 0–100 (`sonda-salud.ts`).
+- Ajustes: «Calidad máxima» → selector Auto/480p/720p/1080p, con migración del
+  booleano viejo.
+- `npm run verify` en verde: typecheck, lint 0 errores, 300 tests, build.
+- Deuda que dejo: `stream-player.tsx` creció (~615 líneas) y ya marcaba *Large
+  Method* — el siguiente refactor debería partirlo.
+
 ### 2026-08-21 — Equipo creado
 
 Nazco con la app ya funcionando.
