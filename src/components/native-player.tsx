@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type HlsType from "hls.js";
 import {
   Airplay,
@@ -99,6 +99,24 @@ export const NativePlayer = memo(function NativePlayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<HlsType | null>(null);
+
+  /**
+   * Pausa síncrona al ocultarse.
+   *
+   * Con `cacheComponents` activado (ver `next.config.ts`), Next no desmonta
+   * la ficha al navegar a otra sección: la oculta con `<Activity>`, que es
+   * `display:none` conservando el DOM. Eso no para un `<video>` — la limpieza
+   * de más abajo sí lo hace, pero vive en un `useEffect` normal, que corre
+   * DESPUÉS de pintar. Mientras tanto la película seguía sonando de fondo con
+   * el canal ya sintonizado encima: el «duplicado» al cambiar de pestaña.
+   * `useLayoutEffect` corre en el mismo commit que oculta el árbol.
+   */
+  useLayoutEffect(() => {
+    const video = videoRef.current;
+    return () => {
+      video?.pause();
+    };
+  }, []);
 
   const [streamIndex, setStreamIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -822,9 +840,9 @@ export const NativePlayer = memo(function NativePlayer({
       {/* ── Barra inferior estilo Apple TV ─────────────────────────── */}
       {!hasError && (
         <div className="atv-barra">
-          {/* Progreso: tiempo actual · riel buscable · duración */}
+          {/* El riel solo, sin el tiempo flanqueándolo: el tiempo vive en la
+              fila de botones (a la derecha, junto a pantalla completa). */}
           <div className="atv-progreso-fila">
-            <span className="atv-tiempo">{formatTime(scrubPreview ?? currentTime)}</span>
             <div
               ref={progressRef}
               data-nav="input"
@@ -872,7 +890,6 @@ export const NativePlayer = memo(function NativePlayer({
                 </span>
               )}
             </div>
-            <span className="atv-tiempo is-total">{formatTime(duration)}</span>
           </div>
 
           {/* Botonera */}
@@ -947,6 +964,12 @@ export const NativePlayer = memo(function NativePlayer({
             </div>
 
             <div className="atv-grupo is-derecha">
+              <span className="atv-tiempo">
+                {formatTime(scrubPreview ?? currentTime)}
+                <span className="atv-tiempo-sep">/</span>
+                {formatTime(duration)}
+              </span>
+
               {/* Versiones del mismo título (doblajes, calidades) */}
               {streams.length > 1 && (
                 <button

@@ -22,6 +22,12 @@ export interface Channel {
   logoUrl: string;
   streamUrl: string;
   /**
+   * Segunda fuente del mismo canal, cuando la lista trae el mismo nombre dos
+   * veces con URLs distintas. Ausente —no vacía— cuando no la hay, por la
+   * regla del peso: cada campo viaja 7.822 veces.
+   */
+  streamUrlBackup?: string;
+  /**
    * Ausentes —no vacíos— cuando no hay guía EPG. Se omiten en vez de mandarse
    * como cadena vacía justo por lo de arriba: una clave presente con valor
    * vacío cuesta lo mismo que una con contenido.
@@ -47,7 +53,6 @@ export interface Channel {
 export type ViewId =
   | "home"
   | "canales"
-  | "favoritos"
   | "buscar"
   | "fuente"
   | "ajustes"
@@ -60,6 +65,18 @@ export interface PlaybackSettings {
   startUnmuted: boolean;
   engine: "auto" | "hls" | "mpegts";
   /**
+   * Escalón de calidad para HLS. `auto` deja el ABR medir la conexión;
+   * cualquier otro valor lo limita por altura (ver `nivelMaxParaCalidad`).
+   *
+   * Sustituye a `calidadMaxima` (booleano), que se mantiene por compatibilidad
+   * con los ajustes ya guardados y se traduce en `resolverCalidad`.
+   */
+  calidad: "auto" | "480p" | "720p" | "1080p";
+  /**
+   * @deprecated Usar `calidad`. Se lee solo para migrar aparatos viejos.
+   */
+  calidadMaxima: boolean;
+  /**
    * Controles más grandes y con todas las palabras a la vista.
    *
    * No es un ajuste de accesibilidad escondido: es la diferencia entre una app
@@ -67,16 +84,6 @@ export interface PlaybackSettings {
    * él, hasta los controles secundarios llevan su etiqueta.
    */
   bigControls: boolean;
-  /**
-   * Forzar la calidad más alta del stream en lugar de adaptarla al ancho de
-   * banda.
-   *
-   * Por defecto HLS empieza bajo y sube según mide la conexión, que es lo
-   * correcto con una línea justa: evita cortes. Con fibra esa prudencia se nota
-   * como unos segundos borrosos cada vez que se cambia de canal, sin motivo.
-   * Activado, arranca directamente en la mejor pista disponible.
-   */
-  calidadMaxima: boolean;
   /**
    * Cómo se encaja la imagen cuando su proporción no es la del marco.
    *
@@ -94,6 +101,7 @@ export const DEFAULT_PLAYBACK: PlaybackSettings = {
   startUnmuted: true,
   engine: "auto",
   bigControls: false,
+  calidad: "auto",
   calidadMaxima: false,
   ajusteImagen: "contener",
 };

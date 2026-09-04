@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
@@ -376,11 +376,37 @@ function ReproductorCatalogo({
   }, [activo?.id, descartar]);
 
   /**
-   * Lo que va al `src` del iframe. Para `vimeus` apunta al proxy propio
-   * (`/api/proxy/vimeus`) que limpia los scripts de anuncios; para los demás
-   * proveedores coincide con `url`.
+   * Lo que va al `src` del iframe. Hoy coincide siempre con `url` — el proxy
+   * de Vimeus que reescribía este campo está desconectado, ver
+   * `buildIframeUrl` en `lib/catalog/providers.ts` para el porqué.
    */
   const urlIframe = activo?.urlEmbed ?? activo?.url ?? "";
+
+  /**
+   * Descargar el marco al ocultarse.
+   *
+   * `cacheComponents` (ver `next.config.ts`) no desmonta esta ficha al pasar
+   * a Canales: la oculta con `<Activity>`, `display:none` conservando el DOM.
+   * Un `<video>` propio se pausa (ver `native-player.tsx`), pero un iframe de
+   * otro dominio no se puede ni pausar ni silenciar por JS — la única forma
+   * de que el vídeo del proveedor deje de sonar de fondo es vaciarle el
+   * `src`. Sin esto, la película embebida seguía reproduciéndose oculta
+   * mientras el canal ya sonaba encima: el «duplicado» al cambiar de sección.
+   *
+   * Al volver a mostrarse, el efecto corre de nuevo — `<Activity>` repite el
+   * ciclo de montaje en cada aparición, no solo la primera vez — y repone la
+   * URL: el proveedor recarga desde cero, que es peor que retomar donde iba
+   * pero mejor que dos audios a la vez. La comparación evita recargarlo en el
+   * primer montaje, cuando el JSX ya dejó puesto el mismo `src`.
+   */
+  useLayoutEffect(() => {
+    const marco = marcoRef.current;
+    if (!marco || !urlIframe) return;
+    if (marco.getAttribute("src") !== urlIframe) marco.src = urlIframe;
+    return () => {
+      marco.src = "about:blank";
+    };
+  }, [urlIframe]);
 
   /**
    * La lista de streams debe conservar la identidad entre renders. El

@@ -23,11 +23,17 @@ import type { CastMethod } from "@/hooks/use-cast";
  * Es un componente y no dos porque la queja era justamente esa: dos sitios que
  * hacían lo mismo con aspectos distintos. Aprender una vale para los dos.
  *
- * Estilo Apple TV sobre estructura de dial: píldora de cristal flotante con
- * botones circulares solo de icono (con `title` y `aria-label` para quien no
- * los reconozca), play central grande en blanco y pastilla «EN VIVO» con el
- * canal. En directo no hay progreso que buscar —zapear es el único
- * movimiento—, así que la barra es transporte puro más la pastilla.
+ * Vidrio sobre el degradado del vídeo, sin panel propio: los botones van
+ * directo sobre el fondo que pone quien envuelve (el gradiente de
+ * `.live-card-marco` o el de `fullscreen-player.tsx`), como un reproductor
+ * nativo — no una barra de herramientas flotando encima de la imagen. Misma
+ * familia visual que `.atv-*` en `native-player.tsx`: círculos de cristal,
+ * primario más grande, foco invertido a blanco/negro para verse desde el
+ * sofá.
+ *
+ * Sin pastilla «EN VIVO»: esa información ya vive arriba —`.live-card-top`
+ * en Inicio, `PanelEmision` en pantalla completa—, repetirla aquí abajo era
+ * la misma frase dos veces en la misma tarjeta.
  *
  * Se mantienen los nombres de clase (`player-bar`, `player-btn`…) a propósito:
  * la navegación por mando, el detector de toques en el vídeo y el CSS que
@@ -48,14 +54,6 @@ export interface PlayerAction {
   expanded?: boolean;
 }
 
-/** Lo que la pastilla enseña a la izquierda de la botonera. */
-export interface PlayerMeta {
-  /** Nombre del canal sintonizado. */
-  canal?: string;
-  /** La pastilla «EN VIVO» con su punto rojo. En diferido, no. */
-  enVivo?: boolean;
-}
-
 interface PlayerControlsProps {
   isPlaying: boolean;
   isMuted: boolean;
@@ -71,8 +69,6 @@ interface PlayerControlsProps {
   big?: boolean;
   /** `embedded` vive debajo del vídeo; `fullscreen`, encima. */
   variant: "embedded" | "fullscreen";
-  /** Pastilla informativa (canal + EN VIVO). Sin ella no se pinta nada. */
-  meta?: PlayerMeta;
 }
 
 export function PlayerControls({
@@ -86,25 +82,11 @@ export function PlayerControls({
   extras = [],
   big = false,
   variant,
-  meta,
 }: PlayerControlsProps) {
   const clases = ["player-bar", `is-${variant}`, big ? "is-big" : ""].filter(Boolean).join(" ");
 
   return (
     <div className={clases} role="group" aria-label="Controles de reproducción">
-      {(meta?.enVivo || meta?.canal) && (
-        <span className="player-live" aria-label={meta.canal ? `En directo: ${meta.canal}` : "En directo"}>
-          {meta.enVivo && <span className="player-live-dot" aria-hidden="true" />}
-          {meta.enVivo && <span className="player-live-texto">En vivo</span>}
-          {meta.enVivo && meta.canal && (
-            <span className="player-live-sep" aria-hidden="true">
-              ·
-            </span>
-          )}
-          {meta.canal && <span className="player-live-canal">{meta.canal}</span>}
-        </span>
-      )}
-
       {/* El dial de transporte: anterior-reproducir-siguiente, en ESE orden.
           El orden es el de cualquier mando físico (⏮ ⏯ ⏭) y la forma también
           separa: redondos los que zapean, blanco el que decide qué pasa con

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatearBitrate,
+  formatearTtff,
   modulosDeEmision,
   nombreDeResolucion,
   palabraDeEstado,
@@ -93,5 +94,30 @@ describe("palabraDeEstado", () => {
     expect(palabraDeEstado("pausa")).toBe("PAUSA");
     expect(palabraDeEstado("emitiendo")).toBe("EMITIENDO");
     expect(palabraDeEstado("sintonizando")).toBe("SINTONIZANDO");
+    expect(palabraDeEstado("buffering")).toBe("CARGANDO");
+  });
+});
+
+describe("formatearTtff", () => {
+  it("ms por debajo del segundo, segundos por encima", () => {
+    expect(formatearTtff(850)).toBe("850 ms");
+    expect(formatearTtff(2300)).toBe("2,3 s");
+  });
+
+  it("sin dato no se inventa nada", () => {
+    expect(formatearTtff(undefined)).toBeNull();
+    expect(formatearTtff(-5)).toBeNull();
+  });
+});
+
+describe("modulosDeEmision con salud", () => {
+  it("cero cortes no es un módulo", () => {
+    const modulos = modulosDeEmision({ ancho: 1280, alto: 720, stalls: 0 });
+    expect(modulos.map((m) => m.etiqueta)).toEqual(["Señal"]);
+  });
+
+  it("cortes y arranque salen cuando dicen algo", () => {
+    const modulos = modulosDeEmision({ ancho: 1280, alto: 720, stalls: 2, ttffMs: 850 });
+    expect(modulos.map((m) => m.etiqueta)).toEqual(["Señal", "Cortes", "Arranque"]);
   });
 });

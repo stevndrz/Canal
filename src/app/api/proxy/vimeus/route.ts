@@ -83,8 +83,39 @@ function fijarBase(html: string): string {
  * vimeos.net — mismo comportamiento que antes del proxy, pero con los
  * scripts de ads ya neutralizados.
  */
+/**
+ * El popunder de verdad: no es `pop.js` con nombre fijo, es CUALQUIER script
+ * —con el nombre que sea, inyectado o inline— que llame a `window.open()`. Es
+ * lo que dejaba pasar `neutralizarScripts`, que solo mira nombres de archivo
+ * conocidos, y lo que hizo que un dominio nuevo (`maicoldr.lol`, no visto
+ * antes) se colara: en una WebView de televisor sin gestor de pestañas, esa
+ * llamada no abre nada — la propia página intenta navegar ahí y el dominio
+ * rechaza la conexión, tapando la película entera.
+ *
+ * `Object.defineProperty` con `writable: false` en vez de una asignación
+ * simple: una asignación (`window.open = fn`) la puede pisar el propio script
+ * de anuncios reasignándola otra vez; con el descriptor congelado, no puede.
+ *
+ * Va SIEMPRE, tenga o no `NEXT_PUBLIC_SITIO_URL` configurado — a diferencia
+ * del reescrito de assets de más abajo, que si necesita esa variable.
+ */
+const BLOQUEO_POPUPS = `
+<script>
+(function(){
+  try {
+    Object.defineProperty(window, "open", {
+      value: function () { return null; },
+      writable: false,
+      configurable: false,
+    });
+  } catch (e) {
+    window.open = function () { return null; };
+  }
+})();
+</script>`;
+
 function inyectarProxyDeAssets(html: string): string {
-  if (!ORIGEN_PROPIO) return html;
+  if (!ORIGEN_PROPIO) return html.replace(/<head>/i, `<head>${BLOQUEO_POPUPS}`);
 
   const script = `
 <script>
@@ -180,7 +211,7 @@ div[id^="ad-"]:not([id^="adaptive"]):not([id^="address"]) {
 body { background: #000 !important; }
 </style>`;
 
-  return html.replace(/<head>/i, `<head>${estilosAntianuncios}${script}`);
+  return html.replace(/<head>/i, `<head>${estilosAntianuncios}${BLOQUEO_POPUPS}${script}`);
 }
 
 export async function GET(request: NextRequest): Promise<Response> {
