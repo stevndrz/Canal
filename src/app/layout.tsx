@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
 import "./globals.css";
 
@@ -77,6 +79,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `soporte-gap.ts`. No pinta nada. */}
         <SoporteHuecos />
         {children}
+        {/* Web Vitals de campo + los eventos de `telemetria.ts`. Vercel las
+            sirve desde el edge de forma diferida: no compiten con el arranque. */}
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );

@@ -12,6 +12,7 @@ import {
 } from "react";
 import { Play, RefreshCw, Radio } from "lucide-react";
 import { claseDeEmision, montarMotor, type MotorMontado } from "@/lib/reproduccion/motor";
+import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 
@@ -105,6 +106,15 @@ const StreamPlayer = memo(
     // librerías que ya no usa directamente.
     const hlsRef = useRef<MotorMontado["hls"]>(null);
     const mpegtsRef = useRef<MotorMontado["mpegts"]>(null);
+    /**
+     * Estado de telemetría del canal en curso. Fuera de React porque no pinta
+     * nada: son marcas de tiempo para un evento que se manda una vez y se
+     * olvida, no datos que el chrome del reproductor necesite leer.
+     */
+    const inicioSintonia = useRef(0);
+    const arranqueAvisado = useRef(false);
+    const yaArrancoEmision = useRef(false);
+    const atascoDesde = useRef<number | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [streamError, setStreamError] = useState(false);
@@ -201,6 +211,10 @@ const StreamPlayer = memo(
       setStreamError(false);
       setNeedsUserGesture(false);
       setSintonizando(true);
+      inicioSintonia.current = marcarInicio();
+      arranqueAvisado.current = false;
+      yaArrancoEmision.current = false;
+      atascoDesde.current = null;
       // La emisión anterior no dice nada de la nueva: dejar puesta su
       // resolución enseñaría 1080p mientras arranca un canal que es 480p.
       setEmision({});
@@ -244,7 +258,9 @@ const StreamPlayer = memo(
       };
 
       const handleFatalError = () => {
-        if (!cancelled) setStreamError(true);
+        if (cancelled) return;
+        setStreamError(true);
+        registrarFallo(clase, "canal");
       };
 
       const clase =
@@ -322,6 +338,26 @@ const StreamPlayer = memo(
         // Si al final hay imagen, el cartel de «no se pudo reproducir» ya no
         // es verdad: antes se quedaba puesto tapando un vídeo que iba bien.
         setNeedsUserGesture(false);
+        if (!arranqueAvisado.current) {
+          arranqueAvisado.current = true;
+          registrarArranque(inicioSintonia.current, clase, "canal");
+        }
+        yaArrancoEmision.current = true;
+      };
+
+      /**
+       * Atasco = `waiting` DESPUÉS de haberse visto ya el primer fotograma.
+       * El `waiting` de antes de `yaSeVe` es el arranque normal, no un corte;
+       * contarlo ahí ensuciaría el promedio con lo que ya mide `registrarArranque`.
+       */
+      const alEsperar = () => {
+        if (cancelled || !yaArrancoEmision.current || atascoDesde.current !== null) return;
+        atascoDesde.current = marcarInicio();
+      };
+      const alReanudarTrasAtasco = () => {
+        if (atascoDesde.current === null) return;
+        registrarAtasco(atascoDesde.current, clase, "canal");
+        atascoDesde.current = null;
       };
 
       /**
@@ -345,6 +381,8 @@ const StreamPlayer = memo(
       video.addEventListener("loadedmetadata", medirImagen);
       video.addEventListener("playing", yaSeVe);
       video.addEventListener("loadeddata", yaSeVe);
+      video.addEventListener("waiting", alEsperar);
+      video.addEventListener("playing", alReanudarTrasAtasco);
 
       return () => {
         cancelled = true;
@@ -353,6 +391,8 @@ const StreamPlayer = memo(
         video.removeEventListener("loadeddata", yaSeVe);
         video.removeEventListener("resize", medirImagen);
         video.removeEventListener("loadedmetadata", medirImagen);
+        video.removeEventListener("waiting", alEsperar);
+        video.removeEventListener("playing", alReanudarTrasAtasco);
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;

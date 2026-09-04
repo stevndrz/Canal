@@ -82,6 +82,30 @@ export function getM3uSourceUrl(): string {
   return serverConfig().m3uUrl;
 }
 
+/**
+ * Cuando `cacheComponents` (PPR) termina de fotografiar el armazón estático de
+ * `/`, Next corta en seco cualquier `fetch()` que quedara pendiente fuera de
+ * esa foto — es la señal interna de «esto es dinámico, sigue detrás», no un
+ * fallo de la lista M3U. Como esta función ya devuelve `null` y deja seguir a
+ * quien llama, ya se está haciendo exactamente lo que pide el mensaje de Next
+ * («should handle it in that context»); lo único que sobra es registrarlo
+ * como error, que en cada build imprimía un fallo que no existe.
+ *
+ * No hay API pública para reconocerlo — el único rastro es el `digest`
+ * interno de Next, `HANGING_PROMISE_REJECTION` (`dynamic-rendering-utils.js`).
+ * Se compara la cadena en vez de importar `next/dist/server/...`: si el
+ * nombre cambiara en una versión futura, esto deja de filtrar el ruido en vez
+ * de arriesgarse a romper el build por depender de una ruta interna.
+ */
+function esRechazoDePrerenderCompletado(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    (error as { digest?: unknown }).digest === "HANGING_PROMISE_REJECTION"
+  );
+}
+
 async function fetchM3uText(): Promise<string | null> {
   const source = getM3uSourceUrl();
   try {
@@ -113,6 +137,7 @@ async function fetchM3uText(): Promise<string | null> {
     }
     console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${paraRegistro(source)}`);
   } catch (error) {
+    if (esRechazoDePrerenderCompletado(error)) return null;
     const reason =
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
