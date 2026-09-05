@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, BookmarkCheck, Film, Star } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, Film, ListVideo, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { claveCatalogo } from "@/lib/media-item";
 import { useWatchlist } from "@/hooks/use-watchlist";
@@ -10,25 +10,36 @@ import { useWatchlist } from "@/hooks/use-watchlist";
 /**
  * La cabecera de una ficha: arte de fondo, carátula, título y datos sueltos.
  *
- * Se extrajo de `TitleDetail`, que era un solo componente de 388 líneas con
- * catorce niveles de anidamiento —el archivo con peor salud de todo el
- * proyecto según CodeScene—. Aquí no cambia nada de lo que se pinta: son las
- * mismas etiquetas y las mismas clases, movidas.
- *
  * El fondo va en este contenedor y no en un `absolute inset-0` desde y=0: así
  * arranca por debajo de la barra fija en vez de meterse detrás de ella, que
  * era lo que hacía que el título y el botón de volver se leyeran encima de la
  * navegación.
+ *
+ * **En un teléfono esto se reordena entero, y no solo se encoge.** Las tres
+ * acciones eran tres píldoras de ancho completo que se apilaban en tres
+ * líneas, la carátula caía suelta en mitad del hero y el título quedaba
+ * empujado casi fuera de la primera pantalla. Aquí: «Volver» pasa a ser un
+ * icono redondo, las otras dos comparten una fila que se desliza, y carátula y
+ * título van uno al lado del otro. Lo hace el CSS (`@media (max-width: 680px)`
+ * en `globals.css`) — el marcado es el mismo en todas las pantallas, para que
+ * no haya dos versiones de la misma ficha que mantener.
  */
 export function FichaPortada({
   item,
   isSeries,
   minutos,
+  episodioActual,
 }: {
   item: ResolvedCatalogItem;
   isSeries: boolean;
   /** Duración ya formateada; la calcula quien conoce la ficha entera. */
   minutos: string | null;
+  /**
+   * En qué capítulo está la ficha ahora mismo, si es una serie. Solo para
+   * etiquetar el atajo a la lista: «Capítulos · T1 E4» dice a la vez que hay
+   * lista y por dónde vas.
+   */
+  episodioActual?: { temporada: number; episodio: number } | null;
 }) {
   // «Mi lista» vive en localStorage: no se puede saber en el servidor si este
   // título ya está marcado, así que el estado se lee aquí, al montar.
@@ -45,8 +56,23 @@ export function FichaPortada({
         <div className="ficha-acciones">
           <Link href="/peliculas" data-nav="button" className="ficha-volver">
             <ArrowLeft aria-hidden="true" />
-            Volver al catálogo
+            {/* El texto desaparece en teléfono por CSS, no aquí: el botón
+                sigue teniendo nombre accesible en todas las pantallas. */}
+            <span className="ficha-volver-texto">Volver al catálogo</span>
+            <span className="sr-only">Volver al catálogo</span>
           </Link>
+
+          {/* Un ancla, no un botón: la lista está en la misma página y el
+              navegador ya sabe llevarte a un `id`. Sin JavaScript, sin
+              `scrollIntoView` y con Atrás funcionando. */}
+          {isSeries && (
+            <a href="#episodios" data-nav="button" className="secondary ficha-ir-episodios">
+              <ListVideo aria-hidden="true" />
+              {episodioActual
+                ? `Capítulos · T${episodioActual.temporada} E${episodioActual.episodio}`
+                : "Capítulos"}
+            </a>
+          )}
 
           <button
             type="button"
@@ -75,6 +101,7 @@ export function FichaPortada({
               Ver tráiler
             </a>
           )}
+
         </div>
 
         <div className="ficha-titular">

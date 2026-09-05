@@ -1,7 +1,8 @@
 import type { Channel } from "@/lib/types";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { channelMark } from "@/lib/channels";
-import { enOrden, porcentaje, valeLaPena, type MemoriaProgreso } from "@/lib/progreso";
+import { claveDeTitulo, porcentaje, valeLaPena, type MemoriaProgreso } from "@/lib/progreso";
+import { resumen, type EnCurso } from "@/lib/continuar";
 
 /**
  * Lo mínimo que una tarjeta necesita saber para pintarse.
@@ -71,9 +72,14 @@ export function channelToCard(channel: Channel): CardItem {
 /**
  * La misma tarjeta, con la barra de por dónde iba.
  *
- * La clave de una tarjeta del catálogo (`movie-123`) y la de su progreso son la
- * misma cadena a propósito: `claveDeTitulo()` produce ese formato, así que
+ * La clave de una tarjeta del catálogo (`movie-tmdb-550`) y la de su progreso
+ * son la misma cadena a propósito: `claveDeTitulo()` la deriva de esta, así que
  * cruzarlas es una búsqueda directa y no hay que llevar un índice aparte.
+ *
+ * Lo fueron *a propósito* mucho antes de serlo de verdad: `claveDeTitulo()`
+ * reconstruía la clave desde el `tmdbId` y producía `movie-550`, así que esta
+ * búsqueda fallaba siempre y ninguna tarjeta enseñó nunca su barra. Derivar una
+ * de la otra es lo que impide que vuelvan a separarse.
  *
  * Esto no puede hacerse en el servidor —el progreso vive en `localStorage` de
  * cada aparato— así que lo aplica quien pinta, ya en el navegador.
@@ -127,33 +133,6 @@ export function conEnLista(item: CardItem, ids: Set<string>): CardItem {
 }
 
 /**
- * «Seguir viendo»: los títulos con progreso real, del más reciente al más
- * viejo, tomados de entre tarjetas que YA llegaron a la pantalla.
- *
- * No pide nada nuevo a TMDB por cada progreso guardado —eso sería una
- * petición por título cada vez que alguien entra al catálogo—, así que solo
- * puede ofrecer continuar lo que ya estaba entre las filas curadas. Si algo
- * se dejó a medias y no está ahí (un resultado de búsqueda, por ejemplo), no
- * aparece: es preferible a inventar una petición nueva por cada entrada de
- * `localStorage`.
- */
-export function seguirViendo(
-  filas: { tarjetas: CardItem[] }[],
-  memoria: MemoriaProgreso,
-): CardItem[] {
-  const porClave = new Map<string, CardItem>();
-  for (const fila of filas) {
-    for (const tarjeta of fila.tarjetas) {
-      if (!porClave.has(tarjeta.key)) porClave.set(tarjeta.key, tarjeta);
-    }
-  }
-  return enOrden(memoria)
-    .map(({ clave }) => porClave.get(clave))
-    .filter((tarjeta): tarjeta is CardItem => tarjeta !== undefined)
-    .map((tarjeta) => conProgreso(tarjeta, memoria));
-}
-
-/**
  * «Mi lista»: las tarjetas marcadas, en el orden en que aparecen en las filas
  * curadas. Mismo criterio que `seguirViendo` — sin pedir nada nuevo a TMDB,
  * solo cruza lo que ya llegó con lo que hay en `localStorage`.
@@ -169,4 +148,40 @@ export function enMiLista(filas: { tarjetas: CardItem[] }[], ids: Set<string>): 
     }
   }
   return resultado;
+}
+
+/**
+ * Un título a medias, visto como tarjeta.
+ *
+ * Es lo que alimenta «Seguir viendo», y sustituye al `seguirViendo()` que
+ * había aquí. La diferencia está en de dónde sale la carátula: aquel solo
+ * podía ofrecer títulos que YA vinieran en las filas curadas del servidor —una
+ * serie encontrada por el buscador desaparecía de la fila en cuanto salías de
+ * su ficha—, y esta guarda la carátula con la entrada, así que la fila se
+ * pinta sin pedirle nada a TMDB y sirve para cualquier título.
+ *
+ * La línea de debajo dice «T1 E4 · Título del capítulo» en vez del año. En una
+ * fila de continuar es lo único que importa: por dónde vas.
+ */
+export function enCursoACard(entrada: EnCurso, memoria: MemoriaProgreso): CardItem {
+  /**
+   * La barra se busca por la clave del EPISODIO, no por la de la serie: una
+   * serie no está «al 40%» porque su cuarto capítulo lo esté, pero la tarjeta
+   * que ofrece continuar ese capítulo sí puede decir por dónde iba. Casi
+   * siempre no habrá nada guardado —el reproductor solo lee la posición cuando
+   * el `<video>` es nuestro— y entonces la tarjeta va sin barra, que es lo
+   * correcto: mejor sin barra que con una inventada.
+   */
+  const clave = claveDeTitulo(entrada.clave, entrada.temporada, entrada.episodio);
+  const marca = memoria[clave];
+
+  return {
+    key: entrada.clave,
+    title: entrada.titulo,
+    backdrop: entrada.backdrop ?? entrada.poster,
+    poster: entrada.poster ?? entrada.backdrop,
+    meta: resumen(entrada),
+    mark: entrada.titulo.slice(0, 2).toUpperCase(),
+    progress: marca && valeLaPena(marca) ? porcentaje(marca) : undefined,
+  };
 }

@@ -52,6 +52,7 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
 export function FichaReproductor({
   fuente,
   titulo,
+  claveBase,
   tmdbId,
   mediaType,
   temporada,
@@ -62,6 +63,13 @@ export function FichaReproductor({
 }: {
   fuente: PlaybackSource;
   titulo: string;
+  /**
+   * La clave del título, la misma que la de su tarjeta (`"tv-tmdb-125988"`).
+   * De ella cuelga la del progreso. No se reconstruye aquí a partir del
+   * `tmdbId`: hacerlo guardaba en `tv-125988` mientras la tarjeta preguntaba
+   * por `tv-tmdb-125988`, y la barra de progreso no salía nunca.
+   */
+  claveBase: string;
   /** Sin tmdbId no hay catálogo que consultar: solo sirven los enlaces propios. */
   tmdbId: number | null;
   mediaType: MediaType;
@@ -83,7 +91,9 @@ export function FichaReproductor({
           streams={fuente.streams}
           title={titulo}
           claveProgreso={
-            tmdbId ? claveDeTitulo(mediaType, tmdbId, temporada, episodio) : undefined
+            mediaType === "tv"
+              ? claveDeTitulo(claveBase, temporada, episodio)
+              : claveBase
           }
         />
       </section>
@@ -111,6 +121,7 @@ export function FichaReproductor({
     <ReproductorCatalogo
       key={`${tmdbId}|${mediaType}|${temporada}|${episodio}`}
       titulo={titulo}
+      claveBase={claveBase}
       tmdbId={tmdbId}
       mediaType={mediaType}
       temporada={temporada}
@@ -131,6 +142,7 @@ export function FichaReproductor({
  */
 function ReproductorCatalogo({
   titulo,
+  claveBase,
   tmdbId,
   mediaType,
   temporada,
@@ -140,6 +152,8 @@ function ReproductorCatalogo({
   servidoresIniciales,
 }: {
   titulo: string;
+  /** La clave del título; de ella cuelga la del progreso. Ver `FichaReproductor`. */
+  claveBase: string;
   tmdbId: number;
   mediaType: MediaType;
   temporada: number;
@@ -469,7 +483,9 @@ function ReproductorCatalogo({
             <NativePlayer
               streams={streamDirecto}
               title={titulo}
-              claveProgreso={claveDeTitulo(mediaType, tmdbId, temporada, episodio)}
+              claveProgreso={
+                mediaType === "tv" ? claveDeTitulo(claveBase, temporada, episodio) : claveBase
+              }
             />
           ) : (
             /* Sin `sandbox`. Se puso para que los guiones de publicidad no

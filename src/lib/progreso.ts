@@ -41,17 +41,45 @@ export const MAX_RECORDADOS = 200;
 /** Cuánto se recuerda algo que nadie ha vuelto a tocar. */
 export const OLVIDO_MS = 90 * 24 * 60 * 60 * 1000;
 
-/** Un episodio se recuerda aparte: quien va por el cuatro no quiere volver al tres. */
+/**
+ * La clave de lo que se está viendo, a partir de la clave del título.
+ *
+ * `claveBase` es **la misma cadena que `CardItem.key`** —la que produce
+ * `claveCatalogo()`, `"tv-tmdb-125988"`— y no el `tmdbId` a secas. Lo fue
+ * durante un tiempo, y era un fallo silencioso: el reproductor guardaba en
+ * `"tv-125988"` mientras la tarjeta preguntaba por `"tv-tmdb-125988"`, así que
+ * la barra de progreso no salía nunca y «Seguir viendo» estaba siempre vacío
+ * aunque `localStorage` tuviera entradas. Derivarla de la clave del título en
+ * vez de reconstruirla hace que no puedan volver a separarse.
+ *
+ * Un episodio se recuerda aparte: quien va por el cuatro no quiere volver al
+ * tres.
+ */
 export function claveDeTitulo(
-  mediaType: "movie" | "tv",
-  id: number,
+  claveBase: string,
   season?: number,
   episode?: number,
 ): string {
-  if (mediaType === "tv" && season !== undefined && episode !== undefined) {
-    return `tv-${id}-t${season}e${episode}`;
+  if (season !== undefined && episode !== undefined) {
+    return `${claveBase}-t${season}e${episode}`;
   }
-  return `${mediaType}-${id}`;
+  return claveBase;
+}
+
+/**
+ * La clave del título a partir de la de un episodio suyo, o la misma cadena si
+ * ya era la de un título. Es la vuelta de `claveDeTitulo`: la fila de
+ * «Continuar viendo» guarda episodios y necesita saber de qué serie son.
+ */
+export function claveSinEpisodio(clave: string): string {
+  return clave.replace(/-t\d+e\d+$/, "");
+}
+
+/** La temporada y el episodio escondidos en una clave, si los lleva. */
+export function episodioDeClave(clave: string): { temporada: number; episodio: number } | null {
+  const partes = /-t(\d+)e(\d+)$/.exec(clave);
+  if (!partes) return null;
+  return { temporada: Number(partes[1]), episodio: Number(partes[2]) };
 }
 
 /** La clave de una fuente propia. Su `id` ya es único dentro de la lista. */
