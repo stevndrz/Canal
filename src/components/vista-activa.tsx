@@ -1,13 +1,36 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { AjustesView } from "@/components/views/ajustes-view";
-import { BuscarView } from "@/components/views/buscar-view";
-import { FuenteView } from "@/components/views/fuente-view";
 import { HomeView } from "@/components/views/home-view";
-import { LiveTvView } from "@/components/livetv/live-tv-view";
 import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import type { Channel, PlaybackSettings, ViewId } from "@/lib/types";
+
+/**
+ * Las vistas que NO se ven al abrir, bajo demanda.
+ *
+ * Antes venían las cinco por `import` estático y el bundle inicial las pagaba
+ * todas —parrilla EPG, guía, formularios— aunque solo se pintara Inicio. Con
+ * `dynamic()` cada una viaja en su chunk y se descarga al entrar a su pestaña,
+ * una sola vez. `HomeView` se queda estático a propósito: es la primera
+ * pantalla y diferirla sería un parpadeo en cada arranque a cambio de nada.
+ */
+const LiveTvView = dynamic(
+  () => import("@/components/livetv/live-tv-view").then((m) => m.LiveTvView),
+  { loading: () => <VistaCargando /> },
+);
+const BuscarView = dynamic(
+  () => import("@/components/views/buscar-view").then((m) => m.BuscarView),
+  { loading: () => <VistaCargando /> },
+);
+const FuenteView = dynamic(
+  () => import("@/components/views/fuente-view").then((m) => m.FuenteView),
+  { loading: () => <VistaCargando /> },
+);
+const AjustesView = dynamic(
+  () => import("@/components/views/ajustes-view").then((m) => m.AjustesView),
+  { loading: () => <VistaCargando /> },
+);
 
 /**
  * Qué pantalla se pinta.
@@ -59,6 +82,15 @@ export interface VistaActivaProps {
 
 /** El armazón que envuelve a las vistas que aún no traen el suyo. */
 const PANTALLA = "screen tv-safe";
+
+/**
+ * Hueco mientras baja el chunk de una vista: el mismo armazón vacío, para que
+ * el cambio de pestaña no pegue un salto de layout. Solo se ve la primera vez
+ * que se entra a cada pestaña; después el chunk ya está en caché.
+ */
+function VistaCargando() {
+  return <div className={PANTALLA} aria-hidden="true" />;
+}
 
 export function VistaActiva(props: VistaActivaProps) {
   const router = useRouter();
