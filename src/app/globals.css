@@ -2513,7 +2513,9 @@ html[data-player="on"] body {
   align-items: center;
   gap: clamp(12px, 1.5vw, 28px);
   height: var(--topbar-h);
-  padding: 0 var(--margen);
+  /* Igual que la barra de verdad: el hueco del sistema arriba, o el esqueleto
+     salta un dedo hacia abajo en cuanto llega la barra real. */
+  padding: var(--safe-top) var(--margen) 0;
   border-bottom: 1px solid var(--line, rgba(245, 245, 247, 0.14));
 }
 
@@ -3073,10 +3075,11 @@ body {
    pantalla. Un poco más que la barra, porque pegados se leen como una sola
    pieza.
 
-   En teléfono se mide contra la cabecera real (58px) y no contra
-   `--topbar-h`, que es la de escritorio. Aquí decía `clamp(14px, 2vh, 24px)`
-   dando por hecho que el hueco lo ponía `.app-shell` — y no lo pone: el vídeo
-   se metía 41px por debajo de la cabecera fija. */
+   Se mide siempre contra `--topbar-h`, que en teléfono `shell.css` redefine a
+   la cabecera real (58px) más el hueco del sistema. Aquí decía
+   `clamp(14px, 2vh, 24px)` dando por hecho que el hueco lo ponía
+   `.app-shell` — y no lo pone: el vídeo se metía 41px por debajo de la
+   cabecera fija. */
 .live-slot {
   padding-top: calc(var(--topbar-h) + 36px);
 }
@@ -3089,7 +3092,7 @@ body {
 
 @media (max-width: 680px) {
   .live-slot {
-    padding-top: calc(58px + clamp(10px, 1.6vh, 18px));
+    padding-top: calc(var(--topbar-h) + clamp(10px, 1.6vh, 18px));
   }
 }
 

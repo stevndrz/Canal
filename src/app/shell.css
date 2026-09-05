@@ -88,9 +88,21 @@
   --radio-tarjeta: clamp(10px, 0.8vw, 14px);
   --radio-panel: clamp(14px, 1.1vw, 22px);
 
-  /* Altura de la barra superior. Todo lo que tenga que apartarse de ella mide
-     contra esta variable, nunca repitiendo el clamp. */
-  --topbar-h: clamp(68px, 8.4vh, 92px);
+  /* El hueco del sistema en la parte de arriba: la muesca y el reloj del
+     iPhone, la barra de estado de Android.
+
+     Instalada en la pantalla de inicio, la app se dibuja de borde a borde
+     (`viewportFit: "cover"` + `black-translucent` en `layout.tsx`), así que
+     ese hueco lo tiene que respetar la app o el sistema le pinta la hora
+     encima. En un navegador con su propia barra, y en un televisor, vale 0 y
+     todo queda como estaba. */
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* Altura de la barra superior, hueco del sistema incluido. Todo lo que
+     tenga que apartarse de ella mide contra esta variable, nunca repitiendo
+     el clamp: por eso basta con sumarle `--safe-top` aquí para que la app
+     entera se aparte de la muesca. */
+  --topbar-h: calc(clamp(68px, 8.4vh, 92px) + var(--safe-top));
 
   /* La curva de tvOS: sale rápido y frena largo. */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -155,7 +167,10 @@
   inset: 0 0 auto;
   z-index: 60;
   height: var(--topbar-h);
-  padding: 0 var(--margen);
+  /* El relleno de arriba baja el contenido de la barra por debajo del hueco
+     del sistema; la altura ya lo incluye, así que la barra se ve igual de
+     alta que siempre. */
+  padding: var(--safe-top) var(--margen) 0;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
@@ -836,7 +851,7 @@
 @media (max-width: 680px) {
   .hero {
     min-height: 62vh;
-    padding-top: calc(58px + 20px);
+    padding-top: calc(var(--topbar-h) + 20px);
   }
 
   .hero-copy {
@@ -1539,6 +1554,14 @@
 }
 
 @media (max-width: 680px) {
+  /* En teléfono la barra superior es la cabecera, y mide 58px en vez del
+     clamp de escritorio. Redefinir la variable aquí —en lugar de repetir
+     `58px` por media hoja— hace que todo lo que ya se aparta de la barra se
+     aparte también del hueco del sistema, sin tocarlo uno por uno. */
+  :root {
+    --topbar-h: calc(58px + var(--safe-top));
+  }
+
   .sidebar {
     display: none;
   }
@@ -1550,8 +1573,13 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    height: 58px;
-    padding: 0 16px;
+    height: var(--topbar-h);
+    /* Arriba, el hueco de la muesca: sin él, instalada como app, el reloj y
+       la batería del iPhone caían justo encima de la marca. A los lados,
+       el de la muesca en horizontal, que en un iPhone tumbado se come 47px
+       del borde. */
+    padding: var(--safe-top) max(16px, env(safe-area-inset-right)) 0
+      max(16px, env(safe-area-inset-left));
     background: var(--glass);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
@@ -1568,6 +1596,16 @@
     color: var(--text);
   }
 
+  /* Instalada en la pantalla de inicio, el reloj del sistema queda justo
+     encima del de la app: dos veces la misma hora, una debajo de la otra.
+     En el navegador sí se queda — allí arriba hay barra de direcciones, no
+     hora. */
+  @media (display-mode: standalone) {
+    .mobile-header .top-clock {
+      display: none;
+    }
+  }
+
   .mobile-bottom-nav {
     position: fixed;
     inset: auto 0 0;
@@ -1576,7 +1614,8 @@
     justify-content: space-around;
     align-items: stretch;
     gap: 2px;
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+    padding: 6px max(6px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom))
+      max(6px, env(safe-area-inset-left));
     /* Más opaca y más desenfocada que antes: por debajo pasan carátulas
        claras, y con el cristal flojo las etiquetas se perdían encima. */
     background: rgba(16, 16, 18, 0.86);
@@ -1664,8 +1703,8 @@
   .mobile-mas {
     position: fixed;
     z-index: 61;
-    left: 8px;
-    right: 8px;
+    left: max(8px, env(safe-area-inset-left));
+    right: max(8px, env(safe-area-inset-right));
     bottom: calc(62px + env(safe-area-inset-bottom));
     display: grid;
     gap: 2px;
@@ -1720,7 +1759,7 @@
   .livetv-shell,
   .section-heading,
   .search-hero {
-    padding-top: calc(58px + 14px);
+    padding-top: calc(var(--topbar-h) + 14px);
   }
 
   .screen.has-hero,
