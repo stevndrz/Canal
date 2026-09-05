@@ -20,6 +20,17 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-04 — Velocidad II: vistas bajo demanda
+
+`vista-activa.tsx` traía las 5 vistas por `import` estático y el bundle
+inicial las pagaba todas (parrilla EPG, guía, formularios) aunque solo se
+pintara Inicio. Ahora `LiveTvView`, `BuscarView`, `FuenteView` y
+`AjustesView` van con `next/dynamic` —cada una en su chunk, se descarga al
+entrar a su pestaña, una sola vez— y `HomeView` queda estático porque es la
+primera pantalla. Fallback mínimo con el mismo armazón (`screen tv-safe`, sin
+CSS nuevo) para no pegar saltos de layout. La capa TMDB se revisó y ya va con
+caché de días en caliente: tocarla era más riesgo que ganancia.
+
 ### 2026-09-04 — Velocidad: poda de iconos, esqueleto propio y hls.js perezoso
 
 Pedido: optimizar velocidad en toda la app. Auditoría previa (dos pasadas:
