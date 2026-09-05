@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Play, Star, Tv } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
@@ -24,6 +25,25 @@ export function PanelCanal({
   onTune: (canal: Channel) => void;
   onToggleFavorite: (id: number) => void;
 }) {
+  /**
+   * El logo, con su propio estado de fallo — igual que `LogoCanal` en la
+   * fila de la lista. Sin esto no había ningún manejo de error aquí: un
+   * logo que 404 o que un CDN bloquea por «hotlink» (algunos devuelven un
+   * marcador de imagen rota cuando el `Referer` no es el suyo, en vez de
+   * negarse limpio) se quedaba mostrando el icono roto del navegador, sin
+   * caer nunca al monograma de la categoría como en el resto de la app.
+   *
+   * `logoDeId` guarda de qué canal es el fallo guardado: al cambiar de
+   * canal hay que olvidarlo, o un logo que sí carga se vería sustituido por
+   * el fallo del canal anterior durante un instante.
+   */
+  const [logoDeId, setLogoDeId] = useState<number | null>(null);
+  const [logoFalla, setLogoFalla] = useState(false);
+  if (canal && logoDeId !== canal.id) {
+    setLogoDeId(canal.id);
+    setLogoFalla(false);
+  }
+
   if (!canal) {
     return (
       <aside className="livetv-detail" aria-label="Detalle del canal">
@@ -38,10 +58,19 @@ export function PanelCanal({
   return (
     <aside className="livetv-detail" aria-label="Detalle del canal">
       <div className="livetv-detail-art">
-        {canal.logoUrl ? (
+        {canal.logoUrl && !logoFalla ? (
           // `<img>` plano: los logos salen de cientos de dominios de listas IPTV.
+          // `no-referrer` evita que un CDN con protección «anti-hotlink» —que
+          // bloquea la imagen cuando ve un `Referer` de otro dominio— la
+          // rechace precisamente por venir de esta app.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={canal.logoUrl} alt="" loading="lazy" />
+          <img
+            src={canal.logoUrl}
+            alt=""
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            onError={() => setLogoFalla(true)}
+          />
         ) : (
           <b className="livetv-row-mark">{channelMark(canal)}</b>
         )}

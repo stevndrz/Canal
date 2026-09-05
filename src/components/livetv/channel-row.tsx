@@ -29,8 +29,19 @@ const LogoCanal = memo(function LogoCanal({ canal }: { canal: Channel }) {
 
   if (canal.logoUrl && !falla) {
     return (
+      // `no-referrer`: algunos CDN de logos bloquean la imagen —devolviendo
+      // ellos mismos un marcador de imagen rota— cuando ven un `Referer` de
+      // un dominio que no es el suyo. Sin cabecera que mirar, sirven la
+      // imagen real. Medido con el logo de ABC Kids: con `Referer` ajeno,
+      // 404 disfrazado de imagen; sin él, la imagen de verdad.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={canal.logoUrl} alt="" loading="lazy" onError={() => setFalla(true)} />
+      <img
+        src={canal.logoUrl}
+        alt=""
+        loading="lazy"
+        referrerPolicy="no-referrer"
+        onError={() => setFalla(true)}
+      />
     );
   }
   if (canal.name) return <b className="livetv-row-mark">{channelMark(canal)}</b>;
