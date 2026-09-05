@@ -112,11 +112,10 @@ export function FichaEpisodios({
               onClick={() => setFiltro(id)}
               className={`catalogo-chip ${filtro === id ? "is-active" : ""}`}
             >
+              {/* Sin insignia con el número: «3 de 10 vistos» ya está en la
+                  cabecera, a dos dedos de aquí, y repetirlo dentro de cada
+                  píldora era ruido en la pantalla donde menos sitio hay. */}
               {label}
-              {id === "vistos" && contados > 0 && <span className="chip-cuenta">{contados}</span>}
-              {id === "porver" && episodes.length - contados > 0 && (
-                <span className="chip-cuenta">{episodes.length - contados}</span>
-              )}
             </button>
           ))}
         </div>

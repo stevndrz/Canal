@@ -8,21 +8,28 @@ import { claveCatalogo } from "@/lib/media-item";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
 /**
- * La cabecera de una ficha: arte de fondo, carátula, título y datos sueltos.
+ * La cabecera de una ficha: arte de fondo, carátula, título y acciones.
  *
- * El fondo va en este contenedor y no en un `absolute inset-0` desde y=0: así
- * arranca por debajo de la barra fija en vez de meterse detrás de ella, que
- * era lo que hacía que el título y el botón de volver se leyeran encima de la
- * navegación.
+ * **Las acciones ya no son píldoras de texto en una fila que envuelve.** Lo
+ * fueron, y era un fallo de forma, no de tamaño: una píldora mide lo que mida
+ * su etiqueta, así que «Volver al catálogo» + «Añadir a mi lista» + «Ver
+ * tráiler» + «Capítulos · T1 E1» no caben en 393px por mucho que se encojan.
+ * Se partían en tres líneas apiladas que se comían el hero entero, empujaban
+ * la carátula y el título fuera del primer pantallazo y dejaban el reproductor
+ * sin sitio. Apretar la píldora no arreglaba eso; solo lo retrasaba hasta el
+ * siguiente título largo.
  *
- * **En un teléfono esto se reordena entero, y no solo se encoge.** Las tres
- * acciones eran tres píldoras de ancho completo que se apilaban en tres
- * líneas, la carátula caía suelta en mitad del hero y el título quedaba
- * empujado casi fuera de la primera pantalla. Aquí: «Volver» pasa a ser un
- * icono redondo, las otras dos comparten una fila que se desliza, y carátula y
- * título van uno al lado del otro. Lo hace el CSS (`@media (max-width: 680px)`
- * en `globals.css`) — el marcado es el mismo en todas las pantallas, para que
- * no haya dos versiones de la misma ficha que mantener.
+ * Ahora cada acción es un icono redondo con su etiqueta debajo, de **ancho
+ * fijo**: tres caben siempre en una línea, midan lo que midan sus palabras, en
+ * un teléfono y en un televisor. Es el mismo patrón que usan las fichas de
+ * Apple TV, y es la razón por la que allí nunca se descoloca.
+ *
+ * «Volver» sale de esa fila y pasa a ser un botón redondo flotando sobre el
+ * arte, arriba a la izquierda: no es una acción sobre el título —es salir— y
+ * mezclarlo con las otras tres lo hacía competir con ellas por el ancho.
+ *
+ * Y las acciones van DEBAJO del título, no encima. Lo primero que tiene que
+ * leerse al abrir una ficha es qué es esto.
  */
 export function FichaPortada({
   item,
@@ -35,9 +42,9 @@ export function FichaPortada({
   /** Duración ya formateada; la calcula quien conoce la ficha entera. */
   minutos: string | null;
   /**
-   * En qué capítulo está la ficha ahora mismo, si es una serie. Solo para
-   * etiquetar el atajo a la lista: «Capítulos · T1 E4» dice a la vez que hay
-   * lista y por dónde vas.
+   * En qué capítulo está la ficha ahora mismo, si es una serie. Etiqueta el
+   * atajo a la lista con «T1 E4», que dice a la vez que hay capítulos y por
+   * dónde vas.
    */
   episodioActual?: { temporada: number; episodio: number } | null;
 }) {
@@ -53,56 +60,9 @@ export function FichaPortada({
       style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
     >
       <div className="ficha-cabecera">
-        <div className="ficha-acciones">
-          <Link href="/peliculas" data-nav="button" className="ficha-volver">
-            <ArrowLeft aria-hidden="true" />
-            {/* El texto desaparece en teléfono por CSS, no aquí: el botón
-                sigue teniendo nombre accesible en todas las pantallas. */}
-            <span className="ficha-volver-texto">Volver al catálogo</span>
-            <span className="sr-only">Volver al catálogo</span>
-          </Link>
-
-          {/* Un ancla, no un botón: la lista está en la misma página y el
-              navegador ya sabe llevarte a un `id`. Sin JavaScript, sin
-              `scrollIntoView` y con Atrás funcionando. */}
-          {isSeries && (
-            <a href="#episodios" data-nav="button" className="secondary ficha-ir-episodios">
-              <ListVideo aria-hidden="true" />
-              {episodioActual
-                ? `Capítulos · T${episodioActual.temporada} E${episodioActual.episodio}`
-                : "Capítulos"}
-            </a>
-          )}
-
-          <button
-            type="button"
-            data-nav="button"
-            className="secondary"
-            onClick={() => toggle(clave)}
-            aria-pressed={enLista}
-          >
-            {enLista ? (
-              <BookmarkCheck aria-hidden="true" fill="currentColor" />
-            ) : (
-              <Bookmark aria-hidden="true" />
-            )}
-            {enLista ? "En mi lista" : "Añadir a mi lista"}
-          </button>
-
-          {item.trailerUrl && (
-            <a
-              href={item.trailerUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="secondary"
-              data-nav="button"
-            >
-              <Film aria-hidden="true" />
-              Ver tráiler
-            </a>
-          )}
-
-        </div>
+        <Link href="/peliculas" data-nav="button" className="ficha-volver" aria-label="Volver al catálogo">
+          <ArrowLeft aria-hidden="true" />
+        </Link>
 
         <div className="ficha-titular">
           {item.poster && (
@@ -132,14 +92,62 @@ export function FichaPortada({
               <span className="ficha-tipo">{isSeries ? "Serie" : "Película"}</span>
             </div>
 
+            {/* Texto separado por puntos y no píldoras: tres géneros en píldora
+                son tres cajas más compitiendo con el título en una pantalla
+                donde ya hay carátula, datos y acciones. Aquí informan sin
+                pedir que los mires. */}
             {item.generos.length > 0 && (
-              <div className="ficha-generos">
-                {item.generos.map((genero) => (
-                  <span key={genero}>{genero}</span>
-                ))}
-              </div>
+              <p className="ficha-generos">{item.generos.join(" · ")}</p>
             )}
           </div>
+        </div>
+
+        <div className="ficha-acciones">
+          {/* Un ancla, no un botón: la lista está en la misma página y el
+              navegador ya sabe llevarte a un `id`. Sin JavaScript, sin
+              `scrollIntoView` y con Atrás funcionando. */}
+          {isSeries && (
+            <a href="#episodios" data-nav="button" className="ficha-accion">
+              <span className="ficha-accion-icono">
+                <ListVideo aria-hidden="true" />
+              </span>
+              {episodioActual
+                ? `T${episodioActual.temporada} E${episodioActual.episodio}`
+                : "Capítulos"}
+            </a>
+          )}
+
+          <button
+            type="button"
+            data-nav="button"
+            className={`ficha-accion ${enLista ? "is-activa" : ""}`}
+            onClick={() => toggle(clave)}
+            aria-pressed={enLista}
+          >
+            <span className="ficha-accion-icono">
+              {enLista ? (
+                <BookmarkCheck aria-hidden="true" fill="currentColor" />
+              ) : (
+                <Bookmark aria-hidden="true" />
+              )}
+            </span>
+            {enLista ? "En mi lista" : "Mi lista"}
+          </button>
+
+          {item.trailerUrl && (
+            <a
+              href={item.trailerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ficha-accion"
+              data-nav="button"
+            >
+              <span className="ficha-accion-icono">
+                <Film aria-hidden="true" />
+              </span>
+              Tráiler
+            </a>
+          )}
         </div>
       </div>
     </div>
