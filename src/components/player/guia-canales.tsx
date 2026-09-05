@@ -110,6 +110,11 @@ export function GuiaCanales({
               <em>{canal.number}</em>
             </span>
             <p>{canal.name}</p>
+            {/* Mismo dato que ya pinta `channel-row.tsx` en la lista: el
+                programa actual viaja en `Channel` cuando la guía lo trae, no
+                hace falta pedir nada aparte. Sin porcentaje ni reloj: la tira
+                es demasiado angosta para una barra legible a tres metros. */}
+            {canal.currentProgram && <p className="is-muted">{canal.currentProgram}</p>}
           </button>
         ))}
       </div>

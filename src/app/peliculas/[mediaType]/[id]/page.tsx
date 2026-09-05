@@ -3,10 +3,12 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TitleDetail } from "@/components/catalog/title-detail";
 import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catalog";
+import { fetchSimilar } from "@/lib/catalog/discover";
 import type { MediaType } from "@/lib/catalog/types";
 import { esTelevisorUA } from "@/lib/dispositivo";
 import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
 import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
+import { catalogToCard } from "@/lib/media-item";
 
 /**
  * La lectura de `headers()` —saber si quien pide es un televisor para
@@ -58,17 +60,26 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
    * falla, su servidor se conserva.
    */
   const tmdbId = resolved.tmdbId ?? null;
-  const servidoresIniciales = tmdbId
-    ? numerarServidores(
-        await servidoresConElTitulo(
+
+  /**
+   * «También te puede interesar», al final de la ficha. En paralelo con la
+   * comprobación de servidores de arriba: ninguna depende de la otra, y las
+   * dos ya esperan a `resolveItem`.
+   */
+  const [servidoresIniciales, recomendados] = await Promise.all([
+    tmdbId
+      ? servidoresConElTitulo(
           servidoresEmbed(
             mediaType as MediaType,
             { tmdbId, season: selectedSeason, episode: 1 },
             enTelevisor,
           ),
-        ),
-      )
-    : [];
+        ).then(numerarServidores)
+      : Promise.resolve([]),
+    tmdbId
+      ? fetchSimilar(mediaType as MediaType, tmdbId).then((items) => items.map(catalogToCard))
+      : Promise.resolve([]),
+  ]);
 
   return (
     <TitleDetail
@@ -77,6 +88,7 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
       selectedSeason={selectedSeason}
       enTelevisor={enTelevisor}
       servidoresIniciales={servidoresIniciales}
+      recomendados={recomendados}
     />
   );
 }

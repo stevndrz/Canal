@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
+import { esPunteroTosco } from "@/lib/dispositivo";
 
 /** Códigos de tecla de los mandos reales, además de las flechas del teclado. */
 const BACK_KEYCODES = new Set([
@@ -8,6 +9,27 @@ const BACK_KEYCODES = new Set([
   461, // LG webOS
   27, // Escape
 ]);
+
+/**
+ * ¿Es la tecla Atrás del mando?
+ *
+ * Exportada porque no solo la necesita este hook: `fullscreen-player.tsx`
+ * desactiva `useSpatialNav` entero mientras se ve la tele —las flechas
+ * zapean, no navegan la rejilla— así que tiene su propio `keydown` y con él
+ * su propia necesidad de reconocer Atrás. Una sola función evita que las dos
+ * rutas un día reconozcan teclas distintas.
+ *
+ * No mira `Backspace`: aquí no hay ningún campo de texto donde esa tecla
+ * pudiera significar «borrar una letra» en vez de «volver».
+ */
+export function esTeclaAtras(event: Pick<KeyboardEvent, "key" | "keyCode">): boolean {
+  return (
+    BACK_KEYCODES.has(event.keyCode) ||
+    event.key === "Escape" ||
+    event.key === "GoBack" ||
+    event.key === "BrowserBack"
+  );
+}
 
 type Dir = "up" | "down" | "left" | "right";
 
@@ -180,7 +202,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
      * mando-puntero es «coarse» y ahí el anillo tampoco ayuda, mientras que
      * una ventana estrecha en un ordenador sí lo necesita.
      */
-    if (window.matchMedia?.("(pointer: coarse)").matches) return;
+    if (esPunteroTosco()) return;
     const active = document.activeElement as HTMLElement | null;
     if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
     const candidates = collect(root);
@@ -241,12 +263,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       // Atrás se atiende siempre, incluso con el foco desactivado: es lo que
       // saca del reproductor en un televisor. Escribiendo en un campo,
       // Retroceso borra una letra y no debe salir de la pantalla.
-      const esAtras =
-        BACK_KEYCODES.has(event.keyCode) ||
-        event.key === "Escape" ||
-        event.key === "GoBack" ||
-        event.key === "BrowserBack" ||
-        (event.key === "Backspace" && !typing);
+      const esAtras = esTeclaAtras(event) || (event.key === "Backspace" && !typing);
 
       if (esAtras) {
         event.preventDefault();

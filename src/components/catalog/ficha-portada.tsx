@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Star } from "lucide-react";
+import { ArrowLeft, Bookmark, BookmarkCheck, Film, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
+import { claveCatalogo } from "@/lib/media-item";
+import { useWatchlist } from "@/hooks/use-watchlist";
 
 /**
  * La cabecera de una ficha: arte de fondo, carátula, título y datos sueltos.
@@ -26,16 +30,52 @@ export function FichaPortada({
   /** Duración ya formateada; la calcula quien conoce la ficha entera. */
   minutos: string | null;
 }) {
+  // «Mi lista» vive en localStorage: no se puede saber en el servidor si este
+  // título ya está marcado, así que el estado se lee aquí, al montar.
+  const { ids, toggle } = useWatchlist();
+  const clave = claveCatalogo(item);
+  const enLista = ids.has(clave);
+
   return (
     <div
       className="ficha-portada"
       style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
     >
       <div className="ficha-cabecera">
-        <Link href="/peliculas" data-nav="button" className="ficha-volver">
-          <ArrowLeft aria-hidden="true" />
-          Volver al catálogo
-        </Link>
+        <div className="ficha-acciones">
+          <Link href="/peliculas" data-nav="button" className="ficha-volver">
+            <ArrowLeft aria-hidden="true" />
+            Volver al catálogo
+          </Link>
+
+          <button
+            type="button"
+            data-nav="button"
+            className="secondary"
+            onClick={() => toggle(clave)}
+            aria-pressed={enLista}
+          >
+            {enLista ? (
+              <BookmarkCheck aria-hidden="true" fill="currentColor" />
+            ) : (
+              <Bookmark aria-hidden="true" />
+            )}
+            {enLista ? "En mi lista" : "Añadir a mi lista"}
+          </button>
+
+          {item.trailerUrl && (
+            <a
+              href={item.trailerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="secondary"
+              data-nav="button"
+            >
+              <Film aria-hidden="true" />
+              Ver tráiler
+            </a>
+          )}
+        </div>
 
         <div className="ficha-titular">
           {item.poster && (

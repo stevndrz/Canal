@@ -1,1 +1,102 @@
-# Memoria: Agente config-seguridad
+# Memoria de `config-seguridad`
+
+**Lo primero que hago al empezar es leer este archivo. Lo último, actualizarlo.**
+
+No tengo definición en `.claude/agents/` todavía. Cuando empecé esta sesión no
+existía ni `MAIN.md` ni `docs/EQUIPO.md` me mencionaba (listaba solo `canales`,
+`catalogo`, `diseno`, `calidad`, `dispositivos`). A mitad de sesión apareció
+`MAIN.md` en la raíz del repo, formalizando diez agentes — `config-seguridad`
+entre ellos, dueño de `config*.ts`, `url-segura.ts`, `next.config.ts` y CSP.
+Falta que `docs/EQUIPO.md` se actualice para que coincida con `MAIN.md`.
+
+---
+
+## Mi zona
+
+Credenciales expuestas, cabeceras de seguridad (`next.config.ts`), y lo que
+`docs/SEGURIDAD.md` marca como pendiente en la sección «Lo que hay que hacer y
+no es código».
+
+---
+
+## Decisiones tomadas
+
+- **No reescribir el historial de Git para «borrar» un secreto filtrado.**
+  Clones y forks existentes ya lo tienen; lo único que lo neutraliza es
+  rotarlo. Coincide con lo que ya decía `docs/ARQUITECTURA.md`.
+- **La CSP sin `script-src`/`media-src`/`connect-src` es una decisión
+  aceptada, no un hueco por cerrar.** `next.config.ts` ya la documenta:
+  `script-src` con nonce rompe `cacheComponents` (PPR), y `media-src` fijo
+  rompería canales cuando un proveedor rota de dominio sin aviso. No lo toqué.
+
+---
+
+## Diario
+
+Lo más reciente arriba.
+
+### 2026-08-31 — Auditoría de credenciales + rotación TMDB confirmada
+
+- Escaneé el árbol versionado completo (AWS keys, private keys, `ghp_`/`sk-`/
+  `xox*`, JWTs) — limpio. `TMDB_API_KEY` se lee solo de `process.env`
+  (`src/lib/config.server.ts:44`), sin valor de reserva.
+- Confirmé independientemente, buscando en `git log --all -p`, el token TMDB
+  v4 (read access token) que quedó hardcodeado como reserva en un commit
+  antiguo y sigue en el historial — coincide con lo que ya documentaban
+  `docs/SEGURIDAD.md` y `docs/ARQUITECTURA.md`. No lo pego aquí ni en ningún
+  otro sitio: el repo es público y el valor ya está ahí para quien busque,
+  pero no hace falta repetirlo.
+  - No lo probé contra la API real de TMDB — no hacía falta: había que darlo
+    por comprometido de todas formas por estar en un repo público, sin
+    importar si seguía respondiendo.
+- Los JWT que aparecen en `src/lib/logo-index.json` son URLs firmadas de un
+  CDN de imágenes de logos de canales, no credenciales de la app — descarté el
+  falso positivo decodificando el payload.
+- `CLAVE_VIMEUS` en `catalog/providers.ts` sigue siendo pública a propósito
+  (riesgo aceptado #5 de `SEGURIDAD.md`) — no es un hallazgo nuevo.
+- **El usuario ya había rotado el token de TMDB por su cuenta** (regenerado en
+  themoviedb.org, cargado en Vercel como `TMDB_API_KEY`) antes de que yo
+  terminara la auditoría. Actualicé el aviso 🚨 de `docs/ARQUITECTURA.md` y el
+  punto de `docs/SEGURIDAD.md` a ✅ resuelto con la fecha.
+- CSP: ya estaba implementada en `next.config.ts` (cabeceras generales +
+  `CABECERAS_API` cerrada del todo en `/api/*`), con las omisiones
+  documentadas y justificadas. No hice cambios — no encontré nada que faltara
+  dado el resto de la arquitectura (dominios de canales/proveedores rotan sin
+  aviso, `cacheComponents` incompatible con nonce).
+
+---
+
+## Lo siguiente
+
+- Nadie ha verificado en vivo que el token viejo de TMDB ya no responde
+  (paso que sugería el propio `docs/ARQUITECTURA.md`). No es urgente: el
+  nuevo token ya está activo en Vercel y es lo único que importa para que la
+  app funcione.
+- **Los avisos de Dependabot están desactivados a nivel de repositorio**
+  (`gh api repos/stevndrz/Canal/dependabot/alerts` → `403: Dependabot alerts
+  are disabled for this repository`). `dependabot.yml` sí existe y abre PRs de
+  actualización, pero la función de alertas de seguridad de GitHub (distinta
+  de las PRs de versión) está apagada — es un ajuste en Settings → Security
+  del repo, no algo que se arregle con código. `npm audit --audit-level=high`
+  local está limpio (0 vulnerabilidades) a 2026-09-02.
+- Quedaron sin explorar, porque el usuario priorizó formalizar el rol primero:
+  secret scanning en CI (gitleaks/trufflehog, para atrapar credenciales antes
+  del commit — directamente relacionado con el incidente del token TMDB) y
+  CSP en modo `report-only` con endpoint de reporte.
+
+### 2026-09-02 — Rol formalizado
+
+- Creado `.claude/agents/config-seguridad.md` (faltaba; era el único de los
+  diez agentes de `MAIN.md` sin definición).
+- Añadida la fila de `config-seguridad` a la tabla de `docs/EQUIPO.md`, y una
+  nota arriba de la tabla aclarando que aún no cubre los diez agentes de
+  `MAIN.md` (faltan canales, reproducción, datos-m3u, epg-guía, catálogo,
+  fuente propia).
+- El commit `c4c0a8f` en `main` creó este mismo archivo como stub vacío a la
+  vez que yo lo creaba con contenido real en mi rama — conflicto *add/add* al
+  intentar fusionar el PR #14. Se resolvió quedándose con el contenido de
+  abajo. **Lección para el resto del equipo:** si `MAIN.md` u otro orquestador
+  va a crear stubs de `docs/equipo/<agente>.md` para agentes que ya están
+  trabajando en su propia rama, hacedlo *antes* de que esos agentes empiecen,
+  o dejad que cada agente cree el suyo — crear el mismo archivo en dos sitios
+  a la vez garantiza este conflicto.

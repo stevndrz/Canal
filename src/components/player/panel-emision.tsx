@@ -3,47 +3,33 @@
 import { useEffect, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { porcentajeDelPrograma } from "@/lib/guia-epg";
-import {
-  modulosDeEmision,
-  palabraDeEstado,
-  type EstadoEmision,
-  type LecturaEmision,
-} from "@/lib/telemetria";
+import { palabraDeEstado, type EstadoEmision } from "@/lib/telemetria";
 
 /**
- * La cabecera del reproductor, con lenguaje de sala de control.
+ * La cabecera del reproductor: etiqueta de estado y nombre del canal, nada
+ * más — el mismo patrón que el nombre de la película en un reproductor
+ * nativo ("PELÍCULA" arriba, el título debajo). Antes llevaba también una
+ * tira de telemetría (señal, tasa, tiempo en canal, hora): quedó fuera —era
+ * la diferencia real entre "esto se ve como sala de control" y "esto se ve
+ * como Netflix/Apple TV", que es lo que se pidió. `modulosDeEmision`
+ * (`lib/telemetria.ts`) se queda sin usar aquí, no se borra: si algún día
+ * hace falta un panel de diagnóstico aparte, la cuenta ya está hecha y
+ * probada.
  *
- * Antes era una línea suelta: un punto rojo, «EN VIVO», el nombre del canal y
- * la hora. Decía **quién** emite y nada de **cómo** va la emisión, que es justo
- * lo que se quiere saber cuando algo se ve raro: ¿está entrando en HD?, ¿la
- * tasa se ha desplomado?, ¿lleva un rato o acabo de sintonizar?
- *
- * Tres reglas, y ninguna es de gusto:
- *
- * 1. **El estado se dice con una palabra**, no con un icono. A tres metros y
- *    sin manual, «PAUSA» siempre gana a dos rayitas.
- * 2. **Un módulo sin dato no existe.** Lo decide `modulosDeEmision`; aquí solo
- *    se pinta lo que devuelva. Un hueco con un guion parece un fallo.
- * 3. **Los números no bailan.** `tabular-nums` en toda la tira: sin ella, el
- *    reloj y el contador cambian de ancho a cada segundo y la fila entera se
- *    mueve.
+ * El estado se dice con una palabra y no con un icono: a tres metros y sin
+ * manual, «PAUSA» siempre gana a dos rayitas.
  */
 export function PanelEmision({
   channel,
   estado,
-  lectura,
-  reloj,
   /** Con la barra escondida no hay nada que contar: el tic se para. */
   activo,
 }: {
   channel: Channel;
   estado: EstadoEmision;
-  lectura: LecturaEmision;
-  reloj: string;
   activo: boolean;
 }) {
   const ahora = useTicDeSegundo(activo);
-  const modulos = modulosDeEmision({ ...lectura, ahora });
   const progreso = porcentajeDelPrograma(channel.currentStart, channel.currentEnd, ahora);
 
   return (
@@ -61,19 +47,6 @@ export function PanelEmision({
           <span className="panel-canal-nombre">{channel.name}</span>
           <span className="panel-canal-cat">{channel.category}</span>
         </span>
-
-        <span className="panel-modulos">
-          {modulos.map((modulo) => (
-            <span key={modulo.etiqueta} className="panel-modulo">
-              <small>{modulo.etiqueta}</small>
-              <b>{modulo.valor}</b>
-            </span>
-          ))}
-          <span className="panel-modulo panel-modulo-reloj">
-            <small>Hora</small>
-            <b>{reloj}</b>
-          </span>
-        </span>
       </div>
 
       {/* Con guía, cuánto lleva el programa; sin ella, una regla que solo
@@ -84,7 +57,14 @@ export function PanelEmision({
             <span>{channel.currentProgram}</span>
             <span>{Math.round(progreso)}%</span>
           </div>
-          <div className="panel-programa-riel">
+          <div
+            className="panel-programa-riel"
+            role="progressbar"
+            aria-valuenow={Math.round(progreso)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${channel.currentProgram}, ${Math.round(progreso)}% emitido`}
+          >
             <div className="panel-programa-barra" style={{ width: `${progreso}%` }} />
           </div>
         </div>

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
 import "./globals.css";
 
@@ -19,6 +21,18 @@ const inter = Inter({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-inter",
+});
+
+/**
+ * JetBrains Mono es la tipografía de instrumento: solo para números y
+ * etiquetas de estado del reproductor (T+, bitrate, el contador de "Mi
+ * enlace"...). `panel-emision.tsx` ya hablaba en lenguaje de sala de control
+ * ("T+", `tabular-nums`); esto le pone la letra que ese lenguaje pedía.
+ */
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains-mono",
 });
 
 export const metadata: Metadata = {
@@ -58,13 +72,17 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" data-input="pointer" className={inter.variable}>
+    <html lang="es" data-input="pointer" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         {/* Antes que nada: en los navegadores de televisor el `gap` de flexbox
             no existe y todos los huecos de la app valen cero. Ver
             `soporte-gap.ts`. No pinta nada. */}
         <SoporteHuecos />
         {children}
+        {/* Web Vitals de campo + los eventos de `telemetria.ts`. Vercel las
+            sirve desde el edge de forma diferida: no compiten con el arranque. */}
+        <SpeedInsights />
+        <Analytics />
       </body>
     </html>
   );

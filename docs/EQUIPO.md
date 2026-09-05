@@ -1,8 +1,13 @@
 # El equipo
 
-Seis: tú y cinco agentes. Cada agente es **dueño de una zona del código**, no de
-un tipo de tarea. Es lo que evita que dos toquen el mismo archivo a la vez y lo
-que deja que cada uno acumule contexto de lo suyo.
+Tú y los agentes que se listan abajo. Cada agente es **dueño de una zona del
+código**, no de un tipo de tarea. Es lo que evita que dos toquen el mismo
+archivo a la vez y lo que deja que cada uno acumule contexto de lo suyo.
+
+Esta tabla no cubre todavía los diez agentes de `MAIN.md` — solo los que ya
+tienen definición en `.claude/agents/`. Si buscas un territorio que no está
+aquí (canales, reproducción, datos-m3u, epg-guía, catálogo, fuente propia),
+mira `MAIN.md` en la raíz del repo.
 
 ---
 
@@ -15,6 +20,7 @@ que deja que cada uno acumule contexto de lo suyo.
 | **diseno** | Cómo se ve todo. Único que edita `shell.css` y `globals.css` | «No se ve premium», «está descolocado», «esto no parece Apple TV» |
 | **calidad** | Salud del código: CodeScene, pruebas, CI, código muerto | «Sube la nota», «esto da miedo tocarlo», «añade pruebas» |
 | **dispositivos** | Probar en iPhone, PC y TV. **No arregla, encuentra** | Antes de fusionar algo visual, o «dame un repaso completo» |
+| **config-seguridad** | Credenciales, cabeceras de seguridad, CSP, `next.config.ts` | «¿Hay algún secreto filtrado?», «revisa la CSP», «¿qué riesgos aceptamos y por qué?» |
 
 Los cuatro dolores que señalaste tienen dueño:
 

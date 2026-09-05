@@ -18,11 +18,13 @@ import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
  * perfectamente; es el mando el que se quedaba fuera.
  *
  * Aquí no hay dígitos que atender —no hay canales que sintonizar— y Atrás
- * devuelve al inicio de la aplicación, que es de donde se llega.
+ * devuelve al inicio de la aplicación, que es de donde se llega. **Salvo que
+ * quien envuelve pida otra cosa**: ver `onBack`.
  */
 export function NavegacionCatalogo({
   children,
   subirAlAbrir = false,
+  onBack,
 }: {
   children: ReactNode;
   /**
@@ -39,6 +41,16 @@ export function NavegacionCatalogo({
    * tiene que devolverte donde estabas mirando.
    */
   subirAlAbrir?: boolean;
+  /**
+   * Qué hace Atrás, si no lo de siempre.
+   *
+   * La ficha en modo cine (TV) lo necesita: la primera pulsación de Atrás
+   * tiene que cerrar el reproductor a pantalla completa y enseñar la ficha
+   * normal, no saltar fuera de la página entera. Sin esta puerta, esa
+   * decisión habría tenido que vivir aquí —que no sabe qué es "modo cine"— en
+   * vez de en quien sí lo sabe.
+   */
+  onBack?: () => void;
 }) {
   const router = useRouter();
   const raiz = useRef<HTMLDivElement | null>(null);
@@ -59,7 +71,7 @@ export function NavegacionCatalogo({
   useRemoteInput();
   useSpatialNav({
     rootRef: raiz,
-    onBack: () => router.push("/"),
+    onBack: onBack ?? (() => router.push("/")),
   });
 
   return (

@@ -37,6 +37,29 @@ No tengo archivos. Recorro la app y reporto. **No arreglo nada.**
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-02 — Primera instalación en un televisor real
+
+No es un viewport simulado: el APK de Android TV (workflow run
+[`33533429087`](https://github.com/stevndrz/Canal/actions/runs/33533429087),
+job `compilar`, artifact `canalcasa-androidtv` → `app-debug.apk`, 2.1 MB) se
+instaló y se probó en un televisor físico con modo desarrollador activado.
+
+- **ADB por WiFi no llegó.** La PC cuelga del router principal
+  (`192.168.1.x`) y la TV de un nodo mesh Nexxt (`192.168.5.x`): dos subredes
+  distintas porque el mesh está en modo Router (NAT propio), no en modo
+  Puente/AP. `adb connect` daba *Connection timed out* siempre — no es un
+  fallo de la app ni de la TV, es la topología de red. Queda pendiente si se
+  quiere depurar por WiFi: pasar el mesh a modo Puente.
+- **Sideload manual por USB, sí funcionó.** Memoria formateada en **FAT32**
+  (NTFS no lo leía bien) con el `.apk` en la raíz, instalado desde el gestor
+  de archivos de la TV con «orígenes desconocidos» permitido.
+- **La app instala y corre.** Pero se ve y se siente como una página dentro
+  de un marco, no como una app de TV: el hallazgo concreto es la barra de
+  controles de reproducción (anterior/reproducir/siguiente) — el vídeo queda
+  diminuto y la barra de botones grandes domina la pantalla. Es un problema
+  de `diseno` sobre `player-bar`/`player-btn` en `globals.css` y
+  `player-controls.tsx`, no de que algo esté roto.
+
 ### 2026-08-21 — Equipo creado
 
 Nazco con la app ya funcionando.

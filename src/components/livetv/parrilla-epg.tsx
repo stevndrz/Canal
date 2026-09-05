@@ -1,15 +1,18 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { memo, useCallback, useEffect, useMemo, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { hora } from "@/lib/guia-epg";
 import {
   HORAS_VISIBLES,
+  MARGEN_FRANJA_MS,
   columnasDeFranja,
   estaEnEmision,
   filaDeParrilla,
   inicioDeFranja,
+  moverFranja,
   posicionEnFranja,
   type BloqueParrilla,
 } from "@/lib/parrilla";
@@ -75,11 +78,29 @@ export function ParrillaEpg({
   const [porCanal, setPorCanal] = useState<Map<string, [number, number, string][]>>(new Map());
   const [estado, setEstado] = useState<"cargando" | "listo" | "sin-guia" | "error">("cargando");
 
-  // Anclada a la media hora en punto: si se moviera con el reloj, el foco del
-  // mando bailaría bajo los dedos de quien recorre la parrilla.
-  const desde = useMemo(() => inicioDeFranja(ahora), [ahora]);
+  /**
+   * `null` mientras se sigue el reloj: la franja anclada a la media hora en
+   * punto, igual que antes. En cuanto la persona pulsa anterior/siguiente deja
+   * de seguirlo —si no, cada tic de `ahora` la devolvería al presente bajo el
+   * foco del mando— y solo vuelve a `null` con el botón "Ahora".
+   */
+  const [desdeManual, setDesdeManual] = useState<number | null>(null);
+  const desde = desdeManual ?? inicioDeFranja(ahora);
   const hasta = desde + HORAS_VISIBLES * 60 * 60 * 1000;
   const columnas = useMemo(() => columnasDeFranja(desde), [desde]);
+  const siguiendoElReloj = desdeManual === null;
+
+  const irAtras = useCallback(
+    () => setDesdeManual(moverFranja(desde, -HORAS_VISIBLES, ahora)),
+    [desde, ahora],
+  );
+  const irAdelante = useCallback(
+    () => setDesdeManual(moverFranja(desde, HORAS_VISIBLES, ahora)),
+    [desde, ahora],
+  );
+  const volverAhora = useCallback(() => setDesdeManual(null), []);
+  const enLimiteAtras = desde <= ahora - MARGEN_FRANJA_MS;
+  const enLimiteAdelante = desde >= ahora + MARGEN_FRANJA_MS;
 
   const enPantalla = useMemo(() => canales.slice(0, cuantos), [canales, cuantos]);
 
@@ -141,6 +162,45 @@ export function ParrillaEpg({
         </p>
       )}
 
+      {/* Navegar la franja: el backend ya acepta cualquier `desde` dentro de
+          ±7 días (`/api/guia`), esto solo mueve el parámetro. Sin `gap`, como
+          el resto del archivo: margen en el botón de en medio. */}
+      <div className="mb-2 flex items-center">
+        <button
+          type="button"
+          data-nav="button"
+          onClick={irAtras}
+          disabled={enLimiteAtras}
+          aria-label="Horas anteriores"
+          className="rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+        >
+          <ChevronLeft size={16} />
+        </button>
+        <button
+          type="button"
+          data-nav="button"
+          onClick={irAdelante}
+          disabled={enLimiteAdelante}
+          aria-label="Horas siguientes"
+          className="ml-1 rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+        >
+          <ChevronRight size={16} />
+        </button>
+        <span className="ml-3 text-xs text-muted">
+          {hora(desde)} – {hora(hasta)}
+        </span>
+        {!siguiendoElReloj && (
+          <button
+            type="button"
+            data-nav="button"
+            onClick={volverAhora}
+            className="ml-3 rounded-full border border-white/15 px-3 py-1 text-xs text-muted transition-colors hover:text-white"
+          >
+            Ahora
+          </button>
+        )}
+      </div>
+
       {/* Cabecera de horas. Sticky para que al bajar por los canales se siga
           sabiendo qué hora se está mirando. */}
       <div className="sticky top-0 z-20 flex items-end border-b border-white/10 bg-black/80 pb-1 backdrop-blur">
@@ -169,18 +229,26 @@ export function ParrillaEpg({
       </div>
 
       <div className="flex flex-col">
-        {enPantalla.map((canal) => (
-          <FilaParrilla
-            key={canal.id}
-            canal={canal}
-            programas={porCanal.get(canal.name) ?? SIN_PROGRAMAS}
-            desde={desde}
-            hasta={hasta}
-            minuto={minuto}
-            activo={sintonizado?.id === canal.id}
-            onSelect={onSelect}
-          />
-        ))}
+        {estado === "cargando"
+          ? // Antes esto se quedaba en blanco hasta que llegaba la primera
+            // respuesta: se veía igual que un canal sin programación, y no
+            // había forma de distinguir «cargando» de «no hay guía». El canal
+            // ya se conoce —viene en `canales`—, así que se pinta de verdad y
+            // solo la franja de horario, que es lo que falta por llegar, lleva
+            // el brillo.
+            enPantalla.map((canal) => <FilaParrillaEsqueleto key={canal.id} canal={canal} />)
+          : enPantalla.map((canal) => (
+              <FilaParrilla
+                key={canal.id}
+                canal={canal}
+                programas={porCanal.get(canal.name) ?? SIN_PROGRAMAS}
+                desde={desde}
+                hasta={hasta}
+                minuto={minuto}
+                activo={sintonizado?.id === canal.id}
+                onSelect={onSelect}
+              />
+            ))}
       </div>
 
       {cuantos < canales.length && (
@@ -261,6 +329,39 @@ const FilaParrilla = memo(function FilaParrilla({
     </div>
   );
 });
+
+/**
+ * La misma fila, mientras se espera la programación de este canal.
+ *
+ * Mismo patrón que `LiveCardSkeleton`: lo que ya se sabe se pinta de verdad
+ * —logo, nombre— y solo el hueco de la franja de horario, que es el dato que
+ * todavía no llegó, lleva el brillo. `animate-pulse` de Tailwind y no una
+ * clase propia: este archivo no usa `shell.css`, es del agente de diseño.
+ */
+function FilaParrillaEsqueleto({ canal }: { canal: Channel }) {
+  return (
+    <div className="mt-1 flex h-16 items-stretch rounded-lg" aria-hidden="true">
+      <div className="flex w-[8.5rem] shrink-0 items-center overflow-hidden rounded-lg px-2 sm:w-44">
+        {canal.logoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={canal.logoUrl}
+            alt=""
+            loading="lazy"
+            className="mr-2 h-8 w-8 shrink-0 object-contain opacity-70"
+          />
+        ) : (
+          <b className="livetv-row-mark">{channelMark(canal)}</b>
+        )}
+        <span className="truncate text-sm font-semibold text-muted">{canal.name}</span>
+      </div>
+
+      <div className="flex flex-1 items-center px-2">
+        <div className="h-8 w-full animate-pulse rounded bg-white/5" />
+      </div>
+    </div>
+  );
+}
 
 function BloqueDePrograma({
   bloque,

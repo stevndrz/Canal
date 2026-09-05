@@ -71,6 +71,34 @@ describe("ida y vuelta", () => {
     expect("currentProgram" in reconstruido).toBe(false);
     expect("nextStart" in reconstruido).toBe(false);
   });
+
+  it("el respaldo viaja sin guía en el quinto hueco", () => {
+    const conRespaldo = [canal("ESPN", "Deportes", { streamUrlBackup: "https://b.test/espn.m3u8" })];
+    const [empaquetado] = empaquetarCanales(conRespaldo).canales;
+    expect(empaquetado).toHaveLength(5);
+    expect(empaquetado[4]).toBe("https://b.test/espn.m3u8");
+    const [reconstruido] = desempaquetarCanales(empaquetarCanales(conRespaldo));
+    expect(reconstruido.streamUrlBackup).toBe("https://b.test/espn.m3u8");
+  });
+
+  it("guía y respaldo viajan juntos sin pisarse", () => {
+    const ambos = [
+      canal("ESPN", "Deportes", {
+        currentProgram: "Partido",
+        streamUrlBackup: "https://b.test/espn.m3u8",
+      }),
+    ];
+    const [empaquetado] = empaquetarCanales(ambos).canales;
+    expect(empaquetado).toHaveLength(6);
+    const [reconstruido] = desempaquetarCanales(empaquetarCanales(ambos));
+    expect(reconstruido.currentProgram).toBe("Partido");
+    expect(reconstruido.streamUrlBackup).toBe("https://b.test/espn.m3u8");
+  });
+
+  it("sin respaldo no hay clave: el canal normal sigue en cuatro valores", () => {
+    const [reconstruido] = desempaquetarCanales(empaquetarCanales([canal("X", "Deportes")]));
+    expect("streamUrlBackup" in reconstruido).toBe(false);
+  });
 });
 
 describe("la numeración es la MISMA que antes", () => {

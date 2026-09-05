@@ -14,6 +14,19 @@ export function esIPhone(): boolean {
 }
 
 /**
+ * ¿Puntero "coarse" (mando, dedo) en vez de "fine" (ratón, trackpad)?
+ *
+ * No distingue mando de dedo — para eso hace falta ver si llega una tecla de
+ * flecha real, que es lo que hace `useRemoteInput` en `use-spatial-nav.ts`.
+ * Esto es solo la señal de arranque, antes de la primera pulsación: decide si
+ * tiene sentido dibujar un foco inicial (ver `focusFirst`).
+ */
+export function esPunteroTosco(): boolean {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(pointer: coarse)").matches ?? false;
+}
+
+/**
  * ¿Es el navegador de un televisor?
  *
  * Se decide con el `User-Agent` para poder hacerlo en el SERVIDOR: la ficha

@@ -82,6 +82,30 @@ export function getM3uSourceUrl(): string {
   return serverConfig().m3uUrl;
 }
 
+/**
+ * Cuando `cacheComponents` (PPR) termina de fotografiar el armazón estático de
+ * `/`, Next corta en seco cualquier `fetch()` que quedara pendiente fuera de
+ * esa foto — es la señal interna de «esto es dinámico, sigue detrás», no un
+ * fallo de la lista M3U. Como esta función ya devuelve `null` y deja seguir a
+ * quien llama, ya se está haciendo exactamente lo que pide el mensaje de Next
+ * («should handle it in that context»); lo único que sobra es registrarlo
+ * como error, que en cada build imprimía un fallo que no existe.
+ *
+ * No hay API pública para reconocerlo — el único rastro es el `digest`
+ * interno de Next, `HANGING_PROMISE_REJECTION` (`dynamic-rendering-utils.js`).
+ * Se compara la cadena en vez de importar `next/dist/server/...`: si el
+ * nombre cambiara en una versión futura, esto deja de filtrar el ruido en vez
+ * de arriesgarse a romper el build por depender de una ruta interna.
+ */
+function esRechazoDePrerenderCompletado(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    (error as { digest?: unknown }).digest === "HANGING_PROMISE_REJECTION"
+  );
+}
+
 async function fetchM3uText(): Promise<string | null> {
   const source = getM3uSourceUrl();
   try {
@@ -113,6 +137,7 @@ async function fetchM3uText(): Promise<string | null> {
     }
     console.error(`❌ La lista M3U respondió HTTP ${response.status} — ${paraRegistro(source)}`);
   } catch (error) {
+    if (esRechazoDePrerenderCompletado(error)) return null;
     const reason =
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${M3U_TIMEOUT_MS / 1000}s`
@@ -256,7 +281,19 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     if (!unique.has(key)) unique.set(key, item);
   }
 
-  const channels = Array.from(unique.values()).map<ParsedChannel>((item, index) => {
+  /**
+   * Segunda fuente del mismo canal: la misma señal suele venir dos veces con
+   * URLs distintas («ESPN», «ESPN HD», «ESPN FHD» → todo es «ESPN» tras
+   * `cleanChannelName`). Guardar las dos como canales distintos duplicaba la
+   * lista y partía la memoria de caídos; guardar la segunda como
+   * `streamUrlBackup` da un reintento gratis cuando la primera no responde.
+   */
+  const porNombre = new Map<string, ParsedChannel>();
+  const enOrden: ParsedChannel[] = [];
+  const claveNombre = (nombre: string, categoria: string) =>
+    `${categoria}::${normalizeText(nombre)}`;
+
+  for (const [index, item] of Array.from(unique.values()).entries()) {
     const name = cleanChannelName(item.name || item.title || item.tvg?.name || `Canal ${index + 1}`);
     const group = getGroupTitle(item);
     const tvgId = item.tvg?.id?.trim() ?? "";
@@ -267,21 +304,31 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const deLaLista = item.tvg?.logo || item.logo || "";
     const logoUrl =
       (ESQUEMA_REPRODUCIBLE.test(deLaLista.trim()) ? deLaLista : "") || findLogoUrl(name) || "";
-
-    return {
+    const category = classifyChannel({
       name,
-      category: classifyChannel({
-        name,
-        group,
-        country: item.tvg?.country || countryFromTvgId(tvgId),
-        language: item.tvg?.language ?? "",
-      }),
-      logoUrl,
-      streamUrl: item.url ?? "",
-    };
-  });
+      group,
+      country: item.tvg?.country || countryFromTvgId(tvgId),
+      language: item.tvg?.language ?? "",
+    });
+    const streamUrl = (item.url ?? "").trim();
+    if (!streamUrl) continue;
 
-  return sortChannels(channels);
+    const clave = claveNombre(name, category);
+    const existente = porNombre.get(clave);
+    if (!existente) {
+      const canal: ParsedChannel = { name, category, logoUrl, streamUrl };
+      porNombre.set(clave, canal);
+      enOrden.push(canal);
+      continue;
+    }
+    // Misma señal, otra URL: respaldo si no hay ya uno y no es la misma.
+    if (!existente.streamUrlBackup && existente.streamUrl !== streamUrl) {
+      existente.streamUrlBackup = streamUrl;
+      if (!existente.logoUrl && logoUrl) existente.logoUrl = logoUrl;
+    }
+  }
+
+  return sortChannels(enOrden);
 }
 
 /**

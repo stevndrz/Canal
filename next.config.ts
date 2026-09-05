@@ -151,6 +151,15 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["hls.js", "mpegts.js"],
 
   /**
+   * Poda de `lucide-react`: sin esto, cada icono nombrado desde la raíz del
+   * paquete arrastra el barril ESM entero a cada chunk (+80-150 KB en el
+   * inicial, medido en auditoría). Con esto solo viaja el icono usado.
+   */
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
+
+  /**
    * Posiciona el indicador de desarrollo para no obstruir controles móviles.
    */
   devIndicators: {

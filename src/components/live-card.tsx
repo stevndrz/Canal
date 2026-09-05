@@ -143,14 +143,21 @@ export function LiveCard({
   const transmision = extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting });
 
   return (
-    <section className="live-card" aria-label={`En directo: ${channel.name}`}>
+    <section
+      className="live-card"
+      aria-label={`En directo: ${channel.name}`}
+    >
       {/* Sin `role="button"` ni `aria-label`: los tenía y repetían palabra por
-          palabra los del botón "Pantalla completa" de abajo, así que un lector
-          de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
-          porque es lo que espera cualquiera que venga de un reproductor de
-          escritorio; con mando y con el dedo está el botón. */}
-      <div className="live-card-marco">
-        <div className="live-card-video" onClick={alTocar} onDoubleClick={expandir}>
+           palabra los del botón "Pantalla completa" de abajo, así que un lector
+           de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
+           porque es lo que espera cualquiera que venga de un reproductor de
+           escritorio; con mando y con el dedo está el botón. */}
+      <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/60 backdrop-blur shadow-xl shadow-black/40">
+        <div
+          className="live-card-video border border-white/10 bg-black"
+          onClick={alTocar}
+          onDoubleClick={expandir}
+        >
           <StreamPlayer
             ref={playerRef}
             channel={channel}
@@ -210,17 +217,6 @@ export function LiveCard({
           </button>
         </p>
       )}
-    </section>
-  );
-}
-
-/** Marcador del mismo tamaño mientras carga el reproductor. Evita el salto. */
-export function LiveCardSkeleton() {
-  return (
-    <section className="live-card" aria-hidden="true">
-      <div className="live-card-marco">
-        <div className="live-card-video is-cargando" />
-      </div>
     </section>
   );
 }
