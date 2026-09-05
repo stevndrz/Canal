@@ -18,6 +18,7 @@ import {
   resolverCalidad,
   type MotorMontado,
 } from "@/lib/reproduccion/motor";
+import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 
@@ -119,6 +120,15 @@ const StreamPlayer = memo(
     // librerías que ya no usa directamente.
     const hlsRef = useRef<MotorMontado["hls"]>(null);
     const mpegtsRef = useRef<MotorMontado["mpegts"]>(null);
+    /**
+     * Estado de telemetría del canal en curso. Fuera de React porque no pinta
+     * nada: son marcas de tiempo para un evento que se manda una vez y se
+     * olvida, no datos que el chrome del reproductor necesite leer.
+     */
+    const inicioSintonia = useRef(0);
+    const arranqueAvisado = useRef(false);
+    const yaArrancoEmision = useRef(false);
+    const atascoDesde = useRef<number | null>(null);
     const [isMuted, setIsMuted] = useState(false);
     const [isPlaying, setIsPlaying] = useState(true);
     const [streamError, setStreamError] = useState(false);
@@ -251,6 +261,10 @@ const StreamPlayer = memo(
       setStreamError(false);
       setNeedsUserGesture(false);
       setSintonizando(true);
+      inicioSintonia.current = marcarInicio();
+      arranqueAvisado.current = false;
+      yaArrancoEmision.current = false;
+      atascoDesde.current = null;
       // La emisión anterior no dice nada de la nueva: dejar puesta su
       // resolución enseñaría 1080p mientras arranca un canal que es 480p.
       setEmision({});
@@ -303,6 +317,7 @@ const StreamPlayer = memo(
           return;
         }
         setStreamError(true);
+        registrarFallo(clase, "canal");
       };
 
       const clase =
@@ -400,12 +415,22 @@ const StreamPlayer = memo(
             ? actual
             : { ...actual, buffering: false, ttffMs, dropped: leerCaidos() },
         );
+        if (!arranqueAvisado.current) {
+          arranqueAvisado.current = true;
+          registrarArranque(inicioSintonia.current, clase, "canal");
+        }
+        yaArrancoEmision.current = true;
       };
 
       /**
-       * Cortes a mitad de emisión: `waiting` es «sin búfer» y `playing` es «ya
-       * hay de nuevo». Se cuentan aparte del arranque (ese lo mide el TTFF) y
-       * viajan en `emision.stalls` hasta el panel.
+       * Cortes a mitad de emisión: `waiting`/`stalled` es «sin búfer» y
+       * `playing` es «ya hay de nuevo». Se cuentan aparte del arranque (ese lo
+       * mide el TTFF) y viajan en `emision.stalls` hasta el panel.
+       *
+       * El atasco de telemetría (`atascoDesde`/`registrarAtasco`) es aparte y
+       * solo cuenta DESPUÉS de haberse visto ya el primer fotograma: el
+       * `waiting` de antes de `yaSeVe` es el arranque normal, no un corte, y
+       * contarlo ahí ensuciaría el promedio con lo que ya mide `registrarArranque`.
        */
       const alEsperar = () => {
         if (cancelled) return;
@@ -414,12 +439,17 @@ const StreamPlayer = memo(
           buffering: true,
           stalls: (actual.stalls ?? 0) + 1,
         }));
+        if (!yaArrancoEmision.current || atascoDesde.current !== null) return;
+        atascoDesde.current = marcarInicio();
       };
       const alSeguir = () => {
         if (cancelled) return;
         setEmision((actual) =>
           actual.buffering ? { ...actual, buffering: false, dropped: leerCaidos() ?? actual.dropped } : actual,
         );
+        if (atascoDesde.current === null) return;
+        registrarAtasco(atascoDesde.current, clase, "canal");
+        atascoDesde.current = null;
       };
 
       /**

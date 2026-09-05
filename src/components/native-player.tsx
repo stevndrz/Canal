@@ -35,6 +35,7 @@ import {
   cargarHls,
   type EstadoRecuperacion,
 } from "@/lib/reproduccion/motor";
+import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
 
 /**
  * Reproductor nativo para los enlaces propios del catálogo (`manual`).
@@ -99,6 +100,11 @@ export const NativePlayer = memo(function NativePlayer({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hlsRef = useRef<HlsType | null>(null);
+  /** Ver el mismo bloque en `stream-player.tsx`: marcas para telemetría, fuera de React. */
+  const inicioReproduccion = useRef(0);
+  const arranqueAvisado = useRef(false);
+  const yaArrancoEmision = useRef(false);
+  const atascoDesde = useRef<number | null>(null);
 
   /**
    * Pausa síncrona al ocultarse.
@@ -196,6 +202,11 @@ export const NativePlayer = memo(function NativePlayer({
     setIsLoading(true);
     setAudioTracks([]);
     setActiveAudio(null);
+    const motor = detectKind(stream);
+    inicioReproduccion.current = marcarInicio();
+    arranqueAvisado.current = false;
+    yaArrancoEmision.current = false;
+    atascoDesde.current = null;
 
     hlsRef.current?.destroy();
     hlsRef.current = null;
@@ -206,6 +217,7 @@ export const NativePlayer = memo(function NativePlayer({
       if (cancelled) return;
       setHasError(true);
       setIsLoading(false);
+      registrarFallo(motor, "pelicula");
     };
 
     // Misma regla que el motor de canales: en los WebKit con AirPlay el HLS
@@ -214,7 +226,7 @@ export const NativePlayer = memo(function NativePlayer({
     // cacheada en el motor): un `import` de nivel de módulo la metía en el
     // chunk del reproductor aunque el enlace fuera un `.mp4` que el `<video>`
     // lee solo —~580 KB pagados por nada—.
-    if (detectKind(stream) === "hls" && !prefiereNativoPorAirplay(video)) {
+    if (motor === "hls" && !prefiereNativoPorAirplay(video)) {
       const urlActual = stream.url;
       cargarHls()
         .then((Hls) => {
@@ -320,11 +332,27 @@ export const NativePlayer = memo(function NativePlayer({
       apuntar(video.currentTime, video.duration, true);
     };
     const onEnded = () => apuntar(video.duration, video.duration, true);
-    const onWaiting = () => !cancelled && setIsLoading(true);
+    const onWaiting = () => {
+      if (cancelled) return;
+      setIsLoading(true);
+      // Antes del primer fotograma, `waiting` es la carga inicial, no un
+      // atasco: eso ya lo mide `registrarArranque` cuando por fin llegue.
+      if (yaArrancoEmision.current && atascoDesde.current === null) {
+        atascoDesde.current = marcarInicio();
+      }
+    };
     const onPlaying = () => {
       if (cancelled) return;
       setIsLoading(false);
       setHasError(false);
+      if (!arranqueAvisado.current) {
+        arranqueAvisado.current = true;
+        registrarArranque(inicioReproduccion.current, motor, "pelicula");
+      } else if (atascoDesde.current !== null) {
+        registrarAtasco(atascoDesde.current, motor, "pelicula");
+        atascoDesde.current = null;
+      }
+      yaArrancoEmision.current = true;
     };
     const onNativeError = () => {
       if (!hlsRef.current) fail();

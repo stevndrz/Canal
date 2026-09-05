@@ -42,7 +42,7 @@ export function FichaPortada({
       style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
     >
       <div className="ficha-cabecera">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="ficha-acciones">
           <Link href="/peliculas" data-nav="button" className="ficha-volver">
             <ArrowLeft aria-hidden="true" />
             Volver al catálogo

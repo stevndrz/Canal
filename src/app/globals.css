@@ -1643,8 +1643,10 @@ html[data-player="on"] body {
    dispositivo. */
 :root {
   /* El hero se queda con menos de la mitad del viewport para cederle el
-     resto al reproductor, que es lo primero que se quiere ver entero. */
-  --ficha-hero-h: clamp(380px, 42vh, 520px);
+     resto al reproductor, que es lo primero que se quiere ver entero. Más
+     bajo que antes: con los controles del pie ya compactos (`.ficha-controles`),
+     el vídeo puede quedarse con ese aire en vez de la carátula. */
+  --ficha-hero-h: clamp(320px, 37vh, 460px);
 }
 
 .ficha-portada {
@@ -1685,29 +1687,47 @@ html[data-player="on"] body {
   padding-inline: var(--margen);
 }
 
+/* Fila de acciones de la ficha (Volver / Añadir a mi lista / Ver tráiler).
+   El espacio antes del titular va aquí, en el contenedor, y no en cada botón
+   por separado: puesto en `.ficha-volver` a solas —como estaba— cada botón
+   arrastraba su propio margen dentro de la fila, y con `align-items: center`
+   eso bastaba para que unos quedaran más arriba que otros. Los botones se
+   veían «disparejos» aunque compartieran la misma altura. */
+.ficha-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: clamp(16px, 2.4vh, 28px);
+}
+
+/* Misma caja que `.secondary` —mismas alturas, mismo relleno—: es el mismo
+   tipo de botón secundario, solo que es un enlace y no un `<button>`. */
 .ficha-volver {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  margin-bottom: clamp(16px, 2.4vh, 28px);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
+  justify-content: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 0 clamp(16px, 1.4vw, 26px);
+  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.16));
   border-radius: 999px;
   background: var(--chip, rgba(255, 255, 255, 0.08));
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: clamp(14px, 1vw, 17px);
   font-weight: 600;
+  transition: transform 160ms var(--ease), background-color 160ms var(--ease);
 }
 
 .ficha-volver:hover,
 .ficha-volver:focus-visible {
   background: var(--chip-focus, rgba(255, 255, 255, 0.18));
   color: #fff;
+  transform: scale(1.03);
 }
 
 .ficha-volver svg {
-  width: 18px;
-  height: 18px;
+  width: 1.2em;
+  height: 1.2em;
 }
 
 .ficha-titular {
@@ -1891,13 +1911,16 @@ html[data-player="on"] body {
 
 .ficha-reproductor {
   /* Ancho derivado de la altura libre bajo el hero (100vh − hero − aire para
-     el padding superior y la barra de servidores), de modo que el marco 16:9
-     entre completo en el primer pantallazo. Piso de 420px: en ventanas bajas
-     prefiere verse grande con un poco de scroll antes que diminuto. */
+     el padding superior y el bloque de controles del pie), de modo que el
+     marco 16:9 entre completo en el primer pantallazo. Piso de 420px: en
+     ventanas bajas prefiere verse grande con un poco de scroll antes que
+     diminuto. El descuento fijo bajó de 110 a 80: `.ficha-controles` fusionó
+     aviso y selector en un solo bloque compacto, así que hace falta reservar
+     menos aire para él. */
   width: min(
     100%,
-    116vh,
-    max(calc((100vh - var(--ficha-hero-h) - 110px) * 16 / 9), 420px)
+    122vh,
+    max(calc((100vh - var(--ficha-hero-h) - 80px) * 16 / 9), 420px)
   );
   margin-inline: auto;
   margin-bottom: clamp(14px, 2vh, 28px);
@@ -1940,43 +1963,70 @@ html[data-player="on"] body {
 }
 
 
-/* Aviso al pie del vídeo: «¿sigue sin verse?» y la salida a otro servidor. */
+/* El bloque al pie del vídeo: aviso y selector de servidor comparten aquí un
+   único borde y un único padding, apilados con poco aire entre ambos. Antes
+   eran dos secciones completas, cada una con su propio borde y su propio
+   padding, y el pie del reproductor pesaba tanto como el vídeo. */
+.ficha-controles {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: clamp(8px, 0.9vw, 12px) clamp(14px, 1.2vw, 20px);
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+}
+
+/* Aviso al pie del vídeo: «¿sigue sin verse?» y la salida a otro servidor.
+   Una fila discreta, no una barra propia: el borde y el padding ya los pone
+   `.ficha-controles`. */
 .ficha-aviso {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: clamp(10px, 1.2vw, 18px);
+  gap: clamp(8px, 1vw, 14px);
   margin: 0;
-  padding: clamp(10px, 1vw, 14px) clamp(14px, 1.4vw, 22px);
-  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
   color: var(--soft, rgba(245, 245, 247, 0.56));
-  font-size: clamp(13px, 0.92vw, 15px);
-  line-height: 1.5;
+  font-size: clamp(12px, 0.85vw, 14px);
+  line-height: 1.4;
 }
 
 .ficha-aviso-accion {
   flex-shrink: 0;
-  min-height: 40px;
-  padding: 0 clamp(14px, 1.2vw, 22px);
+  min-height: 34px;
+  padding: 0 clamp(12px, 1vw, 18px);
   border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
   border-radius: 999px;
   background: var(--chip, rgba(245, 245, 247, 0.1));
   color: var(--text, #f5f5f7);
-  font-size: clamp(13px, 0.92vw, 15px);
+  font-size: clamp(12px, 0.85vw, 14px);
   font-weight: 600;
   cursor: pointer;
 }
 
-/* El secundario de la barra: presente, pero sin competir con la salida. */
+/* El secundario de la fila: un enlace discreto, no un botón. En ratón casi
+   nunca hace falta —el clic sobre el vídeo ya entra en el marco—, así que
+   no necesita el mismo peso visual que «Probar otro servidor». */
 .ficha-aviso-accion.is-suave {
+  min-height: auto;
+  padding: 2px 0;
+  border-color: transparent;
   background: transparent;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
+  color: var(--muted, rgba(245, 245, 247, 0.6));
   font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: color 150ms ease, text-decoration-color 150ms ease;
 }
 
 .ficha-aviso-accion:hover {
   border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
   background: var(--chip-focus, rgba(245, 245, 247, 0.2));
+}
+
+.ficha-aviso-accion.is-suave:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text, #f5f5f7);
+  text-decoration-color: currentColor;
 }
 
 /* La marca «Subtítulos» dentro del botón de servidor: es lo que se busca. */
@@ -1995,44 +2045,43 @@ html[data-player="on"] body {
   opacity: 0.75;
 }
 
-/* La barra de servidores, al pie del vídeo. */
+/* La barra de servidores, al pie del vídeo. Sin borde ni padding propios: los
+   pone `.ficha-controles`, que la envuelve junto con el aviso de arriba. */
 .servidores {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: clamp(10px, 1vw, 18px);
-  padding: clamp(12px, 1.2vw, 18px) clamp(14px, 1.4vw, 22px);
-  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  gap: clamp(8px, 0.9vw, 14px);
 }
 
 .servidores-titulo {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin: 0;
   flex-shrink: 0;
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: clamp(11px, 0.8vw, 13px);
   font-weight: 600;
   color: var(--muted, rgba(255, 255, 255, 0.68));
 }
 
-.servidores-titulo svg { width: 17px; height: 17px; }
+.servidores-titulo svg { width: 15px; height: 15px; }
 
 .servidores-lista {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .servidor {
-  min-height: 44px;
-  padding: 0 clamp(14px, 1.1vw, 20px);
+  min-height: 36px;
+  padding: 0 clamp(11px, 0.9vw, 16px);
   border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
   border-radius: 999px;
   background: var(--chip, rgba(255, 255, 255, 0.07));
   color: var(--muted, rgba(255, 255, 255, 0.72));
-  font-size: clamp(13px, 0.9vw, 16px);
+  font-size: clamp(12px, 0.8vw, 14px);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
