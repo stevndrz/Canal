@@ -64,7 +64,7 @@ export function tiempoEnCanal(desdeMs: number, ahoraMs: number): string {
 }
 
 /** En qué está el reproductor, en una palabra. */
-export type EstadoEmision = "vivo" | "pausa" | "sin-senal" | "sintonizando" | "emitiendo";
+export type EstadoEmision = "vivo" | "pausa" | "sin-senal" | "sintonizando" | "emitiendo" | "buffering";
 
 export function palabraDeEstado(estado: EstadoEmision): string {
   switch (estado) {
@@ -74,11 +74,25 @@ export function palabraDeEstado(estado: EstadoEmision): string {
       return "PAUSA";
     case "sintonizando":
       return "SINTONIZANDO";
+    case "buffering":
+      return "CARGANDO";
     case "emitiendo":
       return "EMITIENDO";
     case "vivo":
       return "EN VIVO";
   }
+}
+
+/**
+ * Milisegundos hasta el primer fotograma → lo que cabe en un módulo.
+ *
+ * Por debajo de un segundo se dice en ms (850 ms dice más que 0,8 s cuando se
+ * compara zapeo); por encima, en segundos con un decimal y coma.
+ */
+export function formatearTtff(ms?: number): string | null {
+  if (ms === undefined || ms === null || ms < 0) return null;
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  return `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
 }
 
 export interface LecturaEmision {
@@ -88,6 +102,12 @@ export interface LecturaEmision {
   /** Cuándo se sintonizó este canal. */
   desde?: number;
   ahora?: number;
+  /** Cortes de búfer desde que se sintonizó (eventos `waiting`). */
+  stalls?: number;
+  /** Fotogramas perdidos del `<video>` (solo donde hay decodificación). */
+  caidos?: number;
+  /** Tiempo hasta el primer fotograma, en ms. */
+  ttffMs?: number;
 }
 
 /**
@@ -105,6 +125,14 @@ export function modulosDeEmision(lectura: LecturaEmision): Dato[] {
 
   const bitrate = formatearBitrate(lectura.bitrate);
   if (bitrate) modulos.push({ etiqueta: "Tasa", valor: bitrate });
+
+  // Cortes y arranque solo cuando dicen algo: cero cortes no es información y
+  // un TTFF ausente (HLS nativo sin marca) no es un hueco que parezca un fallo.
+  if (lectura.stalls !== undefined && lectura.stalls > 0) {
+    modulos.push({ etiqueta: "Cortes", valor: String(lectura.stalls) });
+  }
+  const ttff = formatearTtff(lectura.ttffMs);
+  if (ttff) modulos.push({ etiqueta: "Arranque", valor: ttff });
 
   // Presencia, no verdad: el primer instante de una sesión es `0` y un `0`
   // falsy borraría el módulo justo al sintonizar, que es cuando más se mira.

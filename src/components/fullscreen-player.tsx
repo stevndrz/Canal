@@ -108,9 +108,11 @@ export function FullscreenPlayer({
     ? "sin-senal"
     : !state.isPlaying
       ? "pausa"
-      : state.alto
-        ? "vivo"
-        : "sintonizando";
+      : state.buffering
+        ? "buffering"
+        : state.alto
+          ? "vivo"
+          : "sintonizando";
 
   const wake = useCallback(() => {
     setShowControls(true);

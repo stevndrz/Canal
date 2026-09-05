@@ -18,6 +18,15 @@ const ENGINE_LABELS: Record<PlaybackSettings["engine"], string> = {
   mpegts: "Forzar mpegts.js",
 };
 
+const CALIDADES: PlaybackSettings["calidad"][] = ["auto", "480p", "720p", "1080p"];
+
+const CALIDAD_LABELS: Record<PlaybackSettings["calidad"], string> = {
+  auto: "Auto",
+  "480p": "480p",
+  "720p": "720p",
+  "1080p": "1080p",
+};
+
 function Row({
   label,
   hint,
@@ -156,14 +165,22 @@ export function AjustesView({
               />
             </Row>
             <Row
-              label="Calidad máxima"
-              hint="Arranca en la mejor pista en vez de subir poco a poco. Para fibra"
+              label="Calidad"
+              hint="Auto mide tu conexión y sube o baja solo. Un escalón fijo limita por altura sin cortar al cambiar"
             >
-              <Toggle
-                checked={settings.calidadMaxima}
-                label="Calidad máxima"
-                onChange={() => onChange({ calidadMaxima: !settings.calidadMaxima })}
-              />
+              <button
+                type="button"
+                data-nav="button"
+                onClick={() => {
+                  const next = CALIDADES[(CALIDADES.indexOf(settings.calidad ?? "auto") + 1) % CALIDADES.length];
+                  // Se escriben los dos: el motor resuelve el viejo para los
+                  // aparatos que aún lo guardan (ver `resolverCalidad`).
+                  onChange({ calidad: next, calidadMaxima: next !== "auto" });
+                }}
+                className={buttonClass}
+              >
+                {CALIDAD_LABELS[settings.calidad ?? "auto"]}
+              </button>
             </Row>
 
             <Row

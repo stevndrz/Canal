@@ -221,17 +221,6 @@ export function LiveCard({
   );
 }
 
-/** Marcador del mismo tamaño mientras carga el reproductor. Evita el salto. */
-export function LiveCardSkeleton() {
-  return (
-    <section className="live-card" aria-hidden="true">
-      <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/60 backdrop-blur shadow-xl">
-        <div className="live-card-video is-cargando border border-white/10" />
-      </div>
-    </section>
-  );
-}
-
 /**
  * Pantalla completa en todo lo que no sea un iPhone. Se pide sobre
  * `document.documentElement` y no sobre el contenedor del reproductor, que

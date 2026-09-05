@@ -15,6 +15,63 @@ import type MpegtsType from "mpegts.js";
 
 export type ClaseDeEmision = "hls" | "mpegts" | "flv" | "native";
 
+export type CalidadVideo = "auto" | "480p" | "720p" | "1080p";
+
+/** Alturas máximas por escalón del selector. */
+export const ALTURA_POR_CALIDAD: Record<Exclude<CalidadVideo, "auto">, number> = {
+  "480p": 480,
+  "720p": 720,
+  "1080p": 1080,
+};
+
+/**
+ * La calidad efectiva, resolviendo el ajuste viejo.
+ *
+ * `calidadMaxima` era un booleano (todo o nada). Los ajustes guardados en los
+ * aparatos todavía lo traen sin `calidad`: como la fusión con los valores por
+ * defecto rellena `calidad: "auto"`, un `"auto"` con `calidadMaxima: true` se
+ * lee como intención vieja (1080p). El selector nuevo escribe los dos campos a
+ * la vez, así que un auto elegido de verdad llega con `calidadMaxima: false`.
+ */
+export function resolverCalidad(
+  calidad: CalidadVideo | undefined,
+  calidadMaxima?: boolean,
+): CalidadVideo {
+  if (calidad === "auto" && calidadMaxima) return "1080p";
+  if (calidad) return calidad;
+  return calidadMaxima ? "1080p" : "auto";
+}
+
+/**
+ * El índice de nivel más alto que entra en la altura pedida.
+ *
+ * Las alturas de hls.js vienen de los manifiestos y no siempre son exactas
+ * (576, 540…): se acepta todo lo que no supere el tope. Sin niveles o sin tope
+ * (`auto`) no se limita nada y se devuelve -1, que en hls.js es «automático».
+ */
+export function nivelMaxParaCalidad(
+  alturas: (number | undefined)[],
+  calidad: CalidadVideo,
+): number {
+  if (calidad === "auto" || alturas.length === 0) return -1;
+  const tope = ALTURA_POR_CALIDAD[calidad];
+  let mejor = -1;
+  for (let i = 0; i < alturas.length; i += 1) {
+    const altura = alturas[i] ?? 0;
+    if (altura > 0 && altura <= tope) mejor = i;
+  }
+  // Todo supera el tope (solo hay 1080p y se pidió 480p): el más bajo sigue
+  // siendo mejor que no poner nada.
+  if (mejor === -1) {
+    let menor = 0;
+    for (let i = 1; i < alturas.length; i += 1) {
+      if ((alturas[i] ?? Infinity) < (alturas[menor] ?? Infinity)) menor = i;
+    }
+    return menor;
+  }
+  return mejor;
+}
+
 /**
  * Por defecto se asume HLS: es el formato dominante en listas IPTV públicas,
  * incluso cuando la URL no termina en `.m3u8`.
@@ -49,7 +106,14 @@ export function claseDeEmision(url: string): ClaseDeEmision {
 let moduloHls: Promise<typeof HlsType> | null = null;
 let moduloMpegts: Promise<typeof MpegtsType> | null = null;
 
-function cargarHls(): Promise<typeof HlsType> {
+/**
+ * `hls.js` bajo demanda, compartido con quien lo necesite.
+ *
+ * `native-player.tsx` (fichas con enlace propio) lo usa para no pagar ~580 KB
+ * cuando el enlace es un `.mp4` que el `<video>` lee solo. La promesa queda
+ * cacheada igual que aquí: el segundo reproductor no lo vuelve a descargar.
+ */
+export function cargarHls(): Promise<typeof HlsType> {
   moduloHls ??= import("hls.js").then((m) => m.default);
   return moduloHls;
 }
@@ -78,6 +142,77 @@ export interface AjustesMotor {
   lowLatencyMode: boolean;
   liveBufferLatencyChasing: boolean;
   calidadMaxima: boolean;
+  /** Selector nuevo. Ausente en ajustes viejos: lo resuelve `resolverCalidad`. */
+  calidad?: CalidadVideo;
+}
+
+export interface ConfigHlsResuelta {
+  startLevel: number;
+  capLevelToPlayerSize: boolean;
+  maxMaxBufferLength: number;
+}
+
+/**
+ * Qué configuración de arranque sale de la calidad pedida, sin hls.js delante
+ * para poder probarla. `auto` mantiene el ABR clásico (empieza bajo y sube);
+ * cualquier escalón arranca arriba y deja de capar por tamaño del reproductor.
+ */
+export function configArranqueParaCalidad(calidad: CalidadVideo): ConfigHlsResuelta {
+  if (calidad === "auto") {
+    return { startLevel: -1, capLevelToPlayerSize: true, maxMaxBufferLength: 40 };
+  }
+  return { startLevel: Infinity, capLevelToPlayerSize: false, maxMaxBufferLength: 60 };
+}
+
+/**
+ * Aplica el escalón a una instancia viva de hls.js: limita el nivel máximo y,
+ * si el actual se queda fuera, baja a él. No-op defensivo si la instancia no
+ * trae niveles (versión vieja, HLS nativo).
+ */
+export function fijarCalidad(
+  hls: {
+    levels?: { height?: number }[];
+    currentLevel?: number;
+    nextLevel?: number;
+    loadLevel?: number;
+  } | null | undefined,
+  calidad: CalidadVideo,
+): void {
+  if (!hls || !Array.isArray(hls.levels) || hls.levels.length === 0) return;
+  // hls.js usa -1 como «automático»: con auto se suelta el tope y se deja al ABR.
+  const max = nivelMaxParaCalidad(
+    hls.levels.map((n) => n?.height),
+    calidad,
+  );
+  if (max < 0) {
+    if (typeof hls.nextLevel === "number") hls.nextLevel = -1;
+    if (typeof hls.loadLevel === "number") hls.loadLevel = -1;
+    return;
+  }
+  if (typeof hls.currentLevel === "number" && hls.currentLevel > max) {
+    hls.currentLevel = max;
+  } else if (typeof hls.nextLevel === "number") {
+    hls.nextLevel = Math.min(hls.nextLevel < 0 ? max : hls.nextLevel, max);
+  }
+}
+
+/**
+ * Pre-conecta con el origen del siguiente canal probable (anterior/siguiente
+ * en el zapeo). No descarga nada —un `fetch` dispararía CORS en la mitad de
+ * los proveedores—: solo ahorra el DNS+TLS del manifiesto cuando se zapee.
+ */
+export function precargarCanal(url: string): void {
+  try {
+    const origen = new URL(url, window.location.href).origin;
+    if (document.querySelector(`link[rel="preconnect"][href="${origen}"]`)) return;
+    const link = document.createElement("link");
+    link.rel = "preconnect";
+    link.href = origen;
+    link.crossOrigin = "anonymous";
+    document.head.appendChild(link);
+  } catch {
+    /* URL rara: no hay nada que pre-conectar */
+  }
 }
 
 export interface OpcionesMotor {
@@ -157,12 +292,14 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
     return vacio();
   }
 
+  const calidad = resolverCalidad(o.settings.calidad, o.settings.calidadMaxima);
+  const arranque = configArranqueParaCalidad(calidad);
   const hls = new Hls({
     enableWorker: o.settings.enableWorker,
     lowLatencyMode: o.settings.lowLatencyMode,
     /**
-     * Con «calidad máxima» se arranca en la mejor pista y se deja de limitar
-     * por el tamaño del reproductor.
+     * Con escalón fijo se arranca en la mejor pista y se deja de limitar por
+     * el tamaño del reproductor (ver `configArranqueParaCalidad`).
      *
      * `startLevel: -1` empieza bajo y sube midiendo la conexión, lo que con
      * una línea justa evita cortes pero con fibra son unos segundos borrosos
@@ -170,8 +307,27 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
      * píxeles: ahorra datos, pero con el vídeo a media pantalla impide subir a
      * 1080 aunque la haya.
      */
-    startLevel: o.settings.calidadMaxima ? Infinity : -1,
-    capLevelToPlayerSize: !o.settings.calidadMaxima,
+    startLevel: arranque.startLevel,
+    capLevelToPlayerSize: arranque.capLevelToPlayerSize,
+    /**
+     * Red y búfer para vivo inestable: reintentos con espera en vez de rendirse
+     * al primer fragmento malo, y búfer corto para no quedarse colgado lejos
+     * del directo tras un tirón.
+     */
+    fragLoadingMaxRetry: 4,
+    manifestLoadingMaxRetry: 2,
+    levelLoadingMaxRetry: 3,
+    fragLoadingRetryDelay: 800,
+    manifestLoadingRetryDelay: 1000,
+    levelLoadingRetryDelay: 1000,
+    maxBufferLength: 20,
+    maxMaxBufferLength: arranque.maxMaxBufferLength,
+    maxBufferSize: 60 * 1000 * 1000,
+    liveSyncDurationCount: 3,
+    abrEwmaFastLive: 3,
+    abrEwmaSlowLive: 9,
+    abrBandWidthFactor: 0.8,
+    backBufferLength: 30,
   });
 
   /**
@@ -201,7 +357,19 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
       hls.startLoad();
     }
   });
-  hls.on(Hls.Events.MANIFEST_PARSED, o.alPoderReproducir);
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    // El manifiesto ya trae los niveles: se aplica el escalón antes del primer
+    // `play()` para no enseñar un segundo en 1080 cuando se pidió 480p.
+    try {
+      fijarCalidad(
+        hls as unknown as Parameters<typeof fijarCalidad>[0],
+        calidad,
+      );
+    } catch {
+      /* limitar es un extra: nunca puede tumbar el arranque */
+    }
+    o.alPoderReproducir();
+  });
   hls.loadSource(o.url);
   hls.attachMedia(o.video);
 

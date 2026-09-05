@@ -11,7 +11,13 @@ import {
   useState,
 } from "react";
 import { Play, RefreshCw, Radio } from "lucide-react";
-import { claseDeEmision, montarMotor, type MotorMontado } from "@/lib/reproduccion/motor";
+import {
+  claseDeEmision,
+  fijarCalidad,
+  montarMotor,
+  resolverCalidad,
+  type MotorMontado,
+} from "@/lib/reproduccion/motor";
 import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
@@ -50,6 +56,14 @@ export interface StreamPlayerState {
   alto?: number;
   /** Bits por segundo de la pista activa. Solo con hls.js. */
   bitrate?: number;
+  /** Se quedó sin búfer a mitad de emisión (eventos `waiting`). */
+  buffering?: boolean;
+  /** Cortes acumulados desde que se sintonizó. */
+  stalls?: number;
+  /** Fotogramas perdidos que reporta el propio `<video>`. */
+  dropped?: number;
+  /** Tiempo hasta el primer fotograma, en ms. */
+  ttffMs?: number;
 }
 
 interface StreamPlayerProps {
@@ -135,9 +149,31 @@ const StreamPlayer = memo(
       ancho?: number;
       alto?: number;
       bitrate?: number;
+      buffering?: boolean;
+      stalls?: number;
+      dropped?: number;
+      ttffMs?: number;
     }>({});
 
     const streamUrl = channel.streamUrl;
+    const respaldoUrl = channel.streamUrlBackup;
+    /**
+     * Cuando la fuente principal declara el fallo y hay respaldo, se prueba la
+     * segunda URL antes de enseñar «Sin señal». Una sola vez por canal: si el
+     * respaldo también falla, el error ya es de verdad.
+     */
+    const [usandoRespaldo, setUsandoRespaldo] = useState(false);
+    useEffect(() => {
+      setUsandoRespaldo(false);
+    }, [channel.id, streamUrl]);
+    const usandoRespaldoRef = useRef(false);
+    useEffect(() => {
+      usandoRespaldoRef.current = usandoRespaldo;
+    }, [usandoRespaldo]);
+    useEffect(() => {
+      usandoRespaldoRef.current = false;
+    }, [channel.id, streamUrl]);
+    const urlEfectiva = usandoRespaldo && respaldoUrl ? respaldoUrl : streamUrl;
 
     /**
      * Pausa síncrona al ocultarse. Mismo motivo que en `native-player.tsx`:
@@ -172,7 +208,20 @@ const StreamPlayer = memo(
       quiereSonido.current = settings.startUnmuted;
     }, [settings.startUnmuted]);
 
+    /**
+     * La calidad de ARRANQUE se lee por `ref`, como el sonido: `startLevel` y
+     * `capLevelToPlayerSize` solo se leen al construir hls.js, y con el valor
+     * en las dependencias del efecto cambiar de escalón cortaría y rearrancaría
+     * la emisión. Los cambios en caliente los aplica `fijarCalidad` abajo.
+     */
+    const calidadArranque = useRef(resolverCalidad(settings.calidad, settings.calidadMaxima));
+    useEffect(() => {
+      calidadArranque.current = resolverCalidad(settings.calidad, settings.calidadMaxima);
+    }, [settings.calidad, settings.calidadMaxima]);
+
     const handleRetry = useCallback(() => {
+      setUsandoRespaldo(false);
+      usandoRespaldoRef.current = false;
       setRetryCount((n) => n + 1);
     }, []);
 
@@ -208,6 +257,7 @@ const StreamPlayer = memo(
       if (!video) return;
 
       let cancelled = false;
+      const inicio = typeof performance !== "undefined" ? performance.now() : Date.now();
       setStreamError(false);
       setNeedsUserGesture(false);
       setSintonizando(true);
@@ -259,6 +309,13 @@ const StreamPlayer = memo(
 
       const handleFatalError = () => {
         if (cancelled) return;
+        // Con respaldo sin probar, se cambia de fuente en silencio en vez de
+        // declarar la señal caída: el efecto se vuelve a montar con la otra URL.
+        if (respaldoUrl && !usandoRespaldoRef.current) {
+          usandoRespaldoRef.current = true;
+          setUsandoRespaldo(true);
+          return;
+        }
         setStreamError(true);
         registrarFallo(clase, "canal");
       };
@@ -268,13 +325,13 @@ const StreamPlayer = memo(
           ? "hls"
           : settings.engine === "mpegts"
             ? "mpegts"
-            : claseDeEmision(streamUrl);
+            : claseDeEmision(urlEfectiva);
 
       // El motor se monta aparte: qué librería reproduce cada enlace es una
       // decisión propia, no parte del ciclo de vida de este componente.
       void montarMotor({
         video,
-        url: streamUrl,
+        url: urlEfectiva,
         clase,
         // Solo lo que el motor usa, y campo a campo: así las dependencias del
         // efecto siguen siendo granulares y cambiar un ajuste que no le
@@ -283,7 +340,10 @@ const StreamPlayer = memo(
           enableWorker: settings.enableWorker,
           lowLatencyMode: settings.lowLatencyMode,
           liveBufferLatencyChasing: settings.liveBufferLatencyChasing,
-          calidadMaxima: settings.calidadMaxima,
+          // Ya resuelta arriba (incluye la migración del ajuste viejo): se pasa
+          // cerrada para que el efecto no dependa de los dos campos.
+          calidadMaxima: false,
+          calidad: calidadArranque.current,
         },
         cancelado: () => cancelled,
         alPoderReproducir: tryPlay,
@@ -333,11 +393,28 @@ const StreamPlayer = memo(
        * significa «se ve algo»; `loadeddata` va detrás porque hay teles que no
        * disparan el primero al arrancar en silencio. Basta con que llegue uno.
        */
+      const leerCaidos = () => {
+        try {
+          const calidad = video.getVideoPlaybackQuality?.();
+          return calidad?.droppedVideoFrames && calidad.droppedVideoFrames > 0
+            ? calidad.droppedVideoFrames
+            : undefined;
+        } catch {
+          return undefined;
+        }
+      };
       const yaSeVe = () => {
+        const ahora = typeof performance !== "undefined" ? performance.now() : Date.now();
+        const ttffMs = Math.max(0, Math.round(ahora - inicio));
         setSintonizando(false);
         // Si al final hay imagen, el cartel de «no se pudo reproducir» ya no
         // es verdad: antes se quedaba puesto tapando un vídeo que iba bien.
         setNeedsUserGesture(false);
+        setEmision((actual) =>
+          actual.ttffMs !== undefined
+            ? actual
+            : { ...actual, buffering: false, ttffMs, dropped: leerCaidos() },
+        );
         if (!arranqueAvisado.current) {
           arranqueAvisado.current = true;
           registrarArranque(inicioSintonia.current, clase, "canal");
@@ -346,15 +423,30 @@ const StreamPlayer = memo(
       };
 
       /**
-       * Atasco = `waiting` DESPUÉS de haberse visto ya el primer fotograma.
-       * El `waiting` de antes de `yaSeVe` es el arranque normal, no un corte;
+       * Cortes a mitad de emisión: `waiting`/`stalled` es «sin búfer» y
+       * `playing` es «ya hay de nuevo». Se cuentan aparte del arranque (ese lo
+       * mide el TTFF) y viajan en `emision.stalls` hasta el panel.
+       *
+       * El atasco de telemetría (`atascoDesde`/`registrarAtasco`) es aparte y
+       * solo cuenta DESPUÉS de haberse visto ya el primer fotograma: el
+       * `waiting` de antes de `yaSeVe` es el arranque normal, no un corte, y
        * contarlo ahí ensuciaría el promedio con lo que ya mide `registrarArranque`.
        */
       const alEsperar = () => {
-        if (cancelled || !yaArrancoEmision.current || atascoDesde.current !== null) return;
+        if (cancelled) return;
+        setEmision((actual) => ({
+          ...actual,
+          buffering: true,
+          stalls: (actual.stalls ?? 0) + 1,
+        }));
+        if (!yaArrancoEmision.current || atascoDesde.current !== null) return;
         atascoDesde.current = marcarInicio();
       };
-      const alReanudarTrasAtasco = () => {
+      const alSeguir = () => {
+        if (cancelled) return;
+        setEmision((actual) =>
+          actual.buffering ? { ...actual, buffering: false, dropped: leerCaidos() ?? actual.dropped } : actual,
+        );
         if (atascoDesde.current === null) return;
         registrarAtasco(atascoDesde.current, clase, "canal");
         atascoDesde.current = null;
@@ -382,17 +474,19 @@ const StreamPlayer = memo(
       video.addEventListener("playing", yaSeVe);
       video.addEventListener("loadeddata", yaSeVe);
       video.addEventListener("waiting", alEsperar);
-      video.addEventListener("playing", alReanudarTrasAtasco);
+      video.addEventListener("playing", alSeguir);
+      video.addEventListener("stalled", alEsperar);
 
       return () => {
         cancelled = true;
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("playing", yaSeVe);
         video.removeEventListener("loadeddata", yaSeVe);
+        video.removeEventListener("waiting", alEsperar);
+        video.removeEventListener("playing", alSeguir);
+        video.removeEventListener("stalled", alEsperar);
         video.removeEventListener("resize", medirImagen);
         video.removeEventListener("loadedmetadata", medirImagen);
-        video.removeEventListener("waiting", alEsperar);
-        video.removeEventListener("playing", alReanudarTrasAtasco);
         if (hlsRef.current) {
           hlsRef.current.destroy();
           hlsRef.current = null;
@@ -409,6 +503,9 @@ const StreamPlayer = memo(
     }, [
       channel.id,
       streamUrl,
+      respaldoUrl,
+      urlEfectiva,
+      usandoRespaldo,
       retryCount,
       settings.engine,
       settings.enableWorker,
@@ -416,10 +513,26 @@ const StreamPlayer = memo(
       settings.liveBufferLatencyChasing,
       // `settings.startUnmuted` NO va aquí a propósito: se lee por `ref` arriba.
       // Con él en la lista, pulsar el botón de silencio rearrancaba el canal.
-      // Cambiar "calidad máxima" tiene que rearrancar hls.js: `startLevel` y
-      // `capLevelToPlayerSize` solo se leen al construir la instancia.
-      settings.calidadMaxima,
+      // `settings.calidad` / `calidadMaxima` TAMPOCO: van por `calidadArranque`
+      // al montar y en caliente con `fijarCalidad` abajo, sin cortar la emisión.
     ]);
+
+    /**
+     * Cambiar de escalón sin cortar la emisión.
+     *
+     * El efecto de arriba solo usa la calidad al construir hls.js (`startLevel`
+     * no se puede cambiar después); una vez en marcha, limitar el nivel máximo
+     * basta y el ABR sigue trabajando por debajo del tope.
+     */
+    useEffect(() => {
+      const hls = hlsRef.current as unknown as Parameters<typeof fijarCalidad>[0] | null;
+      if (!hls) return;
+      try {
+        fijarCalidad(hls, resolverCalidad(settings.calidad, settings.calidadMaxima));
+      } catch {
+        /* limitar es un extra: nunca tumba la emisión */
+      }
+    }, [settings.calidad, settings.calidadMaxima]);
 
     const togglePlay = useCallback(() => {
       const video = videoRef.current;
@@ -501,6 +614,14 @@ const StreamPlayer = memo(
           <div className="player-sintonizando" role="status">
             <span className="player-anillo" aria-hidden="true" />
             <p>Sintonizando {channel.name}…</p>
+          </div>
+        )}
+
+        {/* Tirón a mitad de emisión: ya hubo imagen, así que no es sintonizar
+            de nuevo, solo un aviso pequeño que no tapa los controles. */}
+        {!sintonizando && emision.buffering && !streamError && !needsUserGesture && (
+          <div className="player-sintonizando is-buffering" role="status" aria-label="Recargando">
+            <span className="player-anillo" aria-hidden="true" />
           </div>
         )}
 
