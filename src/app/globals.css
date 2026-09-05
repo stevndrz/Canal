@@ -3316,18 +3316,47 @@ body {
 
 .ficha-columna-principal { min-width: 0; }
 
+/* Antes era una caja plana con un borde fino: al lado de «Sinopsis» y
+   «Reparto» —secciones a sangre, sin caja— se leía como un aparte de poco
+   peso, y con un reparto largo se quedaba muy por encima, sola en medio de
+   aire vacío. El degradado y la sombra la emparientan con `.ficha-conjunto`
+   y `.ficha-poster` en vez de ser el único cuadro plano de la página, y
+   `sticky` la mantiene a la vista mientras se sigue bajando por el reparto,
+   así nunca se queda «flotando» varias pantallas por encima de donde mira
+   la persona. */
 .ficha-tecnica {
   min-width: 0;
-  padding: clamp(16px, 1.5vw, 26px);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  border-radius: clamp(12px, 1vw, 18px);
-  background: var(--chip, rgba(255, 255, 255, 0.04));
+  padding: clamp(20px, 1.8vw, 30px);
+  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.16));
+  border-radius: clamp(14px, 1.1vw, 20px);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.35));
 }
 
+@media (min-width: 900px) {
+  .ficha-tecnica {
+    position: sticky;
+    top: calc(var(--topbar-h) + clamp(16px, 2vh, 28px));
+  }
+}
+
+/* Mismo tamaño que `.ficha-seccion h2`: antes era notablemente más chico y
+   la ficha técnica se leía como una nota al margen en vez de una sección
+   hermana de «Sinopsis» y «Reparto». */
 .ficha-tecnica h2 {
-  margin: 0 0 clamp(10px, 1.2vh, 16px);
-  font-size: clamp(15px, 1vw, 19px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 clamp(14px, 1.6vh, 20px);
+  font-size: clamp(20px, 1.6vw, 30px);
   font-weight: 650;
+}
+
+.ficha-tecnica h2 svg {
+  width: 0.72em;
+  height: 0.72em;
+  flex-shrink: 0;
+  color: var(--muted, rgba(255, 255, 255, 0.6));
 }
 
 .ficha-tecnica dl {

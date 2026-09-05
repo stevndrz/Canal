@@ -97,6 +97,18 @@ export function LiveTvView({
   const [pintadas, setPintadas] = useState(LOTE);
   const centinela = useRef<HTMLDivElement | null>(null);
   const contenedorFilas = useRef<HTMLDivElement | null>(null);
+  /**
+   * Ancla para medir dónde empieza la lista de verdad. La cabecera (título +
+   * contador) siempre está justo antes del hueco de arriba y su tamaño no
+   * depende de la ventana montada, así que su posición no se mueve cuando
+   * cambia `ventana.huecoArriba` — al revés que `contenedorFilas`, cuyo
+   * `getBoundingClientRect().top` YA incluye ese hueco. Medir desde ahí era
+   * circular: cada recálculo restaba el hueco de la ventana anterior en vez
+   * del principio real de la lista, y el desfase crecía con cada scroll hasta
+   * que la ventana montada quedaba muy por encima de lo que se veía en
+   * pantalla —la lista se «cortaba» y solo quedaba el hueco vacío abajo—.
+   */
+  const cabezaLista = useRef<HTMLDivElement | null>(null);
   const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
 
   const [filtroPrevio, setFiltroPrevio] = useState(`${category}|${search}`);
@@ -140,7 +152,8 @@ export function LiveTvView({
 
   useEffect(() => {
     const contenedor = contenedorFilas.current;
-    if (!contenedor) return undefined;
+    const cabeza = cabezaLista.current;
+    if (!contenedor || !cabeza) return undefined;
 
     let pendiente = 0;
     const recalcular = () => {
@@ -150,7 +163,12 @@ export function LiveTvView({
       const siguiente = calcularVentana({
         desplazamiento: window.scrollY,
         alto: window.innerHeight,
-        inicioLista: contenedor.getBoundingClientRect().top + window.scrollY,
+        // El final de la cabecera y no el principio de `contenedor`: ese ya
+        // arrastra el hueco de arriba de la ventana MONTADA, que es lo que se
+        // está recalculando. Con un ancla que se mueve por su propio
+        // resultado, cada vuelta parte de donde quedó la anterior en vez de
+        // la posición real de la fila 0, y el error se acumula sin parar.
+        inicioLista: cabeza.getBoundingClientRect().bottom + window.scrollY,
         altoFila,
         total: enLote.length,
       });
@@ -281,7 +299,7 @@ export function LiveTvView({
         ) : (
           <>
             <main className="livetv-list" aria-label={category}>
-              <div className="livetv-list-head">
+              <div className="livetv-list-head" ref={cabezaLista}>
                 <h3>{category}</h3>
                 <span>
                   {enLote.length < totalDelFiltro

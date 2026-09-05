@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Info } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 
 /** Los pocos idiomas que aparecen de verdad en este catálogo. */
@@ -114,7 +114,10 @@ function FichaTecnica({
 
   return (
     <aside className="ficha-tecnica">
-      <h2>Ficha</h2>
+      <h2>
+        <Info aria-hidden="true" />
+        Ficha
+      </h2>
       {datos.length > 0 && (
         <dl>
           {datos.map(({ termino, valor }) => (
