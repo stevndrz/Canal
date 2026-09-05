@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState } from "react";
+import { memo, useCallback, useState, type SyntheticEvent } from "react";
 import { Bookmark, Tv } from "lucide-react";
 import type { CardItem } from "@/lib/media-item";
 
@@ -23,7 +23,17 @@ function useArte(artwork: string | null | undefined) {
     setFailed(false);
   }
 
-  const alCargar = useCallback(() => setLoaded(true), []);
+  /**
+   * `onLoad` dispara cuando la petición HTTP termina bien, pero eso no
+   * garantiza que haya píxeles: un CDN con protección «anti-hotlink» puede
+   * responder 200 con su propio marcador de «imagen rota» en vez de negarse
+   * limpio con un error de red, y ese sí carga. `naturalWidth` distingue
+   * una cosa de la otra.
+   */
+  const alCargar = useCallback((evento: SyntheticEvent<HTMLImageElement>) => {
+    if (evento.currentTarget.naturalWidth > 0) setLoaded(true);
+    else setFailed(true);
+  }, []);
   const alFallar = useCallback(() => setFailed(true), []);
 
   const refImg = useCallback((imagen: HTMLImageElement | null) => {
@@ -75,6 +85,7 @@ function ChannelGlassCard({
             loading="lazy"
             decoding="async"
             ref={refImg}
+            referrerPolicy="no-referrer"
             onLoad={alCargar}
             onError={alFallar}
             className={`h-full w-full p-2 object-contain transition-transform duration-300 group-hover:scale-105 ${
@@ -157,6 +168,7 @@ function PosterCard({
             loading="lazy"
             decoding="async"
             ref={refImg}
+            referrerPolicy="no-referrer"
             onLoad={alCargar}
             onError={alFallar}
             className={`object-cover w-full h-full rounded-xl transition-opacity duration-300 ${

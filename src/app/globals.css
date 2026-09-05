@@ -3301,11 +3301,16 @@ body {
 /* ── La ficha en columnas ────────────────────────────────────────────
    Sinopsis y reparto en la ancha; la ficha técnica al lado. En una sola
    columna todo se convertía en una lista vertical interminable donde había que
-   bajar mucho para ver algo que cabe de un vistazo. */
+   bajar mucho para ver algo que cabe de un vistazo.
+
+   `center` y no `start`: la ficha técnica es bastante más corta que
+   sinopsis + reparto, y pegada arriba del todo quedaba con un tramo enorme
+   de aire vacío debajo mientras la columna ancha seguía. Centrada en la
+   altura de la fila queda repartida en vez de colgando de un extremo. */
 .ficha-columnas {
   display: grid;
   gap: clamp(20px, 2.6vw, 48px);
-  align-items: start;
+  align-items: center;
 }
 
 @media (min-width: 900px) {
@@ -3318,12 +3323,12 @@ body {
 
 /* Antes era una caja plana con un borde fino: al lado de «Sinopsis» y
    «Reparto» —secciones a sangre, sin caja— se leía como un aparte de poco
-   peso, y con un reparto largo se quedaba muy por encima, sola en medio de
-   aire vacío. El degradado y la sombra la emparientan con `.ficha-conjunto`
-   y `.ficha-poster` en vez de ser el único cuadro plano de la página, y
-   `sticky` la mantiene a la vista mientras se sigue bajando por el reparto,
-   así nunca se queda «flotando» varias pantallas por encima de donde mira
-   la persona. */
+   peso. El degradado y la sombra la emparientan con `.ficha-conjunto` y
+   `.ficha-poster` en vez de ser el único cuadro plano de la página. Estática
+   —nada de `sticky`—: moviéndose por su cuenta mientras el resto de la
+   ficha se queda quieto se sentía como un elemento suelto, no parte de la
+   misma página; `align-items: center` en `.ficha-columnas` ya reparte el
+   aire sobrante sin que la caja tenga que perseguir el scroll. */
 .ficha-tecnica {
   min-width: 0;
   padding: clamp(20px, 1.8vw, 30px);
@@ -3331,13 +3336,6 @@ body {
   border-radius: clamp(14px, 1.1vw, 20px);
   background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
   box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.35));
-}
-
-@media (min-width: 900px) {
-  .ficha-tecnica {
-    position: sticky;
-    top: calc(var(--topbar-h) + clamp(16px, 2vh, 28px));
-  }
 }
 
 /* Mismo tamaño que `.ficha-seccion h2`: antes era notablemente más chico y
