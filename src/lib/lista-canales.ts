@@ -1,6 +1,6 @@
 import "server-only";
 
-import { loadM3uPlaylist } from "@/lib/m3u";
+import { loadM3uPlaylist, type ParsedChannel } from "@/lib/m3u";
 import { fetchEpg, getEpgEntry } from "@/lib/epg";
 import { empaquetarCanales, type PaqueteCanales } from "@/lib/canales-empaquetados";
 import { serverConfig } from "@/lib/config.server";
@@ -57,7 +57,7 @@ export async function paqueteDeCanales(): Promise<{ paquete: PaqueteCanales; jso
  * el caso por defecto, las cinco claves desaparecen.
  */
 async function conProgramacion(
-  canales: Omit<Channel, "id" | "number">[],
+  canales: ParsedChannel[],
   epgDeLaLista: string | null,
 ): Promise<Omit<Channel, "id" | "number">[]> {
   // La guía es opcional: si la lista M3U no referencia ninguna y no hay EPG_URL
@@ -74,7 +74,7 @@ async function conProgramacion(
   const ahora = Date.now();
 
   return canales.map((canal) => {
-    const entrada = getEpgEntry(epg, "", canal.name, ahora);
+    const entrada = getEpgEntry(epg, canal.tvgId, canal.name, ahora);
     if (!entrada) return canal;
 
     const base = { ...canal };

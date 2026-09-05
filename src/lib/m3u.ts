@@ -16,8 +16,13 @@ import { paraRegistro } from "./url-segura";
  * posición— y **sin `number`**: se rellenaba aquí y el cliente lo sobrescribía
  * al llegar, o sea 30 KB que se bajaban, se interpretaban y se tiraban. Ahora
  * lo pone `desempaquetarCanales` en su misma pasada.
+ *
+ * `tvgId` viaja aparte de `Channel` a propósito: solo hace falta en el
+ * servidor para cruzar con la guía EPG (`findProgrammes` en `epg.ts`) y
+ * `empaquetarCanales` no lo copia a la tupla que sí llega al navegador, así
+ * que añadirlo aquí no pesa nada en el cliente.
  */
-export type ParsedChannel = Omit<Channel, "id" | "number">;
+export type ParsedChannel = Omit<Channel, "id" | "number"> & { tvgId: string };
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
@@ -316,7 +321,7 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const clave = claveNombre(name, category);
     const existente = porNombre.get(clave);
     if (!existente) {
-      const canal: ParsedChannel = { name, category, logoUrl, streamUrl };
+      const canal: ParsedChannel = { name, category, logoUrl, streamUrl, tvgId };
       porNombre.set(clave, canal);
       enOrden.push(canal);
       continue;
