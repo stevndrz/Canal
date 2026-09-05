@@ -1687,53 +1687,124 @@ html[data-player="on"] body {
   padding-inline: var(--margen);
 }
 
-/* Fila de acciones de la ficha (Volver / Añadir a mi lista / Ver tráiler).
-   El espacio antes del titular va aquí, en el contenedor, y no en cada botón
-   por separado: puesto en `.ficha-volver` a solas —como estaba— cada botón
-   arrastraba su propio margen dentro de la fila, y con `align-items: center`
-   eso bastaba para que unos quedaran más arriba que otros. Los botones se
-   veían «disparejos» aunque compartieran la misma altura. */
+/* La fila de acciones: un icono redondo con su etiqueta debajo, de ANCHO
+   FIJO. Esa es toda la diferencia con lo que había.
+
+   Eran píldoras de texto en un `flex-wrap: wrap`, y una píldora mide lo que
+   mida su etiqueta: «Volver al catálogo» + «Añadir a mi lista» + «Ver tráiler»
+   + «Capítulos · T1 E1» no caben en los 393px de un iPhone por mucho que se
+   les baje el relleno y la tipografía. Se partían en tres líneas apiladas que
+   se comían el hero, empujaban carátula y título fuera del primer pantallazo y
+   dejaban el reproductor sin sitio. Apretarlas no lo arreglaba: lo aplazaba
+   hasta el siguiente título con nombre largo.
+
+   Con ancho fijo el número de líneas ya no depende del texto. Tres caben
+   siempre, aquí y en un televisor. */
 .ficha-acciones {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: clamp(16px, 2.4vh, 28px);
+  gap: clamp(6px, 1.4vw, 16px);
+  margin-top: clamp(18px, 2.6vh, 30px);
 }
 
-/* Misma caja que `.secondary` —mismas alturas, mismo relleno—: es el mismo
-   tipo de botón secundario, solo que es un enlace y no un `<button>`. */
-.ficha-volver {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  min-height: 46px;
-  padding: 0 clamp(16px, 1.4vw, 26px);
-  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
-  font-size: clamp(14px, 1vw, 17px);
+.ficha-accion {
+  flex: 0 0 auto;
+  width: clamp(78px, 8vw, 108px);
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 8px 4px;
+  border-radius: 16px;
+  background: transparent;
+  border: 0;
+  color: var(--muted, rgba(255, 255, 255, 0.72));
+  font-size: clamp(11px, 0.78vw, 14px);
   font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  cursor: pointer;
+  transition: color 160ms var(--ease), background-color 160ms var(--ease);
+}
+
+/* El círculo. Relleno sólido y no `backdrop-filter`: es la lección que ya dejó
+   escrita el panel de géneros —el desenfoque obliga al compositor a copiar el
+   fondo— y aquí hay un arte de fondo a pantalla completa justo debajo. */
+.ficha-accion-icono {
+  display: grid;
+  place-items: center;
+  width: clamp(44px, 3.4vw, 54px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.13);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
+  color: var(--text, #f5f5f7);
+  transition: background-color 160ms var(--ease), transform 160ms var(--ease);
+}
+
+.ficha-accion svg {
+  width: 45%;
+  height: 45%;
+}
+
+.ficha-accion:hover,
+.ficha-accion:focus-visible {
+  color: #fff;
+}
+
+.ficha-accion:hover .ficha-accion-icono,
+.ficha-accion:focus-visible .ficha-accion-icono {
+  background: rgba(255, 255, 255, 0.24);
+  transform: scale(1.06);
+}
+
+/* Ya está en «Mi lista»: el círculo se llena en vez de cambiar solo el texto.
+   El mismo verde que `.ficha-marca.is-si`, que es la misma idea. */
+.ficha-accion.is-activa {
+  color: var(--green, #00d588);
+}
+
+.ficha-accion.is-activa .ficha-accion-icono {
+  background: rgba(0, 213, 136, 0.18);
+  border-color: transparent;
+  color: var(--green, #00d588);
+}
+
+/* «Volver» no es una acción sobre el título —es salir—, así que sale de la
+   fila y flota sobre el arte, arriba a la izquierda. Mezclado con las otras
+   tres competía con ellas por el ancho, y además era la más larga. */
+.ficha-volver {
+  position: absolute;
+  top: 0;
+  left: var(--margen);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.22));
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.42);
+  color: #fff;
   transition: transform 160ms var(--ease), background-color 160ms var(--ease);
 }
 
 .ficha-volver:hover,
 .ficha-volver:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
-  color: #fff;
-  transform: scale(1.03);
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.06);
 }
 
 .ficha-volver svg {
-  width: 1.2em;
-  height: 1.2em;
+  width: 22px;
+  height: 22px;
 }
 
 .ficha-titular {
   display: flex;
   flex-direction: column;
   gap: clamp(16px, 2vw, 30px);
+  /* El hueco del botón flotante de arriba: sin él la carátula se le metería
+     debajo. Es su alto (46) más aire. */
+  padding-top: 60px;
 }
 
 @media (min-width: 681px) {
@@ -1803,19 +1874,14 @@ html[data-player="on"] body {
   text-transform: uppercase;
 }
 
+/* Texto con puntos, no píldoras. Tres géneros en píldora eran tres cajas más
+   compitiendo por atención con el título, la carátula y las acciones, en la
+   pantalla donde menos sitio hay. Aquí informan sin pedir que los mires, y de
+   paso no pueden partirse en dos líneas. */
 .ficha-generos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.ficha-generos span {
-  padding: 5px 12px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
+  margin: 10px 0 0;
   font-size: clamp(12px, 0.85vw, 15px);
-  color: var(--muted, rgba(255, 255, 255, 0.7));
+  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /**
@@ -3649,22 +3715,6 @@ body {
   mask-image: none;
 }
 
-/* El número dentro de una píldora: «Por ver 7». Redondo y tenue, para que se
-   lea como un dato de la píldora y no como una segunda palabra. */
-.chip-cuenta {
-  margin-left: 8px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
-  font-size: 0.82em;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.catalogo-chip.is-active .chip-cuenta {
-  background: rgba(0, 0, 0, 0.18);
-}
-
 /* La fila de un episodio es ahora un contenedor con DOS botones dentro —abrir
    y marcar— en vez de un único botón. El borde, el fondo y el foco viven aquí;
    los de dentro son transparentes. Un botón dentro de otro es HTML inválido y
@@ -3729,8 +3779,8 @@ body {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   margin-right: 10px;
   border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
   border-radius: 999px;
@@ -3768,18 +3818,11 @@ body {
 }
 
 /* ── La ficha en un teléfono ─────────────────────────────────────────────
-   No es la de escritorio encogida: se reordena.
-
-   Lo que había en un iPhone era esto — las tres acciones de la cabecera son
-   píldoras de texto completo, así que se partían en tres líneas apiladas que
-   se comían el hero entero; la carátula caía suelta debajo de ellas, con el
-   título empujado casi fuera de la primera pantalla; y el reproductor quedaba
-   ya fuera. Se veía el arte de fondo, tres botones y poco más.
-
-   Aquí: «Volver» pierde el texto y queda como icono redondo, las acciones van
-   en UNA fila que se desliza, y carátula y título comparten línea como en
-   escritorio. El marcado es el mismo en todas las pantallas — una sola ficha
-   que mantener. */
+   Lo que sigue son AJUSTES de tamaño, no otra estructura. La cabecera ya no
+   depende del ancho para no descolocarse —lo resuelve el ancho fijo de
+   `.ficha-accion`, ver arriba—, así que aquí solo se encoge lo que sobra:
+   el hero cede pantalla al vídeo, la carátula se pone al lado del título en
+   vez de encima, y la lista de capítulos se aprieta. */
 @media (max-width: 680px) {
   :root {
     /* Cede más pantalla al vídeo, que es a lo que se entra. El hero deja de
@@ -3791,51 +3834,13 @@ body {
     padding-bottom: 18px;
   }
 
-  /* Una fila que se desliza, no tres líneas apiladas. `scrollbar-width: none`
-     y el `::-webkit-scrollbar` porque en Android la barra se pinta encima de
-     los botones; el desplazamiento sigue funcionando con el dedo. */
-  .ficha-acciones {
-    flex-wrap: nowrap;
-    gap: 8px;
-    margin-bottom: 16px;
-    overflow-x: auto;
-    scrollbar-width: none;
-    overscroll-behavior-inline: contain;
-    /* El aire que el contenedor quita a los lados, devuelto: así la fila se
-       desliza de borde a borde en vez de cortarse dentro del margen. */
-    margin-inline: calc(var(--margen) * -1);
-    padding-inline: var(--margen);
-  }
-
-  .ficha-acciones::-webkit-scrollbar {
-    display: none;
-  }
-
-  .ficha-acciones > * {
-    flex-shrink: 0;
-    min-height: 42px;
-    padding-inline: 14px;
-    font-size: 14px;
-  }
-
-  /* «Volver» pasa a ser un icono redondo. El texto se esconde por CSS y no se
-     quita del marcado: el `.sr-only` de al lado conserva el nombre accesible
-     en todas las pantallas. */
-  .ficha-volver {
-    width: 42px;
-    padding-inline: 0;
-  }
-
-  .ficha-volver-texto {
-    display: none;
-  }
-
-  /* Carátula y título en la misma línea. Apilados —como estaban— la carátula
-     se llevaba una pantalla entera para ella sola. */
+  /* Carátula y título en la misma línea. Apilados —el reparto de escritorio—
+     la carátula se llevaba una pantalla entera para ella sola. */
   .ficha-titular {
     flex-direction: row;
     align-items: flex-end;
     gap: 14px;
+    padding-top: 56px;
   }
 
   .ficha-poster {
@@ -3844,11 +3849,14 @@ body {
 
   .ficha-datos h1 {
     font-size: 24px;
+    /* Un título de tres palabras largas no debe empujar el vídeo fuera de la
+       pantalla; a partir de dos líneas se recorta. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  /* La frase de promoción y la duración caben; los géneros, no siempre. Se
-     recorta a una línea en vez de dejar que envuelvan y empujen el vídeo
-     fuera de la pantalla. */
   .ficha-tagline {
     margin-top: 6px;
     font-size: 13px;
@@ -3865,21 +3873,15 @@ body {
   }
 
   .ficha-generos {
-    flex-wrap: nowrap;
-    margin-top: 10px;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  /* Sin esto, «Sci-Fi & Fantasy» se parte en dos líneas DENTRO de su píldora y
-     la fila entera dobla de alto por una sola etiqueta. La fila ya se desliza:
-     que se salga por la derecha es lo que se quiere. */
-  .ficha-generos span {
+    margin-top: 8px;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .ficha-generos::-webkit-scrollbar {
-    display: none;
+  .ficha-acciones {
+    margin-top: 16px;
   }
 
   /* El ancho de escritorio sale de un cálculo con `vh` pensado para que el
@@ -3914,12 +3916,6 @@ body {
     -webkit-line-clamp: 1;
   }
 
-  .ficha-episodio-visto {
-    width: 40px;
-    height: 40px;
-    margin-right: 8px;
-  }
-
   /* El recuento salta de línea en vez de pelearse con las píldoras de
      temporada por el mismo hueco. */
   .ficha-episodios-cabecera {
@@ -3934,4 +3930,5 @@ body {
   .ficha-episodios-pestanas {
     width: 100%;
   }
+
 }
