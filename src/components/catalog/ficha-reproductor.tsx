@@ -293,6 +293,8 @@ function ReproductorCatalogo({
   }, [servidorActivoId, activo?.puertaAntirrobot]);
 
   const ofrecerCambio = avisarPara === servidorActivoId;
+  /** Si el aviso tiene algo que decir u ofrecer; si no, ni se monta. */
+  const mostrarAviso = descartados.size > 0 || (ofrecerCambio && !!activo) || !abierto;
 
   const alCargarMarco = useCallback(() => {
     const servidorId = activo?.id;
@@ -434,70 +436,79 @@ function ReproductorCatalogo({
             cubre TODOS los modos de fallo, incluidos los que aún no
             conocemos.
 
-            UNA sola barra al pie del vídeo, no dos apiladas: en un televisor
-            cada barra empuja hacia abajo lo de después, y la salida acababa
-            fuera de pantalla. */}
-        {/* Sin nada que decir ni que ofrecer, la barra no existe: antes había
+            UN solo bloque al pie del vídeo, no dos barras apiladas cada una
+            con su propio borde y relleno: eso era lo que hacía que, con más
+            de un servidor, el pie del reproductor pesara tanto como el vídeo
+            mismo. Aviso y selector comparten aquí un único borde y un único
+            padding; cada uno por dentro es solo una fila. */}
+        {/* Sin nada que decir ni que ofrecer, el bloque no existe: antes había
             siempre un texto de relleno para que no quedara una caja vacía, y
             la respuesta correcta es no pintar la caja. */}
-        {(descartados.size > 0 || (ofrecerCambio && activo) || !abierto) && (
-        <div className="ficha-aviso" role="status">
-          {descartados.size > 0 && (
-            <span>
-              Se {descartados.size === 1 ? "saltó" : "saltaron"} {descartados.size}{" "}
-              servidor{descartados.size === 1 ? "" : "es"}.
-            </span>
+        {(mostrarAviso || servidores.length > 1) && (
+        <div className="ficha-controles">
+          {mostrarAviso && (
+          <div className="ficha-aviso" role="status">
+            {descartados.size > 0 && (
+              <span>
+                Se {descartados.size === 1 ? "saltó" : "saltaron"} {descartados.size}{" "}
+                servidor{descartados.size === 1 ? "" : "es"}.
+              </span>
+            )}
+
+            {/* La salida primero: cuando hace falta, es lo que se busca. */}
+            {ofrecerCambio && activo && (
+              <button
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion"
+                onClick={() => descartar(activo.id)}
+              >
+                Probar otro servidor
+              </button>
+            )}
+
+            {/* Entregar el mando al reproductor ajeno, a propósito. Mientras
+                no se pulse, el foco no entra en el marco y sus popunder se
+                quedan sin el gesto que necesitan para abrir pestañas. Un
+                enlace discreto y no un botón grande: en ratón casi nunca
+                hace falta —el clic sobre el vídeo ya entra en el marco—,
+                así que no necesita el mismo peso que «Probar otro servidor». */}
+            {!abierto && (
+              <button
+                type="button"
+                data-nav="button"
+                className="ficha-aviso-accion is-suave"
+                onClick={() => abrirMarco()}
+              >
+                Usar los controles del servidor
+              </button>
+            )}
+          </div>
           )}
 
-          {/* La salida primero: cuando hace falta, es lo que se busca. */}
-          {ofrecerCambio && activo && (
-            <button
-              type="button"
-              data-nav="button"
-              className="ficha-aviso-accion"
-              onClick={() => descartar(activo.id)}
-            >
-              Probar otro servidor
-            </button>
-          )}
-
-          {/* Entregar el mando al reproductor ajeno, a propósito. Mientras no
-              se pulse, el foco no entra en el marco y sus popunder se quedan
-              sin el gesto que necesitan para abrir pestañas. */}
-          {!abierto && (
-            <button
-              type="button"
-              data-nav="button"
-              className="ficha-aviso-accion is-suave"
-              onClick={() => abrirMarco()}
-            >
-              Usar los controles del servidor
-            </button>
-          )}
+          {/* Al pie del vídeo, no suelto en la página: es un control de este
+              reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
+          <ServerPicker
+            providers={servidores.map((servidor) => ({
+              id: servidor.id,
+              label: servidor.label,
+              subtitulos: servidor.subtitulos,
+            }))}
+            activeId={activo.id}
+            onSelect={setElegidoId}
+            nota={
+              /* Se distingue lo que se sabe con certeza (se rodó en español) de
+                 lo que solo se puede pedir (subtítulos del embed), para no
+                 prometer pistas que quizá no existan. */
+              spokenInSpanish ? (
+                <span className="ficha-marca is-si">Hablada en español</span>
+              ) : (
+                <span className="ficha-marca is-quiza">Subtítulos en español</span>
+              )
+            }
+          />
         </div>
         )}
-
-        {/* Al pie del vídeo, no suelto en la página: es un control de este
-            reproductor, y cuando la imagen no se ve la mano ya está ahí. */}
-        <ServerPicker
-          providers={servidores.map((servidor) => ({
-            id: servidor.id,
-            label: servidor.label,
-            subtitulos: servidor.subtitulos,
-          }))}
-          activeId={activo.id}
-          onSelect={setElegidoId}
-          nota={
-            /* Se distingue lo que se sabe con certeza (se rodó en español) de
-               lo que solo se puede pedir (subtítulos del embed), para no
-               prometer pistas que quizá no existan. */
-            spokenInSpanish ? (
-              <span className="ficha-marca is-si">Hablada en español</span>
-            ) : (
-              <span className="ficha-marca is-quiza">Subtítulos en español</span>
-            )
-          }
-        />
       </div>
     </section>
   );
