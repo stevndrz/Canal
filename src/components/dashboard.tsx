@@ -20,6 +20,7 @@ import {
   registrarFallo,
   type MemoriaCaidos,
 } from "@/lib/canales-caidos";
+import { siguienteCandidato } from "@/lib/zapeo-automatico";
 import {
   desempaquetarCanales,
   recuentosDe,
@@ -253,21 +254,6 @@ export function Dashboard({
     return marcados;
   }, [channels, caidos]);
 
-  /** Lo que el reproductor aprende de cada canal, vía `onStateChange`. */
-  const anotarSalud = useCallback(
-    (canalId: number, funciona: boolean) => {
-      const canal = channels.find((item) => item.id === canalId);
-      if (!canal?.streamUrl) return;
-      const clave = claveDeCanal(canal.streamUrl);
-      guardarCaidos((actual) => ({
-        mapa: funciona
-          ? registrarExito(actual.mapa, clave)
-          : registrarFallo(actual.mapa, clave, Date.now()),
-      }));
-    },
-    [channels, guardarCaidos],
-  );
-
   const recentChannels = useMemo(
     () =>
       recents.ids
@@ -304,7 +290,18 @@ export function Dashboard({
    * cambio que afectaba a una fila. Medido: 121 renders pasaron a 1.
    */
   const anotarReciente = recents.push;
-  const select = useCallback(
+
+  /**
+   * Los canales ya probados en la cadena de fallos EN CURSO, y el aviso que la
+   * cuenta. Un `ref` y no estado: cambia en mitad de un fallo y no pinta nada
+   * por sí mismo; en estado provocaría un render de la aplicación entera —que
+   * aquí significa recalcular `visible` sobre 7.822 canales— por apuntar un id.
+   */
+  const cadena = useRef<Set<number>>(new Set());
+  const [avisoZapeo, setAvisoZapeo] = useState<{ de: string; a: string } | null>(null);
+
+  /** Poner un canal. El primitivo: lo usan la elección a mano y el salto automático. */
+  const sintonizar = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
       anotarReciente(channel.id);
@@ -314,6 +311,112 @@ export function Dashboard({
     },
     [anotarReciente, guardarUltimo],
   );
+
+  const select = useCallback(
+    (channel: Channel) => {
+      // Elegir a mano cierra la cadena de saltos en curso: el tope vuelve a
+      // estar entero, y lo que falló hace un rato no cuenta contra lo de ahora.
+      cadena.current.clear();
+      setAvisoZapeo(null);
+      sintonizar(channel);
+    },
+    [sintonizar],
+  );
+
+  /**
+   * Lo que el reproductor aprende de cada canal, vía `onStateChange`, y lo que
+   * se hace con ello.
+   *
+   * Aquí es donde el canal muerto deja de ser un cartel y pasa a ser un salto.
+   * El reproductor ya intentó por su cuenta la segunda URL del mismo canal
+   * (`streamUrlBackup`), que es lo mejor que puede pasar porque sigues viendo
+   * lo que pediste; si esto llega con `funciona: false`, esa vía ya se agotó.
+   *
+   * Se lee todo por `ref` a propósito. `visible` e `idsCaidos` cambian a cada
+   * rato, y con ellos en las dependencias esta función cambiaría de identidad
+   * en cada render — se la pasamos a `LiveCard`, que está memoizada, así que
+   * eso anularía el `memo`. Es el mismo motivo por el que `select` depende de
+   * `recents.push` y no de `recents`.
+   */
+  const zapeoRef = useRef({
+    visible,
+    channels,
+    idsCaidos,
+    tunedId,
+    automatico: settings.zapeoAutomatico,
+  });
+  // En un efecto y no en el render: escribir en una `ref` mientras se pinta es
+  // justo lo que React pide no hacer. Llega a tiempo de sobra — esto solo se
+  // lee cuando un canal falla, que es siempre después de que el reproductor
+  // haya montado.
+  useEffect(() => {
+    zapeoRef.current = {
+      visible,
+      channels,
+      idsCaidos,
+      tunedId,
+      automatico: settings.zapeoAutomatico,
+    };
+  }, [visible, channels, idsCaidos, tunedId, settings.zapeoAutomatico]);
+
+  const anotarSalud = useCallback(
+    (canalId: number, funciona: boolean) => {
+      const { visible: lista, channels: todos, idsCaidos: apartados, tunedId: puesto, automatico } =
+        zapeoRef.current;
+      const canal = todos.find((item) => item.id === canalId);
+      if (!canal?.streamUrl) return;
+
+      const clave = claveDeCanal(canal.streamUrl);
+      guardarCaidos((actual) => ({
+        mapa: funciona
+          ? registrarExito(actual.mapa, clave)
+          : registrarFallo(actual.mapa, clave, Date.now()),
+      }));
+
+      if (funciona) {
+        // Hay imagen: la cadena se cierra y el tope vuelve a estar entero.
+        cadena.current.clear();
+        setAvisoZapeo(null);
+        return;
+      }
+
+      // Solo se salta desde el canal que se está viendo. Las tarjetas de la
+      // portada también informan de su salud, y saltar por una de ellas
+      // cambiaría lo que suena por un canal que nadie estaba mirando.
+      if (!automatico || canalId !== puesto) return;
+
+      cadena.current.add(canalId);
+      const siguiente = siguienteCandidato({
+        lista: lista.length > 0 ? lista : todos,
+        actualId: canalId,
+        descartados: cadena.current,
+        estaApartado: (item) => apartados.has(item.id),
+      });
+
+      // Sin candidato se para y se deja el cartel de «Sin señal» del
+      // reproductor, que es la respuesta honesta: aquí ya no hay nada que
+      // probar. Ver `MAX_SALTOS`.
+      if (!siguiente) {
+        setAvisoZapeo(null);
+        return;
+      }
+
+      setAvisoZapeo({ de: canal.name, a: siguiente.name });
+      sintonizar(siguiente);
+    },
+    [guardarCaidos, sintonizar],
+  );
+
+  /**
+   * El aviso se va solo. Es una explicación de algo que ya pasó —«ese no daba
+   * señal, te puse este»—, no un cartel que haya que cerrar: dejarlo puesto
+   * taparía el vídeo al que acaba de llevarte.
+   */
+  useEffect(() => {
+    if (!avisoZapeo) return;
+    const id = window.setTimeout(() => setAvisoZapeo(null), 5_000);
+    return () => window.clearTimeout(id);
+  }, [avisoZapeo]);
 
   /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */
   const tune = useCallback(
@@ -491,15 +594,29 @@ export function Dashboard({
         />
       </section>
 
+      {/* Qué acaba de pasar y por qué la imagen cambió sola. Sin esto, el
+          salto se siente como un fallo de la app en vez de como una ayuda:
+          estabas en un canal y de pronto estás en otro. Se va solo a los cinco
+          segundos —ver el efecto de arriba— porque es la explicación de algo
+          ya ocurrido, no un cartel que haya que cerrar. */}
+      {avisoZapeo && (
+        <p className="zapeo-aviso" role="status">
+          <strong>{avisoZapeo.de}</strong> no daba señal · pasando a{" "}
+          <strong>{avisoZapeo.a}</strong>
+        </p>
+      )}
+
       {view === "player" && tuned && (
         <FullscreenPlayer
           channel={tuned}
           playlist={visible.length > 0 ? visible : channels}
           settings={settings}
-          onTune={(next) => {
-            setTunedId(next.id);
-            recents.push(next.id);
-          }}
+          /* `select` y no un `setTunedId` suelto: zapear a mano desde aquí
+             también cierra la cadena de saltos automáticos, igual que elegir
+             un canal en la lista. Antes esto duplicaba media función de
+             `select` y se quedaba sin esa parte. */
+          onTune={select}
+          onSalud={anotarSalud}
           onSilencio={recordarSilencio}
           onExit={() => navigate(lastView === "player" ? "home" : lastView)}
         />

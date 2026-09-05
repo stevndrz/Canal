@@ -1794,3 +1794,41 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Aviso de salto automático ───────────────────────────────────────────
+   Aparece cuando un canal no da imagen y la app pasa al siguiente. Flota
+   sobre todo y encima de la barra inferior del teléfono, que si no lo taparía;
+   `pointer-events: none` porque no es pulsable — es una explicación, no un
+   control, y estorbando el toque del vídeo sería peor que no estar. */
+.zapeo-aviso {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom) + 20px);
+  z-index: 70;
+  transform: translateX(-50%);
+  max-width: min(560px, calc(100vw - 32px));
+  margin: 0;
+  padding: 11px 18px;
+  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.18));
+  border-radius: 999px;
+  background: rgba(12, 12, 14, 0.92);
+  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+  color: var(--muted, rgba(255, 255, 255, 0.78));
+  font-size: clamp(13px, 0.9vw, 15px);
+  text-align: center;
+  pointer-events: none;
+}
+
+.zapeo-aviso strong {
+  color: #fff;
+  font-weight: 650;
+}
+
+/* En teléfono, por encima de la barra inferior: son ~56px de casillas más el
+   hueco del sistema, y ahí abajo el aviso quedaría medio tapado. La barra solo
+   existe en este ancho, así que el desplazamiento también. */
+@media (max-width: 680px) {
+  .zapeo-aviso {
+    bottom: calc(env(safe-area-inset-bottom) + 76px);
+  }
+}

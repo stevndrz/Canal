@@ -19,6 +19,7 @@ import {
   type MotorMontado,
 } from "@/lib/reproduccion/motor";
 import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
+import { ESPERA_SIN_IMAGEN_MS } from "@/lib/zapeo-automatico";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 
@@ -469,6 +470,25 @@ const StreamPlayer = memo(
             : { ...actual, ancho: video.videoWidth, alto: video.videoHeight },
         );
       };
+      /**
+       * El canal que acepta la conexión y luego no manda nada.
+       *
+       * Es **el modo de fallo más común de una lista IPTV pública**, y era el
+       * único que esta pantalla no sabía ver: sin error del motor no había
+       * nada que declarar, así que la ruedita giraba indefinidamente, el canal
+       * nunca se apuntaba como caído y el respaldo de la segunda URL —que ya
+       * estaba escrito— no llegaba a probarse. Solo se salía de ahí eligiendo
+       * otro canal a mano.
+       *
+       * Pasado el plazo sin un solo fotograma, se trata igual que un error
+       * fatal: primero la otra URL del mismo canal, y si tampoco, «Sin señal».
+       * Ver `ESPERA_SIN_IMAGEN_MS` para el porqué del número.
+       */
+      const sinImagen = window.setTimeout(() => {
+        if (cancelled || yaArrancoEmision.current) return;
+        handleFatalError();
+      }, ESPERA_SIN_IMAGEN_MS);
+
       video.addEventListener("resize", medirImagen);
       video.addEventListener("loadedmetadata", medirImagen);
       video.addEventListener("playing", yaSeVe);
@@ -479,6 +499,7 @@ const StreamPlayer = memo(
 
       return () => {
         cancelled = true;
+        window.clearTimeout(sinImagen);
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("playing", yaSeVe);
         video.removeEventListener("loadeddata", yaSeVe);

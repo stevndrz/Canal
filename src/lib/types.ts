@@ -92,6 +92,18 @@ export interface PlaybackSettings {
    * 16:9, así que la elección es entre ver bandas o perder los bordes.
    */
   ajusteImagen: "contener" | "llenar";
+  /**
+   * Pasar solo al siguiente canal cuando el sintonizado no da imagen.
+   *
+   * Encendido de fábrica: con una lista IPTV pública, que un canal esté muerto
+   * es el día a día, y el comportamiento sin esto era quedarse en «Sin señal»
+   * hasta elegir otro a mano. Se puede apagar porque hay a quien le molesta
+   * más que la imagen cambie sola que quedarse en negro — sobre todo en un
+   * televisor, donde el salto ocurre a metros de distancia de quien mira.
+   *
+   * Reglas y topes en `zapeo-automatico.ts`.
+   */
+  zapeoAutomatico: boolean;
 }
 
 export const DEFAULT_PLAYBACK: PlaybackSettings = {
@@ -104,4 +116,5 @@ export const DEFAULT_PLAYBACK: PlaybackSettings = {
   calidad: "auto",
   calidadMaxima: false,
   ajusteImagen: "contener",
+  zapeoAutomatico: true,
 };

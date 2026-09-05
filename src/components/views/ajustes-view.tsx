@@ -219,6 +219,17 @@ export function AjustesView({
                 onChange={() => onChange({ startUnmuted: !settings.startUnmuted })}
               />
             </Row>
+
+            <Row
+              label="Pasar al siguiente canal"
+              hint="Si el canal no da imagen, prueba otro en vez de quedarse en «Sin señal»"
+            >
+              <Toggle
+                checked={settings.zapeoAutomatico}
+                label="Pasar al siguiente canal"
+                onChange={() => onChange({ zapeoAutomatico: !settings.zapeoAutomatico })}
+              />
+            </Row>
           </div>
         </section>
 

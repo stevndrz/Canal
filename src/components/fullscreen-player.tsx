@@ -20,6 +20,7 @@ import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
+import { cambioDeSalud } from "@/lib/salud-de-la-emision";
 import { useCast } from "@/hooks/use-cast";
 
 interface FullscreenPlayerProps {
@@ -35,6 +36,16 @@ interface FullscreenPlayerProps {
   onExit: () => void;
   /** La persona ha tocado el botón de sonido. Ver `recordarSilencio`. */
   onSilencio?: (mudo: boolean) => void;
+  /**
+   * Si este canal ha llegado a dar imagen o ha fallado.
+   *
+   * Faltaba, y con ella faltaba media función: esta es la pantalla donde de
+   * verdad se ve la tele —y la única que hay en un televisor—, así que sin
+   * esto ni la memoria de caídos aprendía nada de lo que pasaba aquí ni el
+   * salto automático podía dispararse. Solo funcionaba desde la tarjeta de
+   * Inicio. Ver `canales-caidos.ts` y `zapeo-automatico.ts`.
+   */
+  onSalud?: (canalId: number, funciona: boolean) => void;
 }
 
 /* Cinco segundos, no cuatro: que la barra se vaya mientras dudas qué icono
@@ -50,6 +61,7 @@ export function FullscreenPlayer({
   onTune,
   onExit,
   onSilencio,
+  onSalud,
 }: FullscreenPlayerProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,6 +107,30 @@ export function FullscreenPlayer({
     streamError: false,
     needsUserGesture: false,
   });
+
+  /**
+   * Lo que el reproductor cuenta, y de paso la salud del canal.
+   *
+   * Mismo patrón que `live-card.tsx`, y por los mismos dos motivos: la función
+   * tiene que ser **estable** —en línea abría un bucle de render sin fin con
+   * `StreamPlayer`— y la salud se decide por **flanco** y no por nivel, porque
+   * como condición sobre el estado actual un canal caído disparaba en cada
+   * vuelta, y cada disparo escribía en `localStorage` y reordenaba 7.822
+   * canales. Ver `cambioDeSalud`.
+   */
+  const previo = useRef<{ canal: number; lectura: StreamPlayerState } | null>(null);
+  const alCambiarEstado = useCallback(
+    (siguiente: StreamPlayerState) => {
+      setState(siguiente);
+      // Al zapear se olvida la lectura anterior: la salud de un canal no dice
+      // nada del siguiente, y compararlos daría un flanco inventado.
+      const anterior = previo.current?.canal === channel.id ? previo.current.lectura : undefined;
+      previo.current = { canal: channel.id, lectura: siguiente };
+      const cambio = cambioDeSalud(anterior, siguiente);
+      if (cambio) onSalud?.(channel.id, cambio === "revivio");
+    },
+    [channel.id, onSalud],
+  );
 
 
   /**
@@ -330,7 +366,7 @@ export function FullscreenPlayer({
         ref={playerRef}
         channel={channel}
         settings={settings}
-        onStateChange={setState}
+        onStateChange={alCambiarEstado}
       />
 
       {/* Cabecera: el panel de la emisión. Ver `panel-emision.tsx`. */}
