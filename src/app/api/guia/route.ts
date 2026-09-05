@@ -1,6 +1,7 @@
 import { fetchEpg, programasEnFranja } from "@/lib/epg";
 import { serverConfig } from "@/lib/config.server";
 import { loadM3uPlaylist } from "@/lib/m3u";
+import { normalizeChannelName } from "@/lib/text";
 import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
 
 /**
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
   try {
     // Misma distinción de confianza que en `lista-canales.ts`: la de `EPG_URL`
     // la puso quien despliega, la de la lista la eligió otro. Ver `fetchEpg`.
-    const { epgUrl: epgDeLaLista } = await loadM3uPlaylist();
+    const { channels, epgUrl: epgDeLaLista } = await loadM3uPlaylist();
     const propia = serverConfig().epgUrl;
     const url = propia || epgDeLaLista || "";
     const guia = url ? await fetchEpg(url, !propia) : null;
@@ -93,11 +94,24 @@ export async function GET(request: Request) {
       );
     }
 
-    const programas: ProgramaTupla[][] = nombres.map((nombre) =>
-      programasEnFranja(guia, "", nombre, desde, hasta).map(
+    // El cliente solo manda nombres —es lo único que conoce, ver el comentario
+    // de arriba—, así que aquí se resuelve el `tvg-id` cruzando por nombre
+    // contra la misma lista M3U que ya se cargó para `epgDeLaLista`. Activa el
+    // emparejamiento exacto de `findProgrammes` en vez de caer siempre al
+    // respaldo por nombre.
+    const tvgIdPorNombre = new Map<string, string>();
+    for (const canal of channels) {
+      if (!canal.tvgId) continue;
+      const clave = normalizeChannelName(canal.name);
+      if (!tvgIdPorNombre.has(clave)) tvgIdPorNombre.set(clave, canal.tvgId);
+    }
+
+    const programas: ProgramaTupla[][] = nombres.map((nombre) => {
+      const tvgId = tvgIdPorNombre.get(normalizeChannelName(nombre)) ?? "";
+      return programasEnFranja(guia, tvgId, nombre, desde, hasta).map(
         (p) => [p.start, p.stop, p.title] as ProgramaTupla,
-      ),
-    );
+      );
+    });
 
     return Response.json(
       { programas, hayGuia: true },
