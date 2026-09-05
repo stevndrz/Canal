@@ -20,7 +20,7 @@ import "server-only";
 
 /** Para que la app funcione recién clonada. `M3U_URL` la sustituye. */
 const M3U_POR_DEFECTO =
-  "https://gist.githubusercontent.com/stevndrz/08bf27100aa1bd5fd518aa5b4e548b4f/raw/a46e30eeda0b2c319eed0cc6d2b8877b97f19207/gt.m3u";
+  "https://gist.githubusercontent.com/stevndrz/8249817782d5a3c659f963f565916243/raw/8591ec832c3a5a04c311439cdcb82e6460a21f91/gistfile1.txt";
 
 const TMDB_POR_DEFECTO = "https://api.themoviedb.org/3";
 
