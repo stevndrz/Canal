@@ -6,6 +6,8 @@ import {
   type MemoriaProgreso,
   claveDeFuente,
   claveDeTitulo,
+  claveSinEpisodio,
+  episodioDeClave,
   enOrden,
   estaTerminado,
   marcar,
@@ -24,12 +26,21 @@ function aMitad(minuto: number, visto = 1_000): { posicion: number; duracion: nu
 describe("claveDeTitulo", () => {
   it("un episodio se recuerda aparte de sus hermanos", () => {
     // Quien va por el capítulo cuatro no quiere que continuar le lleve al tres.
-    expect(claveDeTitulo("tv", 42, 1, 3)).not.toBe(claveDeTitulo("tv", 42, 1, 4));
-    expect(claveDeTitulo("tv", 42, 1, 3)).toBe("tv-42-t1e3");
+    expect(claveDeTitulo("tv-42", 1, 3)).not.toBe(claveDeTitulo("tv-42", 1, 4));
+    expect(claveDeTitulo("tv-42", 1, 3)).toBe("tv-42-t1e3");
   });
 
   it("una serie sin episodio concreto no se confunde con una película del mismo id", () => {
-    expect(claveDeTitulo("tv", 7)).not.toBe(claveDeTitulo("movie", 7));
+    expect(claveDeTitulo("tv-7")).not.toBe(claveDeTitulo("movie-7"));
+  });
+
+  it("conserva la clave de la tarjeta tal cual, prefijo de TMDB incluido", () => {
+    // El fallo que arregló esta firma: la tarjeta pregunta por
+    // `tv-tmdb-125988` y el reproductor guardaba en `tv-125988`.
+    expect(claveDeTitulo("tv-tmdb-125988", 1, 1)).toBe("tv-tmdb-125988-t1e1");
+    expect(claveSinEpisodio("tv-tmdb-125988-t1e1")).toBe("tv-tmdb-125988");
+    expect(episodioDeClave("tv-tmdb-125988-t2e7")).toEqual({ temporada: 2, episodio: 7 });
+    expect(episodioDeClave("movie-tmdb-550")).toBeNull();
   });
 
   it("las fuentes propias tienen su propio espacio", () => {

@@ -3,8 +3,9 @@
 import { useMemo, useCallback } from "react";
 import type { Channel } from "@/lib/types";
 import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
-import { channelToCard, conProgreso, type CardItem } from "@/lib/media-item";
+import { channelToCard, conProgreso, enCursoACard, type CardItem } from "@/lib/media-item";
 import { useProgreso } from "@/hooks/use-progreso";
+import { useContinuar } from "@/hooks/use-continuar";
 import { groupByCategory } from "@/lib/channels";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { MediaRail } from "@/components/media/media-rail";
@@ -94,6 +95,23 @@ export function HomeView({
    * las filas del catálogo y `MediaRail` compara por identidad.
    */
   const { memoria: progreso } = useProgreso();
+
+  /**
+   * «Seguir viendo» de cine y series: la serie a medias, con su «T1 E4».
+   *
+   * Sale de su propia memoria y no de cruzar el progreso con `catalog`, y esa
+   * es toda la diferencia entre que funcione y que no. El progreso solo se
+   * puede leer cuando el `<video>` es nuestro —«Mi enlace» y los servidores
+   * «Directo»—, y lo que se usa a diario son iframes de otro dominio: con esa
+   * fuente, esta fila estaba permanentemente vacía por mucho que se estuviera
+   * viendo una serie. Ver `lib/continuar.ts`.
+   */
+  const { enCurso } = useContinuar();
+  const continuarViendo = useMemo(
+    () => enCurso.map((entrada) => enCursoACard(entrada, progreso)),
+    [enCurso, progreso],
+  );
+
   const catalogoConProgreso = useMemo(
     () =>
       catalog.map((fila) => ({
@@ -149,10 +167,15 @@ export function HomeView({
 
       {/* Historial, no oferta: informan, no invitan. De ahí el modo compacto —
           son un buen recurso cuando hace falta y no tienen por qué ocupar
-          como las secciones que sí están proponiendo algo. */}
+          como las secciones que sí están proponiendo algo.
+
+          «Canales recientes» y no «Seguir viendo», que es como se llamaba:
+          desde que la pantalla también ofrece continuar una serie, dos filas
+          con el mismo nombre a dos dedos de distancia no se distinguían. Esta
+          son canales; la otra, cine y series. */}
       <MediaRail
         compacto
-        title="Seguir viendo"
+        title="Canales recientes"
         items={tarjetasRecientes}
         onOpen={abrirCanal}
         activeKey={tunedKey}
@@ -178,7 +201,12 @@ export function HomeView({
         />
       ))}
 
-      {catalog.length > 0 && (
+      {/* Antes de los rieles curados: quien dejó una serie a medias entra a
+          seguirla, no a que le propongan otra cosa. Va bajo el encabezado de
+          «Películas y series» y no arriba del todo porque esta app abre con
+          televisión en vivo — la señal manda, y esto es la primera cosa de la
+          sección de catálogo, no de la pantalla. */}
+      {(continuarViendo.length > 0 || catalog.length > 0) && (
         <>
           <section className="section-heading library-heading">
             <div className="library-title-block">
@@ -186,6 +214,14 @@ export function HomeView({
               <h2>Películas y series</h2>
             </div>
           </section>
+
+          <MediaRail
+            compacto
+            title="Seguir viendo"
+            items={continuarViendo}
+            onOpen={abrirFicha}
+            posterMode
+          />
 
           {/* Ya vienen convertidas del servidor: ver `page.tsx`. Lo único que
               se les añade aquí es la barra de por dónde iba cada una, que solo

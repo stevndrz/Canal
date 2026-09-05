@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { TopNav } from "@/components/shell/top-nav";
 import { MediaRail } from "@/components/media/media-rail";
@@ -11,8 +11,11 @@ import { FichaReproductor } from "./ficha-reproductor";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 import { NavegacionCatalogo } from "./navegacion-catalogo";
 import { useAbrirTitulo } from "./catalog-row";
+import { useAnotarEnCurso } from "@/hooks/use-continuar";
+import { useEpisodiosVistos } from "@/hooks/use-episodios-vistos";
+import { siguientePorVer } from "@/lib/episodios-vistos";
 import type { ServidorStream } from "@/lib/resolvers/types";
-import type { CardItem } from "@/lib/media-item";
+import { claveCatalogo, type CardItem } from "@/lib/media-item";
 
 /**
  * La ficha de un título: portada, reproductor, datos y —si es serie—
@@ -32,6 +35,13 @@ import type { CardItem } from "@/lib/media-item";
  * | `FichaReproductor` | Los servidores (VidSrc/Debrid o enlace propio) |
  * | `FichaColumnas` | Sinopsis, reparto y ficha técnica |
  * | `FichaEpisodios` | Temporadas y episodios, con su navegación por mando |
+ *
+ * **En una serie los episodios van ANTES que sinopsis y reparto.** En un
+ * teléfono, con la carátula, el reproductor, la sinopsis y doce caras de
+ * reparto por delante, llegar al capítulo siguiente eran cuatro pantallazos de
+ * scroll. Quien abre una serie que ya estaba viendo va a por el capítulo; la
+ * sinopsis la lee quien la abre por primera vez, y esa persona ya la tiene en
+ * la portada.
  */
 export function TitleDetail({
   item,
@@ -61,15 +71,64 @@ export function TitleDetail({
 }) {
   const isSeries = item.mediaType === "tv";
   const abrirRecomendado = useAbrirTitulo();
-  const [selectedEpisode, setSelectedEpisode] = useState<ResolvedEpisode | null>(
-    isSeries ? (episodes[0] ?? null) : null,
+
+  /**
+   * La clave del título, la MISMA que la de su tarjeta en cualquier riel.
+   *
+   * De aquí cuelgan las tres memorias del aparato —progreso, episodios vistos
+   * y «Seguir viendo»— y por eso se calcula una vez aquí en lugar de
+   * reconstruirse en cada pieza: reconstruirla a partir del `tmdbId` es lo que
+   * hacía que el reproductor guardara en `tv-125988` mientras la tarjeta
+   * preguntaba por `tv-tmdb-125988`, y con eso ninguna de las tres funcionaba.
+   */
+  const claveBase = claveCatalogo(item);
+
+  /**
+   * Con qué episodio se abre: el primero **sin ver**, no el primero de la
+   * lista. Es lo que hace que volver a una serie a medias caiga donde tocaba
+   * en vez de en el piloto que ya viste hace tres semanas.
+   */
+  const { ids: vistos } = useEpisodiosVistos();
+  const primero = useMemo(
+    () => (isSeries ? siguientePorVer(vistos, claveBase, episodes) : null),
+    [isSeries, vistos, claveBase, episodes],
   );
+
+  const [elegido, setElegido] = useState<ResolvedEpisode | null>(null);
+  // Lo elegido a mano manda; mientras no se elija nada, el primero sin ver. Se
+  // deriva en el render en vez de copiarse a estado en un efecto: `vistos`
+  // llega vacío en el primer render (localStorage solo existe tras montar) y
+  // un efecto que sincronizara estado con eso reiniciaría el vídeo al llegar.
+  const selectedEpisode = elegido ?? primero;
 
   // Qué se reproduce ahora mismo: el episodio elegido en series, el título en
   // películas. Los episodios pueden traer su propia fuente (otro doblaje).
   const activeSource: PlaybackSource = isSeries
     ? (selectedEpisode?.source ?? item.source)
     : item.source;
+
+  /**
+   * Apuntar que se está viendo esto, para que Inicio pueda ofrecer continuar.
+   *
+   * Se hace aquí, al abrir la ficha y al cambiar de episodio, y **no en el
+   * reproductor**: el reproductor solo sabe la posición cuando el `<video>` es
+   * nuestro, y en esta app casi siempre es un iframe de otro dominio. Abrir un
+   * capítulo sí se sabe siempre. Ver `lib/continuar.ts`.
+   */
+  const anotar = useAnotarEnCurso();
+  useEffect(() => {
+    anotar({
+      clave: claveBase,
+      mediaType: item.mediaType,
+      id: item.id,
+      titulo: item.title,
+      poster: item.poster,
+      backdrop: item.backdrop,
+      temporada: isSeries ? (selectedEpisode?.season ?? selectedSeason) : undefined,
+      episodio: isSeries ? selectedEpisode?.episode : undefined,
+      tituloEpisodio: isSeries ? selectedEpisode?.title : undefined,
+    });
+  }, [anotar, claveBase, item, isSeries, selectedEpisode, selectedSeason]);
 
   /**
    * Modo cine: el reproductor ocupa la pantalla entera, como un canal en
@@ -84,6 +143,16 @@ export function TitleDetail({
   const [modoCine, setModoCine] = useState(enTelevisor);
   const salirDelCine = useCallback(() => setModoCine(false), []);
 
+  const elegirEpisodio = useCallback(
+    (episode: ResolvedEpisode) => {
+      setElegido(episode);
+      // Elegir otro episodio en TV vuelve a llenar la pantalla con él: es la
+      // misma acción que abrir el título la primera vez.
+      if (enTelevisor) setModoCine(true);
+    },
+    [enTelevisor],
+  );
+
   return (
     /* El mando: la ficha también vive fuera del shell. Ver
        `navegacion-catalogo.tsx`. En modo cine, Atrás cierra el reproductor
@@ -94,16 +163,29 @@ export function TitleDetail({
       {!modoCine && <TopNav />}
 
       {!modoCine && (
-        <FichaPortada item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
+        <FichaPortada
+          item={item}
+          isSeries={isSeries}
+          minutos={formatearDuracion(item.duracion)}
+          /* El atajo a los capítulos vive en la portada, que es lo primero que
+             se ve: sin él, en un teléfono había que pasar el reproductor
+             entero para saber siquiera que la lista existía. */
+          episodioActual={
+            isSeries && selectedEpisode
+              ? { temporada: selectedEpisode.season, episodio: selectedEpisode.episode }
+              : null
+          }
+        />
       )}
 
       <div className={modoCine ? "ficha-cine" : "ficha-reproductor-slot"}>
         <FichaReproductor
           fuente={activeSource}
           titulo={item.title}
+          claveBase={claveBase}
           tmdbId={item.tmdbId ?? null}
           mediaType={item.mediaType}
-          temporada={selectedSeason}
+          temporada={selectedEpisode?.season ?? selectedSeason}
           episodio={selectedEpisode?.episode ?? 1}
           enTelevisor={enTelevisor}
           servidoresIniciales={servidoresIniciales}
@@ -133,22 +215,18 @@ export function TitleDetail({
 
       {!modoCine && (
         <div className="ficha-cuerpo">
-          <FichaColumnas item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
-
           {isSeries && (
             <FichaEpisodios
               item={item}
+              claveBase={claveBase}
               episodes={episodes}
               selectedSeason={selectedSeason}
               selectedEpisode={selectedEpisode}
-              onSelectEpisode={(episode) => {
-                setSelectedEpisode(episode);
-                // Elegir otro episodio en TV vuelve a llenar la pantalla con
-                // él: es la misma acción que abrir el título la primera vez.
-                if (enTelevisor) setModoCine(true);
-              }}
+              onSelectEpisode={elegirEpisodio}
             />
           )}
+
+          <FichaColumnas item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
         </div>
       )}
 

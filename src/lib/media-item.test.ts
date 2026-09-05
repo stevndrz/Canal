@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { catalogToCard, claveCatalogo, conEnLista, conProgreso, enMiLista, seguirViendo } from "./media-item";
+import { catalogToCard, claveCatalogo, conEnLista, conProgreso, enCursoACard, enMiLista } from "./media-item";
+import type { EnCurso } from "./continuar";
 import { claveDeTitulo, type MemoriaProgreso } from "./progreso";
 import type { ResolvedCatalogItem } from "./catalog/types";
 
 /** Una ficha de TMDB como las que llegan del servidor. */
 const PELICULA = {
-  id: 123,
+  id: "tmdb-123",
   mediaType: "movie",
   title: "Una película",
   poster: "/p.jpg",
@@ -20,11 +21,18 @@ describe("conProgreso", () => {
   it("la clave de la tarjeta y la del progreso son la misma cadena", () => {
     // De esto depende que cruzarlas sea una búsqueda directa, sin índice
     // aparte. Si un día cambia una de las dos, esto se pone rojo.
-    expect(catalogToCard(PELICULA).key).toBe(claveDeTitulo("movie", 123));
+    //
+    // Este test existía y pasaba mientras la app fallaba: el `id` del fixture
+    // era `123` a secas, y los de TMDB son `tmdb-123`. Con el desnudo las dos
+    // claves salían iguales por casualidad; con el real, el progreso guardaba
+    // en `movie-123` y la tarjeta preguntaba por `movie-tmdb-123`, así que
+    // ninguna barra se pintó nunca. El fixture ahora usa un id de verdad.
+    expect(catalogToCard(PELICULA).key).toBe("movie-tmdb-123");
+    expect(catalogToCard(PELICULA).key).toBe(claveDeTitulo(claveCatalogo(PELICULA)));
   });
 
   it("pinta la barra de lo que se dejó a medias", () => {
-    const memoria: MemoriaProgreso = { "movie-123": A_MITAD };
+    const memoria: MemoriaProgreso = { "movie-tmdb-123": A_MITAD };
     expect(conProgreso(catalogToCard(PELICULA), memoria).progress).toBe(50);
   });
 
@@ -37,15 +45,15 @@ describe("conProgreso", () => {
 
   it("no pinta barra de algo ya terminado", () => {
     const memoria: MemoriaProgreso = {
-      "movie-123": { posicion: 89 * 60, duracion: 90 * 60, visto: 1_000 },
+      "movie-tmdb-123": { posicion: 89 * 60, duracion: 90 * 60, visto: 1_000 },
     };
     expect(conProgreso(catalogToCard(PELICULA), memoria).progress).toBeUndefined();
   });
 
   it("el capítulo a medias no le pone barra a la serie entera", () => {
     // Una serie no está «al 40%» porque su tercer capítulo lo esté.
-    const serie = { ...PELICULA, mediaType: "tv", id: 42 } as unknown as ResolvedCatalogItem;
-    const memoria: MemoriaProgreso = { [claveDeTitulo("tv", 42, 1, 3)]: A_MITAD };
+    const serie = { ...PELICULA, mediaType: "tv", id: "tmdb-42" } as unknown as ResolvedCatalogItem;
+    const memoria: MemoriaProgreso = { [claveDeTitulo(claveCatalogo(serie), 1, 3)]: A_MITAD };
     expect(conProgreso(catalogToCard(serie), memoria).progress).toBeUndefined();
   });
 });
@@ -75,39 +83,54 @@ describe("conEnLista", () => {
   });
 });
 
-describe("seguirViendo", () => {
-  const serie = { ...PELICULA, mediaType: "tv", id: 42, title: "Una serie" } as unknown as ResolvedCatalogItem;
-  const filas = [{ tarjetas: [catalogToCard(PELICULA), catalogToCard(serie)] }];
+describe("enCursoACard", () => {
+  const serie: EnCurso = {
+    clave: "tv-tmdb-125988",
+    mediaType: "tv",
+    id: "tmdb-125988",
+    titulo: "Silo",
+    poster: "/p.jpg",
+    backdrop: "/b.jpg",
+    temporada: 1,
+    episodio: 4,
+    tituloEpisodio: "El truco",
+    visto: 1_000,
+  };
 
-  it("ordena de lo más reciente a lo más viejo", () => {
-    const memoria: MemoriaProgreso = {
-      "movie-123": { ...A_MITAD, visto: 1_000 },
-      "tv-42": { ...A_MITAD, visto: 2_000 },
-    };
-    expect(seguirViendo(filas, memoria).map((t) => t.key)).toEqual(["tv-42", "movie-123"]);
+  it("la línea de debajo dice por dónde vas, no el año", () => {
+    // En una fila de continuar es lo único que importa.
+    expect(enCursoACard(serie, {}).meta).toBe("T1 E4 · El truco");
   });
 
-  it("omite lo que no llegó en las filas curadas", () => {
-    const memoria: MemoriaProgreso = { "movie-999": A_MITAD };
-    expect(seguirViendo(filas, memoria)).toEqual([]);
+  it("la tarjeta conserva la clave de la SERIE, no la del capítulo", () => {
+    // Es la que abre la ficha; con la del episodio, el enlace no existiría.
+    expect(enCursoACard(serie, {}).key).toBe("tv-tmdb-125988");
   });
 
-  it("omite lo terminado o lo apenas empezado, igual que conProgreso", () => {
-    const memoria: MemoriaProgreso = {
-      "movie-123": { posicion: 89 * 60, duracion: 90 * 60, visto: 1_000 },
-    };
-    expect(seguirViendo(filas, memoria)).toEqual([]);
+  it("la barra sale de la clave del capítulo", () => {
+    const memoria: MemoriaProgreso = { "tv-tmdb-125988-t1e4": A_MITAD };
+    expect(enCursoACard(serie, memoria).progress).toBe(50);
+  });
+
+  it("sin nada guardado va sin barra: casi todos los servidores son iframes", () => {
+    // Mejor sin barra que con una inventada.
+    expect(enCursoACard(serie, {}).progress).toBeUndefined();
+  });
+
+  it("no confunde el progreso de la serie con el del capítulo", () => {
+    const memoria: MemoriaProgreso = { "tv-tmdb-125988": A_MITAD };
+    expect(enCursoACard(serie, memoria).progress).toBeUndefined();
   });
 });
 
 describe("enMiLista", () => {
-  const serie = { ...PELICULA, mediaType: "tv", id: 42, title: "Una serie" } as unknown as ResolvedCatalogItem;
+  const serie = { ...PELICULA, mediaType: "tv", id: "tmdb-42", title: "Una serie" } as unknown as ResolvedCatalogItem;
   const filas = [{ tarjetas: [catalogToCard(PELICULA), catalogToCard(serie)] }];
 
   it("solo devuelve lo marcado, en el orden de las filas", () => {
-    const ids = new Set(["tv-42"]);
+    const ids = new Set(["tv-tmdb-42"]);
     const resultado = enMiLista(filas, ids);
-    expect(resultado.map((t) => t.key)).toEqual(["tv-42"]);
+    expect(resultado.map((t) => t.key)).toEqual(["tv-tmdb-42"]);
     expect(resultado[0].enLista).toBe(true);
   });
 
