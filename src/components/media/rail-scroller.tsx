@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 
 /**
  * Carril horizontal con flechas que solo aparecen cuando hay a dónde ir.
@@ -125,12 +125,18 @@ export function RailScroller({
   className,
   ariaLabel,
   overlay,
+  trackProps,
+  containerClassName,
 }: {
   children: ReactNode;
   className: string;
   ariaLabel: string;
   /** Flechas flotando sobre las fichas, para el carrusel de pósters. */
   overlay?: boolean;
+  /** `role`/`aria-*` del propio carril de scroll (p. ej. un `tablist`). */
+  trackProps?: HTMLAttributes<HTMLDivElement>;
+  /** Clase extra en el envoltorio (flechas + carril), para engancharle CSS propio. */
+  containerClassName?: string;
 }) {
   const { ref, puedeAntes, puedeDespues, desplazar } = useDesplazamiento(children);
 
@@ -138,19 +144,20 @@ export function RailScroller({
      hacía que el mando lo eligiera como vecino y se atascara, porque `.focus()`
      sobre un div corriente no hace nada. */
   const pista = (
-    <div ref={ref} className={className}>
+    <div ref={ref} className={className} {...trackProps}>
       {children}
     </div>
   );
 
   const flechas = overlay
     ? {
-        contenedor: "relative group",
+        contenedor: `relative group ${containerClassName ?? ""}`.trim(),
         antes: `${FLOTANTE} left-2 ${puedeAntes ? "opacity-100" : "pointer-events-none opacity-0"}`,
         despues: `${FLOTANTE} right-2 ${puedeDespues ? "opacity-100" : "pointer-events-none opacity-0"}`,
       }
     : {
-        contenedor: `rail-scroll-shell ${puedeAntes ? "can-prev" : ""} ${puedeDespues ? "can-next" : ""}`,
+        contenedor:
+          `rail-scroll-shell ${puedeAntes ? "can-prev" : ""} ${puedeDespues ? "can-next" : ""} ${containerClassName ?? ""}`.trim(),
         antes: "rail-arrow rail-arrow-left",
         despues: "rail-arrow rail-arrow-right",
       };

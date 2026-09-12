@@ -3702,6 +3702,17 @@ body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
+/* Las píldoras de temporada van dentro de un `RailScroller`: sus propias
+   flechas son ya la señal de «hay más» cuando no caben todas, así que el
+   degradado de corte de `.catalogo-filtros` sobra —y con pocas temporadas
+   (las más), sin nada que desplazar, ese degradado se comía la última píldora
+   sin motivo: la activa, en blanco, se veía "reventada" fundiéndose a
+   transparente contra el borde. */
+.ficha-episodios-temporadas {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
 /* `.catalogo-filtros` trae el sangrado lateral y el degradado de corte que
    necesita en la cabecera del catálogo, donde va a sangre. Aquí vive dentro de
    `.ficha-cuerpo`, que ya pone ese mismo margen, así que heredarlo dejaba las
@@ -3928,6 +3939,12 @@ body {
 
   .ficha-episodios-cabecera .catalogo-filtros,
   .ficha-episodios-pestanas {
+    width: 100%;
+  }
+
+  /* Es el envoltorio de flechas del `RailScroller`, no el carril en sí, el
+     que tiene que ocupar la fila entera para saltar de línea. */
+  .ficha-episodios-cabecera .ficha-episodios-temporadas-shell {
     width: 100%;
   }
 

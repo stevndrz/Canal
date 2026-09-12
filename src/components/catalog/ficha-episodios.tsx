@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { Check, Play } from "lucide-react";
+import { RailScroller } from "@/components/media/rail-scroller";
 import { useGridNavigation } from "@/hooks/use-grid-navigation";
 import { useEpisodiosVistos } from "@/hooks/use-episodios-vistos";
 import {
@@ -79,7 +80,13 @@ export function FichaEpisodios({
         )}
 
         {item.seasons.length > 1 && (
-          <div className="catalogo-filtros" role="tablist" aria-label="Temporadas">
+          <RailScroller
+            className="catalogo-filtros ficha-episodios-temporadas"
+            containerClassName="ficha-episodios-temporadas-shell"
+            ariaLabel="temporadas"
+            overlay
+            trackProps={{ role: "tablist", "aria-label": "Temporadas" }}
+          >
             {item.seasons.map((season) => (
               <Link
                 key={season}
@@ -92,7 +99,7 @@ export function FichaEpisodios({
                 Temporada {season}
               </Link>
             ))}
-          </div>
+          </RailScroller>
         )}
       </div>
 
