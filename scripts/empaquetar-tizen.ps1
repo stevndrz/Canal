@@ -22,7 +22,7 @@ $perfil = Read-Host "`nEscribe el nombre EXACTO del perfil de la lista de arriba
 Write-Host "`n--- Empaquetando ---" -ForegroundColor Cyan
 & $tizenBat package -t wgt -s $perfil -- .buildResult
 
-$dispositivo = (& $sdbBat devices) | Select-String -Pattern "\sdevice$" | ForEach-Object { ($_ -split "\s+")[0] } | Select-Object -First 1
+$dispositivo = (& $sdbBat devices) | Where-Object { ($_ -split '\s+')[1] -eq 'device' } | ForEach-Object { ($_ -split '\s+')[0] } | Select-Object -First 1
 if (-not $dispositivo) {
     Write-Host "`nNo veo la tele conectada. Pega aquí lo que imprimió 'sdb devices' arriba." -ForegroundColor Red
     exit 1
