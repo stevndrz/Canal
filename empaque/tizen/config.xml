@@ -36,7 +36,15 @@
   -->
   <tizen:application id="CanalCasa1.CanalCasa" package="CanalCasa1" required_version="4.0"/>
 
-  <tizen:profile name="tv-samsung"/>
+  <!--
+    "tv", no "tv-samsung": el segundo es un identificador antiguo que ya no
+    existe en el Tizen Studio actual. Sin un perfil que el SDK reconozca, el
+    asistente de importar no reconoce la carpeta como proyecto válido y la
+    lista de "Select Project" sale vacía SIEMPRE, sin decir por qué. Mismo
+    valor que usan las apps de Tizen reales (Jellyfin, las muestras de
+    Samsung) y que ya usaba `tizen-tv/`.
+  -->
+  <tizen:profile name="tv"/>
 
   <content src="index.html"/>
   <icon src="icon.png"/>
