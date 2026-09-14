@@ -43,6 +43,33 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-14 (segunda pasada) — Primera instalación real en Tizen, y el foco huérfano
+
+Se instaló CanalCasa por primera vez en un Samsung real (no emulador). Dos
+hallazgos que solo salen así, con la tele física delante:
+
+- **El certificado "default Tizen distributor" no sirve para una TV real.**
+  Instala en el emulador y falla en el aparato con
+  `install failed[118, -12] ... Invalid certificate chain with certificate in
+  signature`. Hace falta el certificado de **Samsung** (Certificate Manager →
+  "+" → Samsung, sesión con cuenta Samsung, DUID leído solo con la tele
+  conectada) — `docs/EMPAQUETADO.md` ya lo decía bien desde el principio, la
+  confusión fue mía al pensar que el flujo simplificado de un SDK más nuevo lo
+  había reemplazado.
+- **El foco se quedaba huérfano al volver de pantalla completa.** `pointer:
+  coarse` da `true` en el navegador de un Tizen real igual que en un teléfono
+  — ni el emulador ni Chrome con "Toggle device toolbar" lo reproducen, los
+  dos reportan `pointer: fine`. `focusFirst()` en `use-spatial-nav.ts` se
+  rendía siempre ahí, y sin nada enfocado las flechas de `focusIn` no tenían
+  de dónde partir. Arreglado con dos señales que ya existían en el código y no
+  se estaban usando juntas: `data-input="dpad"` (que `useRemoteInput` marca
+  en la primera flecha real) y `esTelevisorUA` del User-Agent.
+
+Como los dos paquetes (`empaque/android`, `empaque/tizen`) son cáscaras que
+abren la app desplegada, el arreglo del foco **no necesita un `.wgt` ni un
+`.apk` nuevo** — llega solo al recargar. Solo el certificado y el empaquetado
+en sí necesitaron pasar por Tizen Studio otra vez.
+
 ### 2026-09-14 — `empaque/android/` llevaba dos semanas sin llegar a ningún APK
 
 Motivo: la familia se queja del APK instalado en la TCL — botones que no
