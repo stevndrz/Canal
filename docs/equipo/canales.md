@@ -43,6 +43,45 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-14 — `empaque/android/` llevaba dos semanas sin llegar a ningún APK
+
+Motivo: la familia se queja del APK instalado en la TCL — botones que no
+zapean como esperan, todo muteado, lento. Investigando, el código en `main`
+ya tenía casi todo arreglado (↑↓ zapea, ← → recorre la barra, arranca directo
+en el canal — ver la entrada del 2026-09-02). El problema no era el código:
+**`empaque/android/` y `.github/workflows/apk.yml` nunca llegaron a `main`.**
+Se quedaron en la misma rama varada (`claude/white-box-tv-pc-bug-qewtf1`) de
+la que ya se habían rescatado `teclas-mando.ts` y `salir-de-la-app.ts` — pero
+el rescate de esa vez no incluyó el proyecto Android ni el workflow que lo
+compila. Resultado: ni un solo arreglo de las últimas dos semanas ha llegado
+nunca a un APK nuevo, porque no había con qué compilarlo. Restaurados tal
+cual desde `a45f04c` (commit original), sin tocar su lógica.
+
+Encima de eso, dos arreglos de verdad:
+
+- **Silencio pegado al arrancar.** `recuperarSonido` (`stream-player.tsx`)
+  solo intenta quitar el silencio UNA vez, justo al montar el canal, y se
+  rinde si en ese instante `navigator.userActivation.hasBeenActive` es falso
+  — que es exactamente el caso normal: la TV entra derecha al canal sin que
+  nadie haya tocado nada todavía. Arreglo pedido tal cual por el usuario:
+  Volumen + también quita el silencio. `MainActivity.kt` fabrica la tecla
+  `AudioVolumeUp` al capturar `KEYCODE_VOLUME_UP` (mismo patrón que ya usa
+  para Atrás/Escape) y dispara `super.onKeyDown` de todas formas, así el
+  volumen real de la tele sigue subiendo igual. `teclas-mando.ts` la reconoce
+  y `stream-player.tsx` escucha en un efecto propio.
+- **`backdrop-filter` en `.player-btn.is-primary` y en `.live-card-marco`.**
+  Los dos se sientan encima del `<video>` en directo, cambiando 25-30 veces
+  por segundo — el proyecto ya tiene la misma lección escrita tres veces
+  (panel de géneros, `.guia`, `.ficha-accion-icono`) pero nunca se aplicó al
+  botón que más se toca al zapear. Quitado, relleno más opaco en su lugar.
+
+`npm run typecheck`, `lint`, los 346 tests y `npm run build`, todos limpios.
+**Pendiente, y no lo hice yo:** compilar y sacar el `.apk` nuevo — necesita la
+URL real de Vercel (`empaque/android/app/src/main/res/values/strings.xml`
+sigue con el placeholder `CAMBIA-ESTO`, o pasarla como `url_app` al disparar
+el workflow a mano) y luego instalarlo en la tele por USB (ver
+`docs/EMPAQUETADO.md`, ya restaurado).
+
 ### 2026-09-02 (tercera pasada) — Arranca en el canal, y una rama entera que se quedó varada
 
 Motivo: probando el APK real en una TV, «es imposible moverme con los

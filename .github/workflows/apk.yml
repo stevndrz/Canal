@@ -1,0 +1,63 @@
+name: APK para Android TV
+
+# A mano, desde la pestaña Actions. No en cada empujón a propósito: el APK no
+# depende del código de este repositorio —es una cáscara que abre una URL— así
+# que reconstruirlo en cada commit sería gastar minutos para obtener el mismo
+# archivo. Se genera cuando cambia algo de `empaque/android/` o cuando hace
+# falta uno nuevo para instalar.
+on:
+  workflow_dispatch:
+    inputs:
+      url_app:
+        description: "Dirección de la aplicación (https://…). Vacío = la de strings.xml"
+        required: false
+        type: string
+  push:
+    paths:
+      - "empaque/android/**"
+      - ".github/workflows/apk.yml"
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # Sustituye la URL sin tener que tocar el repositorio: útil para sacar un
+      # APK apuntando a una vista previa antes de cambiar la de producción.
+      - name: Poner la dirección de la aplicación
+        if: inputs.url_app != ''
+        run: |
+          sed -i "s|<string name=\"url_app\" translatable=\"false\">[^<]*</string>|<string name=\"url_app\" translatable=\"false\">${{ inputs.url_app }}</string>|" \
+            empaque/android/app/src/main/res/values/strings.xml
+          grep url_app empaque/android/app/src/main/res/values/strings.xml
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # `assembleDebug` y no `assembleRelease`: un APK de release SIN FIRMAR no
+      # se instala en ningún televisor, y firmarlo aquí exigiría meter el
+      # almacén de claves en los secretos del repositorio. El de debug va
+      # firmado con la clave de depuración de Android, se instala igual por
+      # `adb` y es exactamente lo que hace falta para usarla en casa. Para
+      # publicarla en Google Play sí hay que firmar: ver docs/EMPAQUETADO.md.
+      - name: Compilar
+        working-directory: empaque/android
+        run: gradle assembleDebug --no-daemon
+
+      - name: Guardar el APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: canalcasa-androidtv
+          path: empaque/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

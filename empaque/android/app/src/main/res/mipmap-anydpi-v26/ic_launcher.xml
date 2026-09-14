@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono adaptativo (Android 8 en adelante). En un televisor casi no se ve —el
+  lanzador usa el banner— pero hace falta igual: sin `@mipmap/ic_launcher` el
+  manifiesto no compila, y en un teléfono o tablet donde quieras probar el APK
+  es lo único que se ve.
+-->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@drawable/ic_launcher_background"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>

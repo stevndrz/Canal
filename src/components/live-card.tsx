@@ -152,7 +152,12 @@ export function LiveCard({
            de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
            porque es lo que espera cualquiera que venga de un reproductor de
            escritorio; con mando y con el dedo está el botón. */}
-      <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/60 backdrop-blur shadow-xl shadow-black/40">
+      {/* `bg-zinc-900/90` y no `backdrop-blur`: este marco envuelve un `<video>`
+          en directo que cambia 25-30 veces por segundo, y el desenfoque obliga
+          al compositor a copiar y desenfocar ese fondo en cada fotograma — lo
+          más caro que hay en la GPU de un televisor, justo donde más se nota
+          (moverse entre canales). Más opaco para compensar sin el cristal. */}
+      <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/90 shadow-xl shadow-black/40">
         <div
           className="live-card-video border border-white/10 bg-black"
           onClick={alTocar}

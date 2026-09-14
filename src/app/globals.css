@@ -548,12 +548,17 @@ html[data-player="on"] body {
 
 /* El primario: de cristal y más grande, no un círculo blanco sólido — un
    círculo más entre círculos, con más peso. Es el único control que alguien
-   busca a ciegas, así que se distingue antes de que nadie lo toque. */
+   busca a ciegas, así que se distingue antes de que nadie lo toque.
+
+   Relleno semitransparente y no `backdrop-filter`: es la misma lección que ya
+   dejó escrita el panel de géneros y la guía de canales —el desenfoque obliga
+   al compositor a copiar el fondo y rehacerlo en cada fotograma—, y este botón
+   va sentado sobre el propio `<video>` en directo, cambiando 25-30 veces por
+   segundo: el peor sitio posible para pedírselo a la GPU de un televisor. Se
+   nota en el zapeo, no en una captura de pantalla. */
 .player-btn.is-primary {
   border: 1.5px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255, 255, 255, 0.22);
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
