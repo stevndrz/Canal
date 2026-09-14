@@ -48,6 +48,17 @@ const ESPERA_CON_PUERTA_MS = 4_000;
  */
 const ESPERA_ANTES_DE_ABANDONAR_MS = 8_000;
 
+/**
+ * Lo mismo, para el resto de servidores en TV — probado con el mando en una
+ * Samsung real, ninguno de los proveedores configurados responde bien:
+ * esperan clics de ratón dentro de su propio reproductor, y el mando solo
+ * puede darle foco al iframe entero, no a un botón concreto de ahí dentro.
+ * Más tiempo que la puerta antirrobot porque aquí sí hay chance real de que
+ * el vídeo arranque solo por el `autoplay` del iframe, sin que haga falta
+ * ningún clic.
+ */
+const ESPERA_ANTES_DE_ABANDONAR_SIN_PUERTA_MS = 20_000;
+
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
 const NativePlayer = dynamic(() => import("@/components/native-player"), {
@@ -397,22 +408,32 @@ function ReproductorCatalogo({
   /**
    * La salida sola, para cuando el mando ya no puede pedirla.
    *
-   * Solo en TV, solo con el marco abierto y solo si este servidor tiene
-   * puerta antirrobot: ese es exactamente el caso sin ninguna tecla que
-   * funcione desde dentro (ver la constante de arriba). `cerrarMarco` primero
-   * —devuelve el foco a un botón de esta página— y `descartar` después, para
-   * que el siguiente servidor útil quede activo solo, sin que haya que volver
-   * a entrar a mano a ver si este ya cargó.
+   * Solo en TV y solo con el marco abierto. Antes era solo para los
+   * servidores con puerta antirrobot —el caso seguro, sin NINGUNA tecla que
+   * funcione desde dentro—, pero probado en una Samsung real ninguno de los
+   * proveedores responde bien al mando: son reproductores pensados para
+   * ratón o dedo, y darle OK al iframe no promete que eso equivalga a un
+   * clic en SU botón de play. Así que la salida sola cubre a todos en TV, no
+   * solo a los marcados — con la puerta antirrobot es un caso perdido y se
+   * sabe rápido (`ESPERA_ANTES_DE_ABANDONAR_MS`); al resto se le da más
+   * tiempo por si de verdad arranca solo con el `autoplay` del iframe.
+   *
+   * `cerrarMarco` primero —devuelve el foco a un botón de esta página— y
+   * `descartar` después, para que el siguiente servidor útil quede activo
+   * solo, sin que haya que volver a entrar a mano a ver si este ya cargó.
    */
   useEffect(() => {
-    if (!enTelevisor || !abierto || !activo?.puertaAntirrobot) return;
-    const idAlAbrir = activo.id;
+    if (!enTelevisor || !abierto || !esEmbed || !servidorActivoId) return;
+    const idAlAbrir = servidorActivoId;
+    const espera = activo?.puertaAntirrobot
+      ? ESPERA_ANTES_DE_ABANDONAR_MS
+      : ESPERA_ANTES_DE_ABANDONAR_SIN_PUERTA_MS;
     const reloj = setTimeout(() => {
       cerrarMarco();
       descartar(idAlAbrir);
-    }, ESPERA_ANTES_DE_ABANDONAR_MS);
+    }, espera);
     return () => clearTimeout(reloj);
-  }, [enTelevisor, abierto, activo?.puertaAntirrobot, activo?.id, cerrarMarco, descartar]);
+  }, [enTelevisor, abierto, esEmbed, servidorActivoId, activo?.puertaAntirrobot, cerrarMarco, descartar]);
 
   const ofrecerCambio = avisarPara === servidorActivoId;
   /**

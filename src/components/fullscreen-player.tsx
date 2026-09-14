@@ -219,6 +219,16 @@ export function FullscreenPlayer({
       // el mando dejaba de responder.
       if (esTeclaAtras(event)) {
         event.preventDefault();
+        // `stopPropagation` es obligatorio, no adorno: `useSpatialNav`
+        // (`dashboard.tsx`) escucha Atrás EN LA VENTANA TAMBIÉN, y a
+        // propósito no lo apaga `enabled` — es lo que saca del reproductor
+        // si este manejador nunca llegara a montarse. Sin cortarla aquí, las
+        // dos rutas oían la MISMA pulsación: esta cerraba la guía, pero la de
+        // `dashboard.tsx` no sabe nada de guías, veía `view === "player"` y
+        // salía de pantalla completa igual — la persona nunca llegaba a ver
+        // que la guía se había cerrado, porque ya estaba en Inicio. Mismo
+        // patrón que ya usa `ficha-reproductor.tsx` para su propio Atrás.
+        event.stopPropagation();
         if (showGuide) {
           setShowGuide(false);
           return;
@@ -310,8 +320,14 @@ export function FullscreenPlayer({
       }
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    // Fase de CAPTURA: tiene que oír Atrás antes que `useSpatialNav`
+    // (`dashboard.tsx`), que también escucha en la ventana y no se apaga
+    // para esta tecla. En fase de burbuja el orden depende de quién se montó
+    // primero —Dashboard siempre gana, está montado desde el principio—; en
+    // captura, este listener corre primero sí o sí, sin importar el orden de
+    // montaje.
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [zap, showGuide, openGuide, wake, moverFoco, salir]);
 
   /**
