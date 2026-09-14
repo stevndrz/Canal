@@ -33,6 +33,21 @@ const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
  */
 const ESPERA_CON_PUERTA_MS = 4_000;
 
+/**
+ * En TV, cuánto se deja dentro de un servidor con puerta antirrobot antes de
+ * sacar a la persona sola.
+ *
+ * Es la única salida que existe: con el mando entregado al iframe (`abierto`)
+ * y una puerta de Cloudflare Turnstile pidiendo escanear un QR con el
+ * teléfono, ninguna tecla que se pulse ahí dentro llega nunca a esta página
+ * —es un documento de otro origen, no un permiso que falte—. Ni Atrás, ni el
+ * botón «Volver a la app», ni las flechas del selector de servidores: todo
+ * eso vive fuera del marco, y una vez el foco entra, no hay Tab en un mando
+ * de televisor para sacarlo. `descartar` corre sola, sin que la persona
+ * tenga que apretar nada, porque ya se demostró que no puede.
+ */
+const ESPERA_ANTES_DE_ABANDONAR_MS = 8_000;
+
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
 const NativePlayer = dynamic(() => import("@/components/native-player"), {
@@ -378,6 +393,26 @@ function ReproductorCatalogo({
     );
     return () => clearTimeout(reloj);
   }, [servidorActivoId, activo?.puertaAntirrobot]);
+
+  /**
+   * La salida sola, para cuando el mando ya no puede pedirla.
+   *
+   * Solo en TV, solo con el marco abierto y solo si este servidor tiene
+   * puerta antirrobot: ese es exactamente el caso sin ninguna tecla que
+   * funcione desde dentro (ver la constante de arriba). `cerrarMarco` primero
+   * —devuelve el foco a un botón de esta página— y `descartar` después, para
+   * que el siguiente servidor útil quede activo solo, sin que haya que volver
+   * a entrar a mano a ver si este ya cargó.
+   */
+  useEffect(() => {
+    if (!enTelevisor || !abierto || !activo?.puertaAntirrobot) return;
+    const idAlAbrir = activo.id;
+    const reloj = setTimeout(() => {
+      cerrarMarco();
+      descartar(idAlAbrir);
+    }, ESPERA_ANTES_DE_ABANDONAR_MS);
+    return () => clearTimeout(reloj);
+  }, [enTelevisor, abierto, activo?.puertaAntirrobot, activo?.id, cerrarMarco, descartar]);
 
   const ofrecerCambio = avisarPara === servidorActivoId;
   /**

@@ -208,8 +208,21 @@ export function FullscreenPlayer({
       // Atrás se mira ANTES que nada, con nombre Y con código: Tizen la manda
       // como 10009 y no como "Escape", y `event.key` por sí solo no la
       // habría reconocido nunca. Ver `esTeclaAtras`.
+      //
+      // Con la guía abierta, Atrás la cierra a ELLA primero y no sale de
+      // pantalla completa: mientras se ve la guía, arriba/abajo zapea e
+      // izquierda/derecha recorre canales, así que no queda NINGUNA tecla
+      // libre para decir «esto no, quiero volver a los controles de abajo».
+      // Antes solo se podía esperar 5 segundos a que se cerrara sola
+      // (`GUIDE_TIMEOUT`), y cada flecha pulsada mientras tanto reiniciaba
+      // ese reloj — encontrado probando en una tele real, se sentía como que
+      // el mando dejaba de responder.
       if (esTeclaAtras(event)) {
         event.preventDefault();
+        if (showGuide) {
+          setShowGuide(false);
+          return;
+        }
         salir();
         return;
       }
@@ -391,7 +404,7 @@ export function FullscreenPlayer({
           <span>↑↓ cambiar canal</span>
           <span>{showGuide ? "← → recorrer" : "← → controles"}</span>
           <span>{showGuide ? "OK sintonizar" : "OK guía"}</span>
-          <span>Atrás salir</span>
+          <span>{showGuide ? "Atrás cerrar guía" : "Atrás salir"}</span>
         </div>
       </div>
 
