@@ -81,16 +81,17 @@ funciona, empaquetarlo no lo va a arreglar: es la misma página.
 Lo que hay en [`empaque/tizen/`](../empaque/tizen) es el paquete entero: tres
 archivos.
 
-### 1. Poner la dirección
+### 1. Comprobar la dirección
 
 En `empaque/tizen/index.html`, una línea:
 
 ```js
-var URL_APP = "https://tu-app.vercel.app/";
+var URL_APP = "https://www.maicoldr.lol/";
 ```
 
-Es lo único que hay que cambiar. Si se te olvida, la app arranca y te lo dice
-en pantalla en vez de quedarse en negro.
+Viene puesta la del despliegue actual, así que si no has cambiado de dominio no
+hay nada que tocar. Si la cambias por una que no exista, la app arranca y se
+queda en negro: es el navegador del televisor el que decide, y no avisa.
 
 ### 2. Instalar Tizen Studio
 
@@ -195,19 +196,29 @@ así que lo más probable es que estés en el primer caso.
 
 ### Android TV / Google TV → archivo `.apk`
 
-#### 1. Poner la dirección
+#### 1. Comprobar la dirección
 
-En `empaque/android/app/src/main/res/values/strings.xml`:
+En `empaque/android/app/src/main/res/values/strings.xml`, ya con la del
+despliegue actual:
 
 ```xml
-<string name="url_app" translatable="false">https://tu-app.vercel.app/</string>
+<string name="url_app" translatable="false">https://www.maicoldr.lol/</string>
 ```
 
 #### 2. Conseguir el APK — dos caminos
 
 **Camino corto (sin instalar nada):** en GitHub, pestaña **Actions** →
-*APK para Android TV* → **Run workflow**. Puedes escribir ahí la dirección y no
-tocar el repositorio. Al terminar, el APK se descarga del apartado *Artifacts*.
+*APK para Android TV*. Cada empujón que toque `empaque/android/` compila uno
+solo, y el APK se descarga del apartado **Artifacts** de esa ejecución (dentro
+va un `.zip`; el `.apk` está dentro). Los artefactos caducan a los 90 días.
+
+> **El botón «Run workflow» solo aparece cuando este archivo está en la rama
+> principal.** Es una regla de GitHub, no un fallo: los flujos con
+> `workflow_dispatch` no se pueden lanzar a mano hasta que existen en la rama
+> por defecto. Mientras `apk.yml` viva solo en una rama de trabajo, el APK sale
+> igual —lo compila el empujón— pero sin el formulario para cambiar la
+> dirección. Una vez fusionado a `main`, aparece el botón y con él la casilla
+> para apuntar el APK a otra dirección sin tocar el repositorio.
 
 **Camino local:** hace falta Java 17 y el SDK de Android (con Android Studio
 viene todo).
@@ -226,26 +237,56 @@ Sale en `app/build/outputs/apk/debug/app-debug.apk`.
 
 #### 3. Modo desarrollador en el televisor
 
+El menú cambia de nombre entre Android TV (el viejo) y Google TV (el nuevo, que
+es lo que llevan los TCL recientes). El camino es el mismo:
+
 1. **Ajustes → Sistema → Acerca de**.
-2. Pulsa **7 veces** sobre «Compilación» (o «Build»). Sale «Ya eres
-   desarrollador».
-3. **Ajustes → Sistema → Opciones de desarrollador → Depuración por USB: ON**.
-4. Apunta la IP: **Ajustes → Red → Estado**.
+2. Baja hasta **«Compilación»** (o «Build», o «Versión de compilación de
+   Android TV OS») y pulsa **OK siete veces seguidas**. A partir de la cuarta
+   te va contando: «Ya falta poco para ser desarrollador». Al final sale «Ya
+   eres desarrollador».
+3. **Ajustes → Sistema → Opciones para desarrolladores → Depuración por USB:
+   ON**. En algunos TCL está en **Ajustes → Preferencias del dispositivo →
+   Opciones para desarrolladores**.
+4. Apunta la IP: **Ajustes → Red e Internet → (tu wifi) → Estado / Dirección
+   IP**.
+
+> En un televisor, «Depuración por USB» habilita también la depuración por red
+> en el puerto 5555. No hace falta ningún cable: el televisor y el PC solo
+> tienen que estar en **el mismo wifi**.
 
 #### 4. Instalar
 
 ```bash
 adb connect 192.168.1.XX:5555     # la IP del televisor
-# En la tele sale un aviso de autorización: acéptalo con el mando
+adb devices                       # tiene que salir "device", no "unauthorized"
 adb install -r app-debug.apk
 ```
 
-`-r` reinstala encima si ya estaba. Si dice `INSTALL_FAILED_VERSION_DOWNGRADE`,
-sube el `versionCode` en `app/build.gradle.kts`.
+Al ejecutar `adb connect`, **en la tele aparece un aviso pidiendo autorizar
+este ordenador**. Hay que aceptarlo con el mando, y conviene marcar «Permitir
+siempre desde este ordenador». Si `adb devices` dice `unauthorized`, es que ese
+aviso está esperando en la pantalla.
 
-**Sin PC:** instala *Downloader* (de AFTVnews) desde Google Play en el
-televisor, sube el APK a cualquier sitio con enlace directo, y ábrelo desde
-ahí. Hay que permitir «Instalar apps desconocidas» para Downloader.
+`-r` reinstala encima si ya estaba, conservando los datos.
+
+**Sin PC**, que es lo más cómodo si ya tienes el APK del flujo de Actions:
+instala **Downloader** (de AFTVnews) desde Google Play en el propio televisor,
+mete la dirección de descarga directa del APK, y ábrelo. Te pedirá permitir
+«Instalar aplicaciones desconocidas» para Downloader; es un permiso por app, no
+global.
+
+#### Si algo sale mal
+
+| Lo que dice | Qué es | Qué hacer |
+|---|---|---|
+| `unauthorized` en `adb devices` | El aviso de autorización sigue en la tele | Acéptalo con el mando |
+| `failed to connect ... 10061` | La depuración por red no está activa, o hay otra red | Reactiva Depuración por USB; comprueba que PC y tele están en el mismo wifi (no una en la de 5 GHz y otra en la de invitados) |
+| `INSTALL_FAILED_VERSION_DOWNGRADE` | Ya hay instalada una versión igual o mayor | Sube `versionCode` en `app/build.gradle.kts`, o `adb uninstall casa.canalcasa.tv` |
+| `INSTALL_FAILED_UPDATE_INCOMPATIBLE` | Está instalada firmada con otra clave | `adb uninstall casa.canalcasa.tv` y vuelve a instalar |
+| `INSTALL_PARSE_FAILED_NO_CERTIFICATES` | El APK no está firmado | Estás usando `assembleRelease`; usa `assembleDebug` |
+| Se instala pero **no aparece** en el menú | Falta `LEANBACK_LAUNCHER` | Ya está puesto; comprueba que no estás mirando la fila de «Apps de Google» sino la de todas las aplicaciones |
+| Abre en negro y nada más | La dirección de `url_app` no responde | Ábrela en el navegador de otro aparato de la misma red |
 
 #### 5. Comprobar en el televisor
 
