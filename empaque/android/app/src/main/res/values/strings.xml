@@ -12,7 +12,7 @@
       lo que la tele recibe—.
       ═══════════════════════════════════════════════════════════════════════
     -->
-    <string name="url_app" translatable="false">https://CAMBIA-ESTO.vercel.app/</string>
+    <string name="url_app" translatable="false">https://www.maicoldr.lol/</string>
 
     <string name="sin_conexion">Sin conexión. Comprueba el wifi del televisor y vuelve a intentarlo.</string>
     <string name="reintentar">Reintentar</string>
