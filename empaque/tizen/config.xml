@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  CanalCasa para Samsung (Tizen).
+
+  Esto NO empaqueta la aplicación: la aplicación sigue viviendo en el servidor
+  (Vercel), porque tiene rutas de servidor —`/api/canales`, `/api/buscar`,
+  `/api/stream`— y la credencial de TMDB, y nada de eso puede meterse dentro de
+  un `.wgt`. Lo que hay aquí es la CÁSCARA: un icono en el menú del televisor
+  que abre la app a pantalla completa, sin barra de direcciones.
+
+  Es el mismo patrón que usan las apps de televisor de casi todo el mundo, y
+  tiene una ventaja que conviene entender antes de buscar otra cosa: al
+  publicar una corrección en el servidor, todos los televisores la tienen en el
+  siguiente arranque. Sin volver a empaquetar, sin volver a instalar.
+
+  Lo que hay que cambiar antes de compilar está en `index.html`, en una sola
+  línea (`URL_APP`). Aquí no hay nada que tocar salvo el `package`, y solo si
+  este identificador ya estuviera cogido.
+-->
+<widget xmlns="http://www.w3.org/ns/widgets"
+        xmlns:tizen="http://tizen.org/ns/widgets"
+        id="http://canalcasa.local/CanalCasa"
+        version="1.0.0"
+        viewmodes="maximized">
+
+  <!--
+    `package` son EXACTAMENTE diez caracteres alfanuméricos y `id` es
+    `package.nombre`. No es una convención: el empaquetador rechaza el widget
+    si no cuadra, y el mensaje de error no dice por qué.
+
+    `required_version="4.0"` es Tizen 4, o sea los Samsung de 2018 en adelante
+    (2015=2.3, 2016=2.4, 2017=3.0, 2018=4.0, 2019=5.0, 2020=5.5, 2021=6.0).
+    Bajarlo hace que la app aparezca en televisores más viejos, donde el
+    navegador es Chromium 47 y el catálogo no se pinta bien. Subirlo la
+    esconde en televisores donde sí funciona.
+  -->
+  <tizen:application id="CanalCasa1.CanalCasa" package="CanalCasa1" required_version="4.0"/>
+
+  <tizen:profile name="tv-samsung"/>
+
+  <content src="index.html"/>
+  <icon src="icon.png"/>
+  <name>CanalCasa</name>
+  <description>La televisión de casa: canales en vivo, películas y series.</description>
+  <author href="https://github.com/stevndrz">stevndrz</author>
+
+  <!-- Salir a la red. Sin esto la cáscara abre una pantalla en blanco. -->
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <!--
+    Reclamar las teclas de reproducción del mando. En un televisor Samsung, ⏯
+    ⏹ y los botones de canal NO llegan a la aplicación hasta que esta los
+    pide con `registerKey`; ver `index.html` y `src/lib/teclas-mando.ts`.
+  -->
+  <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+
+  <!--
+    Los tres permisos de red, y los tres hacen falta:
+
+    - `access` autoriza a PEDIR recursos a otros dominios. Va en `*` porque la
+      lista M3U trae canales de cientos de dominios que rotan solos y los
+      proveedores de vídeo cambian sin avisar (ver `providers.ts`). Una lista
+      fija convertiría una rotación de dominio en una pantalla negra.
+    - `allow-navigation` autoriza a IRSE a otro dominio. Es la que permite que
+      esta página local salte a la app en el servidor; sin ella el
+      `location.replace` de `index.html` no hace nada y la cáscara se queda en
+      «Abriendo CanalCasa…» para siempre.
+    - La CSP del widget se aplica ADEMÁS de la que manda el servidor. La del
+      servidor (`next.config.ts`) ya es la estricta; esta solo tiene que no
+      estorbarla.
+  -->
+  <access origin="*" subdomains="true"/>
+  <tizen:allow-navigation>*</tizen:allow-navigation>
+  <tizen:content-security-policy>default-src * data: blob: 'unsafe-inline' 'unsafe-eval'; media-src *; connect-src *; img-src * data:</tizen:content-security-policy>
+
+  <!--
+    `hwkey-event="enable"` es lo que hace que la tecla Atrás del mando llegue
+    como un evento de teclado (código 10009) en vez de cerrar la aplicación por
+    su cuenta. La app la escucha en `use-spatial-nav.ts`, y en la pantalla de
+    inicio llama a `salirDeLaApp()` — que es lo que Samsung exige para
+    publicar: Atrás en la primera pantalla devuelve al menú del televisor.
+
+    `background-support="disable"`: al salir, el vídeo se para. Un canal en
+    directo sonando por detrás con la tele en el menú es un fallo, no una
+    función.
+  -->
+  <tizen:setting screen-orientation="landscape"
+                 context-menu="disable"
+                 background-support="disable"
+                 encryption="disable"
+                 install-location="auto"
+                 hwkey-event="enable"/>
+
+  <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
+</widget>
