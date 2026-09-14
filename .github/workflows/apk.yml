@@ -56,7 +56,7 @@ jobs:
         run: gradle assembleDebug --no-daemon
 
       - name: Guardar el APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: canalcasa-androidtv
           path: empaque/android/app/build/outputs/apk/debug/*.apk
