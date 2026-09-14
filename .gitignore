@@ -52,3 +52,8 @@ empaque/android/local.properties
 empaque/android/gradlew
 empaque/android/gradlew.bat
 empaque/android/gradle/wrapper/gradle-wrapper.jar
+
+# El workspace real de Tizen Studio del usuario: proyecto de Eclipse,
+# .metadata, certificados y .wgt compilados. No es parte de la app, es
+# estado local de la IDE — empaque/tizen/ es la fuente que sí se versiona.
+tizen-tv/
