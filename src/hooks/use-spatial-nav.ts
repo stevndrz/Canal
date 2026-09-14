@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect } from "react";
-import { esPunteroTosco } from "@/lib/dispositivo";
+import { esPunteroTosco, esTelevisorUA } from "@/lib/dispositivo";
 
 /** Códigos de tecla de los mandos reales, además de las flechas del teclado. */
 const BACK_KEYCODES = new Set([
@@ -201,8 +201,27 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
      * Se comprueba el tipo de puntero y no el ancho: un televisor con
      * mando-puntero es «coarse» y ahí el anillo tampoco ayuda, mientras que
      * una ventana estrecha en un ordenador sí lo necesita.
+     *
+     * Pero «coarse» por sí solo no distingue mando de dedo — lo dice el
+     * comentario de `esPunteroTosco`, y aquí es donde de verdad importa: en
+     * un televisor Tizen/WebOS real, `pointer: coarse` da true igual que en
+     * un teléfono. Sin este `esMando`, volver de pantalla completa se
+     * quedaba con el foco huérfano — nada enfocado y `focusFirst` rindiéndose
+     * siempre, así que las flechas de `focusIn` no tenían desde dónde
+     * arrancar. `useRemoteInput` ya marca `data-input="dpad"` en cuanto llega
+     * una flecha DE VERDAD; si ya llegó una, esto es un mando y no un dedo,
+     * así que el anillo de foco es bienvenido y no un defecto de pintado.
+     *
+     * Y por si `focusFirst` corre ANTES de la primera flecha real —no
+     * debería pasar en un televisor, que arranca directo en el reproductor,
+     * pero mejor no depender solo de ese orden—, el User-Agent es la segunda
+     * señal: la misma tabla que ya decide el servidor de vídeo en el server
+     * (`esTelevisorUA`), aquí en el cliente.
      */
-    if (esPunteroTosco()) return;
+    const esMando =
+      document.documentElement.dataset.input === "dpad" ||
+      (typeof navigator !== "undefined" && esTelevisorUA(navigator.userAgent));
+    if (esPunteroTosco() && !esMando) return;
     const active = document.activeElement as HTMLElement | null;
     if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
     const candidates = collect(root);
