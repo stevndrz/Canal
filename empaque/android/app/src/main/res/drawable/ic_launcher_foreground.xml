@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  La capa de dibujo del icono adaptativo.
+
+  Android recorta el icono con la forma que elija el fabricante (círculo,
+  cuadrado redondeado, gota), y solo garantiza que se vea el 66% central. Por
+  eso la marca va escalada al 60% y centrada con `<group>`: dibujada a tamaño
+  completo, un televisor con máscara circular se comería las antenas.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="1.0125"
+        android:scaleY="1.0125"
+        android:translateX="21.6"
+        android:translateY="21.6">
+        <path
+            android:pathData="M24,18 L14,8"
+            android:strokeColor="#F5F5F7"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M40,18 L50,8"
+            android:strokeColor="#F5F5F7"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M16,18 h32 a6,6 0 0 1 6,6 v18 a6,6 0 0 1 -6,6 h-32 a6,6 0 0 1 -6,-6 v-18 a6,6 0 0 1 6,-6 z"
+            android:strokeColor="#F5F5F7"
+            android:strokeWidth="3"
+            android:strokeLineJoin="round"/>
+        <path
+            android:pathData="M22,48 L22,53"
+            android:strokeColor="#F5F5F7"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M42,48 L42,53"
+            android:strokeColor="#F5F5F7"
+            android:strokeWidth="3"
+            android:strokeLineCap="round"/>
+        <path
+            android:pathData="M46,29.6 a3.4,3.4 0 1 1 0,6.8 a3.4,3.4 0 1 1 0,-6.8 z"
+            android:fillColor="#FF453A"/>
+    </group>
+</vector>

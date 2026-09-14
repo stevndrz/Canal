@@ -19,6 +19,7 @@ import {
   type MotorMontado,
 } from "@/lib/reproduccion/motor";
 import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
+import { accionDeTecla } from "@/lib/teclas-mando";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 
@@ -550,6 +551,34 @@ const StreamPlayer = memo(
       if (!video) return;
       video.muted = !video.muted;
       setIsMuted(video.muted);
+    }, []);
+
+    /**
+     * Subir volumen también quita el silencio.
+     *
+     * `recuperarSonido` solo lo intenta UNA vez, justo al arrancar el canal, y
+     * se rinde si en ese instante todavía no hubo ningún gesto —que es
+     * exactamente lo que pasa al abrir la app: entra directa al canal, sin que
+     * nadie haya tocado nada—. El resultado era un televisor mudo hasta que
+     * alguien encontraba el botón de silencio en la barra, cuando lo que
+     * cualquiera prueba primero es Volumen +.
+     *
+     * `empaque/android` fabrica esta tecla con el nombre `AudioVolumeUp` al
+     * capturar el botón físico (ver `MainActivity.kt`); en un teclado normal
+     * llega con ese mismo nombre. No hace falta comprobar activación de
+     * usuario: pulsar una tecla física YA es un gesto, y en la WebView de
+     * Android el ajuste `mediaPlaybackRequiresUserGesture=false` ni lo exige.
+     */
+    useEffect(() => {
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (accionDeTecla(event) !== "subir-volumen") return;
+        const video = videoRef.current;
+        if (!video || !video.muted) return;
+        video.muted = false;
+        setIsMuted(false);
+      };
+      window.addEventListener("keydown", onKeyDown);
+      return () => window.removeEventListener("keydown", onKeyDown);
     }, []);
 
     const requestFullscreen = useCallback(() => {

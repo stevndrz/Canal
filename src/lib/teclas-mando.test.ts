@@ -7,6 +7,8 @@ describe("accionDeTecla", () => {
     expect(accionDeTecla({ key: "MediaStop" })).toBe("parar");
     expect(accionDeTecla({ key: "ChannelUp" })).toBe("canal-arriba");
     expect(accionDeTecla({ key: "ChannelDown" })).toBe("canal-abajo");
+    expect(accionDeTecla({ key: "AudioVolumeUp" })).toBe("subir-volumen");
+    expect(accionDeTecla({ key: "VolumeUp" })).toBe("subir-volumen");
   });
 
   it("reconoce las teclas por código, que es como llegan en Tizen 4 y 5", () => {
@@ -18,6 +20,8 @@ describe("accionDeTecla", () => {
     expect(accionDeTecla({ keyCode: 413 })).toBe("parar");
     expect(accionDeTecla({ keyCode: 427 })).toBe("canal-arriba");
     expect(accionDeTecla({ keyCode: 428 })).toBe("canal-abajo");
+    expect(accionDeTecla({ keyCode: 175 })).toBe("subir-volumen");
+    expect(accionDeTecla({ keyCode: 24 })).toBe("subir-volumen");
   });
 
   it("con nombre desconocido cae al código, en vez de rendirse", () => {

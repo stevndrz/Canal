@@ -18,7 +18,7 @@
  */
 
 /** Lo que el reproductor sabe hacer con una tecla del mando. */
-export type AccionDeMando = "reproducir" | "parar" | "canal-arriba" | "canal-abajo";
+export type AccionDeMando = "reproducir" | "parar" | "canal-arriba" | "canal-abajo" | "subir-volumen";
 
 /**
  * Código numérico → acción.
@@ -35,6 +35,8 @@ const POR_CODIGO: ReadonlyMap<number, AccionDeMando> = new Map([
   [413, "parar"], // MediaStop
   [427, "canal-arriba"], // ChannelUp
   [428, "canal-abajo"], // ChannelDown
+  [175, "subir-volumen"], // VolumeUp (el keyCode estándar que usa Chromium)
+  [24, "subir-volumen"], // KEYCODE_VOLUME_UP de Android, por si llega en crudo
 ]);
 
 /** Nombre de `event.key` → acción, para los navegadores que sí lo mandan. */
@@ -47,6 +49,8 @@ const POR_NOMBRE: ReadonlyMap<string, AccionDeMando> = new Map([
   ["ChannelUp", "canal-arriba"],
   ["ChannelDown", "canal-abajo"],
   ["MediaStop", "parar"],
+  ["AudioVolumeUp", "subir-volumen"],
+  ["VolumeUp", "subir-volumen"],
 ]);
 
 /**
