@@ -1,15 +1,11 @@
-# ── Empaquetar e instalar CanalCasa en Tizen, de un tirón (v2, sin adivinar rutas) ──
+# ── Empaquetar e instalar CanalCasa en Tizen, de un tirón ──────────────────
+# Rutas confirmadas a mano en esta máquina (Tizen SDK 10.0). Si algún día
+# cambian, búscalas con:
+#   Get-ChildItem C:\ -Include tizen.bat,sdb.exe -Recurse -ErrorAction SilentlyContinue
 
-Write-Host "Buscando tizen.bat y sdb.bat en todo C:\ (tarda un par de minutos)..." -ForegroundColor Yellow
-$encontrados = Get-ChildItem -Path "C:\" -Include "tizen.bat","sdb.bat" -Recurse -ErrorAction SilentlyContinue -Depth 8
-$tizenBat = ($encontrados | Where-Object { $_.Name -eq "tizen.bat" } | Select-Object -First 1).FullName
-$sdbBat   = ($encontrados | Where-Object { $_.Name -eq "sdb.bat" }   | Select-Object -First 1).FullName
-
-if (-not $tizenBat) { Write-Host "No encontré tizen.bat en todo C:\. Algo falta instalar todavía." -ForegroundColor Red; exit 1 }
-if (-not $sdbBat)   { Write-Host "No encontré sdb.bat en todo C:\. Falta el paquete de herramientas en Package Manager." -ForegroundColor Red; exit 1 }
-
-Write-Host "tizen: $tizenBat" -ForegroundColor Green
-Write-Host "sdb:   $sdbBat" -ForegroundColor Green
+$tizenBat = "C:\tizen-studio\tools\ide\bin\tizen.bat"
+$sdbBat   = "C:\tizen-studio\tools\sdb.exe"
+$proyecto = "C:\Users\Pc\Documents\Proyectos\Canal\tizen-tv\CanalCasa"
 
 Write-Host "`n--- Conectando la tele ---" -ForegroundColor Cyan
 & $sdbBat connect 192.168.1.25:26101
@@ -18,7 +14,6 @@ Write-Host "`n--- Conectando la tele ---" -ForegroundColor Cyan
 Write-Host "`n--- Perfiles de certificado ---" -ForegroundColor Cyan
 & $tizenBat security-profiles list
 
-$proyecto = "C:\Users\Pc\Documents\Proyectos\Canal\tizen-tv\CanalCasa"
 Set-Location $proyecto
 Write-Host "`n--- Compilando ---" -ForegroundColor Cyan
 & $tizenBat build-web -- .
@@ -33,7 +28,7 @@ if (-not $dispositivo) {
     exit 1
 }
 Write-Host "`n--- Instalando en $dispositivo ---" -ForegroundColor Cyan
-Set-Location ".buildResult"
+Set-Location "$proyecto\.buildResult"
 & $tizenBat install -n "CanalCasa.wgt" -t $dispositivo
 
 Write-Host "`nListo." -ForegroundColor Green
