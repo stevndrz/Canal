@@ -16,11 +16,19 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
-      # Lo de desarrollo puede ir junto: si rompe algo, rompe el CI y ya está.
+      # Menor y parche, agrupados: "si rompe algo, rompe el CI y ya está" solo
+      # vale cuando el CI de verdad puede quedar en rojo un rato sin molestar a
+      # nadie. Una mayor no es eso — mezclar TypeScript 5→7, ESLint 9→10 y
+      # Vitest 3→5 en el mismo PR tumbó el CI y no había forma de saber cuál de
+      # los tres lo rompió sin deshacerlos uno a uno. Cada mayor sale ahora en
+      # su propio PR (sin agrupar, es el comportamiento por defecto), y se
+      # prueba y se descarta sola.
       desarrollo:
         dependency-type: development
-      # Lo de producción, por tipo de cambio: un parche se fusiona leyendo el
-      # diff, una versión mayor de `next` o `hls.js` se prueba en la tele.
+        update-types: [minor, patch]
+      # Lo de producción, igual: un parche se fusiona leyendo el diff, una
+      # versión mayor de `next` o `hls.js` se prueba en la tele, cada una por
+      # su cuenta.
       produccion-menores:
         dependency-type: production
         update-types: [minor, patch]
