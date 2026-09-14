@@ -142,6 +142,16 @@ Se crean **dos** certificados y hacen falta los dos:
 > instalación falla con un error genérico que no menciona el certificado. Es la
 > causa del 90% de los `install failed` la primera vez.
 
+> **El error exacto que da, para poder buscarlo:** `install failed[118, -12],
+> reason: Check certificate error : :Invalid certificate chain with
+> certificate in signature.` Pasa también si en Certificate Manager se elige
+> "Tizen" y dentro de ahí "Use the default Tizen distributor certificate" —
+> ese certificado genérico instala en el emulador, pero no en una tele real:
+> hace falta el de "Samsung" de este mismo paso, con sesión de cuenta Samsung
+> y el DUID leído en automático. Confirmado con el mismo fallo reportado para
+> Jellyfin en Tizen (`jeppevinkel/jellyfin-tizen-builds#39`): la única salida
+> que funcionó ahí también fue el certificado de Samsung atado al DUID.
+
 ### 5. Empaquetar e instalar
 
 Desde `empaque/tizen/`:
