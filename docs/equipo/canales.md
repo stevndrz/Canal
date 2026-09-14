@@ -43,6 +43,24 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-09-14 (tercera pasada) — Dos trampas de foco más, probando ya con la app instalada
+
+Con el foco huérfano arreglado (entrada de abajo), aparecieron dos más al
+usar la app de verdad en la tele:
+
+- La guía del directo (`fullscreen-player.tsx`) no tenía ninguna tecla para
+  volver a los controles de abajo una vez abierta — Atrás salía de pantalla
+  completa entera. Ahora cierra la guía primero.
+- `ficha-reproductor.tsx`: un servidor con puerta antirrobot (Cloudflare
+  Turnstile) atrapa el foco del mando dentro de un iframe de otro origen sin
+  ninguna vía de salida — ni Atrás, ni el botón visible, nada llega a la
+  página. Se saca sola a los 8s con un reloj en el padre (no depende del
+  foco) y se descarta ese servidor.
+
+Ninguna de las dos se ve en un emulador: los dos reportan `pointer: fine` y
+no hay puerta antirrobot real que atender. Solo salieron con el mando físico
+en la tele.
+
 ### 2026-09-14 (segunda pasada) — Primera instalación real en Tizen, y el foco huérfano
 
 Se instaló CanalCasa por primera vez en un Samsung real (no emulador). Dos
