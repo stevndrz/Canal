@@ -395,6 +395,27 @@ html[data-player="on"] body {
   margin-top: 10px;
 }
 
+/* Teléfono en vertical: el vídeo de borde a borde y pegado a la cabecera,
+   como el reproductor de YouTube. Con el margen lateral y las esquinas
+   redondeadas medía 350×197 en un iPhone de 390; sin ellos, 390×219 — un 24%
+   más de imagen, que en una pantalla tan pequeña es la diferencia entre ver
+   la tele y adivinarla. El rótulo y los mandos de debajo sí conservan el
+   margen, alineados con los rieles. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-card {
+    padding: 0;
+  }
+
+  .live-card-video {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .live-card-pie {
+    padding-inline: var(--margen);
+  }
+}
+
 @media (min-width: 681px) {
   .live-card-pie {
     position: absolute;
@@ -2973,6 +2994,15 @@ body {
   }
 }
 
+/* En vertical el vídeo va de borde a borde (ver `.live-card` arriba) y se
+   pega a la cabecera sin hueco: separado por una franja negra de 14px se leía
+   como una tarjeta suelta y no como la pantalla de la tele. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-slot {
+    padding-top: var(--topbar-h);
+  }
+}
+
 /* ── Mi enlace ───────────────────────────────────────────────────────
    La tercera vía de reproducción, y la única con Ver en familia. Comparte el
    lenguaje del resto: chips redondos, fondo sólido, objetivos de 44px. */
@@ -3848,8 +3878,20 @@ body {
   display: flex;
   align-items: center;
   min-width: 0;
-  /* Sobre una escena clara el texto necesita algo más que el degradado. */
+}
+
+/* Sobre una escena clara el texto necesita algo más que el degradado. Solo
+   ahí: en el teléfono el rótulo va debajo del vídeo, sobre el fondo de la
+   página, y la sombra dibujaba un recuadro turbio detrás de las letras. */
+.vivo-capa .vivo-info,
+.live-card-pie .vivo-info {
   text-shadow: 0 1px 14px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 680px) {
+  .live-card-pie .vivo-info {
+    text-shadow: none;
+  }
 }
 
 .vivo-logo {

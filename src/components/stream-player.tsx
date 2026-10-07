@@ -408,9 +408,15 @@ const StreamPlayer = memo(
         const ahora = typeof performance !== "undefined" ? performance.now() : Date.now();
         const ttffMs = Math.max(0, Math.round(ahora - inicio));
         setSintonizando(false);
-        // Si al final hay imagen, el cartel de «no se pudo reproducir» ya no
-        // es verdad: antes se quedaba puesto tapando un vídeo que iba bien.
-        setNeedsUserGesture(false);
+        // Si al final hay imagen EN MARCHA, el cartel de «no se pudo
+        // reproducir» ya no es verdad: antes se quedaba puesto tapando un
+        // vídeo que iba bien.
+        //
+        // Pero solo en marcha: Safari en iPhone (con ahorro de batería, por
+        // ejemplo) bloquea el arranque y aun así carga un fotograma y dispara
+        // `loadeddata`. Quitar el cartel ahí dejaba un vídeo congelado, la
+        // píldora en «EN PAUSA» y ningún aviso de que había que tocar.
+        if (!video.paused) setNeedsUserGesture(false);
         setEmision((actual) =>
           actual.ttffMs !== undefined
             ? actual
@@ -647,8 +653,13 @@ const StreamPlayer = memo(
         )}
 
         {/* Tirón a mitad de emisión: ya hubo imagen, así que no es sintonizar
-            de nuevo, solo un aviso pequeño que no tapa los controles. */}
-        {!sintonizando && emision.buffering && !streamError && !needsUserGesture && (
+            de nuevo, solo un aviso pequeño que no tapa los controles.
+
+            Solo con el vídeo en marcha: en pausa el navegador sigue avisando
+            de `stalled` (no le llegan datos porque no los pide), y el anillo
+            girando sobre una imagen quieta decía «cargando» cuando lo que
+            pasaba era «en pausa». Lo vio el dueño en su iPhone. */}
+        {!sintonizando && isPlaying && emision.buffering && !streamError && !needsUserGesture && (
           <div className="player-sintonizando is-buffering" role="status" aria-label="Recargando">
             <span className="player-anillo" aria-hidden="true" />
           </div>

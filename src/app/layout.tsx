@@ -46,6 +46,16 @@ export const metadata: Metadata = {
     title: "CanalCasa",
     statusBarStyle: "black-translucent",
   },
+  // Safari en iPhone subraya con puntos lo que cree que es una dirección, un
+  // teléfono o una fecha: «Guatemala» en el rótulo del canal y hasta el título
+  // «Casa» salían subrayados, como si fueran enlaces. En una app de tele no
+  // hay nada de eso que marcar.
+  formatDetection: {
+    telephone: false,
+    date: false,
+    address: false,
+    email: false,
+  },
 };
 
 /**
