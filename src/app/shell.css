@@ -30,56 +30,131 @@
 :root {
   color-scheme: dark;
 
-  /* ── Superficies ──────────────────────────────────────────────────────
-     Negro real en el fondo, no gris azulado: en un OLED los píxeles se
-     apagan del todo y el contraste con la carátula es máximo. */
-  --bg: #000;
-  --bg-card: #101012;
-  --bg-elevated: #1c1c1f;
+  /* ══ Tokens semánticos ══════════════════════════════════════════════════
+     El color de toda la app sale de aquí, por su FUNCIÓN y no por su valor:
+     cambiar la paleta es cambiar estos valores, nada más. Los componentes y
+     las hojas usan estos nombres; los de debajo («Alias») son los que había
+     antes y se quedan apuntando aquí mientras se migra el resto.
 
-  /* ── Texto, en cuatro pesos de presencia ──────────────────────────────
-     Medidos contra el fondo, no elegidos a ojo. Los dos de abajo estaban por
-     debajo del mínimo legible y se subieron:
+     Reglas que no se negocian:
+     - El texto que se lee usa --tinta-1, -2 o -3 (≥ 4,5:1 sobre el fondo).
+       --tinta-4 no llega: solo iconos, separadores y puntos (≥ 3:1).
+     - El foco es blanco siempre, sea cual sea el acento: a tres metros, de
+       noche y con el brillo bajado, es lo único que dice dónde estás.
+     - «Elegido» (chip activo, pestaña actual) usa el acento; «enfocado» usa
+       el foco. Nunca el mismo realce para las dos cosas. */
 
-       --soft   0.46 → 0.56   4,29:1 → 6,03:1  (5,45:1 sobre una tarjeta)
-       --faint  0.28 → 0.40   2,18:1 → 3,45:1
+  /* Superficies, de atrás hacia delante. */
+  --fondo: #000;
+  --superficie-1: #101012;
+  --superficie-2: #1c1c1f;
+  --superficie-3: #2c2c2e;
+  /* El degradado de las carátulas y logos mientras no hay imagen. */
+  --arte-desde: #1f1f23;
+  --arte-hasta: #0a0a0c;
 
-     `--faint` sigue sin llegar a 4,5:1, y por eso **no vale para texto**:
-     queda reservado a iconos, separadores y puntos, donde el mínimo es 3:1.
-     Todo lo que se lee usa `--soft` o más. Esto importa el doble aquí: un
-     televisor a tres metros, de noche y con el brillo bajado, es el peor caso
-     de contraste que existe. */
-  --text: #f5f5f7;
-  --muted: rgba(245, 245, 247, 0.72);
-  --soft: rgba(245, 245, 247, 0.56);
-  --faint: rgba(245, 245, 247, 0.4);
+  /* Rellenos translúcidos: chips, botones secundarios, filas al pasar. */
+  --relleno-sutil: rgba(245, 245, 247, 0.06);
+  --relleno: rgba(245, 245, 247, 0.1);
+  --relleno-hover: rgba(245, 245, 247, 0.16);
+  --relleno-activo: rgba(245, 245, 247, 0.2);
 
-  /* ── Relleno y líneas ───────────────────────────────────────────────── */
-  --chip: rgba(245, 245, 247, 0.1);
-  --chip-focus: rgba(245, 245, 247, 0.2);
-  --line: rgba(245, 245, 247, 0.14);
-  --line-bright: rgba(255, 255, 255, 0.28);
+  /* Cristal: barras y paneles que flotan sobre contenido. Sobre el vídeo en
+     directo, negro translúcido SIN desenfoque (--cristal-video). */
+  --cristal: rgba(22, 22, 24, 0.72);
+  --cristal-fuerte: rgba(28, 28, 30, 0.88);
+  --cristal-video: rgba(30, 30, 32, 0.58);
 
-  /* ── Acentos ────────────────────────────────────────────────────────── */
-  --gold: #ffd60a;
-  --green: #30d158;
-  --red: #ff453a;
+  /* Líneas. */
+  --borde-sutil: rgba(245, 245, 247, 0.08);
+  --borde: rgba(245, 245, 247, 0.14);
+  --borde-fuerte: rgba(255, 255, 255, 0.28);
 
-  /* ── Cristal ──────────────────────────────────────────────────────────
-     Dos intensidades: la barra flotante y los paneles que se apoyan sobre
-     contenido. `backdrop-filter` con respaldo sólido para los navegadores de
-     televisor viejos, que lo ignoran sin fallar. */
-  --glass: rgba(22, 22, 24, 0.72);
-  --glass-strong: rgba(28, 28, 30, 0.88);
+  /* Tinta: el texto, en cuatro pesos. Medidos contra el fondo, no a ojo:
+       --tinta-3  6,03:1 (5,45:1 sobre una tarjeta)
+       --tinta-4  3,45:1 → no vale para texto. */
+  --tinta-1: #f5f5f7;
+  --tinta-2: rgba(245, 245, 247, 0.72);
+  --tinta-3: rgba(245, 245, 247, 0.56);
+  --tinta-4: rgba(245, 245, 247, 0.4);
 
-  /* ── Foco ─────────────────────────────────────────────────────────────
-     Un solo gesto en toda la app: borde blanco de 4px pegado a la pieza,
-     crecimiento del 6% y sombra profunda. Es lo que hace un televisor. */
-  --foco-borde: 0 0 0 4px #fff;
+  /* El acento: lo elegido, lo activo y el botón principal. */
+  --acento: #f5f5f7;
+  --acento-hover: #e8e8ed;
+  --acento-tinta: #000;
+  /* El acento sobre fondo oscuro, para texto y trazos finos (enlaces,
+     progreso, la barra de un programa). */
+  --acento-texto: #f5f5f7;
+  /* Brillo del acento detrás de piezas de marca (el logo, la portada). */
+  --acento-halo: rgba(255, 255, 255, 0.07);
+
+  /* Estados. «Vivo» es solo para lo que está en el aire. */
+  --vivo: #ff3b30;
+  --vivo-tinta: #fff;
+  --peligro: #ff453a;
+  --peligro-fondo: rgba(255, 69, 58, 0.12);
+  --exito: #30d158;
+  --exito-fondo: rgba(48, 209, 88, 0.16);
+  --aviso: #ffd60a;
+  --aviso-fondo: rgba(255, 214, 10, 0.08);
+  --info: #7dabff;
+
+  /* Foco: borde blanco pegado a la pieza, crecimiento del 6% y sombra
+     profunda. Es lo que hace un televisor. */
+  --foco: #fff;
+  --foco-borde: 0 0 0 4px var(--foco);
   --foco-sombra: 0 26px 60px rgba(0, 0, 0, 0.72);
   --foco-escala: 1.06;
 
-  --sombra: 0 16px 40px rgba(0, 0, 0, 0.5);
+  /* Profundidad. */
+  --sombra-1: 0 2px 16px rgba(0, 0, 0, 0.4);
+  --sombra-2: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --sombra-3: 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  /* Forma. */
+  --radio-sm: 8px;
+  --radio-md: 12px;
+  --radio-lg: 18px;
+  --radio-pill: 999px;
+
+  /* Tamaños de control: lo mínimo que se toca o se apunta. 44px es el de
+     Apple; el dedo de un niño o una mano con temblor agradece los 48. */
+  --control-sm: 40px;
+  --control-md: 48px;
+  --control-lg: 56px;
+
+  /* Movimiento. */
+  --dur-rapida: 120ms;
+  --dur-media: 180ms;
+  --dur-lenta: 280ms;
+
+  /* Capas: lo que pide una acción va por encima de los mandos. */
+  --capa-video-velo: 25;
+  --capa-video-guia: 28;
+  --capa-video-mandos: 30;
+  --capa-video-aviso: 40;
+  --capa-barra: 60;
+  --capa-dialogo: 70;
+
+  /* ══ Alias ═════════════════════════════════════════════════════════════
+     Los nombres de antes. No escribas código nuevo con ellos. */
+  --bg: var(--fondo);
+  --bg-card: var(--superficie-1);
+  --bg-elevated: var(--superficie-2);
+  --text: var(--tinta-1);
+  --muted: var(--tinta-2);
+  --soft: var(--tinta-3);
+  --faint: var(--tinta-4);
+  --chip: var(--relleno);
+  --chip-focus: var(--relleno-activo);
+  --line: var(--borde);
+  --line-bright: var(--borde-fuerte);
+  --gold: var(--aviso);
+  --green: var(--exito);
+  --red: var(--peligro);
+  --glass: var(--cristal);
+  --glass-strong: var(--cristal-fuerte);
+  --sombra: var(--sombra-2);
 
   /* ── Ritmo ────────────────────────────────────────────────────────────
      El margen lateral es uno solo para toda la app: si cada pantalla elige el
@@ -140,9 +215,7 @@
   --texto-2xl: calc(var(--t-2xl) * var(--escala-texto));
   --texto-3xl: calc(var(--t-3xl) * var(--escala-texto));
 
-  /* Lo mínimo que se puede tocar o apuntar. 44px es el de Apple; el dedo de
-     un niño o una mano con temblor agradece los 48 de Android. */
-  --toque: 48px;
+  --toque: var(--control-md);
 }
 
 /* ── Televisor: tamaños de diez pies ──────────────────────────────────────
@@ -185,8 +258,8 @@
      scroll. Costó una sesión entera descubrirlo. */
   overflow-x: clip;
   background:
-    radial-gradient(120% 80% at 78% 0%, rgba(255, 255, 255, 0.07), transparent 60%),
-    var(--bg);
+    radial-gradient(120% 80% at 78% 0%, var(--acento-halo), transparent 60%),
+    var(--fondo);
 }
 
 .content {
@@ -1902,13 +1975,13 @@
 
 @media (prefers-contrast: more) {
   :root {
-    --muted: rgba(245, 245, 247, 0.92);
-    --soft: rgba(245, 245, 247, 0.84);
-    --faint: rgba(245, 245, 247, 0.66);
-    --line: rgba(245, 245, 247, 0.4);
-    --line-bright: rgba(255, 255, 255, 0.7);
-    --glass: rgba(10, 10, 12, 0.97);
-    --glass-strong: rgba(10, 10, 12, 0.98);
+    --tinta-2: rgba(245, 245, 247, 0.92);
+    --tinta-3: rgba(245, 245, 247, 0.84);
+    --tinta-4: rgba(245, 245, 247, 0.66);
+    --borde: rgba(245, 245, 247, 0.4);
+    --borde-fuerte: rgba(255, 255, 255, 0.7);
+    --cristal: rgba(10, 10, 12, 0.97);
+    --cristal-fuerte: rgba(10, 10, 12, 0.98);
   }
 }
 
@@ -1948,8 +2021,8 @@
    ninguna barra. Escrita sola, él genera las dos.) */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   :root {
-    --glass: rgba(18, 18, 20, 0.97);
-    --glass-strong: rgba(24, 24, 26, 0.98);
+    --cristal: rgba(18, 18, 20, 0.97);
+    --cristal-fuerte: rgba(24, 24, 26, 0.98);
   }
 
   .mobile-header,
