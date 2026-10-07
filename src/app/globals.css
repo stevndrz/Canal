@@ -692,7 +692,6 @@ html[data-player="on"] body {
   font-weight: 700;
   color: #fff;
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .atv-marca.is-verde {
@@ -728,7 +727,6 @@ html[data-player="on"] body {
   font-size: var(--texto-xs);
   color: #ffd9d6;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .atv-alerta-cerrar {
@@ -752,7 +750,6 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.55);
   color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /* De cristal, no un disco blanco sólido: la misma familia que los botones de
@@ -772,7 +769,6 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: transform 180ms ease, background 180ms ease, opacity 280ms ease;
 }
 
@@ -966,7 +962,6 @@ html[data-player="on"] body {
   background: rgba(255, 255, 255, 0.16);
   color: #fff;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -1045,7 +1040,6 @@ html[data-player="on"] body {
   padding: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .atv-menu-titulo {
@@ -1269,7 +1263,6 @@ html[data-player="on"] body {
      relleno opaco lo cortaba en seco. */
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: border-color 180ms var(--ease-native), background-color 180ms var(--ease-native);
 }
 

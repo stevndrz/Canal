@@ -249,13 +249,8 @@
 /* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
    solo no basta para que se lean los destinos. */
 .sidebar.is-scrolled {
-  /* Casi opaca, y no cristal al 72%: donde el desenfoque no existe (muchos
-     navegadores de televisor) o no se aplica, lo que pasaba por debajo se
-     leía nítido a través de la barra — el rótulo del reproductor se
-     superponía al menú. Con el 97% da igual que haya desenfoque o no. */
-  background: rgba(12, 12, 14, 0.97);
+  background: var(--glass);
   backdrop-filter: saturate(180%) blur(22px);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
   border-bottom: 1px solid var(--line);
 }
 
@@ -603,7 +598,6 @@
   border-radius: 999px;
   background: var(--glass-strong);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   color: #fff;
   opacity: 0;
   transition: opacity 200ms var(--ease), transform 200ms var(--ease);
@@ -1687,7 +1681,6 @@
       max(16px, env(safe-area-inset-left));
     background: var(--glass);
     backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
     border-bottom: 1px solid var(--line);
   }
 
@@ -1725,7 +1718,6 @@
        claras, y con el cristal flojo las etiquetas se perdían encima. */
     background: rgba(16, 16, 18, 0.86);
     backdrop-filter: saturate(180%) blur(28px);
-    -webkit-backdrop-filter: saturate(180%) blur(28px);
     border-top: 1px solid var(--line);
     /* Una línea de luz en el borde superior, como el cristal de iOS. */
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -12px 30px rgba(0, 0, 0, 0.5);
@@ -1805,7 +1797,6 @@
     border: 0;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
   }
 
   .mobile-mas {
@@ -1821,7 +1812,6 @@
     border-radius: 18px;
     background: var(--glass-strong);
     backdrop-filter: saturate(180%) blur(24px);
-    -webkit-backdrop-filter: saturate(180%) blur(24px);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     animation: cc-subir 200ms var(--ease) both;
   }
@@ -1943,5 +1933,28 @@
   .poster,
   .rail-arrow {
     border: 1px solid CanvasText;
+  }
+}
+
+/* ═══ Sin desenfoque ════════════════════════════════════════════════════
+   Los navegadores de las teles viejas de la casa (Chromium 53–69) no saben
+   desenfocar, y el cristal al 72% deja leer nítido lo que pasa por debajo:
+   el texto del contenido se monta sobre el de la barra. Ahí el cristal se
+   vuelve casi opaco. Donde sí hay desenfoque, nada cambia.
+
+   (Ojo al escribir cristal nuevo: solo `backdrop-filter`, sin la variante
+   `-webkit-` al lado. LightningCSS fusiona el par y se quedaba con la de
+   Safari, así que en Chrome, Android y las teles no había desenfoque en
+   ninguna barra. Escrita sola, él genera las dos.) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass: rgba(18, 18, 20, 0.97);
+    --glass-strong: rgba(24, 24, 26, 0.98);
+  }
+
+  .mobile-header,
+  .mobile-bottom-nav,
+  .mobile-mas {
+    background-color: rgba(16, 16, 18, 0.97);
   }
 }
