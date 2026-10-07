@@ -22,6 +22,15 @@
 
 @import "./shell.css" layer(components);
 
+/* Hojas por zona, SIN capa (ganan a Tailwind igual que el resto de esta
+   hoja). Van aquí arriba porque `@import` tiene que ir antes que cualquier
+   regla: lo que definan, una regla de esta hoja con la misma especificidad lo
+   pisa, así que no redefinen clases de aquí abajo, solo las suyas.
+   - ui.css: las primitivas de `src/components/ui/` (botón, chip, campo…).
+   - catalogo.css: Cine y series y la ficha. */
+@import "./ui.css";
+@import "./catalogo.css";
+
 /* ── Tokens de Tailwind ───────────────────────────────────────────────── */
 @theme {
   /**
