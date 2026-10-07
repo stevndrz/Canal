@@ -2,11 +2,20 @@
 
 import dynamic from "next/dynamic";
 import { useMemo, useState } from "react";
-import { Link2, Play, Trash2 } from "lucide-react";
+import { Link2, Play, Plus, Trash2 } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
+import {
+  Aviso,
+  Boton,
+  BotonIcono,
+  Campo,
+  ContenedorVista,
+  EncabezadoSeccion,
+  EstadoVacio,
+} from "@/components/ui";
 
 /** Arrastra hls.js: solo se descarga cuando hay algo que reproducir aquí. */
 const NativePlayer = dynamic(() => import("@/components/native-player"), {
@@ -75,61 +84,74 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   };
 
   return (
-    <div className={`screen tv-safe fuente ${sinHueco ? "sin-hueco" : ""}`}>
-      <section className="section-heading library-heading">
-        <div className="library-title-block">
-          <p className="eyebrow">Pega el enlace de un vídeo y míralo aquí</p>
-          <h2>Mi enlace</h2>
-        </div>
-      </section>
+    /* `ContenedorVista` pone `--margen` a los lados a todos los anchos. Antes
+       la vista solo limitaba el ancho a 1.100 px, así que por debajo de eso el
+       título, el campo y «Añadir» tocaban los dos bordes de la pantalla. */
+    <ContenedorVista ancho="medio" className={`screen tv-safe fuente ${sinHueco ? "sin-hueco" : ""}`}>
+      <EncabezadoSeccion talla="pagina" sobretitulo="Pega el enlace de un vídeo y míralo aquí" titulo="Mi enlace" />
 
-      <form className="fuente-alta" onSubmit={enviar}>
-        <div className="fuente-campo">
-          <Link2 aria-hidden="true" />
-          {/* `type="text"` y no `type="url"`: la validación nativa de `url`
-              rechaza `magnet:` en varios navegadores, y el protocolo ya lo
-              comprueba `resolverFuente` antes de que nada llegue a un `src`. */}
-          <input
-            type="text"
-            inputMode="url"
-            data-nav="input"
-            value={url}
-            onChange={(evento) => setUrl(evento.target.value)}
-            placeholder="Pega aquí el enlace (https://… o magnet:…)"
-            aria-label="Enlace del vídeo"
-            required
-          />
-        </div>
-        <input
+      <form className="fuente-alta" onSubmit={enviar} noValidate>
+        {/* `type="text"` y no `type="url"`: la validación nativa de `url`
+            rechaza `magnet:` en varios navegadores, y el protocolo ya lo
+            comprueba `resolverFuente` antes de que nada llegue a un `src`.
+            Sin `autoFocus`: dentro de un campo las flechas del mando no
+            navegan, y la vista quedaría atrapada nada más entrar. */}
+        <Campo
+          className="fuente-enlace"
+          tamano="lg"
+          etiqueta="Enlace del vídeo"
+          icono={<Link2 />}
           type="text"
-          data-nav="input"
+          inputMode="url"
+          autoComplete="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          value={url}
+          onChange={(evento) => {
+            setUrl(evento.target.value);
+            // El error era del enlace de antes: al corregirlo, sobra.
+            if (error) setError("");
+          }}
+          placeholder="https://… o magnet:…"
+          limpiable
+          onLimpiar={() => setUrl("")}
+          invalido={Boolean(error)}
+          required
+        />
+        <Campo
           className="fuente-nombre"
+          tamano="lg"
+          etiqueta="Nombre (opcional)"
+          type="text"
           value={titulo}
           onChange={(evento) => setTitulo(evento.target.value)}
-          placeholder="Nombre (opcional)"
-          aria-label="Nombre para este enlace"
+          placeholder="Ej.: Noticias"
         />
-        <button type="submit" data-nav="button" className="fuente-anadir">
+        <Boton type="submit" variante="primario" tamano="lg" icono={<Plus />} className="fuente-anadir">
           Añadir
-        </button>
+        </Boton>
       </form>
 
-      {error && (
-        <p className="fuente-error" role="alert">
+      {/* Un solo aviso a la vez, el más importante primero: si el enlace no
+          sirve, lo demás da igual. */}
+      {error ? (
+        <Aviso tono="peligro" className="fuente-aviso">
           {error}
-        </p>
-      )}
-      {!error && aviso && <p className="fuente-aviso">{aviso}</p>}
-      {!error && !aviso && firmado && (
-        <p className="fuente-aviso">
-          Este enlace lleva firma y caducidad: funcionará mientras el servidor lo dé por
-          válido y dejará de hacerlo al expirar, sin avisar. Cuando pase, vuelve a copiarlo.
-        </p>
-      )}
+        </Aviso>
+      ) : aviso ? (
+        <Aviso tono="aviso" className="fuente-aviso">
+          {aviso}
+        </Aviso>
+      ) : firmado ? (
+        <Aviso tono="aviso" className="fuente-aviso" titulo="Este enlace caduca">
+          Lleva firma y caducidad: funcionará mientras el servidor lo dé por válido y dejará de
+          hacerlo al expirar, sin avisar. Cuando pase, vuelve a copiarlo.
+        </Aviso>
+      ) : null}
 
       {activa && (
-        <section className="fuente-reproductor">
-          <h3>{activa.titulo}</h3>
+        <section className="fuente-reproductor" aria-label={`Reproduciendo ${activa.titulo}`}>
+          <EncabezadoSeccion talla="seccion" sobretitulo="Reproduciendo" titulo={activa.titulo} nivel={3} />
 
           <NativePlayer
             key={activa.id}
@@ -140,16 +162,22 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </section>
       )}
 
-      <section className="ficha-seccion">
-        <h2>Guardados en este dispositivo</h2>
+      <section className="fuente-guardados" aria-labelledby="fuente-guardados-titulo">
+        <EncabezadoSeccion
+          talla="seccion"
+          titulo="Guardados en este dispositivo"
+          idTitulo="fuente-guardados-titulo"
+        />
         {!cargado ? null : fuentes.length === 0 ? (
-          <p className="ficha-vacio">
-            Todavía no has añadido ningún enlace. Pega uno arriba y aparecerá aquí.
-          </p>
+          <EstadoVacio
+            icono={<Link2 />}
+            titulo="Todavía no hay enlaces"
+            texto="Pega uno arriba y aparecerá aquí, listo para volver a verlo."
+          />
         ) : (
-          <div className="fuente-lista">
+          <ul className="fuente-lista">
             {fuentes.map((fuente) => (
-              <div
+              <li
                 key={fuente.id}
                 className={`fuente-fila ${activa?.id === fuente.id ? "is-active" : ""}`}
               >
@@ -157,6 +185,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                   type="button"
                   data-nav="row"
                   className="fuente-fila-abrir"
+                  aria-current={activa?.id === fuente.id ? "true" : undefined}
                   onClick={() => setActiva(fuente)}
                 >
                   <span className="fuente-fila-icono">
@@ -166,25 +195,23 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                     <strong>{fuente.titulo}</strong>
                     <span>{fuente.url}</span>
                   </span>
-                  <em className="fuente-clase">{fuente.clase}</em>
+                  <span className="fuente-clase">{fuente.clase}</span>
                 </button>
-                <button
-                  type="button"
-                  data-nav="button"
+                <BotonIcono
+                  variante="fantasma"
                   className="fuente-quitar"
                   aria-label={`Quitar ${fuente.titulo}`}
+                  icono={<Trash2 />}
                   onClick={() => {
                     if (activa?.id === fuente.id) setActiva(null);
                     quitar(fuente.id);
                   }}
-                >
-                  <Trash2 aria-hidden="true" />
-                </button>
-              </div>
+                />
+              </li>
             ))}
-          </div>
+          </ul>
         )}
       </section>
-    </div>
+    </ContenedorVista>
   );
 }

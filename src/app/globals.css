@@ -1595,42 +1595,40 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 /* Alineado a la izquierda como todo lo demás de la pantalla, no centrado.
    Centrado quedaba como una isla: el hero, los chips de filtro y los rieles
    arrancan todos en el margen y el buscador flotaba en medio. */
-.catalogo-buscador {
-  display: flex;
-  gap: 10px;
-  width: min(640px, 100%);
-  margin: clamp(18px, 2.6vh, 34px) var(--margen) clamp(16px, 2.2vh, 28px);
-}
-
 .catalogo-buscador-campo {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.6em;
   flex: 1;
   min-width: 0;
-  min-height: 52px;
-  padding: 0 20px;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
-  /* Cristal y no un gris plano: debajo pasa el degradado del hero, y un
-     relleno opaco lo cortaba en seco. */
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  transition: border-color 180ms var(--ease-native), background-color 180ms var(--ease-native);
+  /* En `em` además de en px: en la tele la letra crece en vw y un campo de
+     52 px fijos se quedaba bajo para su propio texto. */
+  min-height: max(var(--control-md), 2.5em);
+  padding: 0 0.4em 0 1em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  /* Relleno translúcido y SIN `backdrop-filter`: el desenfoque obliga al
+     compositor a copiar lo de debajo en cada fotograma, y en una tele eso se
+     nota más que lo que aporta. */
+  background: var(--relleno);
+  font-size: var(--texto-base);
+  transition: border-color var(--dur-media) var(--ease), background-color var(--dur-media) var(--ease);
 }
 
+/* El foco del campo es el de toda la app: blanco. Con el borde de 1 px más
+   un filo de otro píxel se ve a tres metros sin parecer otra pieza. */
 .catalogo-buscador-campo:focus-within {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.09);
-  box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
+  border-color: var(--foco);
+  background: var(--relleno-hover);
+  box-shadow: 0 0 0 1px var(--foco);
 }
 
 .catalogo-buscador-campo svg {
-  width: 20px;
-  height: 20px;
+  width: 1.15em;
+  height: 1.15em;
   flex-shrink: 0;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 .catalogo-buscador-campo input {
@@ -1644,7 +1642,7 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 .catalogo-buscador-campo input::placeholder {
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 /* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
@@ -1653,30 +1651,27 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   appearance: none;
 }
 
-/* «Ordenar por» del catálogo. Mismo cristal que las píldoras de al lado, con
-   el hueco de la flecha que dibuja la regla base de `select`. */
+/* «Ordenar» del catálogo: de la altura de las píldoras de al lado (medía 34
+   px, por debajo de lo que se acierta con el dedo), con el hueco de la flecha
+   que dibuja la regla base de `select`. Solo `background-color`: el
+   `background` entero borraría esa flecha. El foco es el general de
+   `[data-nav]`, blanco como todo lo demás. */
 .catalogo-orden {
   flex-shrink: 0;
-  padding: 6px 30px 6px 12px;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
-  background-color: var(--bg-elevated, #1c1c1f);
-  color: var(--muted, rgba(245, 245, 247, 0.72));
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 2.4em 0 1.1em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background-color: var(--relleno);
+  background-position: right 1em center;
+  color: var(--tinta-1);
   font-size: var(--texto-sm);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .catalogo-orden:hover {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  color: var(--text, #f5f5f7);
-}
-
-/* El desplegable no lleva `data-nav`, así que la regla general de foco no le
-   entra: se le pone aquí el suyo, o al tabular no se vería dónde está. */
-.catalogo-orden:focus-visible {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  color: var(--text, #f5f5f7);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+  background-color: var(--relleno-hover);
 }
 
 /* ── Teléfono en horizontal ──────────────────────────────────────────
@@ -1851,10 +1846,12 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   );
 }
 
+/* Sin caja de 1200 px: la cabecera, el vídeo y el cuerpo arrancan en el
+   mismo `--margen` que la barra y los rieles. Con cajas de 1200 y 1440
+   centradas, en una tele había cinco bordes izquierdos distintos. */
 .ficha-cabecera {
   position: relative;
-  width: min(1200px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding-inline: var(--margen);
 }
 
@@ -1904,11 +1901,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   place-items: center;
   width: clamp(44px, 3.4vw, 54px);
   aspect-ratio: 1;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.13);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  color: var(--text, #f5f5f7);
-  transition: background-color 160ms var(--ease), transform 160ms var(--ease);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-hover);
+  border: 1px solid var(--borde);
+  color: var(--tinta-1);
+  transition: background-color var(--dur-media) var(--ease), transform var(--dur-media) var(--ease);
 }
 
 .ficha-accion svg {
@@ -1917,26 +1914,37 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 .ficha-accion:hover,
-.ficha-accion:focus-visible {
-  color: #fff;
+.ficha-accion:focus-visible,
+[data-input="dpad"] .ficha-accion:focus {
+  color: var(--tinta-1);
 }
 
-.ficha-accion:hover .ficha-accion-icono,
-.ficha-accion:focus-visible .ficha-accion-icono {
-  background: rgba(255, 255, 255, 0.24);
-  transform: scale(1.06);
+/* Con el mando el círculo se invierte —blanco con el icono oscuro— y crece:
+   el mismo gesto que el resto de botones, no un gris un poco más claro que a
+   tres metros no se distingue del de reposo. */
+.ficha-accion:hover .ficha-accion-icono {
+  background: var(--relleno-activo);
+  transform: scale(var(--foco-escala));
+}
+
+.ficha-accion:focus-visible .ficha-accion-icono,
+[data-input="dpad"] .ficha-accion:focus .ficha-accion-icono {
+  background: var(--foco);
+  border-color: var(--foco);
+  color: var(--fondo);
+  transform: scale(var(--foco-escala));
 }
 
 /* Ya está en «Mi lista»: el círculo se llena en vez de cambiar solo el texto.
-   El mismo verde que `.ficha-marca.is-si`, que es la misma idea. */
+   «Elegido» va con el acento, nunca con el blanco del foco. */
 .ficha-accion.is-activa {
-  color: var(--green, #00d588);
+  color: var(--acento-texto);
 }
 
 .ficha-accion.is-activa .ficha-accion-icono {
-  background: rgba(0, 213, 136, 0.18);
+  background: var(--acento-suave);
   border-color: transparent;
-  color: var(--green, #00d588);
+  color: var(--acento-texto);
 }
 
 /* «Volver» no es una acción sobre el título —es salir—, así que sale de la
@@ -1949,19 +1957,19 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.22));
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.42);
-  color: #fff;
-  transition: transform 160ms var(--ease), background-color 160ms var(--ease);
+  width: var(--control-md);
+  height: var(--control-md);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-pill);
+  background: var(--cristal);
+  color: var(--tinta-1);
+  transition: transform var(--dur-media) var(--ease), background-color var(--dur-media) var(--ease);
 }
 
 .ficha-volver:hover,
 .ficha-volver:focus-visible {
-  background: rgba(0, 0, 0, 0.7);
-  transform: scale(1.06);
+  background: var(--cristal-fuerte);
+  transform: scale(var(--foco-escala));
 }
 
 .ficha-volver svg {
@@ -1989,9 +1997,9 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   width: clamp(110px, 12vw, 190px);
   height: auto;
   flex-shrink: 0;
-  border-radius: clamp(10px, 0.8vw, 16px);
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-2);
+  border: 1px solid var(--borde-sutil);
 }
 
 .ficha-datos { min-width: 0; }
@@ -2021,17 +2029,20 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
 
+/* «★ 6,5» en el color del texto, con la estrella pequeña: una nota no es un
+   aviso, y el dorado la hacía competir con el título. */
 .ficha-nota {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--gold, #ffcd3c);
+  gap: 0.3em;
+  color: var(--tinta-1);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .ficha-nota svg {
-  width: 16px;
-  height: 16px;
+  width: 0.85em;
+  height: 0.85em;
   fill: currentColor;
 }
 
@@ -2065,16 +2076,14 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
  * para el primero, abajo para el segundo, ninguno de los dos de más.
  */
 .ficha-reproductor-slot {
-  width: min(1440px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding: clamp(12px, 2vh, 24px) var(--margen) 0;
+  /* «Reproducir» baja hasta aquí: que el vídeo no quede bajo la barra. */
+  scroll-margin-top: var(--topbar-h);
 }
 
 .ficha-cuerpo {
-  /* Columna más ancha: el reproductor aprovecha mejor el horizontal en
-     pantallas grandes en vez de quedar acotado a 1200px. */
-  width: min(1440px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding: 0 var(--margen) clamp(40px, 6vh, 80px);
 }
 
@@ -2128,22 +2137,29 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--color-mission-line);
-  border-radius: 999px;
-  background: rgba(6, 7, 9, 0.85);
-  color: #fff;
+  gap: 0.5em;
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 1.1em;
+  /* El mismo «‹ Volver» de cristal que el directo, y sin desenfoque: va
+     encima del vídeo. Era ámbar: el único ámbar de la sección, y al
+     enfocarlo se volvía una franja amarilla que no se parecía a ningún otro
+     foco de la app. */
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-pill);
+  background: var(--cristal-video);
+  color: var(--tinta-1);
   font-size: var(--texto-sm);
   font-weight: 600;
+  transition: transform var(--dur-media) var(--ease);
 }
 
 .ficha-cine-salir:hover,
-.ficha-cine-salir:focus-visible {
-  background: var(--color-mission);
-  color: #0a0a0a;
-  border-color: transparent;
+.ficha-cine-salir:focus-visible,
+[data-input="dpad"] .ficha-cine-salir:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  border-color: var(--foco);
+  transform: scale(var(--foco-escala));
 }
 
 .ficha-reproductor {
@@ -2159,7 +2175,8 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
     122vh,
     max(calc((100vh - var(--ficha-hero-h) - 80px) * 16 / 9), 420px)
   );
-  margin-inline: auto;
+  /* Al margen, no centrado: la misma columna que el título de encima. */
+  margin-inline: 0;
   margin-bottom: clamp(14px, 2vh, 28px);
 }
 
@@ -2167,11 +2184,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
    una línea que los separa por dentro. Suelto en la página, el selector
    parecía una sección más y había que buscarlo. */
 .ficha-conjunto {
-  border-radius: clamp(12px, 1vw, 20px);
+  border-radius: var(--radio-panel);
   overflow: hidden;
-  background: #0c0d10;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+  background: var(--superficie-1);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra-2);
 }
 
 .ficha-marco {
@@ -2327,15 +2344,15 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 
 .servidor:hover,
 .servidor:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
-  color: #fff;
+  background: var(--relleno-activo);
+  color: var(--tinta-1);
   transform: scale(1.03);
 }
 
 .servidor.is-active {
   background: var(--acento);
   border-color: transparent;
-  color: #0a0a0a;
+  color: var(--acento-tinta);
 }
 
 .servidores-nota {
@@ -2354,14 +2371,17 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   font-weight: 700;
 }
 
+/* Lo seguro va en verde de éxito; lo probable, en el texto de siempre sobre
+   un relleno neutro. Era un azul suelto (#7dabff) que no salía en ningún otro
+   sitio de la app. */
 .ficha-marca.is-si {
-  background: rgba(0, 213, 136, 0.16);
-  color: var(--green, #00d588);
+  background: var(--exito-fondo);
+  color: var(--exito);
 }
 
 .ficha-marca.is-quiza {
-  background: rgba(59, 130, 246, 0.16);
-  color: #7dabff;
+  background: var(--relleno);
+  color: var(--tinta-2);
 }
 
 .ficha-sin-fuente {
@@ -2423,8 +2443,8 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   width: 100%;
   aspect-ratio: 2 / 3;
   object-fit: cover;
-  border-radius: clamp(10px, 0.8vw, 14px);
-  background: linear-gradient(135deg, #242735, #0b0b10);
+  border-radius: var(--radio-tarjeta);
+  background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
 }
 
 .ficha-persona-inicial {
@@ -2432,7 +2452,7 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   place-items: center;
   font-size: var(--texto-2xl);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--tinta-3);
 }
 
 .ficha-persona figcaption {
@@ -2493,9 +2513,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   background: var(--chip-focus, rgba(255, 255, 255, 0.14));
 }
 
+/* El capítulo que suena: marca de acento, no el blanco del foco. Con los dos
+   en blanco no se sabía si el mando estaba encima o si era el que se veía. */
 .ficha-episodio.is-active {
-  border-color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--acento);
+  background: var(--acento-suave);
 }
 
 .ficha-episodio-arte {
@@ -2505,11 +2527,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   width: 92px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 9px;
-  background: rgba(0, 0, 0, 0.45);
+  border-radius: var(--radio-sm);
+  background: var(--superficie-2);
   font-size: var(--texto-xs);
   font-weight: 700;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 .ficha-episodio-arte img { width: 100%; height: 100%; object-fit: cover; }
@@ -2549,23 +2571,24 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 .paginador-flecha {
   display: grid;
   place-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  border-radius: 12px;
+  min-width: max(var(--control-md), 2.6em);
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 0.8em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
   background: transparent;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
+  color: var(--tinta-2);
   font-size: var(--texto-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease),
+    border-color var(--dur-media) var(--ease);
 }
 
 .paginador-numero:hover,
 .paginador-flecha:hover {
-  background: var(--chip, rgba(245, 245, 247, 0.1));
-  color: var(--text, #f5f5f7);
+  background: var(--relleno);
+  color: var(--tinta-1);
 }
 
 .paginador-numero.is-active {
@@ -2629,6 +2652,9 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 
 .estado-vacio .secondary {
   margin-top: 8px;
+  /* La salida de un estado vacío es lo único que hay que pulsar: objetivo
+     de 48 px, y en la tele a la medida de su letra. */
+  min-height: max(var(--control-md), 2.6em);
 }
 
 /* ── El anillo de «Cargando» ──────────────────────────────────────────
@@ -2666,44 +2692,16 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
    `error.tsx` y `not-found.tsx` viven fuera del armazón —no hay barra ni
    reproductor cuando se pintan—, así que centran su estado vacío en la
    ventana en vez de apoyarse en el `.content` de las vistas. */
+/* El estado vacío lo pinta `PantallaMensaje` (`ui-vacio` a talla de
+   pantalla, en `ui.css`): aquí solo se centra en la ventana. `100vh` antes
+   de `100dvh` para los Chromium 99–107 de tele, que no conocen `dvh` y sin
+   respaldo se quedaban sin alto mínimo. */
 .pantalla-mensaje {
   display: grid;
   place-items: center;
+  min-height: 100vh;
   min-height: 100dvh;
-  padding: var(--margen) 0;
-}
-
-/**
- * A pantalla completa, `.estado-vacio` se queda corto.
- *
- * Sus medidas están pensadas para un panel dentro de una lista, con contenido
- * alrededor que le da escala. Solo, en 1920 × 1080 y a tres metros, era un
- * recuadro de 490 px con texto de 15 px perdido en negro: se lee desde el
- * escritorio y no se lee desde el sofá, que es donde se usa esta app.
- */
-.pantalla-mensaje .estado-vacio {
-  min-width: min(620px, 88vw);
-  gap: 14px;
-  padding: clamp(40px, 7vh, 92px) clamp(28px, 4vw, 76px);
-}
-
-.pantalla-mensaje .estado-vacio > svg {
-  width: clamp(40px, 3.6vw, 64px);
-  height: clamp(40px, 3.6vw, 64px);
-}
-
-.pantalla-mensaje .estado-vacio-titulo {
-  font-size: var(--texto-2xl);
-}
-
-.pantalla-mensaje .estado-vacio-detalle {
-  font-size: var(--texto-lg);
-}
-
-.pantalla-mensaje .secondary {
-  min-height: clamp(48px, 3.6vw, 64px);
-  padding: 0 clamp(22px, 2vw, 38px);
-  font-size: var(--texto-lg);
+  padding: var(--margen);
 }
 
 /* ── Esqueleto de carga ───────────────────────────────────────────────
@@ -2864,11 +2862,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   gap: 10px;
   margin: 0 var(--margen) clamp(14px, 2vh, 24px);
   padding: 13px 16px;
-  border: 1px solid rgba(255, 214, 10, 0.28);
-  border-radius: 14px;
-  background: rgba(255, 214, 10, 0.08);
+  border: 1px solid var(--aviso);
+  border-radius: var(--radio-md);
+  background: var(--aviso-fondo);
   font-size: var(--texto-xs);
-  color: #ffe89a;
+  color: var(--tinta-1);
 }
 
 .catalogo-aviso svg {
@@ -2876,13 +2874,13 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   height: 18px;
   flex: none;
   margin-top: 1px;
-  color: var(--gold);
+  color: var(--aviso);
 }
 
 .catalogo-aviso code {
   padding: 1px 5px;
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--fondo);
   font-size: 0.92em;
 }
 
@@ -2917,29 +2915,31 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
    blancos al estar activos. Antes iban rellenos de gris, así que veinte
    géneros seguidos formaban una barra sólida donde no se distinguía el
    elegido. */
+/* 48 px como mínimo y 2,6 em en la tele, donde la letra crece en vw: con
+   44 px fijos la píldora quedaba justa para su propio texto a 1920. */
 .catalogo-chip {
   flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 clamp(14px, 1.1vw, 20px);
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 1.1em;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
   background: transparent;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
+  color: var(--tinta-2);
   font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  transition: background-color 160ms var(--ease-native), color 160ms var(--ease-native),
-    border-color 160ms var(--ease-native);
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease),
+    border-color var(--dur-media) var(--ease);
 }
 
 .catalogo-chip:hover,
 .catalogo-chip:focus-visible {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  background: var(--chip, rgba(245, 245, 247, 0.1));
-  color: var(--text, #f5f5f7);
+  border-color: var(--borde-fuerte);
+  background: var(--relleno);
+  color: var(--tinta-1);
 }
 
 /* La flecha de la píldora que abre el panel de géneros. */
@@ -2995,10 +2995,10 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   max-height: 82vh;
   overflow-y: auto;
   padding: clamp(20px, 2.4vw, 36px);
-  border: 1px solid rgba(245, 245, 247, 0.22);
-  border-radius: var(--radio-panel, 18px);
-  background: var(--bg-elevated, #1c1c1f);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-2);
+  box-shadow: var(--sombra-3);
 }
 
 .genero-panel-cabecera {
@@ -3047,8 +3047,8 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 .genero-rejilla .catalogo-chip {
   justify-content: center;
   width: 100%;
-  /* Sobre el gris del panel, el borde al 14% del chip se pierde. */
-  border-color: rgba(245, 245, 247, 0.2);
+  /* Sobre el gris del panel, el borde normal del chip se pierde. */
+  border-color: var(--borde-fuerte);
 }
 
 .catalogo-chip.is-active {
@@ -3300,31 +3300,115 @@ body {
 }
 
 /* ── Ajustes ─────────────────────────────────────────────────────────
-   Su encabezado era un `<h1>` suelto con clases propias: el único de la app
-   que no usaba `.section-heading`, y por eso no reservaba el hueco de la barra
-   fija y quedaba por debajo de ella. Ahora usa el mismo encabezado que
-   Favoritos y Categorías, y la columna va centrada: a 1920px estaba pegada a
-   la izquierda con medio televisor vacío al lado. */
-.ajustes {
-  width: min(880px, 100%);
-  margin-inline: auto;
+   Hecha con las primitivas (`src/components/ui`): el margen y el ancho los
+   pone `ContenedorVista`, los controles son `Segmentado`, `Interruptor`,
+   `Boton` y `Confirmacion`. Aquí solo queda la lista agrupada, como la de
+   Ajustes del iPhone: grupos con rótulo, filas separadas por una línea. */
+.ajustes-columna > * + * {
+  margin-top: clamp(24px, 3.6vh, 40px);
 }
 
-.ajustes-columna {
+.ajustes-lista {
+  overflow: hidden;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+}
+
+/* Sin puntos de corte: el texto pide 16em y el control lo que mida. Si caben
+   van en una línea; si no, el control baja. `margin-left: auto` lo deja a la
+   derecha en los dos casos, como el interruptor del iPhone. */
+.ajustes-fila {
   display: flex;
-  flex-direction: column;
-  gap: clamp(20px, 3vh, 34px);
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: calc(var(--control-md) + 28px);
+  padding: 0.55em 1.1em;
 }
 
-.ajustes .section-heading {
-  padding-inline: 0;
+.ajustes-fila + .ajustes-fila {
+  border-top: 1px solid var(--borde-sutil);
 }
 
-/* En teléfono la columna llenaba el ancho y el texto tocaba los bordes de la
-   pantalla: aquí no hay `.screen` que ponga el margen. */
+/* 12em: a 390 px cabe el texto y el interruptor en la misma línea (con 16em
+   el interruptor bajaba solo a otra fila, lejos de su nombre). */
+.ajustes-fila-texto {
+  flex: 1 1 12em;
+  min-width: 0;
+  margin: 0.35em 1em 0.35em 0;
+}
+
+/* Las filas con elección larga piden más texto antes de compartir línea: con
+   «Muy grande» en la tele, el segmentado dejaba al nombre en una columna de
+   tres palabras. Así el segmentado baja a su propia línea antes. */
+.ajustes-fila.is-ancho .ajustes-fila-texto {
+  flex-basis: 20em;
+}
+
+.ajustes-fila-nombre {
+  margin: 0;
+  color: var(--tinta-1);
+  font-size: var(--texto-base);
+  font-weight: 550;
+}
+
+/* La pista se lee entera: truncada, «Si el navegador no lo deja, te…» no
+   decía nada. `anywhere` para la dirección de la lista M3U, que es una sola
+   palabra de 50 caracteres. */
+.ajustes-fila-pista {
+  margin: 0.2em 0 0;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.ajustes-fila-control {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+  margin: 0.35em 0 0.35em auto;
+}
+
+.ajustes-letra {
+  margin-right: 0.4em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ajustes-dato {
+  color: var(--tinta-3);
+  font-size: var(--texto-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* En el teléfono, las elecciones largas (tamaño, calidad, motor) van debajo y
+   a todo el ancho: repartidas en la línea se tocan mejor con el pulgar que
+   amontonadas a la derecha. Los interruptores siguen a la derecha. */
 @media (max-width: 680px) {
-  .ajustes {
-    padding-inline: var(--margen);
+  .ajustes-fila.is-ancho .ajustes-fila-control {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .ajustes-fila.is-ancho .ui-segmentado {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Cada opción mide lo que su palabra y reparte el sobrante; la «A» va
+     encima de su nombre, así las tres de tamaño caben a 320 px. A partes
+     iguales (`flex-basis: 0`) «Automática» se salía de su segmento. */
+  .ajustes-fila.is-ancho .ui-segmento {
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding-left: 0.4em;
+    padding-right: 0.4em;
+    white-space: normal;
+  }
+
+  .ajustes-fila.is-ancho .ajustes-letra {
+    margin: 0 0 0.15em;
   }
 }
 
@@ -3383,209 +3467,178 @@ body {
 }
 
 /* ── Mi enlace ───────────────────────────────────────────────────────
-   La tercera vía de reproducción, y la única con Ver en familia. Comparte el
-   lenguaje del resto: chips redondos, fondo sólido, objetivos de 44px. */
-.fuente {
-  width: min(1100px, 100%);
-  margin-inline: auto;
-}
+   La tercera vía de reproducción. Hecha con las primitivas: el margen lo pone
+   `ContenedorVista`, los campos son `Campo`, «Añadir» es `Boton` primario y
+   los mensajes, `Aviso`. Aquí queda el reparto del formulario y la lista. */
 
-.fuente .section-heading,
-.fuente .ficha-seccion {
-  padding-inline: 0;
-}
-
+/* Una columna en el teléfono (el botón a todo el ancho, fácil de acertar con
+   el pulgar) y una fila desde 760 px. Rejilla con `minmax(0, …)` para que el
+   campo del enlace encoja en vez de empujar «Añadir» fuera de la pantalla. */
 .fuente-alta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-gap: 14px;
+  align-items: end;
+  margin-bottom: 16px;
 }
 
-.fuente-campo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1 1 320px;
-  min-width: 0;
-  min-height: 54px;
-  padding: 0 18px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
-}
-
-.fuente-campo:focus-within {
-  border-color: rgba(255, 255, 255, 0.34);
-}
-
-.fuente-campo svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-.fuente-campo input,
-.fuente-nombre {
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: var(--texto-sm);
-  outline: none;
-}
-
-.fuente-campo input { flex: 1; }
-
-.fuente-nombre {
-  flex: 0 1 220px;
-  min-height: 54px;
-  padding: 0 18px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
-}
-
-.fuente-anadir {
-  flex-shrink: 0;
-  min-height: 54px;
-  padding: 0 clamp(20px, 1.8vw, 32px);
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0a0a0a;
-  font-size: var(--texto-sm);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.fuente-anadir:hover,
-.fuente-anadir:focus-visible { background: #e6e6e6; }
-
-.fuente-error,
-.fuente-aviso {
-  margin: 0 0 18px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: var(--texto-sm);
-}
-
-.fuente-error {
-  border: 1px solid rgba(255, 69, 58, 0.34);
-  background: rgba(255, 69, 58, 0.1);
+@media (min-width: 760px) {
+  .fuente-alta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 17em) auto;
+  }
 }
 
 .fuente-aviso {
-  border: 1px solid rgba(255, 205, 60, 0.3);
-  background: rgba(255, 205, 60, 0.08);
-  color: var(--gold, #ffcd3c);
+  margin-bottom: 18px;
 }
 
 .fuente-reproductor {
-  margin-bottom: clamp(28px, 4.5vh, 56px);
-}
-
-.fuente-reproductor h3 {
-  margin: 0 0 14px;
-  font-size: var(--texto-xl);
-  font-weight: 650;
+  margin: clamp(20px, 3vh, 36px) 0 clamp(28px, 4.5vh, 56px);
 }
 
 .fuente-marco.is-cargando {
   aspect-ratio: 16 / 9;
   width: 100%;
-  border-radius: clamp(12px, 1vw, 20px);
-  background: linear-gradient(135deg, #16181f, #0a0b0f);
+  border-radius: var(--radio-panel);
+  background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
 }
 
-.fuente-lista { display: grid; gap: 8px; }
+.fuente-guardados {
+  margin-top: clamp(28px, 4.5vh, 56px);
+}
+
+/* Lista agrupada, como la de Ajustes. Sin `overflow: hidden`: recortaría el
+   anillo de foco de la primera y la última fila. */
+.fuente-lista {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+}
 
 .fuente-fila {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  border-radius: 14px;
-  background: var(--chip, rgba(255, 255, 255, 0.05));
-  overflow: hidden;
+  align-items: center;
+  padding: 3px;
 }
 
-.fuente-fila.is-active {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.12);
+.fuente-fila + .fuente-fila {
+  border-top: 1px solid var(--borde-sutil);
 }
 
 .fuente-fila-abrir {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: 64px;
-  padding: 10px 14px;
+  min-height: calc(var(--control-md) + 16px);
+  padding: 0.5em 0.75em;
   border: 0;
+  border-radius: var(--radio-md);
   background: transparent;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.fuente-fila-abrir:hover,
-.fuente-fila-abrir:focus-visible { background: rgba(255, 255, 255, 0.08); }
-
-.fuente-fila-icono {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+@media (hover: hover) {
+  .fuente-fila-abrir:hover {
+    background: var(--relleno);
+  }
 }
 
-.fuente-fila-icono svg { width: 18px; height: 18px; }
+/* El foco de la fila, con el anillo de las primitivas. Dos reglas, nunca en
+   la misma lista (ver `ui.css`), y con especificidad para ganar al `outline`
+   rectangular de la regla general de `[data-nav]`. */
+.fuente-fila .fuente-fila-abrir[data-nav]:focus-visible {
+  outline: none;
+  background: var(--relleno);
+  box-shadow: var(--ui-anillo);
+}
 
-.fuente-fila-texto { min-width: 0; display: grid; gap: 3px; }
-.fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-input="dpad"] .fuente-fila .fuente-fila-abrir[data-nav]:focus {
+  outline: none;
+  background: var(--relleno);
+  box-shadow: var(--ui-anillo);
+}
+
+.fuente-fila-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5em;
+  height: 2.5em;
+  margin-right: 0.9em;
+  border-radius: 50%;
+  background: var(--relleno);
+  color: var(--tinta-2);
+}
+
+.fuente-fila-icono svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* Lo que suena: el icono con el acento. Es «elegido», no foco: nada de
+   anillo blanco aquí. */
+.fuente-fila.is-active .fuente-fila-icono {
+  background: var(--acento);
+  color: var(--acento-tinta);
+}
+
+.fuente-fila-texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuente-fila-texto strong,
 .fuente-fila-texto span {
-  font-size: var(--texto-2xs);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.fuente-fila-texto strong {
+  color: var(--tinta-1);
+  font-weight: 600;
+}
+
+.fuente-fila-texto span {
+  margin-top: 0.15em;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+}
+
 .fuente-clase {
   flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  font-style: normal;
+  margin-left: 0.75em;
+  padding: 0.25em 0.65em;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-2);
   font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-quitar {
-  flex-shrink: 0;
-  width: 56px;
-  border: 0;
-  border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  background: transparent;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-  cursor: pointer;
+  margin-left: 4px;
 }
 
-.fuente-quitar:hover,
-.fuente-quitar:focus-visible {
-  background: rgba(255, 69, 58, 0.16);
-  color: var(--red, #e74c3c);
+/* Quitar es tranquilo en reposo y avisa en rojo al apuntarlo. */
+@media (hover: hover) {
+  .fuente-fila .ui-boton.fuente-quitar:not(:disabled):hover {
+    background: var(--peligro-fondo);
+    color: var(--peligro);
+  }
 }
-
-.fuente-quitar svg { width: 18px; height: 18px; }
 
 /* ── La ficha en columnas ────────────────────────────────────────────
    Sinopsis y reparto en la ancha; la ficha técnica al lado. En una sola
@@ -3621,10 +3674,10 @@ body {
 .ficha-tecnica {
   min-width: 0;
   padding: clamp(20px, 1.8vw, 30px);
-  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.16));
-  border-radius: clamp(14px, 1.1vw, 20px);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+  box-shadow: var(--sombra-1);
 }
 
 /* Mismo tamaño que `.ficha-seccion h2`: antes era notablemente más chico y
@@ -3969,7 +4022,7 @@ body {
 }
 
 .ficha-episodio:focus-within {
-  border-color: rgba(255, 255, 255, 0.45);
+  border-color: var(--foco);
 }
 
 .ficha-episodio-abrir {
@@ -3994,14 +4047,14 @@ body {
   display: grid;
   place-items: center;
   opacity: 0;
-  background: rgba(0, 0, 0, 0.42);
-  transition: opacity 160ms var(--ease, ease);
+  background: var(--cristal);
+  transition: opacity var(--dur-media) var(--ease);
 }
 
 .ficha-episodio-play svg {
   width: 22px;
   height: 22px;
-  color: #fff;
+  color: var(--tinta-1);
 }
 
 @media (hover: hover) {
@@ -4042,14 +4095,14 @@ body {
 
 .ficha-episodio-visto:hover,
 .ficha-episodio-visto:focus-visible {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  border-color: var(--borde-fuerte);
+  color: var(--tinta-1);
 }
 
 .ficha-episodio-visto[aria-pressed="true"] {
   border-color: transparent;
-  background: rgba(0, 213, 136, 0.18);
-  color: var(--green, #00d588);
+  background: var(--exito-fondo);
+  color: var(--exito);
 }
 
 /* Un capítulo visto se apaga, pero **no se esconde ni se tacha**: sigue

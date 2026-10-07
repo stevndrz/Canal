@@ -1,23 +1,29 @@
-import { Compass } from "lucide-react";
-import { EstadoVacio } from "@/components/catalog/estado-vacio";
+import { Compass, House } from "lucide-react";
+import { Boton, PantallaMensaje } from "@/components/ui";
 
 /**
  * La 404 de la aplicación.
  *
  * Sin este archivo, Next sirve la suya: **texto negro sobre fondo blanco**, en
- * una app que es negra de arriba abajo. En un televisor, a oscuras, eso es un
- * fogonazo blanco a pantalla completa, y encima sin ninguna forma de volver
- * que no sea el botón Atrás del mando.
+ * una app que es oscura de arriba abajo. En un televisor, a oscuras, eso es un
+ * fogonazo blanco a pantalla completa.
+ *
+ * Y con el mando tiene que tener salida: aquí no hay armazón ni navegación
+ * espacial, así que `PantallaMensaje` pone el primer foco en «Ir al inicio»
+ * (en la tele), mueve las flechas y hace que Atrás vuelva a Inicio. Antes el
+ * foco se quedaba en `<body>` y ninguna tecla hacía nada.
  */
 export default function NoEncontrado() {
   return (
-    <main className="pantalla-mensaje">
-      <EstadoVacio
-        Icono={Compass}
-        titulo="Aquí no hay nada"
-        detalle="La página que buscabas no existe o cambió de sitio."
-        accion={{ href: "/", texto: "Ir al inicio" }}
-      />
-    </main>
+    <PantallaMensaje
+      icono={<Compass />}
+      titulo="Aquí no hay nada"
+      texto="La página que buscabas no existe o cambió de sitio. Pulsa Atrás o vuelve al inicio."
+      acciones={
+        <Boton href="/" variante="primario" tamano="lg" icono={<House />}>
+          Ir al inicio
+        </Boton>
+      }
+    />
   );
 }

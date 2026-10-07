@@ -2,4 +2,905 @@
    CanalCasa — primitivas de interfaz
    ═══════════════════════════════════════════════════════════════════════════
    Las piezas de `src/components/ui/`. Solo tokens de `shell.css`: ni un color
-   escrito a mano. Sin capa (ver la nota de `globals.css`). */
+   escrito a mano. Sin capa (ver la nota de `globals.css`).
+
+   Contrato de todas las piezas:
+   - La clase `ui` marca «esto es una primitiva»; el foco cuelga de ella.
+   - Variante y talla van en `data-variante` / `data-tamano`; el estado, en
+     ARIA (`aria-pressed`, `aria-checked`, `aria-current`, `disabled`). Una
+     sola fuente de verdad para lo que se pinta y lo que oye el lector.
+   - Solo se animan `transform` y `opacity`: en una tele de gama baja
+     cualquier otra cosa recalcula la maqueta en cada fotograma.
+   - Lo que se toca mide ≥ 48 px (`--control-md`). La talla `sm` dibuja 40
+     pero reserva 48 de área táctil con un `::after` invisible.
+   - Los huecos internos van con márgenes y no con `gap` en flex, que no
+     existe en los navegadores de tele anteriores a Chromium 84.
+
+   Orden: medidas propias · foco · botón · chip · segmentado · interruptor ·
+   campo · encabezado · aviso · estado vacío · contenedor · confirmación ·
+   accesibilidad. */
+
+/* ── Medidas propias ──────────────────────────────────────────────────────
+   Derivadas de los tokens, no colores nuevos. En la tele los controles crecen
+   con el ancho (`vw`, como la escala de texto): con 48 px fijos, un botón con
+   letra de 27 px quedaba apretado y a tres metros no se apuntaba. `max()`
+   para que una tele que declare 1280 de ancho no los encoja por debajo del
+   mínimo táctil. */
+:root {
+  --ui-alto-sm: var(--control-sm);
+  --ui-alto-md: var(--control-md);
+  --ui-alto-lg: var(--control-lg);
+  /* El anillo de foco: un hueco del color del fondo y luego el blanco. El
+     hueco separa el anillo del relleno del control, así se lee también
+     sobre el botón celeste. Con `box-shadow` y no `outline`: hasta Chromium
+     94 `outline` sale rectangular sobre una píldora. */
+  --ui-anillo-hueco: 3px;
+  --ui-anillo-grosor: 3px;
+  --ui-anillo: 0 0 0 var(--ui-anillo-hueco) var(--fondo),
+    0 0 0 calc(var(--ui-anillo-hueco) + var(--ui-anillo-grosor)) var(--foco);
+}
+
+:root[data-pantalla="tv"] {
+  --ui-alto-sm: max(var(--control-sm), 2.6vw);
+  --ui-alto-md: max(var(--control-md), 3.3vw);
+  --ui-alto-lg: max(var(--control-lg), 4vw);
+  --ui-anillo-hueco: max(3px, 0.18vw);
+  --ui-anillo-grosor: max(3px, 0.22vw);
+}
+
+/* ── Foco ─────────────────────────────────────────────────────────────────
+   Blanco siempre, sea cual sea el acento: a tres metros es lo único que dice
+   dónde está uno. «Elegido» (segmento, chip activo) se pinta con el acento,
+   así los dos realces no se confunden nunca.
+
+   Tres reglas separadas, NUNCA en la misma lista: un navegador que no
+   entiende un selector tira la regla entera, y Chromium < 86 no entiende
+   `:focus-visible`; si el selector del mando fuera con él, en esas teles no
+   habría foco ninguno.
+
+   `.ui.ui.ui` sube la especificidad por encima de la regla general de
+   `globals.css` (`[data-nav]:not(.media-card):not(input):focus-visible`),
+   que dibuja un `outline` rectangular y viene después en la hoja. */
+.ui.ui.ui:focus-visible {
+  outline: none;
+  box-shadow: var(--ui-anillo);
+  transform: var(--ui-escala-foco, none);
+  z-index: 1;
+}
+
+[data-input="dpad"] .ui.ui.ui:focus {
+  outline: none;
+  box-shadow: var(--ui-anillo);
+  transform: var(--ui-escala-foco, none);
+  z-index: 1;
+}
+
+/* Solo para `/sistema`: enseña el foco sin tener que enfocar. */
+.ui.ui.ui[data-estado="foco"] {
+  box-shadow: var(--ui-anillo);
+  transform: var(--ui-escala-foco, none);
+}
+
+/* Solo se anima lo que no recalcula la maqueta. Pisa la transición de color
+   que `globals.css` pone a todo `[data-nav]`. */
+.ui.ui {
+  transition: transform var(--dur-media) var(--ease), opacity var(--dur-media) var(--ease);
+}
+
+/* ── Botón ────────────────────────────────────────────────────────────── */
+.ui-boton {
+  --ui-alto: var(--ui-alto-md);
+  --ui-escala-foco: scale(1.04);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  max-width: 100%;
+  min-height: var(--ui-alto);
+  min-width: var(--ui-alto);
+  /* El alto crece con la letra (relleno en `em`): con «Muy grande» o en la
+     tele el texto no queda apretado contra el borde. */
+  padding: 0.5em 1.15em;
+  border: 1px solid transparent;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-1);
+  font: inherit;
+  font-size: var(--texto-base);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ui-boton[data-tamano="sm"] {
+  --ui-alto: var(--ui-alto-sm);
+  padding: 0.4em 1em;
+  font-size: var(--texto-sm);
+}
+
+.ui-boton[data-tamano="lg"] {
+  --ui-alto: var(--ui-alto-lg);
+  padding: 0.6em 1.45em;
+  font-size: var(--texto-lg);
+}
+
+/* La talla pequeña se dibuja en 40 px pero se toca en 48. */
+.ui-boton[data-tamano="sm"]::after,
+.ui-interruptor::after,
+.ui-campo-limpiar::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100%, var(--control-md));
+  height: max(100%, var(--control-md));
+  transform: translate(-50%, -50%);
+}
+
+.ui-boton.is-ancho {
+  display: flex;
+  width: 100%;
+}
+
+.ui-boton-icono {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.ui-boton-icono svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.ui-boton-icono + .ui-boton-texto,
+.ui-boton-texto + .ui-boton-icono {
+  margin-left: 0.5em;
+}
+
+.ui-boton-texto {
+  min-width: 0;
+}
+
+.ui-boton-redondo {
+  width: var(--ui-alto);
+  height: var(--ui-alto);
+  padding: 0;
+  border-radius: 50%;
+}
+
+.ui-boton[data-variante="primario"] {
+  background: var(--acento);
+  color: var(--acento-tinta);
+}
+
+.ui-boton[data-variante="secundario"] {
+  border-color: var(--borde);
+  background: var(--relleno);
+  color: var(--tinta-1);
+}
+
+.ui-boton[data-variante="fantasma"] {
+  background: transparent;
+  color: var(--tinta-2);
+}
+
+.ui-boton[data-variante="peligro"] {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+/* Pulsado (`aria-pressed`): «En favoritos», «Lista». Es un elegido, así que
+   lleva el acento, nunca el realce del foco. */
+.ui-boton[aria-pressed="true"] {
+  border-color: var(--acento-texto);
+  color: var(--acento-texto);
+}
+
+/* Hover solo donde hay puntero de verdad: en un teléfono, `:hover` se queda
+   pegado después de tocar y el botón parece seguir pulsado. */
+@media (hover: hover) {
+  .ui-boton[data-variante="primario"]:not(:disabled):not([aria-disabled="true"]):hover {
+    background: var(--acento-hover);
+  }
+  .ui-boton[data-variante="secundario"]:not(:disabled):not([aria-disabled="true"]):hover {
+    border-color: var(--borde-fuerte);
+    background: var(--relleno-hover);
+  }
+  .ui-boton[data-variante="fantasma"]:not(:disabled):not([aria-disabled="true"]):hover {
+    background: var(--relleno);
+    color: var(--tinta-1);
+  }
+  .ui-boton[data-variante="peligro"]:not(:disabled):not([aria-disabled="true"]):hover {
+    background: var(--peligro);
+    color: var(--fondo);
+  }
+}
+
+.ui-boton[data-variante="primario"][data-estado="hover"] { background: var(--acento-hover); }
+.ui-boton[data-variante="secundario"][data-estado="hover"] { border-color: var(--borde-fuerte); background: var(--relleno-hover); }
+.ui-boton[data-variante="fantasma"][data-estado="hover"] { background: var(--relleno); color: var(--tinta-1); }
+.ui-boton[data-variante="peligro"][data-estado="hover"] { background: var(--peligro); color: var(--fondo); }
+
+.ui-boton:not(:disabled):not([aria-disabled="true"]):active,
+.ui-boton[data-estado="activo"] {
+  transform: scale(0.96);
+}
+
+.ui-boton:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* Apagado pero enfocable (`Confirmacion` tras borrarlo todo): sin `opacity`,
+   que también apagaría el anillo blanco y a tres metros no se vería dónde
+   está el foco. Se apaga el relleno y la letra; el anillo sale entero. */
+.ui-boton[aria-disabled="true"] {
+  border-color: var(--borde-sutil);
+  background: var(--relleno-sutil);
+  color: var(--tinta-3);
+  cursor: not-allowed;
+}
+
+/* ── Chip ─────────────────────────────────────────────────────────────── */
+.ui-chip {
+  --ui-escala-foco: scale(1.04);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-height: var(--ui-alto-md);
+  padding: 0.35em 1.05em;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+  color: var(--tinta-2);
+  font: inherit;
+  font-size: var(--texto-sm);
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ui-chip-icono {
+  display: inline-flex;
+  margin-right: 0.45em;
+}
+
+.ui-chip-icono svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+/* El recuento a `--texto-2xs` y no en `em`: a .82em bajaba a 11,5 px en el
+   teléfono, por debajo del suelo de 12. */
+.ui-chip-contador {
+  margin-left: 0.55em;
+  padding: 0.1em 0.55em;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  font-size: var(--texto-2xs);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+@media (hover: hover) {
+  .ui-chip:hover {
+    background: var(--relleno-hover);
+    color: var(--tinta-1);
+  }
+}
+
+.ui-chip[data-estado="hover"] {
+  background: var(--relleno-hover);
+  color: var(--tinta-1);
+}
+
+/* Elegido: relleno de acento. Va después del hover para ganarle. */
+.ui-chip[aria-pressed="true"],
+.ui-chip[aria-current="true"] {
+  border-color: transparent;
+  background: var(--acento);
+  color: var(--acento-tinta);
+  font-weight: 600;
+}
+
+.ui-chip:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* ── Segmentado ───────────────────────────────────────────────────────────
+   Pista con esquinas y no píldora: si las opciones no caben (cuatro calidades
+   con «Muy grande» en un teléfono) pasan a otra línea, y una píldora partida
+   en dos filas parece rota. Un rectángulo redondeado aguanta las dos formas. */
+.ui-segmentado {
+  --ui-alto: var(--ui-alto-md);
+  display: inline-flex;
+  flex-wrap: wrap;
+  max-width: 100%;
+  padding: 2px;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-panel);
+  background: var(--relleno-sutil);
+}
+
+.ui-segmentado[data-tamano="sm"] { --ui-alto: var(--ui-alto-sm); }
+.ui-segmentado[data-tamano="lg"] { --ui-alto: var(--ui-alto-lg); }
+
+.ui-segmentado.is-ancho {
+  display: flex;
+  width: 100%;
+}
+
+.ui-segmento {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--ui-alto);
+  margin: 2px;
+  padding: 0.4em 1em;
+  border: 0;
+  border-radius: calc(var(--radio-panel) - 4px);
+  background: transparent;
+  color: var(--tinta-2);
+  font: inherit;
+  font-size: var(--texto-sm);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .ui-segmento[aria-checked="false"]:not(:disabled):hover {
+    background: var(--relleno-hover);
+    color: var(--tinta-1);
+  }
+}
+
+.ui-segmento[aria-checked="false"][data-estado="hover"] {
+  background: var(--relleno-hover);
+  color: var(--tinta-1);
+}
+
+.ui-segmento[aria-checked="true"] {
+  background: var(--acento);
+  color: var(--acento-tinta);
+  font-weight: 600;
+  box-shadow: var(--sombra-1);
+}
+
+.ui-segmento:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* ── Interruptor ──────────────────────────────────────────────────────────
+   El botón ES la pista (el anillo de foco la abraza) y el área táctil sale
+   del `::after` de arriba. El pomo se centra con flexbox —arriba y abajo
+   quedan iguales por construcción— y se mueve con `transform`. */
+.ui-interruptor {
+  --pista-alto: calc(var(--ui-alto-md) * 0.64);
+  --pomo: calc(var(--pista-alto) - 6px);
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  cursor: pointer;
+}
+
+.ui-interruptor-pista {
+  display: flex;
+  align-items: center;
+  width: calc(var(--pista-alto) * 1.66);
+  height: var(--pista-alto);
+  padding: 3px;
+  border-radius: var(--radio-pill);
+  background: var(--relleno-activo);
+  box-shadow: inset 0 0 0 1px var(--borde);
+}
+
+.ui-interruptor-pomo {
+  width: var(--pomo);
+  height: var(--pomo);
+  border-radius: 50%;
+  background: var(--tinta-2);
+  box-shadow: var(--sombra-1);
+  transition: transform var(--dur-media) var(--ease);
+}
+
+.ui-interruptor[aria-checked="true"] .ui-interruptor-pista {
+  background: var(--acento);
+  box-shadow: none;
+}
+
+/* Recorrido: ancho interior (1,66 × alto − 6) menos el pomo (alto − 6). */
+.ui-interruptor[aria-checked="true"] .ui-interruptor-pomo {
+  background: var(--acento-tinta);
+  transform: translateX(calc(var(--pista-alto) * 0.66));
+}
+
+@media (hover: hover) {
+  .ui-interruptor[aria-checked="false"]:not(:disabled):hover .ui-interruptor-pista {
+    background: var(--relleno-hover);
+    box-shadow: inset 0 0 0 1px var(--borde-fuerte);
+  }
+}
+
+.ui-interruptor[aria-checked="false"][data-estado="hover"] .ui-interruptor-pista {
+  background: var(--relleno-hover);
+  box-shadow: inset 0 0 0 1px var(--borde-fuerte);
+}
+
+.ui-interruptor:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+/* ── Campo ────────────────────────────────────────────────────────────── */
+.ui-campo-envoltorio {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ui-campo-etiqueta {
+  margin: 0 0 0.5em 0.2em;
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+}
+
+.ui-campo {
+  --ui-alto: var(--ui-alto-md);
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: var(--ui-alto);
+  padding: 0 0.3em 0 1.05em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+  color: var(--tinta-1);
+  /* 16 px como mínimo (`--texto-base`): por debajo, Safari en el iPhone
+     hace zoom al enfocar el campo y descoloca la pantalla. */
+  font-size: var(--texto-base);
+}
+
+.ui-campo[data-tamano="lg"] { --ui-alto: var(--ui-alto-lg); }
+
+.ui-campo-icono {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin-right: 0.65em;
+  color: var(--tinta-3);
+}
+
+.ui-campo-icono svg {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* `width: 0` + `flex: 1 1 0`: el input no impone su ancho de serie (unos
+   20 caracteres) y la píldora puede encoger hasta 320 px sin salirse. */
+.ui-campo-input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  min-height: calc(var(--ui-alto) - 2px);
+  margin: 0;
+  padding: 0 0.75em 0 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.ui-campo-input::placeholder {
+  color: var(--tinta-3);
+  opacity: 1;
+}
+
+/* La «x» nativa del campo de búsqueda sobra: está la nuestra, que se ve y se
+   alcanza con el mando. */
+.ui-campo-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ui-campo-limpiar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: calc(var(--ui-alto) - 10px);
+  height: calc(var(--ui-alto) - 10px);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--relleno);
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+
+.ui-campo-limpiar svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+@media (hover: hover) {
+  .ui-campo:hover {
+    border-color: var(--borde-fuerte);
+  }
+  .ui-campo-limpiar:hover {
+    background: var(--relleno-hover);
+    color: var(--tinta-1);
+  }
+}
+
+/* Foco en la píldora. Con ratón o dedo, borde blanco: se ve sin gritar
+   mientras se escribe. Con mando, el anillo completo, como todo lo demás. */
+.ui-campo:focus-within,
+.ui-campo[data-estado="foco"] {
+  border-color: var(--foco);
+  background: var(--relleno);
+}
+
+[data-input="dpad"] .ui-campo:focus-within {
+  box-shadow: var(--ui-anillo);
+}
+
+.ui-campo[data-invalido] {
+  border-color: var(--peligro);
+}
+
+.ui-campo-ayuda {
+  margin: 0.5em 0 0 0.2em;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  line-height: 1.4;
+}
+
+.ui-campo-ayuda[data-invalido] {
+  color: var(--peligro);
+}
+
+/* ── Encabezado ───────────────────────────────────────────────────────── */
+.ui-encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.ui-encabezado-textos {
+  flex: 1 1 16em;
+  min-width: 0;
+}
+
+.ui-encabezado-accion {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-left: 1em;
+}
+
+.ui-sobretitulo {
+  margin: 0 0 0.4em;
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+}
+
+.ui-encabezado-titulo {
+  margin: 0;
+  color: var(--tinta-1);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.ui-encabezado-descripcion {
+  margin: 0.45em 0 0;
+  color: var(--tinta-3);
+  font-size: var(--texto-sm);
+  line-height: 1.45;
+}
+
+.ui-encabezado[data-talla="pagina"] {
+  margin-bottom: clamp(22px, 3.4vh, 40px);
+}
+
+.ui-encabezado[data-talla="pagina"] .ui-encabezado-titulo {
+  font-size: var(--texto-3xl);
+  letter-spacing: -0.03em;
+}
+
+.ui-encabezado[data-talla="seccion"] {
+  margin-bottom: clamp(12px, 1.8vh, 20px);
+}
+
+.ui-encabezado[data-talla="seccion"] .ui-encabezado-titulo {
+  font-size: var(--texto-xl);
+  font-weight: 650;
+}
+
+/* Versalitas con un solo interletrado (había seis). */
+.ui-encabezado[data-talla="grupo"] {
+  margin-bottom: 0.7em;
+  padding-left: 0.25em;
+}
+
+.ui-encabezado[data-talla="grupo"] .ui-encabezado-titulo {
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Aviso ────────────────────────────────────────────────────────────── */
+.ui-aviso {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 0.85em 1em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+  background: var(--relleno);
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
+  line-height: 1.45;
+}
+
+.ui-aviso[data-tono="exito"] { background: var(--exito-fondo); }
+.ui-aviso[data-tono="aviso"] { background: var(--aviso-fondo); }
+.ui-aviso[data-tono="peligro"] { background: var(--peligro-fondo); }
+
+.ui-aviso-icono {
+  display: inline-flex;
+  flex-shrink: 0;
+  margin: 0.05em 0.75em 0 0;
+}
+
+.ui-aviso-icono svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.ui-aviso[data-tono="info"] .ui-aviso-icono { color: var(--info); }
+.ui-aviso[data-tono="exito"] .ui-aviso-icono { color: var(--exito); }
+.ui-aviso[data-tono="aviso"] .ui-aviso-icono { color: var(--aviso); }
+.ui-aviso[data-tono="peligro"] .ui-aviso-icono { color: var(--peligro); }
+
+.ui-aviso-cuerpo {
+  flex: 1 1 14em;
+  min-width: 0;
+}
+
+.ui-aviso-titulo {
+  margin: 0 0 0.15em;
+  font-weight: 650;
+}
+
+.ui-aviso-texto {
+  color: var(--tinta-2);
+}
+
+.ui-aviso-titulo + .ui-aviso-texto { margin-top: 0.1em; }
+.ui-aviso-cuerpo > .ui-aviso-texto:only-child { color: var(--tinta-1); }
+
+.ui-aviso-acciones {
+  display: flex;
+  align-items: center;
+  margin: -0.35em -0.3em -0.35em auto;
+  padding-left: 0.75em;
+}
+
+.ui-aviso-acciones > * + * {
+  margin-left: 0.4em;
+}
+
+/* ── Estado vacío ─────────────────────────────────────────────────────── */
+.ui-vacio {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: clamp(28px, 5vh, 56px) clamp(20px, 3vw, 44px);
+  border: 1px dashed var(--borde);
+  border-radius: var(--radio-panel);
+  color: var(--tinta-2);
+  text-align: center;
+}
+
+.ui-vacio-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75em;
+  height: 2.75em;
+  margin-bottom: 0.9em;
+  border-radius: 50%;
+  background: var(--relleno);
+  color: var(--tinta-2);
+  font-size: var(--texto-lg);
+}
+
+.ui-vacio-icono svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.ui-vacio-titulo {
+  margin: 0;
+  color: var(--tinta-1);
+  font-size: var(--texto-lg);
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.ui-vacio-texto {
+  max-width: 34em;
+  margin: 0.5em 0 0;
+  font-size: var(--texto-sm);
+  line-height: 1.5;
+}
+
+.ui-vacio-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 1.1em -0.3em -0.3em;
+}
+
+.ui-vacio-acciones > * {
+  margin: 0.3em;
+}
+
+/* A pantalla completa (404, error): sin marco y a escala de sofá. Solo, en
+   1920 × 1080 y a tres metros, un recuadro de lista con texto de 15 px se
+   perdía en negro. */
+.ui-vacio[data-talla="pantalla"] {
+  width: min(100%, 40em);
+  padding: 0;
+  border: 0;
+}
+
+.ui-vacio[data-talla="pantalla"] .ui-vacio-icono {
+  margin-bottom: 0.7em;
+  font-size: var(--texto-2xl);
+}
+
+.ui-vacio[data-talla="pantalla"] .ui-vacio-titulo {
+  font-size: var(--texto-3xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.ui-vacio[data-talla="pantalla"] .ui-vacio-texto {
+  margin-top: 0.6em;
+  font-size: var(--texto-lg);
+}
+
+.ui-vacio[data-talla="pantalla"] .ui-vacio-acciones {
+  margin-top: 1.6em;
+}
+
+/* ── Contenedor de vista ──────────────────────────────────────────────────
+   El margen va siempre; el ancho máximo se suma por dentro. `max()` con el
+   área segura para el iPhone en horizontal (la muesca a un lado). Pisa el
+   `padding` lateral de `.screen` y `.tv-safe` del armazón, que van en capa. */
+.ui-contenedor {
+  box-sizing: border-box;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: max(var(--margen), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--margen), env(safe-area-inset-right, 0px));
+}
+
+.ui-contenedor[data-ancho="medio"] {
+  max-width: calc(1100px + 2 * var(--margen));
+}
+
+.ui-contenedor[data-ancho="lectura"] {
+  max-width: calc(880px + 2 * var(--margen));
+}
+
+/* En la tele el texto mide en `vw`: el ancho de la columna también, o con la
+   letra de diez pies la columna de lectura se quedaba en dos palabras. */
+:root[data-pantalla="tv"] .ui-contenedor[data-ancho="medio"] {
+  max-width: calc(64vw + 2 * var(--margen));
+}
+
+:root[data-pantalla="tv"] .ui-contenedor[data-ancho="lectura"] {
+  max-width: calc(52vw + 2 * var(--margen));
+}
+
+/* ── Confirmación ─────────────────────────────────────────────────────── */
+.ui-confirmacion {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  max-width: 100%;
+  margin: -0.25em;
+}
+
+.ui-confirmacion-pregunta {
+  margin: 0.25em 0.5em;
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+}
+
+.ui-confirmacion-botones {
+  display: inline-flex;
+  flex-wrap: wrap;
+}
+
+.ui-confirmacion-botones > * {
+  margin: 0.25em;
+}
+
+/* ── Accesibilidad ────────────────────────────────────────────────────── */
+
+/* Solo para el lector de pantalla: fuera de la vista, pero en el árbol. */
+.ui-solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui.ui,
+  .ui-interruptor-pomo {
+    transition: none;
+  }
+  .ui.ui.ui:focus-visible { transform: none; }
+  [data-input="dpad"] .ui.ui.ui:focus { transform: none; }
+}
+
+/* Alto contraste del sistema (Windows): las sombras desaparecen, así que el
+   foco vuelve a `outline` con el color del sistema, y lo elegido se marca
+   con un borde que no dependa del relleno. */
+@media (forced-colors: active) {
+  .ui.ui.ui:focus-visible {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+  [data-input="dpad"] .ui.ui.ui:focus {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+  .ui-segmento[aria-checked="true"],
+  .ui-chip[aria-pressed="true"],
+  .ui-chip[aria-current="true"] {
+    outline: 2px solid SelectedItem;
+    outline-offset: -2px;
+  }
+  .ui-interruptor-pista {
+    border: 1px solid ButtonText;
+  }
+}
