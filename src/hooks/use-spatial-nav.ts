@@ -303,6 +303,15 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       document.documentElement.dataset.input === "dpad" ||
       (typeof navigator !== "undefined" && esTelevisorUA(navigator.userAgent));
     if (esPunteroTosco() && !esMando) return;
+    /**
+     * Con ratón y teclado, tampoco al cargar: Chrome pinta el anillo en un
+     * `.focus()` de guion mientras no haya habido un clic, y en el PC se veía
+     * un recuadro blanco alrededor de la marca nada más abrir Inicio
+     * (`focusVisible: false` no lo evita). No hace falta: la primera flecha
+     * entra por `focusIn`, que ya sabe arrancar sin foco, y el tabulador
+     * funciona como en cualquier web. Ya enfocado algo, sí se sigue.
+     */
+    if (!esMando && (!document.activeElement || document.activeElement === document.body)) return;
     const candidates = collect(root);
     const entrada = destinoDeEntrada(root, candidates);
     const active = document.activeElement as HTMLElement | null;

@@ -361,12 +361,16 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
  * La caducidad es por tiempo y no por contenido: comparar el texto obligaba a
  * descargar los 3 MB en cada visita solo para descubrir que no había cambiado.
  * Así, dentro de la ventana no se toca la red siquiera.
+ *
+ * El reloj es `performance.now()` y no `Date.now()`: para caducar algo dentro
+ * del mismo proceso basta un reloj monótono, y Next 16 marca `Date.now()`
+ * como valor inestable al prerenderizar (era el «1 Issue» de Inicio en dev).
  */
 let cachedPlaylist: { source: string; playlist: M3uPlaylist; expiresAt: number } | null = null;
 
 export async function loadM3uPlaylist(): Promise<M3uPlaylist> {
   const source = getM3uSourceUrl();
-  const fresh = cachedPlaylist?.source === source && cachedPlaylist.expiresAt > Date.now();
+  const fresh = cachedPlaylist?.source === source && cachedPlaylist.expiresAt > performance.now();
   if (fresh && cachedPlaylist) return cachedPlaylist.playlist;
 
   const m3uText = await fetchM3uText();
@@ -385,6 +389,6 @@ export async function loadM3uPlaylist(): Promise<M3uPlaylist> {
     channels: parseM3uChannels(m3uText),
     epgUrl: extractEpgUrl(m3uText),
   };
-  cachedPlaylist = { source, playlist, expiresAt: Date.now() + PLAYLIST_CACHE_MS };
+  cachedPlaylist = { source, playlist, expiresAt: performance.now() + PLAYLIST_CACHE_MS };
   return playlist;
 }
