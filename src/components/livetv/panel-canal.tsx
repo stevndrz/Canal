@@ -1,27 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { Play, Star, Tv } from "lucide-react";
+import { Maximize, Play, Star, Tv } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 import { describirCanal } from "@/lib/describir-canal";
 import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
+import { nombreDePais, paisDe } from "@/lib/origenes";
 
 /**
  * La columna de detalle de Canales: qué es este canal y qué están dando.
  *
- * Salió de `live-tv-view.tsx`, que pasaba de 500 líneas llevando tres cosas a
- * la vez —categorías, lista y esto—. Aquí no hay estado ni efectos: recibe el
- * canal y lo pinta.
+ * Solo existe desde 1.024 px (ver `shell.css`). Por debajo no hay sitio para
+ * dos columnas, y entre 681 y 1.023 px se pintaba al FINAL de la lista —a
+ * 4.878 px de alto— y huía cada vez que cargaban más filas.
+ *
+ * Aquí no hay estado ni efectos de datos: recibe el canal y lo pinta.
  */
 export function PanelCanal({
   canal,
+  sonando,
   esFavorito,
+  onSelect,
   onTune,
   onToggleFavorite,
 }: {
   canal: Channel | null;
+  /** Es el que ya está en el reproductor. */
+  sonando: boolean;
   esFavorito: boolean;
+  /** Ponerlo en el reproductor, sin pantalla completa: lo mismo que la fila. */
+  onSelect: (canal: Channel) => void;
+  /** Pantalla completa, pedida a propósito con su propio botón. */
   onTune: (canal: Channel) => void;
   onToggleFavorite: (id: number) => void;
 }) {
@@ -76,10 +86,13 @@ export function PanelCanal({
         )}
       </div>
 
+      {/* El nombre primero y grande; el dato debajo. Al revés —«102 ·
+          Guatemala» encima y el nombre al mismo tamaño— la jerarquía decía
+          que lo importante era el número. */}
+      <h2 className="livetv-detail-nombre">{canal.name}</h2>
       <p className="livetv-detail-group">
-        {canal.number} · {canal.category}
+        {[canal.number, nombreDePais(paisDe(canal)), canal.category].filter(Boolean).join(" · ")}
       </p>
-      <h2>{canal.name}</h2>
 
       {canal.currentProgram ? <EnEmision canal={canal} /> : <AcercaDelCanal canal={canal} />}
 
@@ -94,9 +107,18 @@ export function PanelCanal({
       )}
 
       <div className="livetv-detail-actions">
-        <button type="button" data-nav="button" className="primary" onClick={() => onTune(canal)}>
-          <Play size={17} fill="currentColor" /> Ver ahora
-        </button>
+        {/* «Ver ahora» hace lo mismo que tocar la fila —misma acción, mismo
+            efecto—: lo pone arriba. Antes saltaba a pantalla completa por su
+            cuenta. Con el canal ya sonando, el botón ofrece eso, y lo dice. */}
+        {sonando ? (
+          <button type="button" data-nav="button" className="primary" onClick={() => onTune(canal)}>
+            <Maximize aria-hidden="true" /> Pantalla completa
+          </button>
+        ) : (
+          <button type="button" data-nav="button" className="primary" onClick={() => onSelect(canal)}>
+            <Play aria-hidden="true" fill="currentColor" /> Ver ahora
+          </button>
+        )}
         <button
           type="button"
           data-nav="button"
@@ -104,8 +126,8 @@ export function PanelCanal({
           aria-pressed={esFavorito}
           onClick={() => onToggleFavorite(canal.id)}
         >
-          <Star size={17} fill={esFavorito ? "currentColor" : "none"} />
-          {esFavorito ? "En favoritos" : "Favorito"}
+          <Star aria-hidden="true" fill={esFavorito ? "currentColor" : "none"} />
+          {esFavorito ? "En Mis canales" : "A Mis canales"}
         </button>
       </div>
     </aside>
@@ -147,8 +169,10 @@ function EnEmision({ canal }: { canal: Channel }) {
 
 /**
  * Sin guía, se cuenta lo que sí se sabe del canal en vez de dejar la columna
- * vacía. Todo se deriva en el cliente: cero peticiones y cero bytes de más en
- * los 7.822 canales que viajan en el HTML.
+ * vacía. Todo se deriva en el cliente: cero peticiones y cero bytes de más.
+ *
+ * Sin la nota «Este canal no publica guía»: salía en 4.815 de 4.816 canales,
+ * y un aviso que sale siempre no avisa de nada.
  */
 function AcercaDelCanal({ canal }: { canal: Channel }) {
   const { descripcion, datos } = describirCanal(canal);
@@ -157,16 +181,16 @@ function AcercaDelCanal({ canal }: { canal: Channel }) {
     <div className="livetv-acerca">
       <p className="livetv-acerca-texto">{descripcion}</p>
 
-      <dl className="livetv-acerca-datos">
-        {datos.map(({ termino, valor }) => (
-          <div key={termino}>
-            <dt>{termino}</dt>
-            <dd>{valor}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="livetv-acerca-nota">Este canal no publica guía de programación.</p>
+      {datos.length > 0 && (
+        <dl className="livetv-acerca-datos">
+          {datos.map(({ termino, valor }) => (
+            <div key={termino}>
+              <dt>{termino}</dt>
+              <dd>{valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </div>
   );
 }

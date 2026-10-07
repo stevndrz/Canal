@@ -1,5 +1,7 @@
 import * as iptvParser from "iptv-playlist-parser";
 import { classifyChannel, compareByCategory, priorityRank } from "./categories";
+import { temaDeCanal } from "./temas";
+import { paisDeCanal } from "./origenes";
 import { normalizeText } from "./text";
 import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
@@ -21,8 +23,20 @@ import { paraRegistro } from "./url-segura";
  * servidor para cruzar con la guía EPG (`findProgrammes` en `epg.ts`) y
  * `empaquetarCanales` no lo copia a la tupla que sí llega al navegador, así
  * que añadirlo aquí no pesa nada en el cliente.
+ *
+ * `tema` y `pais` tampoco son campos de `Channel`: viajan como un par por
+ * combinación en el paquete (ver `ParEmpaquetado`), no uno por canal. Y aquí
+ * `category` sigue siendo la categoría de NUMERACIÓN de siempre —de ella
+ * salen el orden, la posición (el `id` de los favoritos), el número y la clave
+ * de fusión—: cambiarla es renumerar, y eso lo decide el dueño.
  */
-export type ParsedChannel = Omit<Channel, "id" | "number"> & { tvgId: string };
+export type ParsedChannel = Omit<Channel, "id" | "number"> & {
+  tvgId: string;
+  /** De qué va, según `group-title` y, si no lo dice, el nombre. Ver `temas.ts`. */
+  tema: string;
+  /** Código ISO de dos letras, o vacío. Ver `origenes.ts`. */
+  pais: string;
+};
 
 export interface M3uPlaylist {
   channels: ParsedChannel[];
@@ -321,7 +335,12 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
     const clave = claveNombre(name, category);
     const existente = porNombre.get(clave);
     if (!existente) {
-      const canal: ParsedChannel = { name, category, logoUrl, streamUrl, tvgId };
+      // El tema y el país se leen de la lista, y solo del primero de cada
+      // fusión: la clave de fusión no cambia (ver arriba), así que un
+      // respaldo de otro país sigue colgando del primero como hasta ahora.
+      const tema = temaDeCanal({ nombre: name, grupo: group });
+      const pais = paisDeCanal({ nombre: name, tvgCountry: item.tvg?.country ?? "", tvgId });
+      const canal: ParsedChannel = { name, category, logoUrl, streamUrl, tvgId, tema, pais };
       porNombre.set(clave, canal);
       enOrden.push(canal);
       continue;

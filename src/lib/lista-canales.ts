@@ -2,9 +2,12 @@ import "server-only";
 
 import { loadM3uPlaylist, type ParsedChannel } from "@/lib/m3u";
 import { fetchEpg, getEpgEntry } from "@/lib/epg";
-import { empaquetarCanales, type PaqueteCanales } from "@/lib/canales-empaquetados";
+import {
+  empaquetarCanales,
+  type CanalDeOrigen,
+  type PaqueteCanales,
+} from "@/lib/canales-empaquetados";
 import { serverConfig } from "@/lib/config.server";
-import type { Channel } from "@/lib/types";
 
 /**
  * La lista de canales, lista para cruzar el cable.
@@ -55,11 +58,14 @@ export async function paqueteDeCanales(): Promise<{ paquete: PaqueteCanales; jso
  * `"$undefined"`. Con tres campos de guía por canal eso eran unos 90 bytes ×
  * 7.822 = **700 KB de decir «aquí no hay nada»**. Sin guía configurada, que es
  * el caso por defecto, las cinco claves desaparecen.
+ *
+ * Devuelve `CanalDeOrigen` y no `Channel`: lleva todavía el tema y el país,
+ * que `empaquetarCanales` convierte en pares (ver `ParEmpaquetado`).
  */
 async function conProgramacion(
   canales: ParsedChannel[],
   epgDeLaLista: string | null,
-): Promise<Omit<Channel, "id" | "number">[]> {
+): Promise<CanalDeOrigen[]> {
   // La guía es opcional: si la lista M3U no referencia ninguna y no hay EPG_URL
   // configurada, la app funciona igual, solo sin horarios.
   // Cuál de las dos se usa decide también cuánto se la comprueba: la de

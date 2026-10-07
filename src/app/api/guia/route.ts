@@ -113,8 +113,17 @@ export async function GET(request: Request) {
       );
     });
 
+    /**
+     * «Hay guía» quiere decir que hay algo que enseñar, no que exista un XMLTV.
+     * La lista por defecto trae `x-tvg-url` y esa guía casa con UN canal de
+     * 4.816 (Al Jazeera English): respondiendo `true` la parrilla salía como
+     * una rejilla vacía presentada como si funcionara. Sin un solo programa
+     * para estos canales, se dice la verdad y la parrilla lo explica.
+     */
+    const hayGuia = programas.some((lista) => lista.length > 0);
+
     return Response.json(
-      { programas, hayGuia: true },
+      { programas, hayGuia },
       {
         // Cinco minutos, igual que la lista: la guía en memoria dura diez y los
         // programas duran media hora larga. Nadie nota el desfase.
