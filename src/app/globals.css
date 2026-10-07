@@ -2806,7 +2806,11 @@ body {
 .guia {
   position: absolute;
   inset: auto 0 0;
-  z-index: 20;
+  /* Entre el velo de los controles (25) y su capa (30): por debajo del velo,
+     el degradado oscuro de abajo apagaba la guía entera mientras se veían los
+     controles. La capa sigue encima, pero con la guía abierta solo enseña la
+     fila de arriba y no recibe toques fuera de sus botones. */
+  z-index: 28;
   /* Abajo ya no hay barra que esquivar: los controles subieron al centro y
      arriba (ver `controles-vivo.tsx`). Solo el margen seguro del televisor. */
   padding: clamp(16px, 2.4vh, 28px) 0 clamp(28px, 5vh, 64px);
