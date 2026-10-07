@@ -100,7 +100,7 @@
   --radius-tile: 14px;
   --radius-card: 20px;
 
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font-sans: var(--font-figtree), -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /**
@@ -140,7 +140,9 @@
   }
 
   body {
-    color: var(--color-accent);
+    /* La tinta, no el acento: con un acento de color, todo el texto heredado
+       saldría celeste. */
+    color: var(--tinta-1);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -230,11 +232,11 @@
      que al menos las opciones se declaran oscuras. */
   option {
     background-color: var(--color-surface-2);
-    color: var(--color-accent);
+    color: var(--tinta-1);
   }
 
-  a { color: var(--color-accent); text-decoration: none; }
-  a:hover { color: var(--muted); }
+  a { color: var(--tinta-1); text-decoration: none; }
+  a:hover { color: var(--tinta-2); }
 }
 
 /* La ventana scrollea, salvo durante la reproducción: si la página puede
@@ -261,7 +263,9 @@ html[data-player="on"] body {
    (borde + halo en `.catalogo-buscador-campo`). */
 [data-nav]:not(.media-card):not(input):focus-visible,
 [data-input="dpad"] [data-nav]:not(.media-card):not(input):focus {
-  outline: 3px solid var(--color-accent);
+  /* Blanco siempre, sea cual sea el acento: el foco es lo único que dice
+     dónde está el mando a tres metros. */
+  outline: 3px solid var(--foco);
   outline-offset: 3px;
 }
 
@@ -1839,11 +1843,11 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.08) 0%,
-    rgba(0, 0, 0, 0.2) 42%,
-    rgba(0, 0, 0, 0.5) 70%,
-    rgba(0, 0, 0, 0.85) 88%,
-    #000 98%
+    rgba(var(--fondo-rgb), 0.08) 0%,
+    rgba(var(--fondo-rgb), 0.2) 42%,
+    rgba(var(--fondo-rgb), 0.5) 70%,
+    rgba(var(--fondo-rgb), 0.85) 88%,
+    var(--fondo) 98%
   );
 }
 
@@ -2329,7 +2333,7 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 .servidor.is-active {
-  background: #fff;
+  background: var(--acento);
   border-color: transparent;
   color: #0a0a0a;
 }
@@ -2565,9 +2569,9 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 .paginador-numero.is-active {
-  background: #fff;
-  border-color: #fff;
-  color: #000;
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
 }
 
 .paginador-flecha svg {
@@ -3048,9 +3052,9 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 .catalogo-chip.is-active {
-  background: #fff;
-  border-color: #fff;
-  color: #000;
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
   font-weight: 600;
 }
 

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Figtree, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
@@ -7,21 +7,28 @@ import { GUION_ARRANQUE_PANTALLA } from "@/lib/tamano-texto";
 import "./globals.css";
 
 /**
- * Inter es la tipografía del lenguaje visual de CanalCasa.
+ * Figtree es la tipografía del lenguaje visual de CanalCasa.
+ *
+ * Sustituye a Inter, que es correcta pero genérica. Se eligió probando cinco
+ * candidatas sobre la app real (Inter, Plus Jakarta Sans, Onest, Manrope,
+ * Figtree): Figtree es cálida y redondeada sin ser infantil, tiene la x alta,
+ * la «a» y la «g» abiertas y el «1» con asta (no se confunde con la «l»), y
+ * cifras tabulares para relojes y números de canal. Plus Jakarta Sans quedó
+ * fuera por los espacios: con el interletrado negativo de la app se leía
+ * «Canal7» y «Cineyseries» a tamaño pequeño.
  *
  * Detalle que hay que cuidar: declararla en `font-family` no basta — sin
- * `@font-face` o un enlace a Google Fonts solo se ve en equipos que ya la
- * tengan instalada. Aquí se carga de verdad y se autoaloja, que además evita
- * la petición a un tercero.
+ * `@font-face` solo se ve en equipos que ya la tengan instalada. Aquí se
+ * carga de verdad y se autoaloja, que además evita la petición a un tercero.
  *
- * Se expone como variable CSS en vez de como clase para que `--font-sans`
- * pueda encadenarla con los respaldos del sistema: si la fuente tarda o falla,
- * el texto sigue leyéndose con la del dispositivo.
+ * Se expone como variable CSS para que `--font-sans` pueda encadenarla con
+ * los respaldos del sistema: si la fuente tarda o falla, el texto sigue
+ * leyéndose con la del dispositivo.
  */
-const inter = Inter({
+const figtree = Figtree({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-figtree",
 });
 
 /**
@@ -70,7 +77,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#09090b",
+  themeColor: "#060a14",
   colorScheme: "dark",
   /**
    * Sin `viewportFit: "cover"`, `env(safe-area-inset-*)` vale siempre 0 en iOS.
@@ -88,7 +95,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       data-input="pointer"
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${figtree.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

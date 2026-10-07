@@ -115,7 +115,7 @@ export function BuscarView({
                  botón se vea correcto y esté al alcance del mando; la pasada
                  de diseño de verdad es suya. */
               className={`shrink-0 rounded-full p-2 transition-colors ${
-                escuchando ? "bg-accent text-black" : "text-muted hover:text-white"
+                escuchando ? "bg-acento text-acento-tinta" : "text-muted hover:text-white"
               }`}
               aria-pressed={escuchando}
               aria-label={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
