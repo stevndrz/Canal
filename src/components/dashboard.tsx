@@ -7,11 +7,19 @@ import type { Channel, ViewId } from "@/lib/types";
 import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
 import {
-  CATEGORY_ORDER,
+  ampliarTramo,
+  buscarUltimo,
+  cadenaDeZapeo,
   canalDeArranque,
   canalesDeCasa,
-  filterChannels,
+  canalesDelTramo,
+  stepChannel,
+  tramoDeCanal,
+  type SeccionZapeo,
+  type TramoZapeo,
 } from "@/lib/channels";
+import { indexarCanales, normalizarCasa, unirMisCanales } from "@/lib/secciones-canales";
+import { publicConfig } from "@/lib/config";
 import {
   claveDeCanal,
   estaCaido,
@@ -184,8 +192,14 @@ export function Dashboard({
   const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   /** Para no pisar al canal que la persona haya elegido mientras esto llegaba. */
   const arranqueAplicado = useRef(false);
-  const [category, setCategory] = useState("Todas");
-  const [search, setSearch] = useState("");
+  /**
+   * Lo escrito en Buscar, y solo eso. Antes había UNA búsqueda y UNA categoría
+   * para toda la app: lo elegido en Canales filtraba Buscar («guate» no
+   * encontraba nada con «Internacional» puesto allí) y el zapeo desde Inicio.
+   * Canales lleva su tema y su búsqueda dentro; esta vive aquí solo para que
+   * no se borre al ir y volver de la pestaña.
+   */
+  const [busqueda, setBusqueda] = useState("");
   /** Los ajustes se guardan en el aparato: la tele de casa se configura una vez. */
   const [settings, patchSettings] = usePersistedJson("canalcasa:ajustes", DEFAULT_PLAYBACK);
 
@@ -202,13 +216,30 @@ export function Dashboard({
   const favorites = usePersistedSet("canalcasa:favorites");
   const recents = usePersistedRecents("canalcasa:recents");
 
+  /**
+   * ¿Ya está aquí la lista entera? Sin recorte, el HTML la traía toda. Con
+   * él, hasta que llega `/api/canales`.
+   */
+  const listaCompleta = !paquete.recorte || completo !== null;
+
+  /**
+   * Abrir en el último canal visto, en cuanto se sepa cuál es y esté en la
+   * lista. Si el guardado no venía en el recorte del HTML NO se da por hecho:
+   * antes sí, y con wifi flojo la tele abría siempre en Canal 7 aunque cuatro
+   * segundos después llegara la lista con el canal de anoche. Ahora se espera
+   * a la lista completa; solo con ella en la mano se rinde.
+   */
   useEffect(() => {
     if (arranqueAplicado.current || !ultimo.nombre || channels.length === 0) return;
-    arranqueAplicado.current = true;
-    const destino = canalDeArranque(channels, ultimo);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (destino) setTunedId(destino);
-  }, [ultimo, channels]);
+    const guardado = buscarUltimo(channels, ultimo);
+    if (guardado !== null) {
+      arranqueAplicado.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTunedId(guardado);
+    } else if (listaCompleta) {
+      arranqueAplicado.current = true;
+    }
+  }, [ultimo, channels, listaCompleta]);
 
   useRemoteInput();
 
@@ -218,18 +249,19 @@ export function Dashboard({
   );
 
   /**
-   * Lista visible: alimenta Canales, la búsqueda y el zapeo. Los caídos bajan
-   * al final sin desaparecer — con el mando dejas de pasar por los muertos.
+   * Todos los canales con los caídos al final, sin desaparecer: con el mando
+   * dejas de pasar por los muertos. Ya no la recorta ningún filtro del shell
+   * (ver `busqueda`): alimenta Canales, que se organiza por dentro, y Buscar.
    */
   const visible = useMemo(
     () =>
       ordenarPorSalud(
-        filterChannels(channels, { search, category }),
+        channels,
         caidos.mapa,
         // eslint-disable-next-line react-hooks/purity -- el reloj decide qué ha caducado
         Date.now(),
       ),
-    [channels, search, category, caidos],
+    [channels, caidos],
   );
 
   /**
@@ -277,16 +309,76 @@ export function Dashboard({
   );
 
   /**
-   * Las categorías y sus recuentos salen del paquete: así la columna dice
-   * «Deportes 1.240» desde el primer fotograma aunque solo hayan viajado
-   * veinte, y se ahorran dos recorridos de 7.822 elementos por cambio.
+   * Los recuentos salen del paquete: así Canales dice «Ver los 527 de
+   * Sudamérica» desde el primer fotograma aunque solo hayan viajado veinte.
    */
-  const categories = useMemo(
-    () => ["Todas", ...CATEGORY_ORDER.filter((item) => datos.categorias.includes(item))],
-    [datos],
+  const recuentos = useMemo(() => recuentosDe(datos), [datos]);
+
+  /* ── Contexto de zapeo ────────────────────────────────────────────────
+   *
+   * Qué recorren ↑/↓ y Canal+/− a pantalla completa, ⏮/⏭ en el reproductor
+   * de arriba y la guía. Antes era la lista entera (o la filtrada por
+   * Canales), con vuelta al llegar al final: al arrancar la tele en Canal 7,
+   * ↑↑ llevaba a un canal chino, el último de 4.816. Ahora es la sección
+   * desde la que se eligió el canal (o los resultados de Buscar), y al
+   * llegar a su final se suma la siguiente, nunca se da la vuelta. Al
+   * arrancar: «Mis canales y Guatemala». Ver `channels.ts`. */
+
+  const casaNormalizada = useMemo(() => normalizarCasa(publicConfig.canalesDeCasa), []);
+  const misCanales = useMemo(
+    () => unirMisCanales(deLaCasa, visible.filter((canal) => favorites.ids.has(canal.id))),
+    [deLaCasa, visible, favorites.ids],
+  );
+  /** La cadena fija de secciones; se rehace al llegar la lista o cambiar un caído. */
+  const cadena = useMemo(
+    () => cadenaDeZapeo(indexarCanales(visible, casaNormalizada), misCanales, idsCaidos),
+    [visible, casaNormalizada, misCanales, idsCaidos],
   );
 
-  const recuentos = useMemo(() => recuentosDe(datos), [datos]);
+  /**
+   * `lista`: una lista suelta como contexto (los resultados de Buscar), por
+   * ids para que sobreviva a la llegada de la lista completa. `tramo`: qué
+   * secciones van en juego; `null` = «la del canal que suena».
+   */
+  const [zapeo, setZapeo] = useState<{
+    lista: { titulo: string; ids: number[] } | null;
+    tramo: TramoZapeo | null;
+  }>({ lista: null, tramo: null });
+
+  const secciones = useMemo<SeccionZapeo[]>(() => {
+    if (!zapeo.lista) return cadena;
+    const porId = new Map(channels.map((canal) => [canal.id, canal]));
+    const canales = zapeo.lista.ids
+      .map((id) => porId.get(id))
+      .filter((canal): canal is Channel => Boolean(canal));
+    return [{ clave: "lista", titulo: zapeo.lista.titulo, canales }];
+  }, [zapeo.lista, cadena, channels]);
+
+  /**
+   * El contexto en uso: las secciones, el tramo y su lista ya aplanada (lo que
+   * reciben el reproductor y la guía). Si el canal que suena no está en él
+   * —una lista de Buscar que ya no lo trae—, el de su sección de siempre.
+   */
+  const contexto = useMemo(() => {
+    if (!tuned) return { secciones: cadena, tramo: { desde: 0, hasta: 0 }, lista: [] as Channel[] };
+    /**
+     * `ampliarTramo` también aquí y no solo al zapear: si se ELIGE el último
+     * canal de una sección (el último de Guatemala en Canales), el tramo
+     * deducido acaba justo en él y la primera ↓ no tenía siguiente —ni el
+     * reproductor ni la guía—: flecha muerta. Ampliado, ↓ sigue por la
+     * sección vecina como cuando se llega zapeando.
+     */
+    const base = zapeo.tramo ?? tramoDeCanal(secciones, tuned.id);
+    if (base) {
+      const tramo = ampliarTramo(secciones, base, tuned.id);
+      const lista = canalesDelTramo(secciones, tramo);
+      if (lista.some((canal) => canal.id === tuned.id)) return { secciones, tramo, lista };
+    }
+    const deducido = tramoDeCanal(cadena, tuned.id);
+    const propio = deducido ? ampliarTramo(cadena, deducido, tuned.id) : { desde: 0, hasta: 0 };
+    const lista = canalesDelTramo(cadena, propio);
+    return { secciones: cadena, tramo: propio, lista: lista.length > 0 ? lista : [tuned] };
+  }, [tuned, zapeo.tramo, secciones, cadena]);
 
   const navigate = useCallback((next: ViewId) => {
     setView(next);
@@ -304,7 +396,9 @@ export function Dashboard({
    * cambio que afectaba a una fila. Medido: 121 renders pasaron a 1.
    */
   const anotarReciente = recents.push;
-  const select = useCallback(
+
+  /** Poner un canal: lo que hacen todas las rutas, se elija o se zapee. */
+  const sintonizar = useCallback(
     (channel: Channel) => {
       setTunedId(channel.id);
       anotarReciente(channel.id);
@@ -313,6 +407,18 @@ export function Dashboard({
       guardarUltimo({ id: channel.id, nombre: channel.name });
     },
     [anotarReciente, guardarUltimo],
+  );
+
+  /**
+   * Elegir un canal (Inicio, Canales, el marcado): su contexto pasa a ser su
+   * sección, que se deduce del propio canal (`tramo: null`).
+   */
+  const select = useCallback(
+    (channel: Channel) => {
+      sintonizar(channel);
+      setZapeo({ lista: null, tramo: null });
+    },
+    [sintonizar],
   );
 
   /** Sintonizar y ocupar la pantalla. Es lo que se pide desde la lista. */
@@ -324,16 +430,57 @@ export function Dashboard({
     [select],
   );
 
-  /** Zapear dentro de lo que se está mirando, en un sentido u otro. */
+  /**
+   * Ampliar el reproductor de arriba: el mismo canal a pantalla completa, sin
+   * tocar el contexto. Con `tune` se reiniciaba, y lo que se venía zapeando
+   * con ⏭ (una búsqueda, Centroamérica) se perdía al ampliar.
+   */
+  const expandir = useCallback(
+    (channel: Channel) => {
+      sintonizar(channel);
+      setView("player");
+    },
+    [sintonizar],
+  );
+
+  /**
+   * Desde Buscar: el contexto son los resultados, en su orden. ↓ recorre lo
+   * que se buscó, no la sección del canal.
+   */
+  const tuneDesdeBusqueda = useCallback(
+    (channel: Channel, resultados: Channel[], titulo: string) => {
+      sintonizar(channel);
+      setZapeo({ lista: { titulo, ids: resultados.map((canal) => canal.id) }, tramo: { desde: 0, hasta: 0 } });
+      setView("player");
+    },
+    [sintonizar],
+  );
+
+  /**
+   * Zapear deja el contexto donde está y, si se llegó a un extremo, le suma la
+   * sección vecina (`ampliarTramo`). Lo usan ⏮/⏭ del reproductor de arriba y
+   * la pantalla completa, que antes ni siquiera recordaba el último canal.
+   */
+  const alZapear = useCallback(
+    (channel: Channel) => {
+      sintonizar(channel);
+      const mismas = contexto.secciones === secciones;
+      setZapeo((actual) => ({
+        lista: mismas ? actual.lista : null,
+        tramo: ampliarTramo(contexto.secciones, contexto.tramo, channel.id),
+      }));
+    },
+    [sintonizar, contexto, secciones],
+  );
+
+  /** Zapear dentro del contexto, en un sentido u otro, sin dar la vuelta. */
   const zap = useCallback(
     (delta: number) => {
-      if (!tunedId) return;
-      const lista = visible.length > 0 ? visible : channels;
-      const actual = lista.findIndex((channel) => channel.id === tunedId);
-      const destino = lista[(actual + delta + lista.length) % lista.length];
-      if (destino) select(destino);
+      if (!tuned) return;
+      const destino = stepChannel(contexto.lista, tuned.id, delta);
+      if (destino) alZapear(destino);
     },
-    [tunedId, visible, channels, select],
+    [tuned, contexto.lista, alZapear],
   );
 
   /**
@@ -398,9 +545,24 @@ export function Dashboard({
 
   // Un mando no tiene Tab: sin nada enfocado las flechas no tienen desde dónde
   // partir y parece que no responde. Se espera a que la vista nueva monte.
+  //
+  // Y a que llegue su trozo de código: Canales y Buscar se cargan aparte
+  // (`vista-activa.tsx`), y a los 60 ms todavía puede estar el hueco de
+  // «cargando», sin la entrada (`data-nav-entrada`) a la que ir. Se reintenta
+  // mientras se vea ese hueco, con tope, en vez de dejar el foco en la barra.
   useEffect(() => {
     if (view === "player") return undefined;
-    const id = window.setTimeout(focusFirst, 60);
+    let intentos = 0;
+    let id = 0;
+    const intentar = () => {
+      const cargando = shellRef.current?.querySelector("[data-vista-cargando]");
+      if (cargando && intentos++ < 40) {
+        id = window.setTimeout(intentar, 80);
+        return;
+      }
+      focusFirst();
+    };
+    id = window.setTimeout(intentar, 60);
     return () => window.clearTimeout(id);
   }, [view, focusFirst]);
 
@@ -438,10 +600,14 @@ export function Dashboard({
 
       {/* Lo que se está marcando, grande y arriba a la derecha, como en un
           televisor. Sin esto el marcado es invisible y no se sabe si el mando
-          registró la tecla. `aria-live` para que también se anuncie. */}
+          registró la tecla. `aria-live` para que también se anuncie.
+
+          En la capa de diálogo (70) y no en la 50: la barra va en la 60 y,
+          con la página desplazada, «Sin canal» asomaba por detrás de ella.
+          Cristal SIN desenfoque: a pantalla completa va encima del vídeo. */}
       {(marcado || noExiste) && (
         <div
-          className="pointer-events-none fixed right-6 top-6 z-50 rounded-xl bg-black/85 px-5 py-3 font-mono text-3xl tabular-nums tracking-widest text-white ring-1 ring-white/20"
+          className="pointer-events-none fixed right-6 top-6 z-[var(--capa-dialogo)] rounded-[var(--radio-md)] bg-[var(--cristal-fuerte)] px-5 py-3 font-mono text-3xl tabular-nums tracking-widest text-tinta-1 shadow-[var(--sombra-2)] ring-1 ring-[var(--borde-fuerte)]"
           role="status"
           aria-live="polite"
         >
@@ -457,7 +623,7 @@ export function Dashboard({
             <LiveCard
               channel={tuned}
               settings={settings}
-              onExpand={tune}
+              onExpand={expandir}
               onNext={() => zap(1)}
               onPrev={() => zap(-1)}
               onSilencio={recordarSilencio}
@@ -476,17 +642,15 @@ export function Dashboard({
           catalog={catalog}
           deLaCasa={deLaCasa}
           idsCaidos={idsCaidos}
-          categories={categories}
           recuentos={recuentos}
           totalCanales={datos.total}
-          category={category}
-          search={search}
+          busqueda={busqueda}
           settings={settings}
           m3uSource={M3U_SOURCE}
-          onCategoryChange={setCategory}
-          onSearchChange={setSearch}
+          onBusquedaChange={setBusqueda}
           onSelect={select}
           onTune={tune}
+          onTuneDesdeBusqueda={tuneDesdeBusqueda}
           onPatchSettings={patchSettings}
         />
       </section>
@@ -494,12 +658,11 @@ export function Dashboard({
       {view === "player" && tuned && (
         <FullscreenPlayer
           channel={tuned}
-          playlist={visible.length > 0 ? visible : channels}
+          // El contexto de zapeo, no la lista entera: lo que recorren ↑/↓ y
+          // lo que enseña la guía. Ver `contexto`.
+          playlist={contexto.lista}
           settings={settings}
-          onTune={(next) => {
-            setTunedId(next.id);
-            recents.push(next.id);
-          }}
+          onTune={alZapear}
           onSilencio={recordarSilencio}
           onExit={() => navigate(lastView === "player" ? "home" : lastView)}
         />

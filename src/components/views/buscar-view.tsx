@@ -1,45 +1,114 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { Mic, MicOff, Search } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { TvKeyboard } from "@/components/tv-keyboard";
 import { channelToCard, type CardItem } from "@/lib/media-item";
+import { buscarCanales, textoSinResultados } from "@/lib/buscar-canales";
+import { cifra } from "@/lib/secciones-canales";
+import { esTelevisorUA } from "@/lib/dispositivo";
 import { MediaCard } from "@/components/media/media-card";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import { useDictado } from "@/hooks/use-dictado";
 
 /**
+ * Cuántas fichas de canal se pintan como mucho. «a» casa con miles, y cada
+ * ficha es un destino más que el mando mide en cada flecha: en una tele, mil
+ * fichas son un segundo por pulsación. Lo más relevante va primero, así que
+ * con 48 se ve lo que se busca; si no, se afina escribiendo.
+ */
+const MAX_FICHAS = 48;
+
+/** El User-Agent no cambia: no hay nada a lo que suscribirse. */
+const sinSuscripcion = () => () => {};
+
+/**
+ * ¿Es una tele? Por el User-Agent, como el servidor (`esTelevisorUA`), y con
+ * `false` en el servidor: el primer render es igual en los dos lados y no hay
+ * fallo de hidratación.
+ */
+function useEsTele(): boolean {
+  return useSyncExternalStore(
+    sinSuscripcion,
+    () => esTelevisorUA(navigator.userAgent),
+    () => false,
+  );
+}
+
+/**
  * Buscar canales y catálogo a la vez.
  *
  * Los dos orígenes se consultan de forma distinta a propósito: los canales ya
- * están enteros en el cliente desde la primera carga, así que se filtran en
- * memoria y responden en la misma pulsación; las películas viven en TMDB y
- * pasan por `/api/buscar` con antirrebote, porque la credencial no sale al
- * navegador y el cliente no puede preguntarle directamente.
+ * están enteros en el cliente desde la primera carga, así que se buscan en
+ * memoria (`buscar-canales.ts`, por relevancia y con índice) y responden en la
+ * misma pulsación; las películas viven en TMDB y pasan por `/api/buscar` con
+ * antirrebote, porque la credencial no sale al navegador.
  *
  * Tres formas de escribir, y las tres hacen falta: el campo, el teclado en
  * pantalla —sin él, un mando delante de un campo de texto es un callejón sin
  * salida— y el dictado, que solo aparece donde el navegador sabe hacerlo.
+ *
+ * **En la tele se entra por el teclado, no por el campo.** El campo tenía
+ * `autoFocus`, y como las flechas no salían de un `<input>`, el mando quedaba
+ * atrapado en él sin llegar nunca al teclado. Ahora, con UA de tele, el campo
+ * es de solo lectura (no despierta el teclado del sistema) y la entrada de la
+ * vista (`data-nav-entrada`) es la tecla «A». En el PC y el teléfono, el campo,
+ * como siempre.
  */
 export function BuscarView({
-  results,
+  canales,
+  sugeridos,
+  tunedId,
   search,
   onSearchChange,
   onTune,
 }: {
-  results: Channel[];
+  /** Todos los canales, como los pinta el shell (los caídos al final). */
+  canales: Channel[];
+  /** Lo que se ofrece con el campo vacío. */
+  sugeridos: Channel[];
+  tunedId: number | null;
   search: string;
   onSearchChange: (value: string) => void;
-  onTune: (channel: Channel) => void;
+  /** Con los resultados: pasan a ser lo que se zapea a pantalla completa. */
+  onTune: (channel: Channel, resultados: Channel[], titulo: string) => void;
 }) {
   const router = useRouter();
+  const esTele = useEsTele();
+  const campo = useRef<HTMLInputElement | null>(null);
   const { resultados: titulos, cargando } = useBuscarTitulos(search);
 
   // Dictar **sustituye** lo escrito: quien dicta empieza una búsqueda, no
   // continúa la anterior. Concatenar dejaría «batmanguardianes de la galaxia».
   const { soportado: hayVoz, escuchando, error: errorVoz, escuchar } = useDictado(onSearchChange);
+
+  /**
+   * Lo que hacía `autoFocus`, fuera de la tele: abrir Buscar y escribir. Con
+   * el teléfono o el ratón el foco del mando no entra en juego (`focusFirst`
+   * no actúa), así que lo pone esta vista.
+   */
+  useEffect(() => {
+    if (esTele) return;
+    if (document.activeElement && document.activeElement !== document.body) {
+      // Si se llegó con el mando desde la barra, `focusFirst` lo trae aquí
+      // igualmente (`data-nav-entrada`); con el ratón, el clic en la pestaña
+      // no debe quedarse sin campo donde escribir.
+      if (!document.activeElement.closest("[data-nav-chrome]")) return;
+    }
+    campo.current?.focus({ preventScroll: true });
+  }, [esTele]);
+
+  const buscando = search.trim().length > 0;
+
+  /** Por relevancia; el índice normalizado se calcula una vez por lista. */
+  const encontrados = useMemo(
+    () => (buscando ? buscarCanales(canales, search) : []),
+    [buscando, canales, search],
+  );
+  const lista = buscando ? encontrados : sugeridos;
+  const mostrados = useMemo(() => lista.slice(0, MAX_FICHAS), [lista]);
 
   /**
    * Tarjetas e índice por clave, en una pasada y memorizados.
@@ -50,17 +119,19 @@ export function BuscarView({
    * recorrer los resultados otra vez al pulsar una.
    */
   const { tarjetasCanal, canalPorClave } = useMemo(() => {
-    const tarjetasCanal = results.map(channelToCard);
-    const canalPorClave = new Map(tarjetasCanal.map((t, i) => [t.key, results[i]]));
+    const tarjetasCanal = mostrados.map(channelToCard);
+    const canalPorClave = new Map(tarjetasCanal.map((t, i) => [t.key, mostrados[i]]));
     return { tarjetasCanal, canalPorClave };
-  }, [results]);
+  }, [mostrados]);
 
   const abrirCanal = useCallback(
     (tarjeta: CardItem) => {
       const canal = canalPorClave.get(tarjeta.key);
-      if (canal) onTune(canal);
+      if (!canal) return;
+      const titulo = buscando ? `«${search.trim()}»` : "Sugeridos";
+      onTune(canal, lista, titulo);
     },
-    [canalPorClave, onTune],
+    [canalPorClave, onTune, lista, buscando, search],
   );
 
   // La clave de una tarjeta de catálogo es `tipo-id`; la ruta, las dos partes.
@@ -72,10 +143,9 @@ export function BuscarView({
     [router],
   );
 
-  const buscando = search.trim().length > 0;
-  const totalCanales = results.length;
+  const totalCanales = encontrados.length;
   const totalTitulos = titulos.length;
-  const sinNada = buscando && !cargando && totalCanales === 0 && totalTitulos === 0;
+  const sinCanales = buscando && totalCanales === 0;
 
   return (
     <div className="screen has-search-hero">
@@ -93,12 +163,14 @@ export function BuscarView({
             <Search size={22} aria-hidden="true" />
           </span>
           <input
+            ref={campo}
             type="search"
             data-nav="input"
+            data-nav-entrada={esTele ? undefined : ""}
+            readOnly={esTele}
             value={search}
-            autoFocus
             onChange={(evento) => onSearchChange(evento.target.value)}
-            placeholder="Buscar canales, películas y series"
+            placeholder={esTele ? "Escribe con el teclado de abajo" : "Buscar canales, películas y series"}
             aria-label="Buscar canales, películas y series"
           />
 
@@ -114,8 +186,8 @@ export function BuscarView({
                  lo lleva el agente de diseño. Esto es lo justo para que el
                  botón se vea correcto y esté al alcance del mando; la pasada
                  de diseño de verdad es suya. */
-              className={`shrink-0 rounded-full p-2 transition-colors ${
-                escuchando ? "bg-acento text-acento-tinta" : "text-muted hover:text-white"
+              className={`grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full transition-colors ${
+                escuchando ? "bg-acento text-acento-tinta" : "text-muted hover:text-tinta-1"
               }`}
               aria-pressed={escuchando}
               aria-label={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
@@ -146,6 +218,7 @@ export function BuscarView({
       <div className="buscar-cuerpo">
         <div className="buscar-teclado">
           <TvKeyboard
+            entrada={esTele}
             onKey={(char) => onSearchChange(search + char)}
             onBackspace={() => onSearchChange(search.slice(0, -1))}
             onClear={() => onSearchChange("")}
@@ -153,45 +226,49 @@ export function BuscarView({
         </div>
 
         <div className="buscar-resultados">
-          {sinNada ? (
-            <p className="buscar-vacio">
-              Nada coincide con «{search}», ni en los canales ni en el catálogo.
-            </p>
-          ) : (
-            <>
-              {/* Los canales primero: son la prioridad del producto, y además
-                  los únicos que responden al instante. */}
-              {totalCanales > 0 && (
-                <section className="buscar-grupo">
-                  <p className="buscar-recuento">
-                    {buscando ? `Canales · ${totalCanales}` : "Canales sugeridos"}
-                  </p>
-                  <div className="grid-results is-embedded">
-                    {tarjetasCanal.map((item) => (
-                      <MediaCard key={item.key} item={item} onOpen={abrirCanal} posterMode />
-                    ))}
-                  </div>
-                </section>
-              )}
+          {/* Los canales primero: son la prioridad del producto, y además
+              los únicos que responden al instante. */}
+          <section className="buscar-grupo">
+            {sinCanales ? (
+              <p className="buscar-vacio" role="status">
+                {textoSinResultados(search)}
+              </p>
+            ) : (
+              <>
+                <p className="buscar-recuento" role="status">
+                  {!buscando
+                    ? "Canales sugeridos"
+                    : totalCanales > MAX_FICHAS
+                      ? `Canales · ${cifra(totalCanales)} · los ${MAX_FICHAS} más parecidos`
+                      : `Canales · ${cifra(totalCanales)}`}
+                </p>
+                {/* Fichas de canal (el logo entero, apaisado) y no carteles
+                    2:3: el logo recortado se leía «anal 3», «evisi». */}
+                <div className="grid-results is-embedded">
+                  {tarjetasCanal.map((item, i) => (
+                    <MediaCard
+                      key={item.key}
+                      item={item}
+                      onOpen={abrirCanal}
+                      active={mostrados[i].id === tunedId}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </section>
 
-              {(totalTitulos > 0 || cargando) && (
-                <section className="buscar-grupo">
-                  <p className="buscar-recuento">
-                    Películas y series {cargando ? "· buscando…" : `· ${totalTitulos}`}
-                  </p>
-                  <div className="grid-results is-embedded">
-                    {titulos.map((item) => (
-                      <MediaCard
-                        key={item.key}
-                        item={item}
-                        posterMode
-                        onOpen={abrirTitulo}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-            </>
+          {buscando && (totalTitulos > 0 || cargando) && (
+            <section className="buscar-grupo">
+              <p className="buscar-recuento">
+                Películas y series {cargando ? "· buscando…" : `· ${totalTitulos}`}
+              </p>
+              <div className="grid-results is-embedded">
+                {titulos.map((item) => (
+                  <MediaCard key={item.key} item={item} posterMode onOpen={abrirTitulo} />
+                ))}
+              </div>
+            </section>
           )}
         </div>
       </div>

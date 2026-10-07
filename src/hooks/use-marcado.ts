@@ -70,6 +70,32 @@ export function useMarcado(canales: Channel[], onCanal: (canal: Channel) => void
     [marcado, indice, limpiar, saltar],
   );
 
+  /**
+   * OK con un número a medio marcar lo da por terminado, sin esperar los dos
+   * segundos: es lo que hace el mando de cualquier tele. Sin esto, «103»
+   * esperaba siempre, porque hay canales del 1030 al 1039 y el marcado no
+   * puede saber que no se iba a seguir tecleando.
+   *
+   * Escucha en fase de CAPTURA, registrado una sola vez al montar: así va por
+   * delante del de `fullscreen-player.tsx` (que se registra después y se
+   * vuelve a registrar en cada cambio), que si no se quedaría el OK para
+   * abrir la guía. Lee el marcado por referencia para no re-registrarse.
+   */
+  const pendiente = useRef({ marcado, saltar });
+  useEffect(() => {
+    pendiente.current = { marcado, saltar };
+  }, [marcado, saltar]);
+  useEffect(() => {
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (evento.key !== "Enter" || !pendiente.current.marcado) return;
+      evento.preventDefault();
+      evento.stopPropagation();
+      pendiente.current.saltar(pendiente.current.marcado);
+    };
+    window.addEventListener("keydown", alPulsar, true);
+    return () => window.removeEventListener("keydown", alPulsar, true);
+  }, []);
+
   // El indicador de «ese canal no existe» se va solo: es un aviso, no un estado.
   useEffect(() => {
     if (!noExiste) return undefined;

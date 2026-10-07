@@ -308,7 +308,9 @@ export function LiveTvView({
       )}
 
       <div className="livetv-columns">
-        <main className="livetv-list" aria-label="Lista de canales">
+        {/* `data-nav-entrada`: con el mando, entrar a Canales lleva el foco a
+            la primera fila y no a la marca de la barra (`use-spatial-nav`). */}
+        <main className="livetv-list" aria-label="Lista de canales" data-nav-entrada="">
           {enParrilla ? (
             <ParrillaEpg
               canales={canalesALaVista}
