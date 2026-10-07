@@ -543,6 +543,21 @@ html[data-input="dpad"] .rail-ver-todo:focus {
   opacity: 1;
 }
 
+/* Teles de 2019: sin `aspect-ratio`. Mismo respaldo que `.poster` en
+   `shell.css`. */
+@supports not (aspect-ratio: 1 / 1) {
+  .poster-frame {
+    height: 0;
+    padding-bottom: 150%;
+  }
+
+  .poster-frame-arte {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+
 .poster-frame-hueco {
   position: absolute;
   inset: 0;

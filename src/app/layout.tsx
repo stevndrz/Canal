@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
 import { GUION_ARRANQUE_PANTALLA } from "@/lib/tamano-texto";
+import { GUION_COMPATIBILIDAD } from "@/lib/compat-tv";
 import "./globals.css";
 
 /**
@@ -99,6 +100,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       suppressHydrationWarning
     >
       <head>
+        {/* Primero de todo: sin `globalThis` no corre ningún archivo de JS en
+            las teles de 2019. Ver `compat-tv.ts`. */}
+        <script dangerouslySetInnerHTML={{ __html: GUION_COMPATIBILIDAD }} />
         {/* Televisor y tamaño de texto, antes del primer pintado. Ver
             `tamano-texto.ts`. */}
         <script dangerouslySetInnerHTML={{ __html: GUION_ARRANQUE_PANTALLA }} />

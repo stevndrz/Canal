@@ -859,6 +859,36 @@
   padding: 12% 16%;
 }
 
+/* Teles de 2019 (Chromium < 88): no conocen `aspect-ratio`, y sin él la caja
+   mide cero de alto y el logo no se ve. El truco de siempre: alto cero y un
+   relleno en porcentaje (que se mide sobre el ANCHO), con el contenido
+   encima en absoluto. Solo ahí; los navegadores modernos ni lo leen. */
+@supports not (aspect-ratio: 1 / 1) {
+  .poster {
+    height: 0;
+    padding-bottom: 56.25%;
+  }
+
+  .media-card.is-poster .poster {
+    padding-bottom: 150%;
+  }
+
+  .poster > img,
+  .poster > .canal-marca {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .poster > .canal-marca {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
 .canal-marca {
   font-size: var(--texto-xl);
   font-weight: 700;
