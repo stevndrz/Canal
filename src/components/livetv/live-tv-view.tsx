@@ -110,6 +110,9 @@ export function LiveTvView({
   }));
   useEffect(() => {
     const { seccion, tema } = llegada;
+    // Una sola vez, al llegar desde «Ver los N» de Inicio: aplica la sección o
+    // el tema pedidos en la URL y la limpia (ver arriba).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (seccion && esRegion(seccion)) setAbierta(seccion);
     const temaPedido = tema ? temaDeClave(tema) : null;
     if (temaPedido) setFiltro(temaPedido);

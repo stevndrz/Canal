@@ -138,6 +138,9 @@ export function ListaSecciones({
     if (!objetivo) return;
     const indice = filas.findIndex((fila) => fila.clave === objetivo.clave);
     if (indice === -1) {
+      // La fila pedida ya no existe (cambió el filtro): se olvida la petición
+      // para no perseguirla en cada render.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setObjetivo(null);
       return;
     }
