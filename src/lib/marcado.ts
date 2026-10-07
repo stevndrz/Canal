@@ -10,8 +10,12 @@
 /** Tope de dígitos. Los números de esta app llegan a cuatro cifras. */
 export const MAX_DIGITOS = 4;
 
-/** Cuánto se espera antes de dar el número por terminado. */
-export const ESPERA_MS = 2_000;
+/**
+ * Cuánto se espera antes de dar el número por terminado. Lo de una tele de
+ * siempre: con 2 s se sentía que el mando no había respondido; por debajo de
+ * 1,2 s a una persona mayor no le da tiempo a buscar la segunda tecla.
+ */
+export const ESPERA_MS = 1_500;
 
 /**
  * Índice para resolver un marcado sin recorrer 7.822 canales en cada tecla.

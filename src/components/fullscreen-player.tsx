@@ -361,6 +361,14 @@ export function FullscreenPlayer({
           event.preventDefault();
           zap(1);
           return;
+        // Info hace lo que en cualquier tele: enseña el rótulo del canal (logo,
+        // nombre, programa). Si ya se veía, abre la guía: segunda pulsación,
+        // más detalle.
+        case "info":
+          event.preventDefault();
+          if (showControls) openGuide();
+          else wake();
+          return;
         default:
           wake();
       }
@@ -374,7 +382,7 @@ export function FullscreenPlayer({
     // montaje.
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [zap, showGuide, openGuide, wake, moverFoco, salir]);
+  }, [zap, showGuide, showControls, openGuide, wake, moverFoco, salir]);
 
   /**
    * Al esconderse la barra, soltar el foco.

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { accionDeTecla, TECLAS_A_REGISTRAR } from "./teclas-mando";
 
@@ -24,6 +25,19 @@ describe("accionDeTecla", () => {
     expect(accionDeTecla({ keyCode: 24 })).toBe("subir-volumen");
   });
 
+  it("reconoce CH+/CH− de LG (33/34) e Info (457)", () => {
+    expect(accionDeTecla({ key: "Unidentified", keyCode: 33 })).toBe("canal-arriba");
+    expect(accionDeTecla({ key: "PageDown", keyCode: 34 })).toBe("canal-abajo");
+    expect(accionDeTecla({ keyCode: 457 })).toBe("info");
+    expect(accionDeTecla({ key: "Info" })).toBe("info");
+  });
+
+  it("pide a Tizen los números, Info y los botones de canal", () => {
+    for (const tecla of ["0", "5", "9", "Info", "ChannelUp", "ChannelDown"]) {
+      expect(TECLAS_A_REGISTRAR).toContain(tecla);
+    }
+  });
+
   it("con nombre desconocido cae al código, en vez de rendirse", () => {
     // Tizen manda literalmente "Unidentified" en las teclas de reproducción.
     expect(accionDeTecla({ key: "Unidentified", keyCode: 10252 })).toBe("reproducir");
@@ -42,5 +56,17 @@ describe("accionDeTecla", () => {
     for (const prohibida of ["ArrowUp", "ArrowDown", "Enter", "Back", "Exit"]) {
       expect(TECLAS_A_REGISTRAR).not.toContain(prohibida);
     }
+  });
+});
+
+describe("el cascarón de Tizen", () => {
+  it("registra exactamente las mismas teclas que pide la app", () => {
+    // La lista está duplicada a la fuerza: `registerKey` solo existe en la
+    // página local del widget. Esta prueba es la que impide que se separen.
+    const html = readFileSync("empaque/tizen/index.html", "utf8");
+    const bloque = html.match(/var TECLAS = \[([\s\S]*?)\];/);
+    expect(bloque).not.toBeNull();
+    const delCascaron = [...bloque![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+    expect([...delCascaron].sort()).toEqual([...TECLAS_A_REGISTRAR].sort());
   });
 });

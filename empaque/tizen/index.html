@@ -61,7 +61,11 @@
 var URL_APP = "https://www.maicoldr.lol/";
 
 /* Las mismas de `TECLAS_A_REGISTRAR` en `src/lib/teclas-mando.ts`. */
-var TECLAS = ["MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "ChannelUp", "ChannelDown"];
+/* Sin registrar, Samsung NO entrega los números ni Info: marcar «7» no hacía nada. */
+var TECLAS = [
+  "MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "ChannelUp", "ChannelDown",
+  "Info", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+];
 
 function registrarTeclas() {
   /*

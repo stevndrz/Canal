@@ -105,5 +105,11 @@ export function useMarcado(canales: Channel[], onCanal: (canal: Channel) => void
 
   useEffect(() => limpiar, [limpiar]);
 
-  return { marcado, noExiste, pulsarDigito };
+  /**
+   * El canal que saldría si se dejara de teclear ahora, para enseñarlo junto
+   * al número: «7 · Canal 7». Así se sabe ANTES de saltar si se marcó bien.
+   */
+  const previsto = marcado ? canalDeMarcado(indice, marcado) : null;
+
+  return { marcado, noExiste, previsto, pulsarDigito };
 }

@@ -525,7 +525,7 @@ export function Dashboard({
    * que «3» llevaba al 301 y no había forma de llegar al 307. Cada fila lleva
    * su número escrito al lado; ahora teclearlo lleva ahí. Ver `lib/marcado.ts`.
    */
-  const { marcado, noExiste, pulsarDigito } = useMarcado(channels, tune);
+  const { marcado, noExiste, previsto, pulsarDigito } = useMarcado(channels, tune);
 
   // El vídeo se despega del borde superior si la página scrollea por debajo.
   // Esta marca en <html> es la que globals.css consulta para bloquearlo.
@@ -607,11 +607,23 @@ export function Dashboard({
           Cristal SIN desenfoque: a pantalla completa va encima del vídeo. */}
       {(marcado || noExiste) && (
         <div
-          className="pointer-events-none fixed right-6 top-6 z-[var(--capa-dialogo)] rounded-[var(--radio-md)] bg-[var(--cristal-fuerte)] px-5 py-3 font-mono text-3xl tabular-nums tracking-widest text-tinta-1 shadow-[var(--sombra-2)] ring-1 ring-[var(--borde-fuerte)]"
+          className="pointer-events-none fixed right-[var(--margen)] top-[var(--margen)] z-[var(--capa-dialogo)] flex min-w-[5ch] flex-col items-end rounded-[var(--radio-md)] bg-[var(--cristal-fuerte)] px-6 py-4 text-right shadow-[var(--sombra-2)] ring-1 ring-[var(--borde-fuerte)]"
           role="status"
           aria-live="polite"
         >
-          {noExiste ? <span className="text-xl tracking-normal">Sin canal</span> : marcado}
+          {noExiste ? (
+            <span className="text-2xl font-semibold text-tinta-1">Sin canal</span>
+          ) : (
+            <>
+              {/* El número, lo más grande de la pantalla: se lee a tres metros. */}
+              <span className="text-[calc(var(--texto-3xl)*1.8)] font-bold leading-none tabular-nums tracking-wide text-tinta-1">
+                {marcado}
+              </span>
+              <span className="mt-2 max-w-[18ch] truncate text-lg text-tinta-2">
+                {previsto ? previsto.name : "…"}
+              </span>
+            </>
+          )}
         </div>
       )}
 
