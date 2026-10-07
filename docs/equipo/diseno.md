@@ -46,6 +46,47 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-07 (segunda pasada) — El reproductor en vivo, al estilo Apple
+
+Pedido: «más profesional, más estandarizado; el zapeo, la barra inestable y
+fea, la forma de presentar EN VIVO y el nombre del canal no son Apple TV».
+
+- **Pantalla completa = la maqueta del reproductor de iPhone/Apple TV**
+  (`player/controles-vivo.tsx`): «‹ Salir» arriba a la izquierda; sonido,
+  guía y cast arriba a la derecha; ⏮ ⏯ ⏭ grandes en el centro; el rótulo del
+  canal abajo a la izquierda. Antes todo iba en una fila abajo más una
+  chuleta de teclas, y la cabecera repetía el estado en mono.
+- **El rótulo** (`player/info-vivo.tsx`), igual en Inicio y en pantalla
+  completa: logo, píldora de estado, número · categoría, **el nombre del
+  canal como lo más grande y blanco**, programa y barra con horas si hay EPG.
+  `estadoDeEmision` sale de `fullscreen-player.tsx` para que Inicio diga lo
+  mismo (antes ponía «EN VIVO» aunque no hubiera imagen).
+- **Píldora de estado**: roja (#ff3b30) con punto que late solo en directo;
+  «Conectando», «Cargando», «En pausa», «Sin señal» en gris o rojo apagado.
+- **Zapear ya no abre la guía.** Cada ↑/↓ abría la tira de 50 canales y
+  reiniciaba su reloj: la pantalla saltaba sin parar. Ahora sale el rótulo, y
+  la guía solo con OK o el botón. Si ya estaba abierta, la sigue.
+- **El nombre salía gris en Inicio** porque el velo de «Sintonizando…» (negro
+  al 55 %, z 10) tapaba la cabecera. El pie va ahora con z 11 y
+  `.live-card-marco` con `isolation: isolate`.
+- **Barra superior al hacer scroll**: el desenfoque no se aplicaba (computado
+  `none` en Chromium sin GPU, y no existe en muchas teles), así que el
+  contenido se leía nítido a través. Ahora es casi opaca (97 %).
+- **Inicio**: un solo marco (antes caja gris con borde + vídeo con borde), y
+  el pie lleva rótulo a la izquierda y mandos a la derecha, sobre el vídeo
+  desde 681px; debajo en teléfono. Primario blanco relleno; glifos rellenos.
+- **Tarjetas de canal y «Casa»**: el logo es la tarjeta (`.media-card
+  .is-canal` + `.poster`), sin caja alrededor. Ojo: el `<img>` va
+  `position: absolute` — un logo de 1000px empujaba el alto de la caja por
+  encima de su 16:9 y salía recortado.
+- **Ajustes** reordenado por quién lo usa: Pantalla, Reproducción, Canales,
+  y lo técnico en «Avanzado», todo en palabras normales.
+- Borrados: `player/panel-emision.tsx` y `livetv/live-card.tsx` (copia muerta
+  que nadie importaba).
+
+Pendiente: probar en una Tizen/Android TV real (overscan, rendimiento del
+latido de la píldora) — `dispositivos`.
+
 ### 2026-10-07 — Una sola escala de texto, y la tele a diez pies
 
 Primer paso del rediseño («limpio como Apple TV, funcional como Netflix, para

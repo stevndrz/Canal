@@ -32,7 +32,7 @@ import type { CastMethod } from "@/hooks/use-cast";
  * sofá.
  *
  * Sin pastilla «EN VIVO»: esa información ya vive arriba —`.live-card-top`
- * en Inicio, `PanelEmision` en pantalla completa—, repetirla aquí abajo era
+ * en Inicio, `ControlesVivo` en pantalla completa—, repetirla aquí abajo era
  * la misma frase dos veces en la misma tarjeta.
  *
  * Se mantienen los nombres de clase (`player-bar`, `player-btn`…) a propósito:
@@ -100,7 +100,7 @@ export function PlayerControls({
           title="Canal anterior"
           onClick={onPrev}
         >
-          <SkipBack aria-hidden="true" />
+          <SkipBack aria-hidden="true" fill="currentColor" />
         </button>
 
         <button
@@ -111,7 +111,11 @@ export function PlayerControls({
           title={isPlaying ? "Pausar" : "Reproducir"}
           onClick={onTogglePlay}
         >
-          {isPlaying ? <Pause aria-hidden="true" /> : <Play aria-hidden="true" />}
+          {isPlaying ? (
+            <Pause aria-hidden="true" fill="currentColor" />
+          ) : (
+            <Play aria-hidden="true" fill="currentColor" />
+          )}
         </button>
 
         <button
@@ -122,7 +126,7 @@ export function PlayerControls({
           title="Canal siguiente"
           onClick={onNext}
         >
-          <SkipForward aria-hidden="true" />
+          <SkipForward aria-hidden="true" fill="currentColor" />
         </button>
       </div>
 
@@ -147,7 +151,7 @@ export function PlayerControls({
             key={accion.id}
             type="button"
             data-nav="button"
-            className={`player-btn is-extra ${accion.active ? "is-active" : ""}`}
+            className={`player-btn is-extra ${accion.active ? "is-emitiendo" : ""}`}
             aria-label={accion.label}
             title={accion.label}
             aria-pressed={accion.pressed}

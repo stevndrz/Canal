@@ -27,7 +27,7 @@ const inter = Inter({
 /**
  * JetBrains Mono es la tipografía de instrumento: solo para números y
  * etiquetas de estado del reproductor (T+, bitrate, el contador de "Mi
- * enlace"...). `panel-emision.tsx` ya hablaba en lenguaje de sala de control
+ * enlace"...). el reproductor ya hablaba en lenguaje de sala de control
  * ("T+", `tabular-nums`); esto le pone la letra que ese lenguaje pedía.
  */
 const jetbrainsMono = JetBrains_Mono({

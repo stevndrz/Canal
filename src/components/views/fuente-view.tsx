@@ -78,7 +78,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     <div className={`screen tv-safe fuente ${sinHueco ? "sin-hueco" : ""}`}>
       <section className="section-heading library-heading">
         <div className="library-title-block">
-          <p className="eyebrow">Un enlace tuyo, reproducido sin intermediarios</p>
+          <p className="eyebrow">Pega el enlace de un vídeo y míralo aquí</p>
           <h2>Mi enlace</h2>
         </div>
       </section>
@@ -95,7 +95,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             data-nav="input"
             value={url}
             onChange={(evento) => setUrl(evento.target.value)}
-            placeholder="https://…  (.mp4, .m3u8, .mkv) o magnet:?…"
+            placeholder="Pega aquí el enlace (https://… o magnet:…)"
             aria-label="Enlace del vídeo"
             required
           />

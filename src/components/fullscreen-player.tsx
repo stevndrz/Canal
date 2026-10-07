@@ -2,13 +2,9 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast } from "lucide-react";
-import {
-  extrasCast,
-  ICONO_GUIA,
-  PlayerControls,
-} from "@/components/player/player-controls";
-import { PanelEmision } from "@/components/player/panel-emision";
-import type { EstadoEmision } from "@/lib/telemetria";
+import { extrasCast, ICONO_GUIA } from "@/components/player/player-controls";
+import { ControlesVivo } from "@/components/player/controles-vivo";
+import { estadoDeEmision } from "@/components/player/info-vivo";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import StreamPlayer, {
   type StreamPlayerHandle,
@@ -97,22 +93,7 @@ export function FullscreenPlayer({
   });
 
 
-  /**
-   * En qué está la emisión, dicho sin inventar nada.
-   *
-   * `sintonizando` no es un adorno: mientras el `<video>` no tenga altura no ha
-   * llegado ni un fotograma, así que decir «EN VIVO» sobre una pantalla negra
-   * sería mentir justo cuando la persona está mirando a ver si funciona.
-   */
-  const estado: EstadoEmision = state.streamError
-    ? "sin-senal"
-    : !state.isPlaying
-      ? "pausa"
-      : state.buffering
-        ? "buffering"
-        : state.alto
-          ? "vivo"
-          : "sintonizando";
+  const estado = estadoDeEmision(state);
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -126,15 +107,24 @@ export function FullscreenPlayer({
     guideTimer.current = setTimeout(() => setShowGuide(false), GUIDE_TIMEOUT);
   }, []);
 
+  /**
+   * Cambiar de canal enseña el rótulo —logo, nombre, programa—, no la guía.
+   *
+   * Antes cada ↑/↓ abría la tira de cincuenta canales por encima de la imagen,
+   * y como el reloj de la guía se reiniciaba en cada pulsación, zapear era ver
+   * la pantalla saltar sin parar. Es lo que hace cualquier tele de pago: al
+   * cambiar sale quién es, y la lista solo si la pides (OK o el botón Guía).
+   * Si la guía ya estaba abierta, se queda y sigue al canal.
+   */
   const zap = useCallback(
     (delta: number) => {
       const next = stepChannel(playlist, channel.id, delta);
       if (!next) return;
       onTune(next);
-      openGuide();
+      if (showGuide) openGuide();
       wake();
     },
-    [playlist, channel.id, onTune, openGuide, wake],
+    [playlist, channel.id, onTune, openGuide, wake, showGuide],
   );
 
   useEffect(() => {
@@ -171,7 +161,12 @@ export function FullscreenPlayer({
       const botones = barra ? [...barra.querySelectorAll<HTMLElement>("[data-nav]")] : [];
       if (botones.length === 0) return;
       const actual = botones.indexOf(document.activeElement as HTMLElement);
-      botones[actual === -1 ? 0 : (actual + delta + botones.length) % botones.length].focus();
+      if (actual === -1) {
+        // La primera pulsación cae en Pausar, el control que se busca a ciegas.
+        (barra?.querySelector<HTMLElement>(".is-primary") ?? botones[0]).focus();
+        return;
+      }
+      botones[(actual + delta + botones.length) % botones.length].focus();
     },
     [wake],
   );
@@ -347,7 +342,12 @@ export function FullscreenPlayer({
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 z-20 bg-black"
+      /* `con-controles`: mientras se ven, la píldora del rótulo ya dice
+         «Conectando», y el aviso central de `StreamPlayer` se quita para no
+         quedar debajo del botón de pausa. */
+      className={`reproductor-completo absolute inset-0 z-20 bg-black ${
+        showControls ? "con-controles" : ""
+      }`}
       onMouseMove={wake}
       /* Tocar la imagen pausa y reanuda; el doble toque va a pantalla completa
          real. Sin temporizador a propósito: el segundo clic deshace el primero
@@ -362,70 +362,44 @@ export function FullscreenPlayer({
         onStateChange={setState}
       />
 
-      {/* Cabecera: el panel de la emisión. Ver `panel-emision.tsx`. */}
+      {/* Velo: oscurece arriba y abajo para que los controles se lean sobre
+          cualquier escena. Sin `backdrop-filter`: desenfocar un vídeo en
+          directo es lo más caro que se le puede pedir a la GPU de una tele. */}
       <div
-        className={`tv-safe pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/78 to-transparent py-7 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        <PanelEmision channel={channel} estado={estado} activo={showControls} />
-      </div>
+        className={`vivo-velo ${showControls ? "is-visible" : ""}`}
+        aria-hidden="true"
+      />
 
-      {/* Controles */}
-      <div
-        /* `justify-center`: la barra va centrada. Con `justify-between` se
-           quedaba pegada a la izquierda y las ayudas de teclado a la derecha,
-           que en un teléfono girado se veía descolocado. Las ayudas pasan a
-           estar posicionadas y no compiten por el espacio. */
-        className={`tv-safe absolute inset-x-0 bottom-0 z-30 flex items-center justify-center gap-6 bg-gradient-to-t from-black/85 to-transparent py-7 transition-opacity duration-300 ${
-          showControls ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      >
-        <PlayerControls
-          variant="fullscreen"
-          isPlaying={state.isPlaying}
-          isMuted={state.isMuted}
-          big={settings.bigControls}
-          onTogglePlay={() => {
-            playerRef.current?.togglePlay();
-            wake();
-          }}
-          onToggleMute={() => {
-            playerRef.current?.toggleMute();
-            onSilencio?.(!state.isMuted);
-            wake();
-          }}
-          onPrev={() => zap(-1)}
-          onNext={() => zap(1)}
-          fullscreen={{
-            active: true,
-            onToggle: salir,
-          }}
-          extras={[
-            {
-              id: "guia",
-              label: "Guía",
-              icon: ICONO_GUIA,
-              expanded: showGuide,
-              onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
-            },
-            ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
-          ]}
-        />
-
-        {/* La pista cambia con el contexto, porque las teclas cambian: con la
-            guía abierta ← → recorren canales, y sin ella llevan el foco por
-            esta misma barra. Una chuleta que miente es peor que ninguna.
-            A la izquierda y no a la derecha: los controles van centrados y a
-            la derecha queda «Salir», que con el texto a tamaño de televisor
-            se montaba encima de la pista. */}
-        <div className="absolute left-[3.35vw] hidden items-center gap-4 text-2xs text-soft xl:flex">
-          <span>↑↓ cambiar canal</span>
-          <span>{showGuide ? "← → recorrer" : "← → controles"}</span>
-          <span>{showGuide ? "OK sintonizar" : "OK guía"}</span>
-          <span>{showGuide ? "Atrás cerrar guía" : "Atrás salir"}</span>
-        </div>
-      </div>
+      <ControlesVivo
+        channel={channel}
+        estado={estado}
+        visible={showControls}
+        guiaAbierta={showGuide}
+        isPlaying={state.isPlaying}
+        isMuted={state.isMuted}
+        onTogglePlay={() => {
+          playerRef.current?.togglePlay();
+          wake();
+        }}
+        onToggleMute={() => {
+          playerRef.current?.toggleMute();
+          onSilencio?.(!state.isMuted);
+          wake();
+        }}
+        onPrev={() => zap(-1)}
+        onNext={() => zap(1)}
+        onSalir={salir}
+        extras={[
+          {
+            id: "guia",
+            label: showGuide ? "Cerrar guía" : "Guía de canales",
+            icon: ICONO_GUIA,
+            expanded: showGuide,
+            onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
+          },
+          ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
+        ]}
+      />
 
       {/* Guía: la cuadrícula vuelve como overlay translúcido, sin salir del vivo */}
       {showGuide && (

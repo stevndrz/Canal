@@ -249,7 +249,11 @@
 /* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
    solo no basta para que se lean los destinos. */
 .sidebar.is-scrolled {
-  background: var(--glass);
+  /* Casi opaca, y no cristal al 72%: donde el desenfoque no existe (muchos
+     navegadores de televisor) o no se aplica, lo que pasaba por debajo se
+     leía nítido a través de la barra — el rótulo del reproductor se
+     superponía al menú. Con el 97% da igual que haya desenfoque o no. */
+  background: rgba(12, 12, 14, 0.97);
   backdrop-filter: saturate(180%) blur(22px);
   -webkit-backdrop-filter: saturate(180%) blur(22px);
   border-bottom: 1px solid var(--line);
@@ -722,6 +726,34 @@
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 180ms var(--ease);
+}
+
+/* Fichas de canal: el logo entero sobre un gris, nunca recortado. */
+.media-card.is-canal .poster {
+  background: linear-gradient(150deg, #232327, #141416);
+}
+
+/* Fuera del flujo: un logo grande (los hay de 1000px) empujaba el alto de la
+   caja por encima de su 16:9 y `overflow: hidden` lo recortaba a medias. Así
+   manda la caja y el logo se encaja dentro. */
+.media-card.is-canal .poster img {
+  position: absolute;
+  inset: 0;
+  object-fit: contain;
+  padding: 12% 16%;
+}
+
+.canal-marca {
+  font-size: var(--texto-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--soft);
+}
+
+/* El canal que suena: un filo blanco tenue, para encontrarlo en la fila sin
+   confundirlo con el foco. */
+.media-card.is-canal.is-active .poster {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.45), var(--sombra);
 }
 
 /* Segunda línea: categoría y número, en horizontal y separados por un punto.

@@ -29,7 +29,7 @@ const ENGINE_LABELS: Record<PlaybackSettings["engine"], string> = {
 const CALIDADES: PlaybackSettings["calidad"][] = ["auto", "480p", "720p", "1080p"];
 
 const CALIDAD_LABELS: Record<PlaybackSettings["calidad"], string> = {
-  auto: "Auto",
+  auto: "Automática",
   "480p": "480p",
   "720p": "720p",
   "1080p": "1080p",
@@ -159,6 +159,11 @@ export function AjustesView({
         </div>
       </section>
 
+      {/* Ordenado por quién lo usa, no por cómo funciona: arriba lo que
+          cualquiera entiende (ver más grande, la calidad, el sonido), abajo lo
+          técnico. Antes la primera sección era «Fuente · M3U_URL» y la segunda
+          hablaba de HLS.js y workers: lo primero que leía un abuelo o un niño
+          era jerga. */}
       <div className="ajustes-columna">
         <section>
           <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Pantalla</h2>
@@ -166,22 +171,12 @@ export function AjustesView({
             <Row label="Tamaño del texto" hint="Agranda las letras de toda la app en este aparato">
               <SelectorTamanoTexto />
             </Row>
-          </div>
-        </section>
-
-        <section>
-          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Fuente</h2>
-          <div className="overflow-hidden rounded-[18px] border border-hairline">
-            <Row label="Lista M3U" hint={m3uSource}>
-              <span className="shrink-0 text-sm text-soft">M3U_URL</span>
-            </Row>
-            <Row
-              label="Actualizar ahora"
-              hint={`Caché de 30 s · ${channelCount} canales detectados`}
-            >
-              <button type="button" data-nav="button" onClick={onRefresh} className={buttonClass}>
-                Actualizar
-              </button>
+            <Row label="Botones grandes" hint="Botones más grandes y con nombre en el reproductor">
+              <Toggle
+                checked={settings.bigControls}
+                label="Botones grandes"
+                onChange={() => onChange({ bigControls: !settings.bigControls })}
+              />
             </Row>
           </div>
         </section>
@@ -189,46 +184,7 @@ export function AjustesView({
         <section>
           <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Reproducción</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">
-            <Row label="Motor de video" hint="HLS.js para .m3u8 · mpegts.js para .ts y .flv">
-              <button
-                type="button"
-                data-nav="button"
-                onClick={() => {
-                  const next = engines[(engines.indexOf(settings.engine) + 1) % engines.length];
-                  onChange({ engine: next });
-                }}
-                className={buttonClass}
-              >
-                {ENGINE_LABELS[settings.engine]}
-              </button>
-            </Row>
-            <Row label="Baja latencia" hint="lowLatencyMode en HLS.js">
-              <Toggle
-                checked={settings.lowLatencyMode}
-                label="Baja latencia"
-                onChange={() => onChange({ lowLatencyMode: !settings.lowLatencyMode })}
-              />
-            </Row>
-            <Row label="Decodificar en worker" hint="enableWorker · evita tirones en Tizen">
-              <Toggle
-                checked={settings.enableWorker}
-                label="Decodificar en worker"
-                onChange={() => onChange({ enableWorker: !settings.enableWorker })}
-              />
-            </Row>
-            <Row label="Perseguir el vivo" hint="liveBufferLatencyChasing en mpegts.js">
-              <Toggle
-                checked={settings.liveBufferLatencyChasing}
-                label="Perseguir el vivo"
-                onChange={() =>
-                  onChange({ liveBufferLatencyChasing: !settings.liveBufferLatencyChasing })
-                }
-              />
-            </Row>
-            <Row
-              label="Calidad"
-              hint="Auto mide tu conexión y sube o baja solo. Un escalón fijo limita por altura sin cortar al cambiar"
-            >
+            <Row label="Calidad" hint="Automática se adapta a tu internet; fija limita la resolución">
               <button
                 type="button"
                 data-nav="button"
@@ -243,11 +199,7 @@ export function AjustesView({
                 {CALIDAD_LABELS[settings.calidad ?? "auto"]}
               </button>
             </Row>
-
-            <Row
-              label="Ajuste de imagen"
-              hint="Contener respeta la imagen entera; llenar recorta para ocupar el marco"
-            >
+            <Row label="Imagen" hint="Completa enseña todo el cuadro; llenar recorta los bordes">
               <button
                 type="button"
                 data-nav="button"
@@ -258,25 +210,13 @@ export function AjustesView({
                   })
                 }
               >
-                {settings.ajusteImagen === "contener" ? "Contener" : "Llenar"}
+                {settings.ajusteImagen === "contener" ? "Completa" : "Llenar"}
               </button>
             </Row>
-
-            <Row
-              label="Controles grandes"
-              hint="Botones más altos y con todas las palabras a la vista"
-            >
-              <Toggle
-                checked={settings.bigControls}
-                label="Controles grandes"
-                onChange={() => onChange({ bigControls: !settings.bigControls })}
-              />
-            </Row>
-
-            <Row label="Arrancar con sonido" hint="Si el navegador lo bloquea, pide un OK">
+            <Row label="Empezar con sonido" hint="Si el navegador no lo deja, te pedirá un toque">
               <Toggle
                 checked={settings.startUnmuted}
-                label="Arrancar con sonido"
+                label="Empezar con sonido"
                 onChange={() => onChange({ startUnmuted: !settings.startUnmuted })}
               />
             </Row>
@@ -284,22 +224,67 @@ export function AjustesView({
         </section>
 
         <section>
-          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">
-            Este dispositivo
-          </h2>
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Canales</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">
-            <Row
-              label="Favoritos guardados"
-              hint={`${favoriteCount} canales · canalcasa:favorites`}
-            >
+            <Row label="Actualizar canales" hint={`Vuelve a cargar la lista · ${channelCount} canales`}>
+              <button type="button" data-nav="button" onClick={onRefresh} className={buttonClass}>
+                Actualizar
+              </button>
+            </Row>
+            <Row label="Favoritos" hint={`${favoriteCount} guardados en este aparato`}>
               <button
                 type="button"
                 data-nav="button"
                 onClick={onClearFavorites}
                 className={buttonClass}
               >
-                Borrar
+                Borrar todos
               </button>
+            </Row>
+          </div>
+        </section>
+
+        <section>
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Avanzado</h2>
+          <div className="overflow-hidden rounded-[18px] border border-hairline">
+            <Row label="Lista de canales (M3U)" hint={m3uSource}>
+              <span className="shrink-0 text-sm text-soft">M3U_URL</span>
+            </Row>
+            <Row label="Motor de vídeo" hint="HLS.js para .m3u8 · mpegts.js para .ts y .flv">
+              <button
+                type="button"
+                data-nav="button"
+                onClick={() => {
+                  const next = engines[(engines.indexOf(settings.engine) + 1) % engines.length];
+                  onChange({ engine: next });
+                }}
+                className={buttonClass}
+              >
+                {ENGINE_LABELS[settings.engine]}
+              </button>
+            </Row>
+            <Row label="Menos retraso" hint="Más cerca del directo; en internet lento se corta más">
+              <Toggle
+                checked={settings.lowLatencyMode}
+                label="Menos retraso"
+                onChange={() => onChange({ lowLatencyMode: !settings.lowLatencyMode })}
+              />
+            </Row>
+            <Row label="Alcanzar el directo" hint="Si la imagen se queda atrás, salta al momento actual">
+              <Toggle
+                checked={settings.liveBufferLatencyChasing}
+                label="Alcanzar el directo"
+                onChange={() =>
+                  onChange({ liveBufferLatencyChasing: !settings.liveBufferLatencyChasing })
+                }
+              />
+            </Row>
+            <Row label="Vídeo en segundo plano" hint="Reparte el trabajo; evita tirones en televisores Samsung">
+              <Toggle
+                checked={settings.enableWorker}
+                label="Vídeo en segundo plano"
+                onChange={() => onChange({ enableWorker: !settings.enableWorker })}
+              />
             </Row>
           </div>
         </section>
