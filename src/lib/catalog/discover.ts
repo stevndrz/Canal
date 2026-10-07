@@ -1,4 +1,5 @@
 import { fetchList, fetchPagina, fetchRecommendations, searchTitles, type TmdbListEntry } from "./tmdb";
+import { GENEROS_FUERA_DE_FILAS_DE_SERIES } from "./generos";
 import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
 /**
@@ -30,7 +31,20 @@ interface RowSpec {
   mediaType: MediaType;
   /** Id de género de la fila, para armar el enlace a su cuadrilla completa. */
   generoId?: number;
+  /**
+   * Géneros que se quitan de la fila después de pedirla. Hace falta en
+   * `/trending`, que no acepta `without_genres` como discover: ahí la única
+   * forma de sacar los programas de entrevistas es mirar los `genre_ids` que
+   * ya trae cada título.
+   */
+  sinGeneros?: readonly number[];
 }
+
+/**
+ * `without_genres` para las filas de series que nadie pidió: noticias y
+ * programas de entrevistas. Ver `GENEROS_FUERA_DE_FILAS_DE_SERIES`.
+ */
+const SIN_ENTREVISTAS = `without_genres=${GENEROS_FUERA_DE_FILAS_DE_SERIES.join(",")}`;
 
 /** Solo títulos con cierto respaldo de votos: evita rellenar con lo irrelevante. */
 const MOVIE_BASE = "sort_by=popularity.desc&vote_count.gte=200&include_adult=false";
@@ -61,9 +75,15 @@ const ORDEN_BASES: Record<OrdenCatalogo, { movie: string; tv: string }> = {
 
 const CATALOG_ROWS: RowSpec[] = [
   // Lo primero que se ve: lo más taquillero y comentado del mundo esta semana.
-  { title: "Tendencias de la semana", path: "/trending/all/week", mediaType: "movie" },
+  {
+    title: "Tendencias de la semana",
+    path: "/trending/all/week",
+    mediaType: "movie",
+    sinGeneros: GENEROS_FUERA_DE_FILAS_DE_SERIES,
+  },
   { title: "Películas populares", path: `/discover/movie?${MOVIE_BASE}`, mediaType: "movie" },
-  { title: "Series populares", path: `/discover/tv?${TV_BASE}`, mediaType: "tv" },
+  // Sin noticias ni late shows: la fila empezaba con «The Tonight Show».
+  { title: "Series populares", path: `/discover/tv?${TV_BASE}&${SIN_ENTREVISTAS}`, mediaType: "tv" },
   {
     title: "Para toda la familia",
     path: `/discover/movie?with_genres=${GENRE.familia}&${MOVIE_BASE}`,
@@ -102,7 +122,7 @@ const CATALOG_ROWS: RowSpec[] = [
   },
   {
     title: "Series en español",
-    path: `/discover/tv?with_original_language=es&${ES_TV_BASE}`,
+    path: `/discover/tv?with_original_language=es&${ES_TV_BASE}&${SIN_ENTREVISTAS}`,
     mediaType: "tv",
   },
 ];
@@ -153,6 +173,7 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
     // necesita en cada caso (la ficha, o el héroe elegido). Ver `types.ts`.
     imdbId: null,
     trailerUrl: null,
+    generoIds: entry.generoIds,
   };
 }
 
@@ -168,10 +189,16 @@ export async function fetchCatalogRows(): Promise<CatalogSection[]> {
       // Enlace a la cuadrilla completa del género/tipo de la fila: los títulos
       // de las filas son clicables y llevan a «todas las de Acción», etc.
       href: `/peliculas?tipo=${row.mediaType}${row.generoId ? `&genero=${row.generoId}` : ""}`,
-      items: (await fetchList(row.path, row.mediaType)).map(toCatalogItem),
+      items: sinGeneros(await fetchList(row.path, row.mediaType), row.sinGeneros).map(toCatalogItem),
     }))
   );
   return rows.filter((row) => row.items.length > 0);
+}
+
+/** Quita de una lista los títulos de ciertos géneros (ver `RowSpec.sinGeneros`). */
+function sinGeneros(entradas: TmdbListEntry[], fuera?: readonly number[]): TmdbListEntry[] {
+  if (!fuera?.length) return entradas;
+  return entradas.filter((entrada) => !entrada.generoIds.some((id) => fuera.includes(id)));
 }
 
 /**
@@ -185,6 +212,8 @@ export interface PaginaCatalogo {
   items: ResolvedCatalogItem[];
   pagina: number;
   totalPaginas: number;
+  /** TMDB no contestó: no es «nada con esos filtros». Ver `estado.ts`. */
+  fallo: boolean;
 }
 
 export async function fetchFiltered(
@@ -208,24 +237,27 @@ export async function fetchFiltered(
    * ninguna pista de por qué.
    */
   const generoPara = (mediaType: MediaType) => {
-    if (!generoId) return "";
+    // Sin género elegido, las series no se llenan de noticias ni de late
+    // shows (ver `SIN_ENTREVISTAS`). Con un género elegido se respeta lo
+    // pedido, también si es «Noticias».
+    if (!generoId) return mediaType === "tv" ? `&${SIN_ENTREVISTAS}` : "";
     if (generosValidos && !generosValidos[mediaType].has(generoId)) return null;
     return `&with_genres=${generoId}`;
   };
 
   const pedir = async (mediaType: MediaType, base: string) => {
     const genero = generoPara(mediaType);
-    if (genero === null) return { entradas: [], totalPaginas: 0 };
+    if (genero === null) return { entradas: [], totalPaginas: 0, fallo: false };
     return fetchPagina(`/discover/${mediaType}?${base}${genero}&page=${pagina}`, mediaType);
   };
 
   if (tipo === "movie") {
-    const { entradas, totalPaginas } = await pedir("movie", ORDEN_BASES[orden].movie);
-    return { items: entradas.map(toCatalogItem), pagina, totalPaginas };
+    const { entradas, totalPaginas, fallo } = await pedir("movie", ORDEN_BASES[orden].movie);
+    return { items: entradas.map(toCatalogItem), pagina, totalPaginas, fallo };
   }
   if (tipo === "tv") {
-    const { entradas, totalPaginas } = await pedir("tv", ORDEN_BASES[orden].tv);
-    return { items: entradas.map(toCatalogItem), pagina, totalPaginas };
+    const { entradas, totalPaginas, fallo } = await pedir("tv", ORDEN_BASES[orden].tv);
+    return { items: entradas.map(toCatalogItem), pagina, totalPaginas, fallo };
   }
 
   const [pelis, series] = await Promise.all([
@@ -241,12 +273,23 @@ export async function fetchFiltered(
   }
   // Con las dos mezcladas, se puede pasar de página mientras a alguna le
   // queden: la otra simplemente aporta menos fichas en las últimas.
-  return { items: mezclado, pagina, totalPaginas: Math.max(pelis.totalPaginas, series.totalPaginas) };
+  return {
+    items: mezclado,
+    pagina,
+    totalPaginas: Math.max(pelis.totalPaginas, series.totalPaginas),
+    // Solo es un fallo si no contestó NINGUNA de las dos: con una sola, se
+    // enseña lo que llegó.
+    fallo: pelis.fallo && series.fallo,
+  };
 }
 
-/** Resultados de búsqueda, ya listos para pintar como cualquier otra ficha. */
-export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[]> {
-  return (await searchTitles(query)).map(toCatalogItem);
+/**
+ * Resultados de búsqueda, ya listos para pintar como cualquier otra ficha.
+ * `null` si TMDB no contestó; ver `searchTitles`.
+ */
+export async function searchCatalog(query: string): Promise<ResolvedCatalogItem[] | null> {
+  const entradas = await searchTitles(query);
+  return entradas ? entradas.map(toCatalogItem) : null;
 }
 
 /**

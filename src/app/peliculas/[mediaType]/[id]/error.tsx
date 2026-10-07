@@ -34,16 +34,18 @@ export default function ErrorDeFicha({
     <main className="pantalla-mensaje">
       <div className="estado-vacio">
         <TriangleAlert aria-hidden="true" />
-        <p className="estado-vacio-titulo">No se pudo abrir esta ficha</p>
+        <p className="estado-vacio-titulo">No pudimos abrir esta película o serie</p>
         <p className="estado-vacio-detalle">
-          TMDB no respondió, o el título dejó de existir. Reintentar suele bastar.
+          Puede ser un problema de conexión. Volver a intentar suele bastar.
         </p>
-        <button type="button" data-nav="button" className="secondary" autoFocus onClick={reset}>
-          Reintentar
-        </button>
-        <Link href="/peliculas" data-nav="button" className="secondary">
-          Volver al catálogo
-        </Link>
+        <div className="estado-vacio-acciones">
+          <button type="button" data-nav="button" className="primary" autoFocus onClick={reset}>
+            Volver a intentar
+          </button>
+          <Link href="/peliculas" data-nav="button" className="secondary">
+            Volver a Cine y series
+          </Link>
+        </div>
       </div>
     </main>
   );

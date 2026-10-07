@@ -99,8 +99,8 @@ function ChannelGlassCard({
         )}
 
         {showProgress && (
-          <span className="absolute inset-x-3 bottom-2 h-[3px] overflow-hidden rounded-full bg-white/10">
-            <span className="block h-full bg-accent" style={{ width: `${progress}%` }} />
+          <span className="tarjeta-progreso">
+            <span style={{ width: `${progress}%` }} />
           </span>
         )}
       </div>
@@ -143,15 +143,17 @@ function PosterCard({
       onFocus={() => onFocus?.(item)}
       title={item.title}
     >
-      <div
-        className={`poster-frame relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-surface-2 to-app shadow-lg transition-[transform,box-shadow] duration-300 ${showArt && !loaded ? "is-loading" : ""}`}
-      >
+      {/* El marco del cartel. Sus medidas, su sombra en reposo y su realce al
+          enfocar viven en `catalogo.css` (`.poster-frame`) y no en utilidades
+          aquí: había un `shadow-lg` de Tailwind, y la capa `utilities` gana
+          siempre a `components`, donde está el aro de foco. Medido: con el
+          mando encima, el cartel crecía pero su sombra era la de `shadow-lg`
+          y el aro blanco no llegaba a pintarse. Desde tres metros, un cartel
+          un 6 % más grande sin aro no se distingue de sus vecinos. */}
+      <div className={`poster-frame ${showArt && !loaded ? "is-loading" : ""}`}>
         {item.enLista && (
-          <span
-            className="absolute right-2 top-2 z-10 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white"
-            aria-hidden="true"
-          >
-            <Bookmark size={13} fill="currentColor" />
+          <span className="poster-marca-lista" aria-hidden="true">
+            <Bookmark fill="currentColor" />
           </span>
         )}
 
@@ -165,23 +167,19 @@ function PosterCard({
             referrerPolicy="no-referrer"
             onLoad={alCargar}
             onError={alFallar}
-            className={`object-cover w-full h-full rounded-xl transition-opacity duration-300 ${
-              loaded ? "opacity-100" : "opacity-0"
-            }`}
+            className={`poster-frame-arte ${loaded ? "is-cargada" : ""}`}
           />
         ) : item.mark ? (
-          <span className="absolute inset-0 grid place-items-center font-mono text-4xl font-bold tracking-widest text-white/30">
-            {item.mark}
-          </span>
+          <span className="poster-frame-hueco poster-frame-marca">{item.mark}</span>
         ) : (
-          <span className="absolute inset-0 grid place-items-center text-soft">
-            <Tv size={42} aria-hidden="true" />
+          <span className="poster-frame-hueco">
+            <Tv aria-hidden="true" />
           </span>
         )}
 
         {showProgress && (
-          <span className="absolute inset-x-3 bottom-2 z-10 h-[3px] overflow-hidden rounded-full bg-white/20">
-            <span className="block h-full bg-accent" style={{ width: `${progress}%` }} />
+          <span className="tarjeta-progreso">
+            <span style={{ width: `${progress}%` }} />
           </span>
         )}
       </div>

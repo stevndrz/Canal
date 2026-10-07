@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { Clapperboard, Info, SearchX } from "lucide-react";
+import { Clapperboard, SearchX, WifiOff } from "lucide-react";
 import { CatalogGrid } from "@/components/catalog/catalog-row";
 import { CatalogRowsPersonalizadas } from "@/components/catalog/catalog-rows-personalizadas";
 import { HeroDestacado } from "@/components/catalog/hero-destacado";
@@ -8,21 +8,25 @@ import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
 import { NavegacionCatalogo } from "@/components/catalog/navegacion-catalogo";
 import { CatalogFilters, type MediaFilter } from "@/components/catalog/catalog-filters";
+import { PortadaBienvenida } from "@/components/catalog/portada-bienvenida";
 import { TopNav } from "@/components/shell/top-nav";
 import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 import { catalogToCard } from "@/lib/media-item";
-import { getCatalogSections } from "@/lib/catalog/catalog";
+import { getCatalogo } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
 import { fetchGenres, fetchTrailer, isTmdbConfigured } from "@/lib/catalog/tmdb";
+import type { EstadoCatalogo } from "@/lib/catalog/estado";
+import { GENERO_TERROR } from "@/lib/catalog/generos";
+import type { CatalogSection } from "@/lib/catalog/types";
 
 /**
  * El catálogo es idéntico para todo el mundo: los filtros y la página van en
  * la URL, no en la sesión.
  *
  * Antes había aquí un `revalidate = 3600`; bajo `cacheComponents` lo sustituye
- * el `cacheLife("days")` que vive en `tmdb.ts`, junto a los datos — y las doce
- * peticiones a TMDB ya no caducan cada hora por arte de un export que nadie
- * veía.
+ * el `cacheLife` que vive en `tmdb.ts`, junto a los datos: días si TMDB
+ * contestó, minutos si falló (un tropiezo no puede dejar la sección vacía un
+ * día entero).
  */
 
 /** Lo que la URL trae, ya saneado antes de tocar TMDB. */
@@ -87,15 +91,24 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
     return cadena ? `/peliculas?${cadena}` : "/peliculas";
   };
 
+  /**
+   * Con `?q=` en la URL (un enlace compartido, o Enter en el buscador) lo que
+   * se pinta son los resultados, que pide el cliente. Las diez filas y el
+   * héroe no se verían —el buscador los recoge—, así que no se piden: son
+   * once viajes a TMDB para nada.
+   */
+  const conConsulta = query.length >= 2;
+
   // Solo se pide lo que se va a pintar: en modo cuadrilla no hacen falta las
   // diez filas del catálogo, que son diez peticiones a TMDB. Las dos listas de
   // géneros sí siempre: no coinciden entre tipos (series no tiene Terror) y
   // alimentan tanto las píldoras como la validez del filtro aplicado.
-  const [rows, generosPeli, generosSerie] = await Promise.all([
-    enCuadricula ? Promise.resolve([]) : getCatalogSections(),
+  const [catalogo, generosPeli, generosSerie] = await Promise.all([
+    enCuadricula || conConsulta ? null : getCatalogo(),
     fetchGenres("movie"),
     fetchGenres("tv"),
   ]);
+  const rows: CatalogSection[] = catalogo?.filas ?? [];
 
   const validos = {
     movie: new Set(generosPeli.map((g) => g.id)),
@@ -104,10 +117,39 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   // Con "todo" se ofrecen los de películas, que es el conjunto más completo y
   // el que la gente reconoce; al pasar a Series se cambian por los suyos.
   const generos = tipo === "tv" ? generosSerie : generosPeli;
-  const cuadricula = enCuadricula
+  const cuadricula = enCuadricula && !conConsulta
     ? await fetchFiltered(tipo, genero, validos, pagina, orden)
     : null;
-  const tmdbReady = isTmdbConfigured();
+  const configurado = isTmdbConfigured();
+
+  /**
+   * El estado de la pantalla, en una palabra. Ver `lib/catalog/estado.ts`:
+   * «no hay clave», «TMDB no contesta» y «este filtro no tiene títulos» son
+   * tres cosas distintas y antes se pintaban igual.
+   */
+  const estado: EstadoCatalogo = catalogo
+    ? catalogo.estado
+    : !configurado
+      ? "sin-configurar"
+      : cuadricula?.fallo
+        ? "no-disponible"
+        : "listo";
+
+  /**
+   * Sin catálogo: la portada de bienvenida, y nada de buscador, orden,
+   * píldoras ni paginador, que no llevarían a ninguna parte. «Seguir viendo»
+   * y «Mi lista» sí se quedan: viven en este aparato y no dependen de TMDB.
+   */
+  if (estado !== "listo") {
+    return (
+      <>
+        <PortadaBienvenida estado={estado} aviso={<AvisoTecnico estado={estado} />} />
+        <div className="screen sin-hueco tv-safe">
+          <CatalogRowsPersonalizadas filas={[]} />
+        </div>
+      </>
+    );
+  }
 
   /**
    * El héroe rota en cada visita: se elige al azar entre los diez primeros
@@ -115,10 +157,16 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
    * convertía la cabecera en un mueble; el sorteo no cuesta ninguna petición
    * extra — los candidatos ya estaban en `rows`.
    *
+   * Nunca uno de terror: es lo primero que se ve al entrar, y en casa entra
+   * todo el mundo. El terror sigue en su fila y en su género.
+   *
    * Solo aparece en modo filas: en una cuadrilla la respuesta a lo pedido son
    * los resultados, y una cabecera de 70vh los empujaría fuera.
    */
-  const candidatos = rows.flatMap((fila) => fila.items).filter((item) => item.backdrop).slice(0, 10);
+  const candidatos = rows
+    .flatMap((fila) => fila.items)
+    .filter((item) => item.backdrop && !item.generoIds?.includes(GENERO_TERROR))
+    .slice(0, 10);
   // eslint-disable-next-line react-hooks/purity -- RSC: corre una vez por request.
   const destacado = candidatos.length > 0 ? candidatos[Math.floor(Math.random() * candidatos.length)] : null;
 
@@ -133,7 +181,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   const heroTrailer =
     destacado?.tmdbId != null ? await fetchTrailer(destacado.tmdbId, destacado.mediaType) : null;
 
-  /** El contenido bajo el buscador: filas curadas o cuadrilla + paginación. */
+  /** El contenido bajo la cabecera: filas curadas o cuadrilla + paginación. */
   const contenido = cuadricula ? (
     cuadricula.items.length > 0 ? (
       <>
@@ -146,11 +194,12 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
     ) : (
       <EstadoVacio
         Icono={SearchX}
-        titulo="Nada con esos filtros"
-        detalle="Prueba con otro género o cambia el tipo."
+        titulo="No hay títulos con estos filtros"
+        detalle="Prueba con otro género o con «Todo»."
+        accion={{ href: "/peliculas", texto: "Ver todo el catálogo" }}
       />
     )
-  ) : rows.length > 0 ? (
+  ) : conConsulta ? null : (
     <CatalogRowsPersonalizadas
       filas={rows.map((fila) => ({
         title: fila.title,
@@ -158,64 +207,57 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
         tarjetas: fila.items.map(catalogToCard),
       }))}
     />
-  ) : (
-    <EstadoVacio
-      Icono={Clapperboard}
-      titulo="Tu catálogo está vacío"
-      detalle={
-        tmdbReady
-          ? "TMDB no respondió desde el servidor: revisa la consola de `next dev` y tu conexión. Reintenta recargando."
-          : "Añade títulos en src/data/catalog.json, o configura TMDB_API_KEY."
-      }
-    />
   );
 
   return (
-    <>
-      {destacado && <HeroDestacado item={destacado} trailerUrl={heroTrailer} />}
-
-      {/* `has-hero` quita el hueco superior: la cabecera ya empieza pegada al
-          borde y lo reserva ella. La caja centrada (max-w-7xl) vive dentro de
-          CatalogSearch y contiene buscador, orden, píldoras y carruseles. */}
-      <div className={`screen tv-safe ${destacado ? "has-hero" : ""}`}>
-        {/* La búsqueda es reactiva en el cliente: mientras hay consulta,
-            sustituye a estos hijos servidos por el servidor; al vaciar el
-            campo, vuelven sin recargar nada. */}
-        <CatalogSearch
-          initialQuery={query}
+    <CatalogSearch
+      initialQuery={query}
+      orden={orden}
+      cabecera={destacado ? <HeroDestacado item={destacado} trailerUrl={heroTrailer} /> : null}
+      /* La página no tenía ningún título propio, y eso era parte de por qué se
+         leía como «solo pelis»: lo único que la nombraba era la barra de
+         arriba, que además decía «Películas». */
+      titulo={<h2 className="catalogo-titulo">Cine y series</h2>}
+      filtros={
+        <CatalogFilters
+          tipo={tipo}
+          genero={genero}
+          generos={generos}
+          generosValidos={validos}
           orden={orden}
-          conHero={Boolean(destacado)}
-          /* La página no tenía ningún título propio, y eso era parte de por
-             qué se leía como «solo pelis»: lo único que la nombraba era la
-             barra de arriba, que además decía «Películas». */
-          titulo={
-            <section className="section-heading catalogo-encabezado">
-              <h2>Cine y series</h2>
-            </section>
-          }
-        >
-          {!tmdbReady && (
-            <p className="catalogo-aviso">
-              <Info aria-hidden="true" />
-              <span>
-                Falta <code>TMDB_API_KEY</code>: se ven solo los títulos escritos a mano en{" "}
-                <code>src/data/catalog.json</code>.
-              </span>
-            </p>
-          )}
+        />
+      }
+    >
+      {contenido}
+    </CatalogSearch>
+  );
+}
 
-          <CatalogFilters
-            tipo={tipo}
-            genero={genero}
-            generos={generos}
-            generosValidos={validos}
-            orden={orden}
-          />
-
-          {contenido}
-        </CatalogSearch>
-      </div>
-    </>
+/**
+ * La pista técnica para quien desarrolla, y SOLO en desarrollo.
+ *
+ * En producción la ve la familia, y «Falta TMDB_API_KEY» no le sirve de nada:
+ * ahí el dato va al registro del servidor (`getCatalogo` hace el
+ * `console.error`). Aquí, en `next dev`, sigue siendo la forma más rápida de
+ * saber por qué el catálogo sale vacío.
+ */
+function AvisoTecnico({ estado }: { estado: Exclude<EstadoCatalogo, "listo"> }) {
+  if (process.env.NODE_ENV === "production") return null;
+  const Icono = estado === "sin-configurar" ? Clapperboard : WifiOff;
+  return (
+    <p className="catalogo-aviso">
+      <Icono aria-hidden="true" />
+      <span>
+        Solo en desarrollo:{" "}
+        {estado === "sin-configurar" ? (
+          <>
+            falta <code>TMDB_API_KEY</code> (o títulos en <code>src/data/catalog.json</code>).
+          </>
+        ) : (
+          <>TMDB no respondió desde el servidor: mira la consola de <code>next dev</code>.</>
+        )}
+      </span>
+    </p>
   );
 }
 
@@ -228,7 +270,11 @@ export default async function MoviesPage({ searchParams }: { searchParams: Promi
     /* El mando: esta ruta vive fuera del shell, así que monta su propia
        navegación espacial. Ver `navegacion-catalogo.tsx`. */
     <NavegacionCatalogo>
-      <div className="app-shell bg-black">
+      {/* Sin `bg-black`: el fondo es el de la app (el halo de `.app-shell`),
+          y el héroe se disuelve en él. Con negro puro debajo, el velo del
+          héroe —que acaba en el color de fondo de la app— dejaba una línea
+          recta donde se juntaban los dos negros. */}
+      <div className="app-shell">
         <TopNav />
 
         {/* El fallback es el MISMO esqueleto que el del segmento

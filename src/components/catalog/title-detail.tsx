@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { TopNav } from "@/components/shell/top-nav";
 import { MediaRail } from "@/components/media/media-rail";
@@ -16,6 +16,7 @@ import { useEpisodiosVistos } from "@/hooks/use-episodios-vistos";
 import { siguientePorVer } from "@/lib/episodios-vistos";
 import type { ServidorStream } from "@/lib/resolvers/types";
 import { claveCatalogo, type CardItem } from "@/lib/media-item";
+import { formatearDuracion } from "@/lib/catalog/formato";
 
 /**
  * La ficha de un título: portada, reproductor, datos y —si es serie—
@@ -143,6 +144,49 @@ export function TitleDetail({
   const [modoCine, setModoCine] = useState(enTelevisor);
   const salirDelCine = useCallback(() => setModoCine(false), []);
 
+  /**
+   * «Reproducir»: en la tele, el modo cine; fuera de ella, bajar al vídeo.
+   *
+   * En un PC o un teléfono el reproductor ya está en la página, debajo de la
+   * portada: no hace falta otra pantalla, hace falta llegar a él.
+   */
+  const refSlot = useRef<HTMLDivElement | null>(null);
+  const reproducir = useCallback(() => {
+    if (enTelevisor) {
+      setModoCine(true);
+      return;
+    }
+    // Por ref y no por id: `<Activity>` puede tener otra ficha oculta en el
+    // DOM con el mismo marcado.
+    refSlot.current?.scrollIntoView({ block: "start" });
+  }, [enTelevisor]);
+
+  /**
+   * Al salir del modo cine, el foco vuelve a «Reproducir».
+   *
+   * Medido: con el foco en «Volver a la ficha», Atrás cerraba el modo cine y
+   * `document.activeElement` pasaba a `<body>` —el botón enfocado desaparece
+   * con el modo cine—, así que la ficha quedaba sin nada enfocado y la
+   * primera flecha caía en el logo de la barra. Se hace en la TRANSICIÓN de
+   * `modoCine` de true a false, no al montar: al abrir la ficha el foco lo
+   * pone quien corresponde (el modo cine en la tele, nadie en un teléfono), y
+   * `<Activity>` puede estar devolviendo una ficha ya vista con su foco.
+   * Si no hay «Reproducir», al primer botón de la fila de acciones.
+   */
+  const refReproducir = useRef<HTMLButtonElement | null>(null);
+  const cineAntes = useRef(modoCine);
+  useEffect(() => {
+    const salio = cineAntes.current && !modoCine;
+    cineAntes.current = modoCine;
+    if (!salio) return;
+    const destino =
+      refReproducir.current ??
+      document.querySelector<HTMLElement>(".ficha-acciones [data-nav]");
+    // `offsetParent` filtra las copias ocultas que `<Activity>` deja en el
+    // DOM con `display: none`.
+    if (destino && destino.offsetParent !== null) destino.focus({ preventScroll: false });
+  }, [modoCine]);
+
   const elegirEpisodio = useCallback(
     (episode: ResolvedEpisode) => {
       setElegido(episode);
@@ -175,10 +219,13 @@ export function TitleDetail({
               ? { temporada: selectedEpisode.season, episodio: selectedEpisode.episode }
               : null
           }
+          onReproducir={reproducir}
+          refReproducir={refReproducir}
+          enTelevisor={enTelevisor}
         />
       )}
 
-      <div className={modoCine ? "ficha-cine" : "ficha-reproductor-slot"}>
+      <div ref={refSlot} className={modoCine ? "ficha-cine" : "ficha-reproductor-slot"}>
         <FichaReproductor
           fuente={activeSource}
           titulo={item.title}
@@ -226,7 +273,12 @@ export function TitleDetail({
             />
           )}
 
-          <FichaColumnas item={item} isSeries={isSeries} minutos={formatearDuracion(item.duracion)} />
+          <FichaColumnas
+            item={item}
+            isSeries={isSeries}
+            minutos={formatearDuracion(item.duracion)}
+            enTelevisor={enTelevisor}
+          />
         </div>
       )}
 
@@ -247,13 +299,4 @@ export function TitleDetail({
     </div>
     </NavegacionCatalogo>
   );
-}
-
-/** «2 h 5 min», que es como se dice una duración, y no «125». */
-function formatearDuracion(minutos: number | null): string | null {
-  if (!minutos) return null;
-  if (minutos < 60) return `${minutos} min`;
-  const horas = Math.floor(minutos / 60);
-  const resto = minutos % 60;
-  return resto ? `${horas} h ${resto} min` : `${horas} h`;
 }

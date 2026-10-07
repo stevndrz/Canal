@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Bookmark, BookmarkCheck, Film, ListVideo, Star } from "lucide-react";
+import type { Ref } from "react";
+import { ArrowLeft, Bookmark, BookmarkCheck, Film, ListVideo, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
+import { formatearNota } from "@/lib/catalog/formato";
 import { claveCatalogo } from "@/lib/media-item";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
@@ -30,12 +32,22 @@ import { useWatchlist } from "@/hooks/use-watchlist";
  *
  * Y las acciones van DEBAJO del título, no encima. Lo primero que tiene que
  * leerse al abrir una ficha es qué es esto.
+ *
+ * **Delante de todas, «Reproducir»**, la única en blanco y con texto. Era lo
+ * que faltaba: la ficha no tenía ningún botón que dijera «ver esto», y el
+ * vídeo quedaba partido por el pliegue (se veía el 68 % en un PC y el 73 % en
+ * una tele) sin nada que invitara a ir a él. En la tele abre el modo cine; en
+ * el PC y el teléfono baja hasta el reproductor. Y es adonde vuelve el foco al
+ * salir del modo cine (ver `TitleDetail`).
  */
 export function FichaPortada({
   item,
   isSeries,
   minutos,
   episodioActual,
+  onReproducir,
+  refReproducir,
+  enTelevisor = false,
 }: {
   item: ResolvedCatalogItem;
   isSeries: boolean;
@@ -47,6 +59,15 @@ export function FichaPortada({
    * dónde vas.
    */
   episodioActual?: { temporada: number; episodio: number } | null;
+  /** Lo que hace «Reproducir»: modo cine en la tele, bajar al vídeo fuera de ella. */
+  onReproducir?: () => void;
+  /** Para devolverle el foco al salir del modo cine. */
+  refReproducir?: Ref<HTMLButtonElement>;
+  /**
+   * En la tele no se ofrece nada que saque de la app: el tráiler abre YouTube
+   * en otra pestaña y desde allí el mando no sabe volver.
+   */
+  enTelevisor?: boolean;
 }) {
   // «Mi lista» vive en localStorage: no se puede saber en el servidor si este
   // título ya está marcado, así que el estado se lee aquí, al montar.
@@ -84,9 +105,9 @@ export function FichaPortada({
               {item.year && <span>{item.year}</span>}
               {minutos && <span>{minutos}</span>}
               {item.rating !== null && item.rating > 0 && (
-                <span className="ficha-nota">
-                  <Star aria-hidden="true" />
-                  {item.rating.toFixed(1)}
+                <span className="ficha-nota" aria-label={`Valoración ${formatearNota(item.rating)} sobre 10`}>
+                  <Star aria-hidden="true" fill="currentColor" />
+                  {formatearNota(item.rating)}
                 </span>
               )}
               <span className="ficha-tipo">{isSeries ? "Serie" : "Película"}</span>
@@ -103,6 +124,21 @@ export function FichaPortada({
         </div>
 
         <div className="ficha-acciones">
+          {onReproducir && (
+            <button
+              ref={refReproducir}
+              type="button"
+              data-nav="button"
+              className="primary ficha-reproducir"
+              onClick={onReproducir}
+            >
+              <Play aria-hidden="true" fill="currentColor" />
+              {isSeries && episodioActual
+                ? `Ver T${episodioActual.temporada} E${episodioActual.episodio}`
+                : "Reproducir"}
+            </button>
+          )}
+
           {/* Un ancla, no un botón: la lista está en la misma página y el
               navegador ya sabe llevarte a un `id`. Sin JavaScript, sin
               `scrollIntoView` y con Atrás funcionando. */}
@@ -134,7 +170,7 @@ export function FichaPortada({
             {enLista ? "En mi lista" : "Mi lista"}
           </button>
 
-          {item.trailerUrl && (
+          {item.trailerUrl && !enTelevisor && (
             <a
               href={item.trailerUrl}
               target="_blank"

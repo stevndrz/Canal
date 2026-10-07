@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Film, Info, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
+import { formatearDuracion, formatearNota } from "@/lib/catalog/formato";
 
 /**
  * La cabecera de Películas: un título a sangre, del tamaño de la pantalla.
@@ -41,44 +42,40 @@ export function HeroDestacado({
   const datos = [
     item.year,
     item.mediaType === "tv" ? "Serie" : "Película",
-    item.duracion ? formatearDuracion(item.duracion) : null,
+    formatearDuracion(item.duracion),
     item.generos?.slice(0, 2).join(" · ") || null,
   ].filter(Boolean) as string[];
 
   return (
-    <section
-      className="hero w-full relative bg-black min-h-[70vh] flex flex-col justify-end pb-12"
-      aria-labelledby="hero-titulo"
-    >
+    <section className="hero" aria-labelledby="hero-titulo">
       {arte && (
         // `<img>` y no `next/image`: el arte de TMDB ya viene dimensionado y
         // esta imagen es la primera que se ve, así que se pide sin diferir.
         //
-        // Sin máscara y sin ninguna capa encima: **el fundido es uno solo** y
-        // vive en `.hero::after` (shell.css). Aquí había una máscara en el
-        // propio píxel MÁS dos degradados absolutos, y tres fundidos
-        // solapados se multiplican: la foto quedaba al 30% de brillo ya en el
-        // centro del hero y muerta al 80%. Multiplicar dos curvas da una
-        // caída cuadrática, más brusca que cualquiera de ellas por separado,
-        // y eso es justo lo que se lee como un borde recto en vez de un
-        // fundido.
+        // Sin ninguna capa encima: **el fundido es uno solo** y vive en
+        // `.hero::after`. Tres fundidos solapados se multiplican y la foto
+        // quedaba muerta al 80 %. El borde de abajo lo disuelve una máscara en
+        // `catalogo.css`, para que el héroe acabe en transparente sobre el
+        // fondo de la app en vez de en una línea recta.
         // eslint-disable-next-line @next/next/no-img-element
         <img className="hero-arte" src={arte} alt="" fetchPriority="high" />
       )}
 
-      <div className="max-w-[1700px] w-full mx-auto px-4 sm:px-8 lg:px-12">
-        <div className="hero-copy relative z-10 pt-28 pb-20">
-          <h1 className="hero-titulo text-3xl md:text-5xl font-extrabold max-w-2xl" id="hero-titulo">
-            {item.title}
-          </h1>
+      {/* Sin caja centrada de 1700 px: el texto arranca en `--margen`, el
+          mismo borde que la cabecera y los rieles de debajo. Eran cuatro
+          bordes izquierdos distintos en la misma pantalla. */}
+      <div className="hero-copy">
+        <h1 className="hero-titulo" id="hero-titulo">
+          {item.title}
+        </h1>
 
         {item.tagline && <p className="hero-lema">{item.tagline}</p>}
 
         <div className="hero-datos">
-          {item.rating !== null && (
-            <span className="hero-nota">
+          {item.rating !== null && item.rating > 0 && (
+            <span className="hero-nota" aria-label={`Valoración ${formatearNota(item.rating)} sobre 10`}>
               <Star aria-hidden="true" fill="currentColor" />
-              {item.rating.toFixed(1)}
+              {formatearNota(item.rating)}
             </span>
           )}
           {datos.map((dato) => (
@@ -86,11 +83,7 @@ export function HeroDestacado({
           ))}
         </div>
 
-        {item.overview && (
-          <p className="hero-sinopsis text-muted text-sm md:text-base max-w-xl line-clamp-3 my-3">
-            {item.overview}
-          </p>
-        )}
+        {item.overview && <p className="hero-sinopsis">{item.overview}</p>}
 
         <div className="hero-acciones">
           <Link href={ficha} className="primary" data-nav="button">
@@ -101,23 +94,24 @@ export function HeroDestacado({
             <Info aria-hidden="true" />
             Más info
           </Link>
+          {/* El tráiler abre YouTube en otra pestaña: en la tele eso es salir
+              de la app sin forma de volver con el mando. Allí no se ofrece
+              (`.fuera-de-la-app` se oculta con `data-pantalla="tv"`); el
+              tráiler sigue a mano en el teléfono y en el PC. */}
           {trailerUrl && (
-            <a href={trailerUrl} target="_blank" rel="noopener noreferrer" className="secondary" data-nav="button">
+            <a
+              href={trailerUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="secondary fuera-de-la-app"
+              data-nav="button"
+            >
               <Film aria-hidden="true" />
               Ver tráiler
             </a>
           )}
         </div>
-        </div>
       </div>
     </section>
   );
-}
-
-/** «2 h 5 min», que es como se dice una duración, y no «125». */
-function formatearDuracion(minutos: number): string {
-  const horas = Math.floor(minutos / 60);
-  const resto = minutos % 60;
-  if (!horas) return `${resto} min`;
-  return resto ? `${horas} h ${resto} min` : `${horas} h`;
 }

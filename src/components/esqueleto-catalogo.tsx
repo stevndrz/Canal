@@ -1,7 +1,7 @@
 import { EsqueletoRieles } from "./esqueleto-rieles";
 
 /**
- * La silueta del contenido de Cine y series: banner y zona de catálogo.
+ * La silueta del contenido de Cine y series: héroe, cabecera y filas.
  *
  * Se usa en dos sitios: `app/peliculas/loading.tsx`, el fallback del segmento
  * —lo que enseña el router antes de que llegue ni el armazón—, y el
@@ -9,27 +9,29 @@ import { EsqueletoRieles } from "./esqueleto-rieles";
  * están en pantalla y esto ocupa el hueco mientras el servidor streamea las
  * filas. Antes, con TMDB lenta, había que esperar la página ENTERA.
  *
- * Las medidas salen de las piezas de verdad (`.hero`, `.rail`) para que al
- * llegar el contenido no salte nada.
+ * Las medidas y el margen salen de las piezas de verdad (`.hero`,
+ * `.catalogo-cabecera`, `.rail`): todo arranca en `--margen` y la cabecera es
+ * una fila a la izquierda —campo, cuatro píldoras y el orden—, igual que la
+ * pantalla que la sustituye. Si el esqueleto centra lo que luego va a la
+ * izquierda, la pantalla pega un salto al llegar.
  */
 export function EsqueletoCatalogo() {
   return (
-    <>
-      {/* El banner, que es lo que ocupa la pantalla al entrar. */}
-      <div className="esqueleto-hero is-loading" />
+    <div aria-hidden="true">
+      {/* El héroe, que es lo que ocupa la pantalla al entrar. */}
+      <div className="catalogo-esqueleto-hero is-loading" />
 
-      <div className="esqueleto-catalogo">
-        <div className="esqueleto-titulo-grande" />
-        <div className="esqueleto-buscador" />
-
-        <div className="esqueleto-pildoras">
-          {[74, 96, 82, 148].map((ancho, i) => (
-            <span key={i} style={{ width: ancho }} />
+      <div className="catalogo-esqueleto">
+        <span className="catalogo-esqueleto-titulo" />
+        <div className="catalogo-esqueleto-controles">
+          <span className="catalogo-esqueleto-campo" />
+          {[84, 112, 92, 120].map((ancho, i) => (
+            <span key={i} className="catalogo-esqueleto-pildora" style={{ width: ancho }} />
           ))}
         </div>
-
-        <EsqueletoRieles claseTarjeta="esqueleto-cartel" />
       </div>
-    </>
+
+      <EsqueletoRieles claseTarjeta="esqueleto-cartel" />
+    </div>
   );
 }

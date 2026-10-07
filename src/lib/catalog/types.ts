@@ -121,6 +121,12 @@ export interface ResolvedCatalogItem extends Omit<CatalogItem, "title" | "poster
    * único título elegido; ver `fetchTrailer` en `tmdb.ts`.
    */
   trailerUrl: string | null;
+  /**
+   * Ids de género, solo en los títulos que vienen de una lista (filas,
+   * búsqueda). Sirven para filtrar sin pedir la ficha: por ejemplo, que el
+   * héroe de la portada no sea una de terror. Ver `generos.ts`.
+   */
+  generoIds?: number[];
 }
 
 export interface ResolvedEpisode {

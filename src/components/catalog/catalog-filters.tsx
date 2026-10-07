@@ -25,10 +25,6 @@ const TIPOS: { id: MediaFilter; label: string }[] = [
   { id: "tv", label: "Series" },
 ];
 
-/** Tipo y género en una sola línea centrada: cuatro píldoras y ya está. */
-const FILA_TIPOS = "flex flex-wrap items-center justify-center gap-2 py-2 w-full";
-
-/** Píldora activa/inactiva, con contraste suficiente para leerse a 3 metros. */
 /**
  * La píldora de filtro, con la clase que ya existe.
  *
@@ -88,29 +84,30 @@ export function CatalogFilters({
   /** Se conserva en los enlaces para que cambiar de género no resetee el orden. */
   orden?: OrdenCatalogo;
 }) {
+  /* Una fila a la izquierda, en el mismo margen que el héroe y los rieles.
+     Centrada quedaba como una isla en mitad de la pantalla y, con el mando,
+     bajar desde el héroe caía donde quisiera la geometría. */
   return (
-    <div className="w-full">
-      <div className={FILA_TIPOS} role="group" aria-label="Filtros del catálogo">
-        {TIPOS.map(({ id, label }) => (
-          <Link
-            key={id}
-            data-nav="button"
-            href={href(id, genero, generosValidos, orden)}
-            aria-current={tipo === id ? "true" : undefined}
-            className={chip(tipo === id)}
-          >
-            {label}
-          </Link>
-        ))}
+    <div className="catalogo-pildoras" role="group" aria-label="Filtros del catálogo">
+      {TIPOS.map(({ id, label }) => (
+        <Link
+          key={id}
+          data-nav="button"
+          href={href(id, genero, generosValidos, orden)}
+          aria-current={tipo === id ? "true" : undefined}
+          className={chip(tipo === id)}
+        >
+          {label}
+        </Link>
+      ))}
 
-        {generos.length > 0 && (
-          <GeneroPanel
-            generos={generos}
-            activo={genero}
-            hrefDe={(id) => href(tipo, id, generosValidos, orden)}
-          />
-        )}
-      </div>
+      {generos.length > 0 && (
+        <GeneroPanel
+          generos={generos}
+          activo={genero}
+          hrefDe={(id) => href(tipo, id, generosValidos, orden)}
+        />
+      )}
     </div>
   );
 }

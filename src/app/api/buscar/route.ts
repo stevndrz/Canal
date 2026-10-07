@@ -33,40 +33,41 @@ export async function GET(request: Request) {
   const consulta = new URL(request.url).searchParams.get("q")?.trim() ?? "";
 
   // Con una sola letra TMDB devuelve ruido y gasta una petición por pulsación.
+  // No es un fallo: la interfaz ya pide «al menos dos letras» antes de llamar.
   if (consulta.length < 2 || consulta.length > MAX_CONSULTA) {
-    return Response.json({ resultados: [] as CardItem[] });
+    return Response.json({ resultados: [] as CardItem[], disponible: true });
   }
 
-  try {
-    const fichas = await searchCatalog(consulta);
+  const fichas = await searchCatalog(consulta).catch(() => null);
+
+  /**
+   * TMDB no contestó, o no hay clave. Antes salía 200 con una lista vacía,
+   * indistinguible de «no hay ninguna película con ese nombre»: la pantalla
+   * decía «Sin resultados» a quien había escrito bien. Ahora el cuerpo lo
+   * dice (`disponible: false`) y el estado también (503), para que se vea en
+   * los registros. Y `no-store`: un fallo no se cachea, o la siguiente
+   * búsqueda de lo mismo seguiría fallando con TMDB ya de vuelta.
+   */
+  if (fichas === null) {
     return Response.json(
-      {
-        resultados: fichas.map((ficha) => ({
-          ...catalogToCard(ficha),
-          mediaType: ficha.mediaType,
-          id: ficha.id,
-        })),
-      },
-      {
-        // Media hora de caché compartida: buscar "batman" dos veces seguidas
-        // no debe costar dos viajes a TMDB.
-        headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" },
-      },
-    );
-  } catch {
-    /**
-     * Que TMDB falle no puede romper la pantalla: los canales se siguen
-     * buscando igual y esta mitad se queda vacía.
-     *
-     * Pero el estado **sí** cambia. Antes devolvía 200 con lista vacía, que es
-     * indistinguible de «no hay resultados»: un fallo de TMDB —o alguien
-     * agotando la cuota— era completamente invisible desde fuera. Con 502 el
-     * cliente pinta lo mismo, y el fallo se puede ver en los registros y en el
-     * panel de Vercel.
-     */
-    return Response.json(
-      { resultados: [] as CardItem[], error: "catalogo-no-disponible" },
-      { status: 502, headers: { "Cache-Control": "no-store" } },
+      { resultados: [] as CardItem[], disponible: false },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
+
+  return Response.json(
+    {
+      resultados: fichas.map((ficha) => ({
+        ...catalogToCard(ficha),
+        mediaType: ficha.mediaType,
+        id: ficha.id,
+      })),
+      disponible: true,
+    },
+    {
+      // Media hora de caché compartida: buscar "batman" dos veces seguidas
+      // no debe costar dos viajes a TMDB.
+      headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" },
+    },
+  );
 }
