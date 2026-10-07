@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { girarAHorizontal, soltarOrientacion } from "@/lib/orientacion";
 
 /**
  * Pantalla completa que funciona también en iPhone.
@@ -56,7 +57,12 @@ export function useFullscreen(
     const video = videoRef.current as FullscreenVideo | null;
 
     const syncFromDocument = () => {
-      setIsFullscreen(Boolean(doc.fullscreenElement || doc.webkitFullscreenElement));
+      const dentro = Boolean(doc.fullscreenElement || doc.webkitFullscreenElement);
+      setIsFullscreen(dentro);
+      // Salir con el gesto Atrás de Android no pasa por ningún botón nuestro:
+      // solo llega este evento. Sin soltar aquí, el teléfono se quedaba
+      // girado en Inicio.
+      if (!dentro) soltarOrientacion();
     };
     // En iPhone la salida no dispara fullscreenchange: hay eventos propios.
     const handleEnterNative = () => setIsFullscreen(true);
@@ -82,6 +88,7 @@ export function useFullscreen(
 
     // Salir
     if (doc.fullscreenElement || doc.webkitFullscreenElement) {
+      soltarOrientacion();
       try {
         await (doc.exitFullscreen?.() ?? doc.webkitExitFullscreen?.());
       } catch {
@@ -105,12 +112,16 @@ export function useFullscreen(
     // `document.documentElement`: eso es lo que de verdad oculta el marco
     // del navegador en una televisión.
     try {
+      // Tras cada `await` concedido, girar el Android a horizontal: Chrome
+      // solo deja bloquear la orientación con la pantalla completa ya dada.
       if (container?.requestFullscreen) {
         await container.requestFullscreen();
+        await girarAHorizontal();
         return;
       }
       if (container?.webkitRequestFullscreen) {
         await container.webkitRequestFullscreen();
+        await girarAHorizontal();
         return;
       }
     } catch {
@@ -121,10 +132,12 @@ export function useFullscreen(
       const root = document.documentElement as FullscreenElement;
       if (root.requestFullscreen) {
         await root.requestFullscreen();
+        await girarAHorizontal();
         return;
       }
       if (root.webkitRequestFullscreen) {
         await root.webkitRequestFullscreen();
+        await girarAHorizontal();
         return;
       }
     } catch {

@@ -10,7 +10,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { Play, RefreshCw, Radio } from "lucide-react";
+import { Play, RefreshCw, SkipForward } from "lucide-react";
+import { LogoCanal } from "@/components/player/info-vivo";
 import {
   claseDeEmision,
   fijarCalidad,
@@ -40,10 +41,21 @@ export interface StreamPlayerHandle {
 }
 
 export interface StreamPlayerState {
+  /**
+   * La INTENCIÓN de ver, no lo que dice `video.paused` en cada instante.
+   *
+   * Se pone en `true` al zapear y al pulsar ▶ (un directo tarda segundos en
+   * resolver `play()`, y mientras tanto el botón tiene que decir ⏸ o la
+   * persona vuelve a pulsar y lo pausa), y en `false` al pausar o cuando el
+   * navegador no deja arrancar. Tras el primer fotograma mandan los eventos
+   * `play`/`pause` del `<video>`: iOS pausa solo al bloquear la pantalla.
+   */
   isPlaying: boolean;
   isMuted: boolean;
   streamError: boolean;
   needsUserGesture: boolean;
+  /** Sin primer fotograma todavía en este canal: el aviso «Conectando». */
+  conectando?: boolean;
   /**
    * Lo que se está reproduciendo de verdad, para el chrome de sala de control.
    *
@@ -72,7 +84,50 @@ interface StreamPlayerProps {
   settings?: PlaybackSettings;
   /** El padre refleja play/mute/error en su propio chrome. */
   onStateChange?: (state: StreamPlayerState) => void;
+  /**
+   * Saltar al canal siguiente desde «Sin señal». Sin él, el aviso solo ofrece
+   * Reintentar, y quien no sabe que ⏭ existe se queda mirando un canal muerto.
+   */
+  onSiguiente?: () => void;
   className?: string;
+}
+
+/** Cuánto se espera al primer fotograma antes de dar el canal por caído. */
+const VIGIA_MS = 25_000;
+/** A partir de aquí el aviso admite que tarda, para que nadie crea que se colgó. */
+const TARDA_MS = 8_000;
+/**
+ * Tras «Toca para ver», un segundo toque rápido no pausa. El primer clic
+ * arranca y quita el botón; el segundo de un doble toque caía en el `<video>`
+ * y pausaba lo que se acababa de arrancar.
+ */
+const GRACIA_TRAS_TOQUE_MS = 400;
+
+/** ¿Lo rechazó un `pause()` o un `load()` (un toque, un zapeo)? Eso no es un fallo. */
+function esInterrupcion(error: unknown): boolean {
+  return (error as { name?: string } | null)?.name === "AbortError";
+}
+
+/**
+ * Enfocar el botón de un aviso, pero solo con mando, y sin robar el foco.
+ *
+ * Con el dedo, el foco automático pintaba un anillo blanco que nadie pidió (el
+ * doble anillo del teléfono). Con mando hace falta: sin él, OK no tendría nada
+ * que pulsar. Pero solo si el foco no está en otra parte de la pantalla —en
+ * Inicio la persona puede estar recorriendo los rieles cuando el canal cae—
+ * ni en la guía, que sigue sirviendo para irse a otro canal.
+ */
+function enfocarConMando(boton: HTMLElement | null): void {
+  if (!boton) return;
+  const raiz = document.documentElement;
+  if (raiz.dataset.pantalla !== "tv" && raiz.dataset.input !== "dpad") return;
+  const activo = document.activeElement as HTMLElement | null;
+  const reproductor = boton.closest(".live-card, .reproductor-completo");
+  const libre =
+    !activo ||
+    activo === document.body ||
+    (reproductor?.contains(activo) && !activo.closest(".guia"));
+  if (libre) boton.focus();
 }
 
 /**
@@ -112,7 +167,7 @@ function recuperarSonido(
 
 const StreamPlayer = memo(
   forwardRef<StreamPlayerHandle, StreamPlayerProps>(function StreamPlayer(
-    { channel, settings = DEFAULT_PLAYBACK, onStateChange, className = "" },
+    { channel, settings = DEFAULT_PLAYBACK, onStateChange, onSiguiente, className = "" },
     ref,
   ) {
     const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -141,6 +196,24 @@ const StreamPlayer = memo(
      * muertos, eso es la diferencia entre esperar y pulsar OK cuatro veces.
      */
     const [sintonizando, setSintonizando] = useState(true);
+    /** Pasaron `TARDA_MS` sin imagen: el texto del aviso lo reconoce. */
+    const [tarda, setTarda] = useState(false);
+    /**
+     * Copia de `needsUserGesture` para el vigía, que vive en un temporizador y
+     * no puede leer el estado: esperando un toque no hay imagen, y eso no es
+     * un canal caído.
+     */
+    const gestoPendiente = useRef(false);
+    useEffect(() => {
+      gestoPendiente.current = needsUserGesture;
+    }, [needsUserGesture]);
+    /** Copia de `streamError` para `togglePlay`, que es estable. */
+    const hayError = useRef(false);
+    useEffect(() => {
+      hayError.current = streamError;
+    }, [streamError]);
+    /** Cuándo se pulsó «Toca para ver». Ver `GRACIA_TRAS_TOQUE_MS`. */
+    const ultimoToque = useRef(0);
     /**
      * Lo que se reproduce de verdad (ver `StreamPlayerState`). Junto y no en
      * tres estados sueltos porque llega junto, y tres `setState` seguidos
@@ -250,8 +323,16 @@ const StreamPlayer = memo(
     });
 
     useEffect(() => {
-      avisar.current?.({ isPlaying, isMuted, streamError, needsUserGesture, ...emision });
-    }, [isPlaying, isMuted, streamError, needsUserGesture, emision]);
+      avisar.current?.({
+        isPlaying,
+        isMuted,
+        streamError,
+        needsUserGesture,
+        // Sin señal ya no es «conectando», aunque no haya llegado imagen.
+        conectando: sintonizando && !streamError,
+        ...emision,
+      });
+    }, [isPlaying, isMuted, streamError, needsUserGesture, sintonizando, emision]);
 
     useEffect(() => {
       const video = videoRef.current;
@@ -261,7 +342,13 @@ const StreamPlayer = memo(
       const inicio = typeof performance !== "undefined" ? performance.now() : Date.now();
       setStreamError(false);
       setNeedsUserGesture(false);
+      gestoPendiente.current = false;
       setSintonizando(true);
+      setTarda(false);
+      // Al zapear la intención es ver: `tryPlay` arranca solo. Sin esto se
+      // quedaba el `false` de una pausa anterior, y se veía EN PAUSA con ▶
+      // mientras el canal nuevo conectaba.
+      setIsPlaying(true);
       inicioSintonia.current = marcarInicio();
       arranqueAvisado.current = false;
       yaArrancoEmision.current = false;
@@ -299,10 +386,15 @@ const StreamPlayer = memo(
             setIsPlaying(true);
             recuperarSonido(video, quiereSonido.current, () => !cancelled, setIsMuted);
           })
-          .catch(() => {
-            // Ni en silencio se puede: ahí sí no hay nada que enseñar, y el
-            // cartel es lo único que queda. Es el caso raro, no el de siempre.
+          .catch((error: unknown) => {
             if (cancelled) return;
+            // Un toque o un zapeo llamó a `pause()`/`load()` antes de que
+            // `play()` resolviera. No es un bloqueo: tratarlo como tal sacaba
+            // «Toca para ver» encima de un canal que iba bien.
+            if (esInterrupcion(error)) return;
+            // Ni en silencio se puede (Safari con ahorro de batería, por
+            // ejemplo): el aviso es lo único que queda.
+            gestoPendiente.current = true;
             setNeedsUserGesture(true);
             setIsPlaying(false);
           });
@@ -318,6 +410,9 @@ const StreamPlayer = memo(
           return;
         }
         setStreamError(true);
+        // Sin señal no hay nada que pausar: el botón principal pasa a ▶, y
+        // pulsarlo reintenta (ver `togglePlay`). Antes seguía diciendo ⏸.
+        setIsPlaying(false);
         registrarFallo(clase, "canal");
       };
 
@@ -390,6 +485,19 @@ const StreamPlayer = memo(
       video.addEventListener("error", handleNativeError);
 
       /**
+       * El vigía: ningún motor puede dejar «Conectando» para siempre. hls.js
+       * avisa de casi todo, pero el HLS nativo de Safari y mpegts.js pueden
+       * quedarse esperando a un servidor que no contesta sin decir nada.
+       * Esperando un toque no cuenta: ahí falta la persona, no la señal.
+       */
+      const vigia = window.setTimeout(() => {
+        if (!cancelled && !yaArrancoEmision.current && !gestoPendiente.current) handleFatalError();
+      }, VIGIA_MS);
+      const avisoTarda = window.setTimeout(() => {
+        if (!cancelled && !yaArrancoEmision.current) setTarda(true);
+      }, TARDA_MS);
+
+      /**
        * El aviso se quita con **imagen**, no con datos. `playing` es el que
        * significa «se ve algo»; `loadeddata` va detrás porque hay teles que no
        * disparan el primero al arrancar en silencio. Basta con que llegue uno.
@@ -430,24 +538,26 @@ const StreamPlayer = memo(
       };
 
       /**
-       * Cortes a mitad de emisión: `waiting`/`stalled` es «sin búfer» y
-       * `playing` es «ya hay de nuevo». Se cuentan aparte del arranque (ese lo
-       * mide el TTFF) y viajan en `emision.stalls` hasta el panel.
+       * Cortes a mitad de emisión: `waiting` es «sin búfer» y `playing` o un
+       * `timeupdate` que avanza es «ya hay de nuevo». Se cuentan aparte del
+       * arranque (ese lo mide el TTFF) y viajan en `emision.stalls`.
        *
-       * El atasco de telemetría (`atascoDesde`/`registrarAtasco`) es aparte y
-       * solo cuenta DESPUÉS de haberse visto ya el primer fotograma: el
-       * `waiting` de antes de `yaSeVe` es el arranque normal, no un corte, y
-       * contarlo ahí ensuciaría el promedio con lo que ya mide `registrarArranque`.
+       * Solo `waiting`, y solo reproduciendo tras el primer fotograma:
+       * - `stalled` NO cuenta. Solo dice «no llegan datos», y WebKit lo lanza
+       *   cada 3 s con el vídeo en pausa (no los pide) o con el búfer lleno:
+       *   el anillo se quedaba girando encima de un vídeo que avanzaba.
+       * - En pausa no se espera nada.
+       * - Antes del primer fotograma es «Conectando», no «Cargando»: la
+       *   píldora decía CARGANDO mientras el aviso decía otra cosa.
        */
       const alEsperar = () => {
-        if (cancelled) return;
+        if (cancelled || video.paused || !yaArrancoEmision.current) return;
         setEmision((actual) => ({
           ...actual,
           buffering: true,
           stalls: (actual.stalls ?? 0) + 1,
         }));
-        if (!yaArrancoEmision.current || atascoDesde.current !== null) return;
-        atascoDesde.current = marcarInicio();
+        if (atascoDesde.current === null) atascoDesde.current = marcarInicio();
       };
       const alSeguir = () => {
         if (cancelled) return;
@@ -482,16 +592,49 @@ const StreamPlayer = memo(
       video.addEventListener("loadeddata", yaSeVe);
       video.addEventListener("waiting", alEsperar);
       video.addEventListener("playing", alSeguir);
-      video.addEventListener("stalled", alEsperar);
+
+      /**
+       * La pausa la decide el `<video>`, no solo nuestros botones: iOS pausa
+       * por su cuenta (pantalla bloqueada, Centro de control, AirPods, una
+       * llamada) y Chrome pausa el vídeo mudo que sale de la vista. Sin oírlo,
+       * el rótulo seguía en «EN VIVO ⏸» sobre una imagen quieta.
+       *
+       * Solo tras el primer fotograma: la limpieza del canal anterior llama a
+       * `video.pause()`, y ese `pause` llega cuando ya escuchan los oyentes
+       * del canal nuevo. Sin la guarda, cada zapeo diría EN PAUSA.
+       */
+      const alReproducir = () => {
+        if (!cancelled && yaArrancoEmision.current) setIsPlaying(true);
+      };
+      const alPausar = () => {
+        if (cancelled || !yaArrancoEmision.current) return;
+        setIsPlaying(false);
+        setEmision((actual) => (actual.buffering ? { ...actual, buffering: false } : actual));
+      };
+      // Si el tiempo corre, no está cargando, diga lo que diga el último
+      // `waiting`: hay navegadores que no mandan `playing` al reanudar.
+      let ultimoInstante = -1;
+      const alAvanzar = () => {
+        if (video.currentTime === ultimoInstante) return;
+        ultimoInstante = video.currentTime;
+        alSeguir();
+      };
+      video.addEventListener("play", alReproducir);
+      video.addEventListener("pause", alPausar);
+      video.addEventListener("timeupdate", alAvanzar);
 
       return () => {
         cancelled = true;
+        window.clearTimeout(vigia);
+        window.clearTimeout(avisoTarda);
         video.removeEventListener("error", handleNativeError);
         video.removeEventListener("playing", yaSeVe);
         video.removeEventListener("loadeddata", yaSeVe);
         video.removeEventListener("waiting", alEsperar);
         video.removeEventListener("playing", alSeguir);
-        video.removeEventListener("stalled", alEsperar);
+        video.removeEventListener("play", alReproducir);
+        video.removeEventListener("pause", alPausar);
+        video.removeEventListener("timeupdate", alAvanzar);
         video.removeEventListener("resize", medirImagen);
         video.removeEventListener("loadedmetadata", medirImagen);
         if (hlsRef.current) {
@@ -544,13 +687,25 @@ const StreamPlayer = memo(
     const togglePlay = useCallback(() => {
       const video = videoRef.current;
       if (!video) return;
+      if (performance.now() - ultimoToque.current < GRACIA_TRAS_TOQUE_MS) return;
+      // Con «Sin señal», ▶ es lo mismo que Reintentar: un `play()` sobre una
+      // fuente muerta no haría nada visible.
+      if (hayError.current) {
+        handleRetry();
+        return;
+      }
       if (video.paused) {
-        video.play().then(() => setIsPlaying(true)).catch(() => {});
+        // ⏸ en el acto: un directo tarda segundos en resolver `play()`, y quien
+        // sigue viendo ▶ vuelve a pulsar y lo pausa.
+        setIsPlaying(true);
+        video.play().catch((error: unknown) => {
+          if (!esInterrupcion(error)) setIsPlaying(false);
+        });
       } else {
         video.pause();
         setIsPlaying(false);
       }
-    }, []);
+    }, [handleRetry]);
 
     const toggleMute = useCallback(() => {
       const video = videoRef.current;
@@ -602,16 +757,26 @@ const StreamPlayer = memo(
     const handleEnableSound = useCallback(() => {
       const video = videoRef.current;
       if (!video) return;
+      ultimoToque.current = performance.now();
+      gestoPendiente.current = false;
       setNeedsUserGesture(false);
+      setIsPlaying(true);
       video.muted = true;
       setIsMuted(true);
       video
         .play()
-        .then(() => {
-          setIsPlaying(true);
-          recuperarSonido(video, true, () => true, setIsMuted);
-        })
-        .catch(() => setStreamError(true));
+        .then(() => recuperarSonido(video, true, () => true, setIsMuted))
+        .catch((error: unknown) => {
+          // Lo paró otro toque: no es un fallo, y menos «Sin señal».
+          if (esInterrupcion(error)) return;
+          setIsPlaying(false);
+          if ((error as { name?: string } | null)?.name === "NotAllowedError") {
+            gestoPendiente.current = true;
+            setNeedsUserGesture(true);
+          } else {
+            setStreamError(true);
+          }
+        });
     }, []);
 
     useImperativeHandle(
@@ -642,67 +807,96 @@ const StreamPlayer = memo(
           style={{ objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain" }}
         />
 
-        {/* Se rinde ante cualquiera de los otros dos avisos: si hay que
-            activar el sonido o la señal falló, «Sintonizando…» ya no es
-            verdad y taparía el botón que hay que pulsar. */}
+        {/* «Conectando»: el logo del canal, grande, respirando —como Apple TV—
+            en vez de un anillo y «Sintonizando X…». Dice QUÉ se está
+            cargando antes de leer nada, y a un niño o a una persona mayor le
+            confirma que el mando hizo caso.
+
+            Se rinde ante los otros dos avisos: si hay que tocar o la señal
+            falló, «Conectando» ya no es verdad y taparía el botón que hay que
+            pulsar. No recibe toques (`pointer-events: none` en la hoja): el
+            dedo sigue cayendo en el `<video>`. */}
         {sintonizando && !streamError && !needsUserGesture && (
-          <div className="player-sintonizando" role="status">
-            <span className="player-anillo" aria-hidden="true" />
-            <p>Sintonizando {channel.name}…</p>
-          </div>
-        )}
-
-        {/* Tirón a mitad de emisión: ya hubo imagen, así que no es sintonizar
-            de nuevo, solo un aviso pequeño que no tapa los controles.
-
-            Solo con el vídeo en marcha: en pausa el navegador sigue avisando
-            de `stalled` (no le llegan datos porque no los pide), y el anillo
-            girando sobre una imagen quieta decía «cargando» cuando lo que
-            pasaba era «en pausa». Lo vio el dueño en su iPhone. */}
-        {!sintonizando && isPlaying && emision.buffering && !streamError && !needsUserGesture && (
-          <div className="player-sintonizando is-buffering" role="status" aria-label="Recargando">
-            <span className="player-anillo" aria-hidden="true" />
-          </div>
-        )}
-
-        {needsUserGesture && !streamError && (
-          <div role="alert" className="player-fallo">
-            <Play aria-hidden="true" strokeWidth={1.5} className="mb-2 h-12 w-12 text-accent" />
-            <p className="player-fallo-titulo">Toca para reproducir</p>
-            <p className="player-fallo-detalle">
-              Este navegador no deja arrancar el vídeo por su cuenta, ni siquiera en silencio.
+          <div className="player-conectando" role="status">
+            <LogoCanal key={channel.id} channel={channel} className="player-conectando-logo" />
+            <p className="player-conectando-texto">
+              {tarda ? "Está tardando un poco…" : `Conectando con ${channel.name}…`}
             </p>
-            <button
-              type="button"
-              data-nav="button"
-              autoFocus
-              onClick={handleEnableSound}
-              className="player-btn is-primary"
-            >
-              <Play aria-hidden="true" />
-              Reproducir
-            </button>
           </div>
         )}
 
+        {/* Tirón a mitad de emisión: ya hubo imagen, así que no es conectar
+            de nuevo, solo un anillo pequeño sobre un velo leve.
+
+            Solo con el vídeo en marcha: en pausa el anillo girando sobre una
+            imagen quieta decía «cargando» cuando lo que pasaba era «en
+            pausa». Lo vio el dueño en su iPhone. */}
+        {!sintonizando && isPlaying && emision.buffering && !streamError && !needsUserGesture && (
+          <div className="player-cargando" role="status" aria-label="Cargando">
+            <span className="player-anillo" aria-hidden="true" />
+          </div>
+        )}
+
+        {/* «Toca para ver»: el navegador no dejó arrancar solo (Safari con
+            ahorro de batería). Un único botón del tamaño del vídeo, para que
+            arranque se toque donde se toque; el fotograma se sigue viendo
+            debajo y confirma que el canal está ahí.
+
+            Sin explicaciones técnicas: «este navegador no deja…» era falso
+            con el ahorro de batería y no le dice nada a quien solo quiere ver
+            la tele. Lo que dice depende de con qué se maneja. */}
+        {needsUserGesture && !streamError && (
+          <button
+            type="button"
+            data-nav="button"
+            ref={enfocarConMando}
+            className="player-toca"
+            onClick={handleEnableSound}
+            aria-label={`Ver ${channel.name}`}
+          >
+            <span className="player-toca-circulo" aria-hidden="true">
+              <Play fill="currentColor" strokeWidth={0} />
+            </span>
+            <span className="player-toca-texto" aria-hidden="true">
+              <span className="player-con-tacto">Toca para ver</span>
+              <span className="player-con-mando">Pulsa OK para ver</span>
+            </span>
+          </button>
+        )}
+
+        {/* «Sin señal»: el logo apagado dice qué canal falló sin leer nada, y
+            dos salidas claras. «Otro canal» importa tanto como Reintentar:
+            un canal caído suele seguir caído un rato. */}
         {streamError && (
           <div role="alert" className="player-fallo">
-            <Radio aria-hidden="true" strokeWidth={1.5} className="mb-2 h-12 w-12 text-live" />
+            <LogoCanal key={channel.id} channel={channel} className="player-conectando-logo" />
             <p className="player-fallo-titulo">Sin señal</p>
             <p className="player-fallo-detalle">
-              La fuente no respondió o el formato no es compatible. Suele ser un corte momentáneo
-              del proveedor.
+              {channel.name} no está emitiendo ahora. Suele volver en un rato.
             </p>
-            <button
-              type="button"
-              data-nav="button"
-              autoFocus
-              onClick={handleRetry}
-              className="player-btn is-primary"
-            >
-              <RefreshCw aria-hidden="true" />
-              Reintentar
-            </button>
+            <div className="player-fallo-acciones">
+              <button
+                type="button"
+                data-nav="button"
+                ref={enfocarConMando}
+                onClick={handleRetry}
+                className="player-btn is-primary"
+              >
+                <RefreshCw aria-hidden="true" />
+                Reintentar
+              </button>
+              {onSiguiente && (
+                <button
+                  type="button"
+                  data-nav="button"
+                  onClick={onSiguiente}
+                  className="player-btn"
+                >
+                  <SkipForward aria-hidden="true" fill="currentColor" />
+                  Otro canal
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

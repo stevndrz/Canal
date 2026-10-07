@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   claseDeEmision,
   configArranqueParaCalidad,
+  esFalloDeManifiesto,
   fijarCalidad,
   nivelMaxParaCalidad,
   resolverCalidad,
@@ -108,5 +109,23 @@ describe("fijarCalidad", () => {
   it("sin niveles no revienta", () => {
     expect(() => fijarCalidad(null, "720p")).not.toThrow();
     expect(() => fijarCalidad({ levels: [] }, "720p")).not.toThrow();
+  });
+});
+
+describe("esFalloDeManifiesto", () => {
+  // Los textos son los valores de `Hls.ErrorDetails` en hls.js 1.7: si una
+  // versión nueva los cambiara, un canal muerto volvería a quedarse en
+  // «Conectando» para siempre.
+  it("reconoce los fallos del manifiesto: 404/CORS, tiempo agotado y lista rota", () => {
+    expect(esFalloDeManifiesto("manifestLoadError")).toBe(true);
+    expect(esFalloDeManifiesto("manifestLoadTimeOut")).toBe(true);
+    expect(esFalloDeManifiesto("manifestParsingError")).toBe(true);
+  });
+
+  it("deja los demás a la política de recuperación", () => {
+    expect(esFalloDeManifiesto("fragLoadError")).toBe(false);
+    expect(esFalloDeManifiesto("levelLoadTimeOut")).toBe(false);
+    expect(esFalloDeManifiesto("bufferStalledError")).toBe(false);
+    expect(esFalloDeManifiesto(undefined)).toBe(false);
   });
 });

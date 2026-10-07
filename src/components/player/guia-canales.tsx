@@ -108,6 +108,16 @@ export function GuiaCanales({
                 <b>{channelMark(canal)}</b>
               )}
               <em>{canal.number}</em>
+              {/* «Elegido» no es «enfocado»: el canal que suena lleva esta
+                  marca y no el anillo blanco, que es solo del foco. Con los
+                  dos iguales, a tres metros no se sabía si el mando estaba
+                  sobre el canal que se ve o sobre otro. El lector de pantalla
+                  ya lo oye por `aria-current`. */}
+              {canal.id === channelId && (
+                <span className="guia-canal-ahora" aria-hidden="true">
+                  Viendo
+                </span>
+              )}
             </span>
             <p>{canal.name}</p>
             {/* Mismo dato que ya pinta `channel-row.tsx` en la lista: el

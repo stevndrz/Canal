@@ -12,6 +12,7 @@ import StreamPlayer, {
 } from "@/components/stream-player";
 import { stepChannel } from "@/lib/channels";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
+import { soltarOrientacion } from "@/lib/orientacion";
 import { accionDeTecla } from "@/lib/teclas-mando";
 import { GuiaCanales } from "@/components/player/guia-canales";
 import { useFullscreen } from "@/hooks/use-fullscreen";
@@ -94,6 +95,12 @@ export function FullscreenPlayer({
 
 
   const estado = estadoDeEmision(state);
+  /**
+   * Hay un aviso que pide una acción («Toca para ver» o «Sin señal»). El dial
+   * central se aparta (`con-aviso` en la hoja): caía encima del título del
+   * aviso —«S⏸l»— y en «Sin señal» seguía ofreciendo «Pausar».
+   */
+  const conAviso = state.streamError || state.needsUserGesture;
 
   const wake = useCallback(() => {
     setShowControls(true);
@@ -138,38 +145,74 @@ export function FullscreenPlayer({
     };
   }, [channel.id, wake]);
 
-  /** Tocar la imagen pausa y reanuda, y despierta la barra. */
+  /**
+   * Tocar la imagen pausa y reanuda, y despierta la barra.
+   *
+   * Mientras conecta solo despierta: no hay nada que pausar, y el `pause()`
+   * cortaba el arranque y acababa en un «Toca para ver» falso.
+   */
   const alTocar = useCallback(
     (evento: React.MouseEvent) => {
       if (!esToqueEnElVideo(evento.target)) return;
-      playerRef.current?.togglePlay();
+      if (!state.conectando) playerRef.current?.togglePlay();
       wake();
     },
-    [wake],
+    [wake, state.conectando],
   );
 
   /**
-   * Recorrer la barra de controles con el mando. `use-spatial-nav` está apagado
-   * aquí a propósito —las flechas zapean—, así que **no había forma de llegar a
-   * la barra**: los botones existían y solo servían con ratón o con el dedo.
-   * La primera pulsación entra por Pausar, no por donde caiga el DOM.
+   * Recorrer los controles con el mando. `use-spatial-nav` está apagado aquí a
+   * propósito —las flechas zapean—, así que este es el único camino.
+   *
+   * Recorre primero el aviso (si lo hay) y después la barra, en el orden del
+   * DOM. Antes solo miraba `.player-bar`: desde «Reintentar» o «Toca para
+   * ver», ← → saltaban a la barra y ya no había forma de volver al aviso.
+   *
+   * Lo escondido con `visibility` se salta: el dial con un aviso encima, o el
+   * dial y el rótulo con la guía abierta. `focus()` sobre algo invisible no
+   * hace nada en unos navegadores y en otros deja el foco donde no se ve.
+   *
+   * La primera pulsación entra por el botón del aviso si lo hay —es lo que
+   * hay que pulsar— y si no por Pausar, el control que se busca a ciegas.
    */
   const moverFoco = useCallback(
     (delta: number) => {
       wake();
-      const barra = containerRef.current?.querySelector(".player-bar");
-      const botones = barra ? [...barra.querySelectorAll<HTMLElement>("[data-nav]")] : [];
+      const raiz = containerRef.current;
+      if (!raiz) return;
+      const botones = [
+        ...raiz.querySelectorAll<HTMLElement>(
+          ".player-toca, .player-fallo [data-nav], .player-bar [data-nav]",
+        ),
+      ].filter((boton) => getComputedStyle(boton).visibility !== "hidden");
       if (botones.length === 0) return;
       const actual = botones.indexOf(document.activeElement as HTMLElement);
       if (actual === -1) {
-        // La primera pulsación cae en Pausar, el control que se busca a ciegas.
-        (barra?.querySelector<HTMLElement>(".is-primary") ?? botones[0]).focus();
+        const primero =
+          botones.find((boton) => !boton.closest(".player-bar")) ??
+          botones.find((boton) => boton.classList.contains("is-primary")) ??
+          botones[0];
+        primero.focus();
         return;
       }
       botones[(actual + delta + botones.length) % botones.length].focus();
     },
     [wake],
   );
+
+  /**
+   * Al aparecer un aviso, el foco no puede quedarse en el dial que se acaba de
+   * esconder. En las teles con Chromium < 100 un botón con `visibility:
+   * hidden` conserva el foco, y OK pulsaría «Pausar» sin que se viera.
+   */
+  useEffect(() => {
+    if (!conAviso) return;
+    const activo = document.activeElement as HTMLElement | null;
+    if (!activo?.closest(".vivo-dial")) return;
+    containerRef.current
+      ?.querySelector<HTMLElement>(".player-toca, .player-fallo [data-nav]")
+      ?.focus();
+  }, [conAviso]);
 
   /**
    * Deshace el estado entero: la pantalla completa del navegador, si se
@@ -181,6 +224,9 @@ export function FullscreenPlayer({
    * mentira, esa tecla no hacía nada—.
    */
   const salir = useCallback(() => {
+    // Antes que nada: si el teléfono se giró al entrar, vuelve a mandar quien
+    // lo sostiene. Ver `orientacion.ts`.
+    soltarOrientacion();
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
     onExit();
   }, [onExit]);
@@ -232,7 +278,12 @@ export function FullscreenPlayer({
         return;
       }
 
-      const enLaBarra = (document.activeElement as HTMLElement | null)?.closest(".player-bar");
+      // Los controles cuyo OK es suyo: la barra y los botones de los avisos.
+      // Fuera de ellos, OK abre o cierra la guía. Antes solo contaba la barra,
+      // y OK sobre «Reintentar» abría la guía en vez de reintentar.
+      const enUnControl = (document.activeElement as HTMLElement | null)?.closest(
+        ".player-bar, .player-fallo, .player-toca",
+      );
 
       switch (event.key) {
         case "ArrowUp":
@@ -261,7 +312,7 @@ export function FullscreenPlayer({
         case "Enter":
           // Con un botón enfocado, el navegador ya lo pulsa solo: interceptar
           // aquí sería robarle el OK al control que la persona acaba de elegir.
-          if (enLaBarra) return;
+          if (enUnControl) return;
           event.preventDefault();
           if (showGuide) setShowGuide(false);
           else openGuide();
@@ -343,11 +394,14 @@ export function FullscreenPlayer({
     <div
       ref={containerRef}
       /* `con-controles`: mientras se ven, la píldora del rótulo ya dice
-         «Conectando», y el aviso central de `StreamPlayer` se quita para no
-         quedar debajo del botón de pausa. */
+         «Conectando», y con dedo o ratón el logo de `StreamPlayer` espera a
+         que se escondan para no quedar debajo del dial.
+         `con-aviso`: hay que tocar o reintentar; el dial se aparta.
+         `is-conectando`: con mando el dial también se aparta (se zapea con
+         ↑↓) y el logo del canal manda. */
       className={`reproductor-completo absolute inset-0 z-20 bg-black ${
         showControls ? "con-controles" : ""
-      }`}
+      } ${conAviso ? "con-aviso" : ""} ${state.conectando ? "is-conectando" : ""}`}
       onMouseMove={wake}
       /* Tocar la imagen pausa y reanuda; el doble toque va a pantalla completa
          real. Sin temporizador a propósito: el segundo clic deshace el primero
@@ -360,6 +414,7 @@ export function FullscreenPlayer({
         channel={channel}
         settings={settings}
         onStateChange={setState}
+        onSiguiente={() => zap(1)}
       />
 
       {/* Velo: oscurece arriba y abajo para que los controles se lean sobre
@@ -416,15 +471,16 @@ export function FullscreenPlayer({
       {/* Aviso de fallo al transmitir. Antes solo se veía en la consola del
           navegador, así que desde fuera parecía que el botón no hacía nada. */}
       {castError && (
-        <div className="tv-safe absolute inset-x-0 top-24 z-30 flex items-start gap-2.5 rounded-2xl border border-white/12 bg-app/92 p-4 text-sm backdrop-blur-xl">
-          <Cast aria-hidden="true" strokeWidth={1.5} className="mt-0.5 h-4 w-4 shrink-0 text-live" />
-          <p className="flex-1 text-muted">{castError}</p>
+        /* Sin desenfoque: va encima del vídeo en directo (ver `.vivo-aviso`). */
+        <div className="vivo-aviso" role="alert">
+          <Cast aria-hidden="true" strokeWidth={1.5} className="vivo-aviso-icono" />
+          <p>{castError}</p>
           <button
             type="button"
             data-nav="button"
             onClick={dismissCastError}
             aria-label="Cerrar aviso"
-            className="shrink-0 rounded-lg px-2 text-soft hover:text-accent"
+            className="vivo-aviso-cerrar"
           >
             ✕
           </button>

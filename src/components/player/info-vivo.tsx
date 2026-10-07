@@ -17,9 +17,15 @@ import type { StreamPlayerState } from "@/components/stream-player";
  * Vivía dentro de `fullscreen-player.tsx`; aquí lo usan los dos reproductores,
  * que antes decían cosas distintas del mismo estado (Inicio ponía «EN VIVO»
  * siempre, aunque no hubiera imagen).
+ *
+ * El orden es el del aviso que se ve en el vídeo, para que la píldora nunca le
+ * lleve la contraria: mientras conecta dice CONECTANDO aunque llegue un
+ * `waiting` (antes ponía «CARGANDO» con «Sintonizando…» debajo), salvo que el
+ * navegador haya pedido un toque, que es «Toca para ver» y va con EN PAUSA.
  */
 export function estadoDeEmision(state: StreamPlayerState): EstadoEmision {
   if (state.streamError) return "sin-senal";
+  if (state.conectando && !state.needsUserGesture) return "sintonizando";
   if (!state.isPlaying) return "pausa";
   if (state.buffering) return "buffering";
   return state.alto ? "vivo" : "sintonizando";
@@ -93,10 +99,23 @@ export function InfoVivo({
   );
 }
 
-export function LogoCanal({ channel }: { channel: Channel }) {
+/**
+ * El logo del canal, con las iniciales de respaldo si no hay o no carga.
+ *
+ * `className` deja usar el mismo respaldo en otra talla: los avisos del
+ * reproductor (`.player-conectando-logo`) lo pintan en grande mientras
+ * conecta y apagado cuando no hay señal.
+ */
+export function LogoCanal({
+  channel,
+  className = "vivo-logo",
+}: {
+  channel: Channel;
+  className?: string;
+}) {
   const [fallo, setFallo] = useState(false);
   return (
-    <span className="vivo-logo" aria-hidden="true">
+    <span className={className} aria-hidden="true">
       {channel.logoUrl && !fallo ? (
         // `<img>` plano: los logos vienen de cientos de dominios y
         // `next/image` exige declararlos todos en `remotePatterns`.

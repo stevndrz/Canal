@@ -5,6 +5,7 @@ import { extrasCast, PlayerControls } from "@/components/player/player-controls"
 import { estadoDeEmision, InfoVivo } from "@/components/player/info-vivo";
 import { useCast } from "@/hooks/use-cast";
 import { esIPhone } from "@/lib/dispositivo";
+import { girarAHorizontal } from "@/lib/orientacion";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import { cambioDeSalud } from "@/lib/salud-de-la-emision";
 import type { Channel, PlaybackSettings } from "@/lib/types";
@@ -84,8 +85,14 @@ export function LiveCard({
       // nada del siguiente, y compararlos daría un flanco inventado. Por eso la
       // `ref` guarda de qué canal era la lectura, y no solo la lectura.
       const anterior = previo.current?.canal === channel.id ? previo.current.lectura : undefined;
-      previo.current = { canal: channel.id, lectura: siguiente };
-      const cambio = cambioDeSalud(anterior, siguiente);
+      // «Funciona» es haber dado imagen, no tener la intención de ver:
+      // `isPlaying` se pone en `true` en cuanto se zapea o se pulsa
+      // Reintentar, y sin esto un canal caído «revivía» antes de enseñar un
+      // solo fotograma. La lista de caídos oscilaba y escribía en
+      // `localStorage` en cada intento.
+      const lectura = { ...siguiente, isPlaying: siguiente.isPlaying && siguiente.ttffMs !== undefined };
+      previo.current = { canal: channel.id, lectura };
+      const cambio = cambioDeSalud(anterior, lectura);
       if (cambio) onSalud?.(channel.id, cambio === "revivio");
     },
     [channel.id, onSalud],
@@ -124,10 +131,15 @@ export function LiveCard({
    * a ver si llega el segundo daría un pausado con retardo, y el retardo en un
    * control tan básico se nota mucho más que el parpadeo que evita.
    */
-  const alTocar = useCallback((evento: React.MouseEvent) => {
-    if (!esToqueEnElVideo(evento.target)) return;
-    playerRef.current?.togglePlay();
-  }, []);
+  const alTocar = useCallback(
+    (evento: React.MouseEvent) => {
+      // Mientras conecta no hay nada que pausar: tocar para «ver si va» paraba
+      // el arranque, y el `play()` interrumpido acababa en un aviso falso.
+      if (!esToqueEnElVideo(evento.target) || state.conectando) return;
+      playerRef.current?.togglePlay();
+    },
+    [state.conectando],
+  );
 
   // El vídeo real vive dentro de StreamPlayer y se expone por método; Cast lo
   // necesita como ref, así que se copia en cuanto existe.
@@ -163,6 +175,7 @@ export function LiveCard({
             channel={channel}
             settings={settings}
             onStateChange={alCambiarEstado}
+            onSiguiente={onNext}
           />
           {/* El fallo lo cuenta `StreamPlayer`, que es quien sabe qué pasó; aquí
               no se repite. */}
@@ -222,11 +235,13 @@ async function pedirPantallaCompleta(): Promise<void> {
   try {
     if (typeof raiz.requestFullscreen === "function") {
       await raiz.requestFullscreen({ navigationUI: "hide" });
-      return;
-    }
-    if (typeof raiz.webkitRequestFullscreen === "function") {
+    } else if (typeof raiz.webkitRequestFullscreen === "function") {
       await raiz.webkitRequestFullscreen();
     }
+    // Ya concedida, que es cuando Chrome deja bloquear la orientación: un
+    // Android en vertical pasa de una franja de 412×232 a 732×412. Las guardas
+    // (iPhone, tele, ratón, tableta) viven en `orientacion.ts`.
+    await girarAHorizontal();
   } catch {
     // Algunos navegadores de televisor la rechazan sobre <html>. No hay más
     // respaldo que ofrecer: la vista igualmente ocupa toda la ventana.
