@@ -1,0 +1,903 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   CanalCasa — Cine y series
+   ═══════════════════════════════════════════════════════════════════════════
+   Portada, estados vacíos, búsqueda y ficha. Solo tokens de `shell.css`. Sin
+   capa (ver la nota de `globals.css`).
+
+   Dos cosas que conviene saber antes de tocar nada aquí:
+
+   1. **Sin capa gana a todo lo que va en capa**, también a Tailwind y a
+      `shell.css`. Por eso las piezas de aquí que repiten una clase del
+      armazón (`.hero`, `.poster-frame`) redefinen también su foco: una regla
+      de reposo sin capa pisaría el realce en capa de `shell.css`.
+   2. **Esta hoja se importa ANTES que las reglas sueltas de `globals.css`.**
+      Con la misma especificidad, gana `globals.css`. Lo nuevo lleva clases
+      propias; lo que ya vivía allí se cambia allí. */
+
+/* ── El margen único ──────────────────────────────────────────────────────
+   Todo Cine y series arranca en `--margen`: héroe, cabecera, rieles,
+   resultados, paginador. Medido antes: en la tele la marca empezaba en x81,
+   el héroe en x158, el campo (centrado) en x478 y las filas en x239 —cuatro
+   bordes izquierdos en una pantalla—, porque el héroe y la cabecera iban en
+   una caja centrada de 1700 px con su propio relleno y los rieles sumaban el
+   suyo encima. Ahora no hay caja: cada pieza pone `--margen` y nada más. */
+
+/* ── El héroe ─────────────────────────────────────────────────────────────
+   Más bajo (64vh y no 70) para que la cabecera asome en el primer pantallazo,
+   y acabado en TRANSPARENTE: la foto y su velo se disuelven con una máscara
+   sobre el fondo de la app. Antes el velo acababa en el color de fondo
+   opaco y debajo empezaba el halo de `.app-shell`: dos negros distintos
+   pegados, y una línea recta en y≈755 que delataba la foto pegada. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 64vh;
+  padding: 0;
+  background: none;
+}
+
+.hero-arte,
+.hero::after {
+  -webkit-mask-image: linear-gradient(180deg, black 0%, black 58%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, black 58%, transparent 100%);
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+  padding: calc(var(--topbar-h) + clamp(20px, 4vh, 48px)) var(--margen) clamp(16px, 3vh, 36px);
+}
+
+/* «★ 6,5» en el color del texto y con la estrella pequeña: la caja dorada
+   hacía de la nota lo más llamativo del héroe, por delante del título. */
+.hero-nota {
+  gap: 0.3em;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--tinta-1);
+}
+
+.hero-nota svg {
+  width: 0.85em;
+  height: 0.85em;
+}
+
+.hero-acciones .primary,
+.hero-acciones .secondary {
+  min-height: max(var(--control-md), 2.6em);
+}
+
+/* ── Lenguaje de sala de cine ─────────────────────────────────────────────
+   Pedido por el dueño con capturas de referencia: título enorme, datos con
+   icono, una píldora blanca para ver y las demás acciones juntas en una
+   píldora de cristal. Todo lo de aquí abajo es ese lenguaje. */
+
+.hero-titulo {
+  font-size: clamp(2.25rem, 1.2rem + 3.6vw, 4.75rem);
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  max-width: 16ch;
+}
+
+/* Sin puntos separadores: cada dato ya se separa por su icono. */
+.hero-datos {
+  gap: clamp(14px, 1.4vw, 24px);
+  color: var(--tinta-2);
+}
+
+.hero-datos > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.hero-datos > span + span::before {
+  content: none;
+}
+
+.hero-datos svg {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  opacity: 0.85;
+}
+
+.hero-nota {
+  font-weight: 700;
+}
+
+.hero-nota svg {
+  color: var(--aviso);
+  opacity: 1;
+}
+
+.hero-nota-de {
+  margin-left: -0.3em;
+  font-weight: 500;
+  color: var(--tinta-3);
+}
+
+.hero-sinopsis {
+  color: var(--tinta-2);
+}
+
+.hero-acciones {
+  align-items: center;
+}
+
+.hero-acciones .primary {
+  padding-inline: 1.6em;
+  font-weight: 700;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* La píldora de cristal con los iconos. El cristal es oscuro aunque el
+   navegador no desenfoque (los televisores no lo hacen): se lee igual sobre
+   un fotograma blanco. */
+.hero-grupo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radio-pill);
+  background: rgba(var(--fondo-rgb), 0.5);
+  border: 1px solid var(--borde);
+  backdrop-filter: saturate(160%) blur(18px);
+}
+
+.hero-icono {
+  /* La misma letra que «Ver ahora», para que midan lo mismo: el tamaño sale
+     de `em`, y en la tele la letra crece con la pantalla. */
+  font-size: var(--texto-base);
+  display: grid;
+  place-items: center;
+  width: max(var(--control-md), 2.6em);
+  height: max(var(--control-md), 2.6em);
+  margin: -4px 0;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--tinta-1);
+  cursor: pointer;
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease);
+}
+
+.hero-icono svg {
+  width: 44%;
+  height: 44%;
+}
+
+.hero-icono:hover {
+  background: var(--relleno-hover);
+}
+
+.hero-icono.is-activo {
+  color: var(--exito);
+}
+
+/* El foco del mando: la píldora entera se vuelve blanca, igual que los
+   destinos de la barra. Sin capa, así que hay que repetirlo aquí. */
+.hero-icono:focus-visible,
+html[data-input="dpad"] .hero-icono:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  outline: none;
+}
+
+/* ── La luz de la pantalla ────────────────────────────────────────────────
+   El arte destacado, desenfocado, tiñe el fondo de toda la página —el halo
+   que deja una pantalla en una sala a oscuras—. Va detrás de todo (`.screen`
+   tiene `z-index: 1`) y se apaga hacia abajo con una máscara.
+
+   El truco para que sea barato también en un televisor: se desenfoca una caja
+   OCHO veces más pequeña y luego se amplía con `transform`. Desenfocar cuesta
+   según la superficie, así que esto cuesta 1/64 de un `blur(90px)` a
+   pantalla completa, y la ampliación la hace la GPU gratis. Medio ancho de
+   más a cada lado tapa el borde que el desenfoque deja transparente. */
+.cine-ambiente {
+  position: absolute;
+  top: 0;
+  left: -1.5%;
+  z-index: 0;
+  width: 13%;
+  height: calc(190vh / 8);
+  pointer-events: none;
+  background-size: cover;
+  background-position: center 20%;
+  opacity: 0.45;
+  filter: blur(11px) saturate(1.5);
+  transform: scale(8);
+  transform-origin: 0 0;
+  -webkit-mask-image: linear-gradient(180deg, black 0%, black 35%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, black 35%, transparent 100%);
+}
+
+.hero {
+  z-index: 1;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .cine-ambiente {
+    display: none;
+  }
+}
+
+/* ── «Ver todo» ───────────────────────────────────────────────────────────
+   A la derecha de cada fila, como enlace que se ve. */
+.rail-head {
+  align-items: center;
+}
+
+.rail-ver-todo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  margin-left: auto;
+  min-height: 40px;
+  padding: 0 0.4em 0 0.9em;
+  border-radius: var(--radio-pill);
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color 160ms var(--ease), background-color 160ms var(--ease);
+}
+
+.rail-ver-todo svg {
+  width: 1.1em;
+  height: 1.1em;
+  transition: transform 160ms var(--ease);
+}
+
+.rail-ver-todo:hover {
+  color: var(--tinta-1);
+}
+
+.rail-ver-todo:hover svg {
+  transform: translateX(3px);
+}
+
+.rail-ver-todo:focus-visible,
+html[data-input="dpad"] .rail-ver-todo:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  outline: none;
+}
+
+/* En el teléfono el primer pantallazo tiene que dejar ver carteles: medido,
+   el primero caía en y=940 de una pantalla de 844. Dos botones (el tráiler
+   está dentro de la ficha), dos líneas de sinopsis y un héroe más bajo. */
+@media (max-width: 680px) {
+  .hero {
+    min-height: 52vh;
+  }
+
+  .hero-copy {
+    padding-top: calc(var(--topbar-h) + 20px);
+  }
+
+  .hero-sinopsis {
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+  }
+
+  .hero-acciones .fuera-de-la-app {
+    display: none;
+  }
+
+  .hero-acciones .primary {
+    flex: 1 1 auto;
+  }
+
+  .cine-ambiente {
+    height: calc(140vh / 8);
+  }
+}
+
+/* En la tele no se ofrece nada que abra otra pestaña: desde YouTube o IMDB
+   el mando no sabe volver a la app. `data-pantalla="tv"` lo pone el guion de
+   arranque con el mismo patrón de User-Agent que usa el servidor. */
+[data-pantalla="tv"] .fuera-de-la-app {
+  display: none;
+}
+
+/* ── La cabecera: título, buscador, píldoras y orden ──────────────────────
+   Una fila a la izquierda, no tres bloques centrados. Con el mando, bajar
+   desde cualquier botón del héroe cae en esta fila. */
+.catalogo-cabecera {
+  display: grid;
+  /* Acotada: sin esto la columna crecía hasta el ancho de la fila de
+     píldoras deslizable del teléfono y empujaba el buscador fuera. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: clamp(12px, 1.8vh, 22px);
+  padding: clamp(4px, 1vh, 12px) var(--margen) clamp(18px, 3vh, 36px);
+}
+
+.catalogo-titulo {
+  margin: 0;
+  font-size: var(--texto-2xl);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--tinta-1);
+}
+
+.catalogo-controles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(10px, 1vw, 16px);
+}
+
+.catalogo-buscador-form {
+  display: flex;
+  flex: 1 1 320px;
+  max-width: 520px;
+  min-width: min(100%, 240px);
+}
+
+.catalogo-pildoras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: clamp(8px, 0.8vw, 12px);
+}
+
+/* El orden se aparta a la derecha en pantallas anchas: es un ajuste, no un
+   filtro, y pegado a las píldoras parecía una más. */
+.catalogo-orden-campo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  margin-left: auto;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+/* El aspa del campo: el icono es pequeño, el objetivo no (44 px). */
+.catalogo-buscador-borrar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: max(44px, 1.9em);
+  height: max(44px, 1.9em);
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--tinta-3);
+  cursor: pointer;
+  /* Sin transición de color: en la GPU de una tele solo se anima opacidad y
+     transformación, y un cambio de fondo instantáneo no se echa de menos. */
+}
+
+.catalogo-buscador-borrar:hover {
+  background: var(--relleno-hover);
+  color: var(--tinta-1);
+}
+
+.catalogo-buscador-borrar svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* En el teléfono: el título sobra (la barra de abajo ya marca «Cine y
+   series» y el héroe está justo encima), y el orden pierde su etiqueta para
+   caber en la fila de las píldoras. Cada línea ahorrada es un cartel más en
+   el primer pantallazo. */
+@media (max-width: 680px) {
+  .catalogo-titulo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .catalogo-buscador-form {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  /* Tipo, género y orden en UNA fila que se desliza con el dedo, en vez de
+     tres filas apiladas que empujaban los carteles fuera de la pantalla. El
+     orden queda fijo al final; las píldoras se deslizan y se desvanecen por
+     la derecha para que se note que hay más. */
+  .catalogo-controles {
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+
+  .catalogo-pildoras {
+    flex: 1 1 0;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Aire para que el anillo de foco no quede recortado por el scroll. */
+    padding: 4px 24px 4px 4px;
+    margin: -4px 0 -4px -4px;
+    -webkit-mask-image: linear-gradient(90deg, black calc(100% - 28px), transparent);
+    mask-image: linear-gradient(90deg, black calc(100% - 28px), transparent);
+  }
+
+  .catalogo-pildoras::-webkit-scrollbar {
+    display: none;
+  }
+
+  .catalogo-pildoras > * {
+    flex: none;
+  }
+
+  .catalogo-orden-campo {
+    flex: none;
+    margin-left: 0;
+  }
+
+  .catalogo-orden-etiqueta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* Con un ancestro delante: `globals.css` va después y, a igual
+     especificidad, ganaría su relleno de escritorio. */
+  .catalogo-pildoras .catalogo-chip {
+    padding-inline: 0.9em;
+  }
+
+  .catalogo-orden-campo .catalogo-orden {
+    padding: 0 2.2em 0 0.9em;
+  }
+}
+
+/* ── Resultados de la búsqueda ────────────────────────────────────────────
+   Justo debajo del campo, y con alto mínimo: mientras se escribe, la zona no
+   encoge y crece a cada estado, así que nada salta bajo el dedo. */
+.catalogo-resultados {
+  min-height: 60vh;
+}
+
+.catalogo-ayuda {
+  margin: 0;
+  padding: 0 var(--margen);
+  font-size: var(--texto-base);
+  color: var(--tinta-2);
+}
+
+.catalogo-resultados-titulo {
+  margin: 0 0 clamp(12px, 1.8vh, 22px);
+  padding: 0 var(--margen);
+  font-size: var(--texto-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tinta-2);
+}
+
+/* Solo opacidad: un `translateY` convierte al contenedor en el bloque de los
+   `position: fixed` de dentro (la lección de las barras del teléfono). */
+.catalogo-aparece {
+  animation: catalogo-aparece var(--dur-lenta) var(--ease) both;
+}
+
+@keyframes catalogo-aparece {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalogo-aparece {
+    animation: none;
+  }
+}
+
+/* ── El cartel ────────────────────────────────────────────────────────────
+   Antes eran utilidades de Tailwind en `media-card.tsx`, y su `shadow-lg`
+   (capa `utilities`) ganaba al aro de foco de `shell.css` (capa
+   `components`): el cartel enfocado crecía, pero sin aro. Aquí, sin capa,
+   reposo y foco viven juntos y el foco gana por especificidad. */
+.poster-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radio-tarjeta);
+  background: linear-gradient(150deg, var(--arte-desde), var(--arte-hasta));
+  box-shadow: var(--sombra-1);
+  /* El `:hover` de `shell.css` también escala en táctil, donde se queda
+     pegado tras el toque. Aquí se anula y se rehace solo con puntero. */
+  transform: none;
+  transition: transform var(--dur-lenta) var(--ease);
+}
+
+.media-card:focus-visible .poster-frame,
+[data-input="dpad"] .media-card:focus .poster-frame {
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+@media (hover: hover) {
+  .media-card:hover .poster-frame {
+    transform: scale(var(--foco-escala));
+    box-shadow: var(--foco-borde), var(--foco-sombra);
+  }
+}
+
+.poster-frame-arte {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity var(--dur-lenta) var(--ease);
+}
+
+.poster-frame-arte.is-cargada {
+  opacity: 1;
+}
+
+.poster-frame-hueco {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--tinta-3);
+}
+
+.poster-frame-hueco svg {
+  width: 2.4em;
+  height: 2.4em;
+}
+
+.poster-frame-marca {
+  font-family: var(--font-mono);
+  font-size: var(--texto-2xl);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+/* «Está en Mi lista»: una marca en la esquina, en cristal. */
+.poster-marca-lista {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: max(24px, 1.8em);
+  height: max(24px, 1.8em);
+  border-radius: var(--radio-pill);
+  background: var(--cristal);
+  color: var(--tinta-1);
+  font-size: var(--texto-2xs);
+}
+
+.poster-marca-lista svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* La barra de progreso de «Seguir viendo», en carteles y en canales. */
+.tarjeta-progreso {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  z-index: 1;
+  height: 3px;
+  overflow: hidden;
+  border-radius: var(--radio-pill);
+  background: var(--relleno-activo);
+}
+
+.tarjeta-progreso > span {
+  display: block;
+  height: 100%;
+  background: var(--acento);
+}
+
+/* ── Portada de bienvenida (sin catálogo) ────────────────────────────────
+   Ver `portada-bienvenida.tsx`. Alineada a `--margen` como el resto, con el
+   halo del acento detrás para que no sea un texto suelto sobre negro. */
+.portada-cine {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  align-content: center;
+  gap: clamp(12px, 1.6vh, 20px);
+  min-height: min(72vh, 820px);
+  padding: calc(var(--topbar-h) + clamp(24px, 6vh, 96px)) var(--margen) clamp(32px, 6vh, 72px);
+  isolation: isolate;
+}
+
+.portada-cine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(60% 70% at 12% 40%, var(--acento-halo), transparent 70%);
+}
+
+.portada-cine-icono {
+  display: grid;
+  place-items: center;
+  width: clamp(56px, 4.6vw, 96px);
+  height: clamp(56px, 4.6vw, 96px);
+  margin-bottom: clamp(4px, 1vh, 12px);
+  border-radius: var(--radio-lg);
+  background: var(--acento-suave);
+  color: var(--acento-texto);
+}
+
+.portada-cine-icono svg {
+  width: 50%;
+  height: 50%;
+}
+
+.portada-cine-antetitulo {
+  margin: 0;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--acento-texto);
+}
+
+.portada-cine-titulo {
+  margin: 0;
+  max-width: 20ch;
+  font-size: var(--texto-3xl);
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--tinta-1);
+  text-wrap: balance;
+}
+
+.portada-cine-texto {
+  margin: 0;
+  max-width: 44ch;
+  font-size: var(--texto-lg);
+  line-height: 1.5;
+  color: var(--tinta-2);
+}
+
+.portada-cine-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(10px, 1vw, 16px);
+  margin-top: clamp(8px, 2vh, 24px);
+}
+
+.portada-cine-boton {
+  min-height: max(var(--control-lg), 2.6em);
+  padding: 0 1.4em;
+  font-size: var(--texto-base);
+}
+
+/* Con el mando el botón crece un pelín además del aro blanco: es el mismo
+   gesto que el cartel, en pequeño. */
+.portada-cine-boton:focus-visible,
+[data-input="dpad"] .portada-cine-boton:focus {
+  transform: scale(1.04);
+}
+
+.portada-cine-boton[aria-disabled="true"] {
+  opacity: 0.7;
+}
+
+.portada-cine-girando {
+  animation: cc-giro 0.9s linear infinite;
+}
+
+.portada-cine .catalogo-aviso {
+  max-width: 64ch;
+  margin: clamp(12px, 2vh, 24px) 0 0;
+}
+
+/* En el teléfono, botones a todo el ancho y de 56 px: es donde se acierta
+   con el pulgar, y así la portada entera cabe en el primer pantallazo. */
+@media (max-width: 680px) {
+  .portada-cine {
+    min-height: 0;
+    padding-top: calc(var(--topbar-h) + 28px);
+  }
+
+  .portada-cine-acciones {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .portada-cine-boton {
+    width: 100%;
+  }
+}
+
+/* ── Estados vacíos con dos salidas ───────────────────────────────────── */
+.estado-vacio-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* ── Esqueleto de Cine y series ───────────────────────────────────────────
+   Las mismas medidas y el mismo margen que la pantalla que lo sustituye. */
+.catalogo-esqueleto-hero {
+  min-height: 64vh;
+  -webkit-mask-image: linear-gradient(180deg, black 0%, black 50%, transparent 100%);
+  mask-image: linear-gradient(180deg, black 0%, black 50%, transparent 100%);
+}
+
+.catalogo-esqueleto {
+  display: grid;
+  gap: clamp(12px, 1.8vh, 22px);
+  padding: clamp(4px, 1vh, 12px) var(--margen) clamp(8px, 1.4vh, 16px);
+}
+
+.catalogo-esqueleto-titulo,
+.catalogo-esqueleto-campo,
+.catalogo-esqueleto-pildora {
+  display: block;
+  background: var(--superficie-2);
+}
+
+.catalogo-esqueleto-titulo {
+  width: clamp(200px, 18vw, 330px);
+  height: var(--texto-2xl);
+  border-radius: var(--radio-sm);
+}
+
+.catalogo-esqueleto-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(10px, 1vw, 16px);
+}
+
+.catalogo-esqueleto-campo {
+  flex: 1 1 320px;
+  max-width: 520px;
+  height: max(var(--control-md), 2.5em);
+  border-radius: var(--radio-pill);
+  font-size: var(--texto-base);
+}
+
+.catalogo-esqueleto-pildora {
+  height: max(var(--control-md), 2.6em);
+  border-radius: var(--radio-pill);
+  font-size: var(--texto-sm);
+}
+
+.catalogo-esqueleto ~ .esqueleto-riel {
+  padding-inline: var(--margen);
+}
+
+/* Como la pantalla de verdad en el teléfono: héroe más bajo y sin título. */
+@media (max-width: 680px) {
+  .catalogo-esqueleto-hero {
+    min-height: 52vh;
+  }
+
+  .catalogo-esqueleto-titulo {
+    display: none;
+  }
+}
+
+/* ── La ficha ─────────────────────────────────────────────────────────── */
+
+/* «Reproducir», delante de los círculos y a su altura. */
+.ficha-acciones {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.ficha-reproducir {
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 1.4em;
+  font-size: var(--texto-base);
+}
+
+.ficha-reproducir:focus-visible,
+[data-input="dpad"] .ficha-reproducir:focus {
+  transform: scale(1.04);
+}
+
+@media (max-width: 680px) {
+  .ficha-reproducir {
+    flex: 1 0 100%;
+    min-height: var(--control-lg);
+  }
+}
+
+/* La silueta de una ficha. Ver `esqueleto-ficha.tsx`. */
+.esqueleto-ficha {
+  display: grid;
+  gap: clamp(16px, 2.4vh, 28px);
+  padding: calc(var(--topbar-h) + 60px) var(--margen) 0;
+}
+
+.esqueleto-ficha-portada {
+  display: flex;
+  align-items: flex-end;
+  gap: clamp(14px, 2vw, 30px);
+}
+
+.esqueleto-ficha-cartel,
+.esqueleto-ficha-linea,
+.esqueleto-ficha-acciones > span {
+  display: block;
+  background: var(--superficie-2);
+}
+
+.esqueleto-ficha-cartel {
+  flex-shrink: 0;
+  width: clamp(96px, 12vw, 190px);
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radio-tarjeta);
+}
+
+.esqueleto-ficha-lineas {
+  display: grid;
+  flex: 1;
+  gap: 12px;
+  min-width: 0;
+}
+
+.esqueleto-ficha-linea {
+  height: var(--texto-base);
+  border-radius: var(--radio-sm);
+}
+
+.esqueleto-ficha-linea.is-titulo {
+  width: min(70%, 520px);
+  height: var(--texto-3xl);
+}
+
+.esqueleto-ficha-linea.is-media {
+  width: min(50%, 320px);
+}
+
+.esqueleto-ficha-linea.is-corta {
+  width: min(30%, 200px);
+}
+
+.esqueleto-ficha-acciones {
+  display: flex;
+  gap: clamp(12px, 1.4vw, 20px);
+}
+
+.esqueleto-ficha-acciones > span {
+  width: var(--control-md);
+  height: var(--control-md);
+  border-radius: var(--radio-pill);
+}
+
+.esqueleto-ficha-acciones > .is-boton {
+  width: clamp(150px, 12vw, 230px);
+}
+
+.esqueleto-ficha-video {
+  width: min(100%, 122vh);
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radio-panel);
+}
+
+/* ── Navegadores sin `gap` en flexbox (Chromium < 84) ──────────────────
+   Ver el bloque general en `globals.css`: `data-sin-gap` lo pone
+   `soporte-gap.ts`. Margen a la derecha y abajo, que funciona igual cuando
+   la fila envuelve. */
+[data-sin-gap] .catalogo-controles > *,
+[data-sin-gap] .catalogo-pildoras > *,
+[data-sin-gap] .portada-cine-acciones > *,
+[data-sin-gap] .estado-vacio-acciones > *,
+[data-sin-gap] .catalogo-esqueleto-controles > * {
+  margin: 0 12px 12px 0;
+}

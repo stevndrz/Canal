@@ -30,56 +30,145 @@
 :root {
   color-scheme: dark;
 
-  /* ── Superficies ──────────────────────────────────────────────────────
-     Negro real en el fondo, no gris azulado: en un OLED los píxeles se
-     apagan del todo y el contraste con la carátula es máximo. */
-  --bg: #000;
-  --bg-card: #101012;
-  --bg-elevated: #1c1c1f;
+  /* ══ Paleta: cine de noche ═════════════════════════════════════════════
+     Neutros grafito y el blanco como única marca de selección, como Apple TV
+     y Netflix: el color lo pone el arte de cada título (el fondo de Cine y
+     series se tiñe con la portada). Se probó una paleta propia en azul
+     («Azul Guatemala») y el dueño la descartó: el azul competía con las
+     carátulas. Del intento se quedan el rojo de directo (#e0281e, blanco
+     encima 4,68:1) y los tokens.
 
-  /* ── Texto, en cuatro pesos de presencia ──────────────────────────────
-     Medidos contra el fondo, no elegidos a ojo. Los dos de abajo estaban por
-     debajo del mínimo legible y se subieron:
+  ══ Tokens semánticos ══════════════════════════════════════════════════
+     El color de toda la app sale de aquí, por su FUNCIÓN y no por su valor:
+     cambiar la paleta es cambiar estos valores, nada más. Los componentes y
+     las hojas usan estos nombres; los de debajo («Alias») son los que había
+     antes y se quedan apuntando aquí mientras se migra el resto.
 
-       --soft   0.46 → 0.56   4,29:1 → 6,03:1  (5,45:1 sobre una tarjeta)
-       --faint  0.28 → 0.40   2,18:1 → 3,45:1
+     Reglas que no se negocian:
+     - El texto que se lee usa --tinta-1, -2 o -3 (≥ 4,5:1 sobre el fondo).
+       --tinta-4 no llega: solo iconos, separadores y puntos (≥ 3:1).
+     - El foco es blanco siempre, sea cual sea el acento: a tres metros, de
+       noche y con el brillo bajado, es lo único que dice dónde estás.
+     - «Elegido» (chip activo, pestaña actual) usa el acento; «enfocado» usa
+       el foco. Nunca el mismo realce para las dos cosas. */
 
-     `--faint` sigue sin llegar a 4,5:1, y por eso **no vale para texto**:
-     queda reservado a iconos, separadores y puntos, donde el mínimo es 3:1.
-     Todo lo que se lee usa `--soft` o más. Esto importa el doble aquí: un
-     televisor a tres metros, de noche y con el brillo bajado, es el peor caso
-     de contraste que existe. */
-  --text: #f5f5f7;
-  --muted: rgba(245, 245, 247, 0.72);
-  --soft: rgba(245, 245, 247, 0.56);
-  --faint: rgba(245, 245, 247, 0.4);
+  /* Superficies, de atrás hacia delante. */
+  --fondo: #0b0b0d;
+  /* El fondo en componentes, para los velos que se funden con la página
+     (`rgba(var(--fondo-rgb), .9)`): un velo negro sobre fondo azul dejaba
+     una costura. */
+  --fondo-rgb: 11, 11, 13;
+  --superficie-1: #151517;
+  --superficie-2: #1f1f22;
+  --superficie-3: #2a2a2e;
+  /* El degradado de las carátulas y logos mientras no hay imagen. */
+  --arte-desde: #1f1f22;
+  --arte-hasta: #111113;
 
-  /* ── Relleno y líneas ───────────────────────────────────────────────── */
-  --chip: rgba(245, 245, 247, 0.1);
-  --chip-focus: rgba(245, 245, 247, 0.2);
-  --line: rgba(245, 245, 247, 0.14);
-  --line-bright: rgba(255, 255, 255, 0.28);
+  /* Rellenos translúcidos: chips, botones secundarios, filas al pasar. */
+  --relleno-sutil: rgba(245, 245, 247, 0.06);
+  --relleno: rgba(245, 245, 247, 0.1);
+  --relleno-hover: rgba(245, 245, 247, 0.16);
+  --relleno-activo: rgba(245, 245, 247, 0.2);
 
-  /* ── Acentos ────────────────────────────────────────────────────────── */
-  --gold: #ffd60a;
-  --green: #30d158;
-  --red: #ff453a;
+  /* Cristal: barras y paneles que flotan sobre contenido. Sobre el vídeo en
+     directo, negro translúcido SIN desenfoque (--cristal-video). */
+  --cristal: rgba(24, 24, 27, 0.72);
+  --cristal-fuerte: rgba(32, 32, 36, 0.9);
+  --cristal-video: rgba(24, 24, 27, 0.6);
 
-  /* ── Cristal ──────────────────────────────────────────────────────────
-     Dos intensidades: la barra flotante y los paneles que se apoyan sobre
-     contenido. `backdrop-filter` con respaldo sólido para los navegadores de
-     televisor viejos, que lo ignoran sin fallar. */
-  --glass: rgba(22, 22, 24, 0.72);
-  --glass-strong: rgba(28, 28, 30, 0.88);
+  /* Líneas. */
+  --borde-sutil: rgba(245, 245, 247, 0.08);
+  --borde: rgba(245, 245, 247, 0.12);
+  --borde-fuerte: rgba(245, 245, 247, 0.26);
 
-  /* ── Foco ─────────────────────────────────────────────────────────────
-     Un solo gesto en toda la app: borde blanco de 4px pegado a la pieza,
-     crecimiento del 6% y sombra profunda. Es lo que hace un televisor. */
-  --foco-borde: 0 0 0 4px #fff;
-  --foco-sombra: 0 26px 60px rgba(0, 0, 0, 0.72);
+  /* Tinta: el texto, en cuatro pesos. Medidos contra el fondo, no a ojo:
+       --tinta-3  6,03:1 (5,45:1 sobre una tarjeta)
+       --tinta-4  3,45:1 → no vale para texto. */
+  --tinta-1: #f5f5f7;
+  --tinta-2: rgba(245, 245, 247, 0.76);
+  --tinta-3: rgba(245, 245, 247, 0.62);
+  --tinta-4: rgba(245, 245, 247, 0.4);
+
+  /* El acento: lo elegido, lo activo y el botón principal. */
+  --acento: #f5f5f7;
+  --acento-hover: #ffffff;
+  --acento-tinta: #0b0b0d;
+  /* El acento sobre fondo oscuro, para texto y trazos finos (enlaces,
+     progreso, la barra de un programa). */
+  --acento-texto: #f5f5f7;
+  /* Lo elegido sin relleno pleno (fila seleccionada, nav del teléfono). */
+  --acento-suave: rgba(245, 245, 247, 0.14);
+  /* Brillo del acento detrás de piezas de marca (el logo, la portada). */
+  --acento-halo: rgba(255, 255, 255, 0.05);
+
+  /* Estados. «Vivo» es solo para lo que está en el aire. */
+  --vivo: #e0281e;
+  --vivo-tinta: #fff;
+  --peligro: #ff453a;
+  --peligro-fondo: rgba(255, 69, 58, 0.12);
+  --exito: #30d158;
+  --exito-fondo: rgba(48, 209, 88, 0.16);
+  --aviso: #ffd60a;
+  --aviso-fondo: rgba(255, 214, 10, 0.08);
+  --info: var(--acento-texto);
+
+  /* Foco: borde blanco pegado a la pieza, crecimiento del 6% y sombra
+     profunda. Es lo que hace un televisor. */
+  --foco: #fff;
+  --foco-borde: 0 0 0 4px var(--foco);
+  --foco-sombra: 0 26px 60px rgba(0, 0, 0, 0.78);
   --foco-escala: 1.06;
 
-  --sombra: 0 16px 40px rgba(0, 0, 0, 0.5);
+  /* Profundidad. */
+  --sombra-1: 0 2px 16px rgba(0, 0, 0, 0.45);
+  --sombra-2: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --sombra-3: 0 24px 64px rgba(0, 0, 0, 0.7);
+
+  /* Forma. */
+  --radio-sm: 8px;
+  --radio-md: 12px;
+  --radio-lg: 18px;
+  --radio-pill: 999px;
+
+  /* Tamaños de control: lo mínimo que se toca o se apunta. 44px es el de
+     Apple; el dedo de un niño o una mano con temblor agradece los 48. */
+  --control-sm: 40px;
+  --control-md: 48px;
+  --control-lg: 56px;
+
+  /* Movimiento. */
+  --dur-rapida: 120ms;
+  --dur-media: 180ms;
+  --dur-lenta: 280ms;
+
+  /* Capas: lo que pide una acción va por encima de los mandos. */
+  --capa-video-velo: 25;
+  --capa-video-guia: 28;
+  --capa-video-mandos: 30;
+  --capa-video-aviso: 40;
+  --capa-barra: 60;
+  --capa-dialogo: 70;
+
+  /* ══ Alias ═════════════════════════════════════════════════════════════
+     Los nombres de antes. No escribas código nuevo con ellos. */
+  --bg: var(--fondo);
+  --bg-card: var(--superficie-1);
+  --bg-elevated: var(--superficie-2);
+  --text: var(--tinta-1);
+  --muted: var(--tinta-2);
+  --soft: var(--tinta-3);
+  --faint: var(--tinta-4);
+  --chip: var(--relleno);
+  --chip-focus: var(--relleno-activo);
+  --line: var(--borde);
+  --line-bright: var(--borde-fuerte);
+  --gold: var(--aviso);
+  --green: var(--exito);
+  --red: var(--peligro);
+  --glass: var(--cristal);
+  --glass-strong: var(--cristal-fuerte);
+  --sombra: var(--sombra-2);
 
   /* ── Ritmo ────────────────────────────────────────────────────────────
      El margen lateral es uno solo para toda la app: si cada pantalla elige el
@@ -106,6 +195,70 @@
 
   /* La curva de tvOS: sale rápido y frena largo. */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ── Escala tipográfica ─────────────────────────────────────────────
+     Ocho tamaños para toda la app, en lugar de los 68 que había (cada
+     pantalla traía su propio `clamp`). Cada uno crece en línea recta de un
+     teléfono de 390px a una pantalla de 1920px y se para ahí.
+
+     Los mínimos son los de un teléfono leído por cualquiera: nada por debajo
+     de 12px, y el cuerpo en 16px para no obligar a hacer zoom.
+
+     Dos multiplicadores encima, y por eso nadie usa `--t-*` directamente:
+     - `data-pantalla="tv"` en <html> cambia la base a tamaños de diez pies
+       (abajo, junto a los demás modos).
+     - `--escala-texto` es la preferencia de la persona (Ajustes → Tamaño del
+       texto). La pone un guion en `layout.tsx` antes de pintar. */
+  --t-2xs: clamp(12px, 11.75px + 0.065vw, 13px);
+  --t-xs: clamp(13px, 12.49px + 0.131vw, 15px);
+  --t-sm: clamp(14px, 13.24px + 0.196vw, 17px);
+  --t-base: clamp(16px, 15.24px + 0.196vw, 19px);
+  --t-lg: clamp(17px, 15.73px + 0.327vw, 22px);
+  --t-xl: clamp(20px, 17.96px + 0.523vw, 28px);
+  --t-2xl: clamp(26px, 21.92px + 1.046vw, 42px);
+  --t-3xl: clamp(30px, 24.39px + 1.438vw, 52px);
+
+  --escala-texto: 1;
+
+  --texto-2xs: calc(var(--t-2xs) * var(--escala-texto));
+  --texto-xs: calc(var(--t-xs) * var(--escala-texto));
+  --texto-sm: calc(var(--t-sm) * var(--escala-texto));
+  --texto-base: calc(var(--t-base) * var(--escala-texto));
+  --texto-lg: calc(var(--t-lg) * var(--escala-texto));
+  --texto-xl: calc(var(--t-xl) * var(--escala-texto));
+  --texto-2xl: calc(var(--t-2xl) * var(--escala-texto));
+  --texto-3xl: calc(var(--t-3xl) * var(--escala-texto));
+
+  --toque: var(--control-md);
+}
+
+/* ── Televisor: tamaños de diez pies ──────────────────────────────────────
+   Se mira a tres metros. A 1920px la escala de arriba se queda en 17px de
+   cuerpo, que en una tele es letra de contrato. Aquí se mide en `vw` y no en
+   píxeles porque cada televisor declara un viewport distinto (1920, 1280 o
+   960) para la misma pantalla física: en proporción al ancho, el texto ocupa
+   lo mismo en todos.
+
+   Referencia: tvOS pide 23pt de pie de foto y 29pt de cuerpo a 1920. Esto se
+   queda un escalón por debajo para no romper rejillas pensadas para 17px; la
+   preferencia de «Grande» lo lleva hasta ahí. */
+:root[data-pantalla="tv"] {
+  --t-2xs: 1vw;
+  --t-xs: 1.1vw;
+  --t-sm: 1.25vw;
+  --t-base: 1.4vw;
+  --t-lg: 1.6vw;
+  --t-xl: 2vw;
+  --t-2xl: 2.8vw;
+  --t-3xl: 3.6vw;
+}
+
+:root[data-texto="grande"] {
+  --escala-texto: 1.15;
+}
+
+:root[data-texto="enorme"] {
+  --escala-texto: 1.3;
 }
 
 /* ═══ Armazón ═══════════════════════════════════════════════════════════ */
@@ -119,8 +272,8 @@
      scroll. Costó una sesión entera descubrirlo. */
   overflow-x: clip;
   background:
-    radial-gradient(120% 80% at 78% 0%, rgba(255, 255, 255, 0.07), transparent 60%),
-    var(--bg);
+    radial-gradient(120% 80% at 78% 0%, var(--acento-halo), transparent 60%),
+    var(--fondo);
 }
 
 .content {
@@ -176,17 +329,20 @@
   align-items: center;
   gap: clamp(12px, 1.5vw, 28px);
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.5) 60%, transparent);
-  transition: background 240ms var(--ease), backdrop-filter 240ms var(--ease);
+  background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.7), rgba(var(--fondo-rgb), 0.25) 65%, transparent);
+  transition: background 240ms var(--ease);
 }
 
 /* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
    solo no basta para que se lean los destinos. */
 .sidebar.is-scrolled {
-  background: var(--glass);
-  backdrop-filter: saturate(180%) blur(22px);
-  -webkit-backdrop-filter: saturate(180%) blur(22px);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.92), rgba(var(--fondo-rgb), 0.6) 70%, transparent);
+}
+
+/* Con la píldora ya oscura, al bajar basta con apretar un poco su cristal:
+   antes la barra entera se volvía un bloque sólido de borde a borde. */
+.sidebar.is-scrolled nav {
+  background: var(--cristal-fuerte);
 }
 
 .profile-cluster,
@@ -202,12 +358,23 @@
   min-width: 0;
 }
 
+/* Los destinos van juntos en una píldora de cristal que flota a la derecha,
+   con el activo en blanco: el lenguaje de las capturas de referencia del
+   dueño (y de tvOS). La píldora es oscura por sí misma, sin depender del
+   desenfoque, para que se lea sobre cualquier fotograma también en un
+   televisor, que no desenfoca. */
 .sidebar nav {
   display: flex;
-  justify-content: center;
+  justify-self: end;
   align-items: center;
-  gap: clamp(2px, 0.35vw, 8px);
+  gap: clamp(2px, 0.25vw, 6px);
   min-width: 0;
+  padding: 5px;
+  border-radius: var(--radio-pill);
+  background: rgba(var(--fondo-rgb), 0.55);
+  border: 1px solid var(--borde);
+  backdrop-filter: saturate(180%) blur(24px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* Acotado a la barra con `>` a propósito: `top-right` se usa también como
@@ -225,13 +392,13 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 clamp(11px, 1vw, 18px);
   border: 0;
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font-size: clamp(14px, 1.02vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -250,8 +417,8 @@
 }
 
 .nav-item.is-active {
-  color: #000;
-  background: #fff;
+  color: var(--acento-tinta);
+  background: var(--acento);
   font-weight: 600;
 }
 
@@ -318,14 +485,14 @@
 .marca {
   display: grid;
   line-height: 1.04;
-  font-size: clamp(12px, 0.88vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--text);
 }
 
 .top-clock {
-  font-size: clamp(13px, 0.95vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: var(--soft);
   font-variant-numeric: tabular-nums;
@@ -384,7 +551,7 @@
 }
 
 .rail.is-compacto .rail-head h3 {
-  font-size: clamp(14px, 1vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   color: var(--soft);
 }
@@ -426,7 +593,7 @@
 
 .rail-head h3 {
   margin: 0;
-  font-size: clamp(19px, 1.42vw, 27px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -434,7 +601,7 @@
 
 .rail-head span {
   color: var(--soft);
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -461,6 +628,13 @@
   /* Aire arriba y abajo para que la tarjeta enfocada quepa al crecer sin que
       el riel la recorte. */
   padding: 10px var(--margen) clamp(18px, 2.4vh, 30px) 0;
+  /* El anillo de foco sale 6px por fuera de la ficha (3 de grosor + 3 de
+     separación) y la primera, pegada al borde del riel, lo perdía por la
+     izquierda: `overflow-x: auto` recorta. Se abre ese hueco por dentro y se
+     devuelve por fuera, así la columna sigue alineada con el título. */
+  padding-left: 10px;
+  margin-left: -10px;
+  scroll-padding-left: 10px;
   scrollbar-width: none;
 }
 
@@ -511,6 +685,26 @@
   }
 }
 
+/* En pantallas anchas, seis y siete: a 1920 cinco carteles salían de 350px,
+   tanto que en el primer pantallazo cabía una sola fila. Siete deja ver dos
+   filas enteras, como en las tiendas de cine de referencia. En la tele se
+   queda en seis: desde el sofá el cartel tiene que seguir leyéndose. */
+@media (min-width: 1440px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 6;
+  }
+}
+
+@media (min-width: 1760px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 7;
+  }
+}
+
+:root[data-pantalla="tv"] .rail.is-poster .rail-strip {
+  --carteles: 6;
+}
+
 /* Las flechas del riel. Solo con puntero: con mando se navega por foco y con
    el dedo se arrastra, así que ahí sobran. */
 .rail-arrow {
@@ -526,7 +720,6 @@
   border-radius: 999px;
   background: var(--glass-strong);
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   color: #fff;
   opacity: 0;
   transition: opacity 200ms var(--ease), transform 200ms var(--ease);
@@ -592,7 +785,7 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--radio-tarjeta);
   overflow: hidden;
-  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
+  background: linear-gradient(145deg, var(--arte-desde), var(--arte-hasta));
   display: grid;
   place-items: center;
   box-shadow: var(--sombra);
@@ -641,7 +834,7 @@
 .media-card > strong {
   display: block;
   min-width: 0;
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--muted);
@@ -651,6 +844,42 @@
   transition: color 180ms var(--ease);
 }
 
+/* Fichas de canal: el logo entero sobre un gris, nunca recortado. */
+.media-card.is-canal .poster {
+  background: linear-gradient(150deg, var(--superficie-2), var(--superficie-1));
+}
+
+/* Fuera del flujo: un logo grande (los hay de 1000px) empujaba el alto de la
+   caja por encima de su 16:9 y `overflow: hidden` lo recortaba a medias. Así
+   manda la caja y el logo se encaja dentro. */
+.media-card.is-canal .poster img {
+  position: absolute;
+  inset: 0;
+  object-fit: contain;
+  padding: 12% 16%;
+}
+
+.canal-marca {
+  font-size: var(--texto-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--soft);
+}
+
+/* El canal que suena: un filo blanco tenue, para encontrarlo en la fila sin
+   confundirlo con el foco. */
+/* Celeste y no blanco: blanco es el foco, y el canal que suena no se puede
+   confundir con dónde está el mando. El foco lo pisa (regla de abajo). */
+.media-card.is-canal.is-active .poster {
+  box-shadow: 0 0 0 2px var(--acento), var(--sombra);
+}
+
+.media-card.is-canal.is-active:hover .poster,
+.media-card.is-canal.is-active:focus-visible .poster,
+[data-input="dpad"] .media-card.is-canal.is-active:focus .poster {
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
 /* Segunda línea: categoría y número, en horizontal y separados por un punto.
    Apilados ocupaban tres líneas por tarjeta y el riel se volvía una lista. */
 .card-meta-row {
@@ -658,7 +887,7 @@
   align-items: baseline;
   gap: 7px;
   min-width: 0;
-  font-size: clamp(11px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -738,16 +967,16 @@
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.1) 0%,
-    rgba(0, 0, 0, 0.1) 34%,
-    rgba(0, 0, 0, 0.16) 46%,
-    rgba(0, 0, 0, 0.26) 57%,
-    rgba(0, 0, 0, 0.4) 66%,
-    rgba(0, 0, 0, 0.56) 74%,
-    rgba(0, 0, 0, 0.72) 81%,
-    rgba(0, 0, 0, 0.86) 88%,
-    rgba(0, 0, 0, 0.95) 94%,
-    #000 100%
+    rgba(var(--fondo-rgb), 0.1) 0%,
+    rgba(var(--fondo-rgb), 0.1) 34%,
+    rgba(var(--fondo-rgb), 0.16) 46%,
+    rgba(var(--fondo-rgb), 0.26) 57%,
+    rgba(var(--fondo-rgb), 0.4) 66%,
+    rgba(var(--fondo-rgb), 0.56) 74%,
+    rgba(var(--fondo-rgb), 0.72) 81%,
+    rgba(var(--fondo-rgb), 0.86) 88%,
+    rgba(var(--fondo-rgb), 0.95) 94%,
+    var(--fondo) 100%
   );
 }
 
@@ -764,7 +993,7 @@
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.78), 0 1px 3px rgba(0, 0, 0, 0.6);
   /* text-3xl md:text-5xl: 30px en móvil, 48px en pantallas grandes. Iba
      hasta 84px y con el héroe ya acotado se comía la cabecera entera. */
-  font-size: clamp(30px, 3.4vw, 48px);
+  font-size: var(--texto-3xl);
   font-weight: 800;
   max-width: 42rem; /* max-w-2xl */
   line-height: 1.05;
@@ -776,7 +1005,7 @@
 .hero-lema {
   margin: clamp(8px, 1.2vh, 14px) 0 0;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
-  font-size: clamp(14px, 1.15vw, 21px);
+  font-size: var(--texto-lg);
   font-style: italic;
   color: var(--muted);
 }
@@ -788,7 +1017,7 @@
   flex-wrap: wrap;
   gap: clamp(8px, 0.9vw, 16px);
   margin-top: clamp(12px, 1.8vh, 22px);
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: var(--muted);
 }
@@ -825,7 +1054,7 @@
 
 .hero-sinopsis {
   margin: 0.75rem 0;
-  font-size: clamp(14px, 1vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.55;
   /* Era `#d4d4d4` a pelo —un `neutral-300` escrito a mano— en vez del token.
      Sobre una foto clara la sombra es lo que la sostiene. */
@@ -867,16 +1096,16 @@
   .hero::after {
     background: linear-gradient(
       180deg,
-      rgba(0, 0, 0, 0.14) 0%,
-      rgba(0, 0, 0, 0.14) 22%,
-      rgba(0, 0, 0, 0.24) 36%,
-      rgba(0, 0, 0, 0.38) 48%,
-      rgba(0, 0, 0, 0.54) 58%,
-      rgba(0, 0, 0, 0.7) 68%,
-      rgba(0, 0, 0, 0.83) 78%,
-      rgba(0, 0, 0, 0.92) 87%,
-      rgba(0, 0, 0, 0.97) 94%,
-      #000 100%
+      rgba(var(--fondo-rgb), 0.14) 0%,
+      rgba(var(--fondo-rgb), 0.14) 22%,
+      rgba(var(--fondo-rgb), 0.24) 36%,
+      rgba(var(--fondo-rgb), 0.38) 48%,
+      rgba(var(--fondo-rgb), 0.54) 58%,
+      rgba(var(--fondo-rgb), 0.7) 68%,
+      rgba(var(--fondo-rgb), 0.83) 78%,
+      rgba(var(--fondo-rgb), 0.92) 87%,
+      rgba(var(--fondo-rgb), 0.97) 94%,
+      var(--fondo) 100%
     );
   }
 
@@ -894,7 +1123,7 @@
 
 .section-heading h2 {
   margin: 0;
-  font-size: clamp(28px, 2.6vw, 50px);
+  font-size: var(--texto-3xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text);
@@ -906,7 +1135,7 @@
 .eyebrow {
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: clamp(13px, 0.96vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.005em;
 }
@@ -941,7 +1170,7 @@
 .livetv-list-empty {
   padding: clamp(28px, 5vh, 60px) var(--margen);
   color: var(--soft);
-  font-size: clamp(15px, 1.1vw, 19px);
+  font-size: var(--texto-base);
 }
 
 /* ═══ Buscador ══════════════════════════════════════════════════════════ */
@@ -982,7 +1211,7 @@
   flex: 1;
   min-width: 0;
   color: var(--text);
-  font-size: clamp(15px, 1.15vw, 20px);
+  font-size: var(--texto-lg);
 }
 
 .buscar-campo input::placeholder {
@@ -1019,13 +1248,13 @@
 
 .livetv-heading h2 {
   margin: 0;
-  font-size: clamp(24px, 2.2vw, 40px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .livetv-heading span {
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1048,7 +1277,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
 }
 
 .livetv-search input::placeholder {
@@ -1106,7 +1335,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   white-space: nowrap;
   transition: background-color 160ms var(--ease), color 160ms var(--ease),
     border-color 160ms var(--ease);
@@ -1131,9 +1360,9 @@
 }
 
 .livetv-cats button.is-active {
-  background: #fff;
-  border-color: #fff;
-  color: #000;
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
   font-weight: 600;
 }
 
@@ -1152,7 +1381,7 @@
   gap: 10px;
   margin-bottom: 10px;
   color: var(--soft);
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
 }
 
 .livetv-rows {
@@ -1208,7 +1437,7 @@
   border-radius: 8px;
   overflow: hidden;
   background: var(--bg-card);
-  font-size: 13px;
+  font-size: var(--texto-xs);
   font-weight: 700;
   color: var(--soft);
 }
@@ -1236,7 +1465,7 @@
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: clamp(14px, 1.02vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -1252,7 +1481,7 @@
 /* Monograma de dos letras cuando el canal no trae logo, que en una lista M3U
    es la mayoría. */
 .livetv-row-mark {
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--soft);
@@ -1263,7 +1492,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: clamp(12px, 0.86vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1280,7 +1509,7 @@
 .livetv-row-copy small {
   display: block;
   margin-top: 2px;
-  font-size: clamp(11px, 0.78vw, 13px);
+  font-size: var(--texto-2xs);
   /* Es texto, y encima pequeño: `--soft`, nunca `--faint`. */
   color: var(--soft);
   overflow: hidden;
@@ -1332,7 +1561,7 @@
   padding: 3px 8px;
   border-radius: 6px;
   background: var(--chip);
-  font-size: 10px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--soft);
@@ -1356,7 +1585,7 @@
   overflow: hidden;
   display: grid;
   place-items: center;
-  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
+  background: linear-gradient(145deg, var(--arte-desde), var(--arte-hasta));
 }
 
 .livetv-detail-art img {
@@ -1384,7 +1613,7 @@
   padding: clamp(28px, 5vh, 56px) 16px;
   text-align: center;
   color: var(--soft);
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
 }
 
 .livetv-program {
@@ -1397,7 +1626,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1412,7 +1641,7 @@
   min-height: 46px;
   padding: 0 clamp(16px, 1.4vw, 26px);
   border-radius: 999px;
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
   transition: transform 160ms var(--ease), background-color 160ms var(--ease);
@@ -1420,8 +1649,8 @@
 
 .primary {
   border: 0;
-  background: #fff;
-  color: #000;
+  background: var(--acento);
+  color: var(--acento-tinta);
 }
 
 .secondary {
@@ -1448,7 +1677,7 @@
 /* ═══ Estados ═══════════════════════════════════════════════════════════ */
 
 .is-loading {
-  background: linear-gradient(100deg, #141416 30%, #1e1e21 50%, #141416 70%);
+  background: linear-gradient(100deg, var(--superficie-1) 30%, var(--superficie-2) 50%, var(--superficie-1) 70%);
   background-size: 220% 100%;
   animation: cc-brillo 1.5s linear infinite;
 }
@@ -1580,17 +1809,26 @@
        del borde. */
     padding: var(--safe-top) max(16px, env(safe-area-inset-right)) 0
       max(16px, env(safe-area-inset-left));
+    /* Arriba del todo deja ver el arte que hay detrás (el héroe de Cine y
+       series llega hasta el borde); al bajar se vuelve cristal. */
+    background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.78), rgba(var(--fondo-rgb), 0.3) 70%, transparent);
+    /* Sin borde: con un borde transparente el degradado se repite por
+       debajo de él y pintaba una raya oscura de 1px sobre la foto. La línea
+       del estado con cristal es una sombra. */
+    border-bottom: 0;
+  }
+
+  .mobile-header.is-scrolled {
     background: var(--glass);
     backdrop-filter: saturate(180%) blur(20px);
-    -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 1px solid var(--line);
+    box-shadow: 0 1px 0 var(--line);
   }
 
   .mobile-brand {
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 15px;
+    font-size: var(--texto-sm);
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text);
@@ -1620,7 +1858,6 @@
        claras, y con el cristal flojo las etiquetas se perdían encima. */
     background: rgba(16, 16, 18, 0.86);
     backdrop-filter: saturate(180%) blur(28px);
-    -webkit-backdrop-filter: saturate(180%) blur(28px);
     border-top: 1px solid var(--line);
     /* Una línea de luz en el borde superior, como el cristal de iOS. */
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 -12px 30px rgba(0, 0, 0, 0.5);
@@ -1638,13 +1875,16 @@
     justify-items: center;
     align-content: center;
     gap: 3px;
-    padding: 6px 2px;
+    padding: 6px 0;
     border: 0;
     border-radius: 14px;
     background: transparent;
     color: var(--soft);
-    font-size: 11px;
+    font-size: var(--texto-2xs);
     font-weight: 500;
+    /* A 12px, «Cine y series» va justa en la casilla de un iPhone de 390px:
+       sin el margen lateral y con el tracking un pelín cerrado, entra entera. */
+    letter-spacing: -0.015em;
     line-height: 1.15;
     text-align: center;
     transition: color 180ms var(--ease), background-color 180ms var(--ease),
@@ -1659,8 +1899,8 @@
   }
 
   .mobile-nav-item.is-active {
-    color: var(--text);
-    background: var(--chip);
+    color: var(--acento-texto);
+    background: var(--acento-suave);
   }
 
   /* El punto del destino activo. Un fondo relleno a lo ancho de la casilla se
@@ -1697,7 +1937,6 @@
     border: 0;
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
   }
 
   .mobile-mas {
@@ -1713,7 +1952,6 @@
     border-radius: 18px;
     background: var(--glass-strong);
     backdrop-filter: saturate(180%) blur(24px);
-    -webkit-backdrop-filter: saturate(180%) blur(24px);
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     animation: cc-subir 200ms var(--ease) both;
   }
@@ -1734,7 +1972,7 @@
     border-radius: 12px;
     background: transparent;
     color: var(--text);
-    font-size: 16px;
+    font-size: var(--texto-base);
     font-weight: 500;
     text-align: left;
   }
@@ -1792,5 +2030,483 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ═══ Canales por secciones ═════════════════════════════════════════════
+   `lista-secciones.tsx`: cabeceras, canales y botones («Ver los N», «Estados
+   Unidos · 759») van en la misma lista virtual y **miden lo mismo**: la fila
+   n empieza en n × alto. El alto sale de la escala tipográfica, así que crece
+   igual con «Muy grande» o en la tele, pero para todas las filas a la vez. */
+
+.livetv-shell {
+  --alto-fila: max(var(--control-lg) + 16px, calc(var(--texto-base) * 1.3 + var(--texto-sm) * 1.35 + 22px));
+}
+
+/* Cabecera: título, buscador y la tira de temas. */
+.livetv-cabecera {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(12px, 1.6vh, 20px);
+}
+
+.livetv-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-right: auto;
+}
+
+.livetv-search {
+  min-height: var(--control-md);
+  max-width: 520px;
+}
+
+.livetv-search:focus-within {
+  border-color: var(--borde-fuerte);
+  background: var(--relleno-hover);
+}
+
+.livetv-search button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-2);
+}
+
+/* La lupa de la tele: abre Buscar, que trae su teclado en pantalla. Solo en
+   la tele, y ahí sustituye al campo, que con el mando no se puede escribir.
+   En teléfono y PC el campo de búsqueda ya está a la vista. */
+.livetv-lupa {
+  display: none;
+}
+
+:root[data-pantalla="tv"] .livetv-lupa {
+  display: inline-flex;
+}
+
+:root[data-pantalla="tv"] .livetv-cabecera .livetv-search {
+  display: none;
+}
+
+.livetv-lupa {
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-md);
+  padding: 0 20px 0 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+}
+
+.livetv-lupa svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+/* Lista / Parrilla: un segmentado. */
+.livetv-modo {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+}
+
+.livetv-modo button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: calc(var(--control-md) - 10px);
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+}
+
+.livetv-modo button svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.livetv-modo button.is-active {
+  background: var(--acento);
+  color: var(--acento-tinta);
+  font-weight: 600;
+}
+
+/* La tira de temas: una fila que se desliza, con un fundido al borde que
+   avisa de que hay más chips fuera de la pantalla. */
+.livetv-chips-marco {
+  position: relative;
+  min-width: 0;
+}
+
+.livetv-chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  /* Aire para el anillo de foco, que el desplazamiento recortaría. */
+  padding: 8px 10px 10px;
+  margin: -8px -10px -10px;
+  scroll-padding-inline: 10px;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 48px), transparent);
+}
+
+.livetv-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.livetv-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--control-md);
+  padding: 0 18px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease),
+    border-color var(--dur-media) var(--ease);
+}
+
+.livetv-chip svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.livetv-chip:hover {
+  border-color: var(--borde-fuerte);
+  color: var(--tinta-1);
+}
+
+/* Elegido: relleno de acento. El foco, aparte, es el anillo blanco general. */
+.livetv-chip.is-active {
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
+  font-weight: 600;
+}
+
+.livetv-chip.is-abierto {
+  border-color: var(--borde-fuerte);
+  color: var(--tinta-1);
+}
+
+/* Todas las piezas de la lista, mismo alto. */
+.livetv-rows {
+  gap: 0;
+}
+
+.livetv-item {
+  height: var(--alto-fila);
+  min-height: 0;
+  box-sizing: border-box;
+}
+
+.livetv-row {
+  border-radius: var(--radio-md);
+}
+
+.livetv-row.is-sonando {
+  background: var(--relleno);
+}
+
+.livetv-row-main {
+  height: 100%;
+  min-height: 0;
+  padding: 6px clamp(8px, 1vw, 14px);
+}
+
+/* El número: tabular, sin cursiva y con su sitio fijo, para que las filas
+   alineen como una guía de cable. */
+.livetv-row-numero {
+  position: relative;
+  flex: none;
+  width: 3.2em;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-2);
+  text-align: right;
+}
+
+/* El punto rojo del canal que suena. */
+.livetv-row-vivo {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: var(--radio-pill);
+  background: var(--vivo);
+}
+
+.livetv-row-logo {
+  width: clamp(60px, 4.6vw, 96px);
+  background: var(--superficie-2);
+  border-radius: var(--radio-sm);
+}
+
+.livetv-row-nombre {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--tinta-1);
+}
+
+.livetv-row-detalle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+.livetv-row-programa {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.livetv-row-detalle .livetv-caido {
+  font-style: normal;
+  color: var(--peligro);
+}
+
+.livetv-row-star {
+  width: var(--control-md);
+  height: var(--control-md);
+}
+
+.livetv-row-star svg {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+/* Cabecera de sección: título grande y su recuento, apoyados abajo, como el
+   rótulo de un riel. */
+.livetv-seccion {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 0 4px 10px;
+}
+
+.livetv-seccion h3,
+.livetv-seccion h4 {
+  margin: 0;
+  font-size: var(--texto-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tinta-1);
+  white-space: nowrap;
+}
+
+.livetv-seccion.is-sub h4 {
+  font-size: var(--texto-lg);
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.livetv-seccion span {
+  padding-bottom: 2px;
+  font-size: var(--texto-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
+  white-space: nowrap;
+}
+
+.livetv-aviso {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+}
+
+.livetv-aviso p {
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+/* «Ver los 527 de Sudamérica ›», «Todas las secciones» y las regiones
+   plegadas: botones de fila entera. */
+.livetv-ver-todos,
+.livetv-volver,
+.livetv-plegada {
+  display: flex;
+  align-items: center;
+}
+
+.livetv-ver-todos button,
+.livetv-volver button,
+.livetv-plegada button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--control-md);
+  padding: 0 18px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
+  font-weight: 500;
+}
+
+.livetv-ver-todos button:hover,
+.livetv-volver button:hover,
+.livetv-plegada button:hover {
+  background: var(--relleno-hover);
+}
+
+.livetv-ver-todos svg,
+.livetv-volver svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.livetv-plegada button {
+  width: 100%;
+  height: calc(var(--alto-fila) - 12px);
+  padding: 0 18px 0 12px;
+  border-radius: var(--radio-md);
+  background: var(--superficie-1);
+}
+
+.livetv-plegada-icono {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-2);
+}
+
+.livetv-plegada-icono svg {
+  width: 20px;
+  height: 20px;
+}
+
+.livetv-plegada-nombre {
+  flex: 1;
+  text-align: left;
+  font-size: var(--texto-base);
+  font-weight: 600;
+}
+
+.livetv-plegada-total {
+  font-size: var(--texto-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
+}
+
+/* Teléfono: el número se encoge y el logo también, para que el nombre quepa. */
+@media (max-width: 680px) {
+  .livetv-row-numero {
+    width: 2.6em;
+    font-size: var(--texto-xs);
+  }
+
+  .livetv-row-logo {
+    width: 56px;
+  }
+
+  .livetv-search {
+    max-width: none;
+  }
+}
+
+/* ═══ Contraste ═════════════════════════════════════════════════════════
+   Quien pide más contraste en su sistema (iOS: «Aumentar contraste»;
+   Windows y macOS tienen el suyo) lo pide porque los grises translúcidos no
+   los distingue. Se suben los cuatro pesos de texto y las líneas, y el
+   cristal deja de ser cristal: sobre una carátula, el desenfoque es justo lo
+   que mezcla el texto con el fondo. */
+
+@media (prefers-contrast: more) {
+  :root {
+    --tinta-2: rgba(245, 245, 247, 0.92);
+    --tinta-3: rgba(245, 245, 247, 0.84);
+    --tinta-4: rgba(245, 245, 247, 0.66);
+    --borde: rgba(245, 245, 247, 0.4);
+    --borde-fuerte: rgba(255, 255, 255, 0.7);
+    --cristal: rgba(10, 10, 12, 0.97);
+    --cristal-fuerte: rgba(10, 10, 12, 0.98);
+  }
+}
+
+/* Colores forzados (Windows «Alto contraste»): el sistema repinta todo con
+   su paleta y se lleva los fondos. Lo que no tiene borde desaparece, y el
+   foco —que aquí es un borde por `box-shadow`, que se borra— también. Se
+   devuelve con `outline`, que sí sobrevive, en el color de selección del
+   sistema. */
+@media (forced-colors: active) {
+  [data-nav]:focus-visible,
+  [data-input="dpad"] [data-nav]:focus,
+  .media-card:focus-visible .poster,
+  [data-input="dpad"] .media-card:focus .poster {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+
+  .nav-item.is-active {
+    border: 2px solid Highlight;
+  }
+
+  .poster,
+  .rail-arrow {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ═══ Sin desenfoque ════════════════════════════════════════════════════
+   Los navegadores de las teles viejas de la casa (Chromium 53–69) no saben
+   desenfocar, y el cristal al 72% deja leer nítido lo que pasa por debajo:
+   el texto del contenido se monta sobre el de la barra. Ahí el cristal se
+   vuelve casi opaco. Donde sí hay desenfoque, nada cambia.
+
+   (Ojo al escribir cristal nuevo: solo `backdrop-filter`, sin la variante
+   `-webkit-` al lado. LightningCSS fusiona el par y se quedaba con la de
+   Safari, así que en Chrome, Android y las teles no había desenfoque en
+   ninguna barra. Escrita sola, él genera las dos.) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --cristal: rgba(18, 18, 20, 0.97);
+    --cristal-fuerte: rgba(24, 24, 26, 0.98);
+  }
+
+  .mobile-header,
+  .mobile-bottom-nav,
+  .mobile-mas {
+    background-color: rgba(16, 16, 18, 0.97);
   }
 }

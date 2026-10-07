@@ -280,6 +280,30 @@ export function planAnteErrorFatal(
   return tipo === "red" ? "reintentar-red" : "reintentar-medios";
 }
 
+/**
+ * ¿El error fatal es del MANIFIESTO (404, CORS, tiempo agotado, lista rota)?
+ *
+ * Ahí `planAnteErrorFatal` no sirve: su «reintentar-red» llama a
+ * `hls.startLoad()`, que reanuda fragmentos pero **no vuelve a pedir el
+ * manifiesto** —eso solo lo hace `loadSource`—, y hls.js 1.7 ya no reintenta
+ * por su cuenta un 4xx ni un fallo de CORS. Resultado medido: un canal muerto
+ * se quedaba en «Conectando» para siempre y nunca llegaba a «Sin señal».
+ *
+ * Con esto se declara la caída al momento y decide `stream-player`: probar el
+ * respaldo si lo hay, o enseñar «Sin señal» con Reintentar. Los nombres son
+ * los de `Hls.ErrorDetails`, escritos como texto para poder probarlo sin
+ * cargar la librería.
+ */
+const FALLOS_DE_MANIFIESTO = new Set([
+  "manifestLoadError",
+  "manifestLoadTimeOut",
+  "manifestParsingError",
+]);
+
+export function esFalloDeManifiesto(detalle: string | undefined): boolean {
+  return detalle !== undefined && FALLOS_DE_MANIFIESTO.has(detalle);
+}
+
 async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
   const Hls = await cargarHls();
   if (o.cancelado()) return vacio();
@@ -315,11 +339,25 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
      * del directo tras un tirón.
      */
     fragLoadingMaxRetry: 4,
-    manifestLoadingMaxRetry: 2,
     levelLoadingMaxRetry: 3,
     fragLoadingRetryDelay: 800,
-    manifestLoadingRetryDelay: 1000,
     levelLoadingRetryDelay: 1000,
+    /**
+     * El manifiesto, con plazos de directo. Con los de serie (sin tope para el
+     * primer byte, 20 s de carga y dos reintentos) un canal colgado tardaba
+     * más de un minuto en declararse caído: un minuto mirando el logo. Aquí,
+     * como mucho unos 24 s, por debajo del vigía de 25 s de `stream-player`.
+     * Va como política y no con los `manifestLoading*` de antes: si la
+     * política existe, hls.js ignora aquellos.
+     */
+    manifestLoadPolicy: {
+      default: {
+        maxTimeToFirstByteMs: 8000,
+        maxLoadTimeMs: 12000,
+        timeoutRetry: { maxNumRetry: 1, retryDelayMs: 0, maxRetryDelayMs: 0 },
+        errorRetry: { maxNumRetry: 1, retryDelayMs: 1000, maxRetryDelayMs: 4000 },
+      },
+    },
     maxBufferLength: 20,
     maxMaxBufferLength: arranque.maxMaxBufferLength,
     maxBufferSize: 60 * 1000 * 1000,
@@ -337,6 +375,12 @@ async function montarHls(o: OpcionesMotor): Promise<MotorMontado> {
   const recuperacion: EstadoRecuperacion = { intentos: 0, mediosRecuperados: false };
   hls.on(Hls.Events.ERROR, (_evento, datos) => {
     if (!datos.fatal || o.cancelado()) return;
+    // Sin manifiesto no hay nada que `startLoad()` pueda reanudar: caída ya.
+    // Ver `esFalloDeManifiesto`.
+    if (esFalloDeManifiesto(datos.details)) {
+      o.alFallar();
+      return;
+    }
     const plan = planAnteErrorFatal(
       recuperacion,
       datos.type === Hls.ErrorTypes.NETWORK_ERROR

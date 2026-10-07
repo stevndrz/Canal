@@ -1,41 +1,51 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { CalendarClock, List, Search, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
-import { channelToCard, type CardItem } from "@/lib/media-item";
+import { publicConfig } from "@/lib/config";
+import { esRegion, type Region } from "@/lib/origenes";
+import { TEMAS_CON_CHIP, temaDeClave } from "@/lib/temas";
 import {
-  calcularVentana,
-  ventanaCambio,
-  type Ventana,
-} from "@/lib/ventana-lista";
-import { MediaRail } from "@/components/media/media-rail";
-import { ChannelRow } from "./channel-row";
+  filasDeCanales,
+  indexarCanales,
+  normalizarCasa,
+  type Filtro,
+} from "@/lib/secciones-canales";
+import { esTeclaAtras } from "@/hooks/use-spatial-nav";
+import { useInstante } from "@/hooks/use-reloj";
+import { BarraFiltros } from "./barra-filtros";
+import { ListaSecciones, type PeticionDeFoco } from "./lista-secciones";
 import { ParrillaEpg } from "./parrilla-epg";
 import { PanelCanal } from "./panel-canal";
-import { useInstante } from "@/hooks/use-reloj";
-
-const LOTE = QUE_SE_PINTA.lote;
-
-const HUECO_FILA = 4;
-
-const VENTANA_INICIAL: Ventana = { desde: 0, hasta: LOTE, huecoArriba: 0, huecoAbajo: 0 };
 
 interface LiveTvViewProps {
+  /**
+   * Cuántos hay de cada cosa en la lista COMPLETA, aunque `visible` sea aún el
+   * recorte del HTML. Además de las categorías trae las claves por región y
+   * tema (`claveDeRecuento`). Ver `recuentosDe`.
+   */
   recuentos: Map<string, number>;
   totalCanales: number;
   deLaCasa: Channel[];
   idsCaidos: Set<number>;
+  /** Todos los canales, con los caídos al final. Ver `dashboard.tsx`. */
   visible: Channel[];
   tuned: Channel | null;
   favorites: Set<number>;
-  /** Los vistos hace poco, ya resueltos a `Channel`. Ver `dashboard.tsx`. */
+  /** Los vistos hace poco, ya resueltos a `Channel`. */
   recents: Channel[];
-  categories: string[];
-  category: string;
+  /** Ya no se usan: el tema y la búsqueda son de esta pantalla. Ver abajo. */
+  categories?: string[];
+  category?: string;
+  /**
+   * La búsqueda COMPARTIDA del shell (la de Buscar). Esta pantalla ya no la
+   * escribe; si llega con algo, `visible` viene filtrada por ella y se avisa.
+   */
   search: string;
-  onCategoryChange: (category: string) => void;
+  onCategoryChange?: (category: string) => void;
   onSearchChange: (search: string) => void;
   onSelect: (channel: Channel) => void;
   onTune: (channel: Channel) => void;
@@ -43,6 +53,24 @@ interface LiveTvViewProps {
   sinHueco?: boolean;
 }
 
+/** Cuánto tiene que traer guía para que la parrilla merezca la pena. */
+const MINIMO_CON_GUIA = 0.25;
+
+/** En la tele caben menos filas por pantalla: seis por sección en vez de ocho. */
+const POR_SECCION_TV = 6;
+
+/**
+ * Canales: lo mío, lo de aquí, lo que entiendo y el mundo, por secciones.
+ *
+ * Esta vista es un orquestador fino: el reparto en secciones vive en
+ * `lib/secciones-canales.ts` (con prueba), la cabecera en `barra-filtros.tsx`
+ * y la lista virtual en `lista-secciones.tsx`.
+ *
+ * **El tema y la búsqueda son estado de esta pantalla**, no del shell. Antes
+ * la categoría elegida aquí gobernaba Buscar y el zapeo de toda la app: con
+ * «Internacional» elegido, buscar «guate» en Buscar no encontraba nada y ⏭
+ * desde Inicio saltaba a «1-2-3 TV». Ahora no sale de aquí.
+ */
 export function LiveTvView({
   recuentos,
   totalCanales,
@@ -52,41 +80,115 @@ export function LiveTvView({
   tuned,
   favorites,
   recents,
-  categories,
-  category,
   search,
-  onCategoryChange,
   onSearchChange,
   onSelect,
   onTune,
   onToggleFavorite,
   sinHueco,
 }: LiveTvViewProps) {
-  const sintonizar = useCallback(
-    (canal: Channel) => {
-      onSelect(canal);
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    },
-    [onSelect],
-  );
+  const [filtro, setFiltro] = useState<Filtro>("todo");
+  const [masAbierto, setMasAbierto] = useState(false);
+  const [abierta, setAbierta] = useState<Region | null>(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [modo, setModo] = useState<"lista" | "parrilla">("lista");
+  const [enfocar, setEnfocar] = useState<PeticionDeFoco | null>(null);
+  const instante = useInstante();
 
   /**
-   * Las mismas tarjetas que ya pinta «Seguir viendo» en Inicio: no hacía falta
-   * un componente nuevo, solo traer el riel aquí. Calculado una vez y no en el
-   * JSX porque `channelToCard` devuelve un objeto nuevo cada vez, y `MediaRail`
-   * compara por identidad para no repintar.
+   * Llegar desde Inicio con una sección ya elegida («Ver los 27 ›»):
+   * `?vista=canales&seccion=guatemala` o `&tema=deportes`.
+   *
+   * Se lee una vez y se limpia la URL. Si se quedara, la siguiente «Ver los N»
+   * desde Inicio no movería nada: `dashboard.tsx` solo cambia de vista cuando
+   * `?vista=` CAMBIA, y seguiría diciendo «canales».
    */
-  const tarjetasRecientes = useMemo(() => recents.map((canal) => channelToCard(canal)), [recents]);
-  const abrirReciente = useCallback(
-    (card: CardItem) => {
-      const canal = recents.find((item) => `canal-${item.id}` === card.key);
-      if (canal) sintonizar(canal);
-    },
-    [recents, sintonizar],
+  const parametros = useSearchParams();
+  const [llegada] = useState(() => ({
+    seccion: parametros.get("seccion"),
+    tema: parametros.get("tema"),
+  }));
+  useEffect(() => {
+    const { seccion, tema } = llegada;
+    // Una sola vez, al llegar desde «Ver los N» de Inicio: aplica la sección o
+    // el tema pedidos en la URL y la limpia (ver arriba).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (seccion && esRegion(seccion)) setAbierta(seccion);
+    const temaPedido = tema ? temaDeClave(tema) : null;
+    if (temaPedido) setFiltro(temaPedido);
+    if (parametros.has("vista") || parametros.has("seccion") || parametros.has("tema")) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    if (seccion || temaPedido) {
+      // Se viene a ver esa sección, no el vídeo de arriba.
+      document.querySelector(".livetv-cabecera")?.scrollIntoView({ block: "start" });
+    }
+    // Solo al montar: es la llegada, no un estado que haya que seguir.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Seis por sección en la tele: siete filas de 96 px caben en 1080. */
+  const [porSeccion, setPorSeccion] = useState(QUE_SE_PINTA.porSeccion);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- `<html>` solo se lee en el navegador
+    if (document.documentElement.dataset.pantalla === "tv") setPorSeccion(POR_SECCION_TV);
+  }, []);
+
+  const casa = useMemo(() => normalizarCasa(publicConfig.canalesDeCasa), []);
+
+  /**
+   * Lo caro, una vez por lista: cada canal en su región y en su orden, y el
+   * texto de búsqueda ya normalizado. Se rehace cuando llega la lista
+   * completa o cambia un caído, no por cada tecla.
+   */
+  const indice = useMemo(() => indexarCanales(visible, casa), [visible, casa]);
+
+  const favoritos = useMemo(
+    () => visible.filter((canal) => favorites.has(canal.id)),
+    [visible, favorites],
   );
 
-  const [modo, setModo] = useState<"lista" | "parrilla">("lista");
-  const instante = useInstante();
+  const filas = useMemo(
+    () =>
+      filasDeCanales({
+        indice,
+        filtro,
+        abierta,
+        busqueda,
+        deLaCasa,
+        favoritos,
+        recientes: recents,
+        caidos: idsCaidos,
+        porSeccion,
+        recuentos,
+      }),
+    [indice, filtro, abierta, busqueda, deLaCasa, favoritos, recents, idsCaidos, porSeccion, recuentos],
+  );
+
+  /** Los canales que se ven ahora, sin repetir: lo que mira la parrilla. */
+  const canalesALaVista = useMemo(() => {
+    const vistos = new Set<number>();
+    const lista: Channel[] = [];
+    for (const fila of filas) {
+      if (fila.tipo !== "canal" || vistos.has(fila.canal.id)) continue;
+      vistos.add(fila.canal.id);
+      lista.push(fila.canal);
+    }
+    return lista;
+  }, [filas]);
+
+  /**
+   * La parrilla solo se ofrece si hay algo que poner en ella. Con la lista por
+   * defecto la guía casa con UN canal de 4.816: el conmutador llevaba a una
+   * rejilla vacía presentada como el modo principal. El código sigue aquí:
+   * con una `EPG_URL` de verdad, el conmutador vuelve solo.
+   */
+  const ofrecerParrilla = useMemo(() => {
+    if (canalesALaVista.length === 0) return false;
+    const conGuia = canalesALaVista.filter((canal) => canal.currentProgram).length;
+    return conGuia / canalesALaVista.length >= MINIMO_CON_GUIA;
+  }, [canalesALaVista]);
+  const enParrilla = modo === "parrilla" && ofrecerParrilla;
 
   const [seleccionado, setSeleccionado] = useState<number | null>(null);
   const enfocarFila = useCallback((canal: Channel) => setSeleccionado(canal.id), []);
@@ -94,273 +196,156 @@ export function LiveTvView({
     (canal: Channel) => onToggleFavorite(canal.id),
     [onToggleFavorite],
   );
-  const [pintadas, setPintadas] = useState(LOTE);
-  const centinela = useRef<HTMLDivElement | null>(null);
-  const contenedorFilas = useRef<HTMLDivElement | null>(null);
+
   /**
-   * Ancla para medir dónde empieza la lista de verdad. La cabecera (título +
-   * contador) siempre está justo antes del hueco de arriba y su tamaño no
-   * depende de la ventana montada, así que su posición no se mueve cuando
-   * cambia `ventana.huecoArriba` — al revés que `contenedorFilas`, cuyo
-   * `getBoundingClientRect().top` YA incluye ese hueco. Medir desde ahí era
-   * circular: cada recálculo restaba el hueco de la ventana anterior en vez
-   * del principio real de la lista, y el desfase crecía con cada scroll hasta
-   * que la ventana montada quedaba muy por encima de lo que se veía en
-   * pantalla —la lista se «cortaba» y solo quedaba el hueco vacío abajo—.
+   * Elegir un canal lo pone en el reproductor, sin pantalla completa
+   * (decisión 5). Con puntero se sube al principio para verlo, como siempre.
+   * Con mando NO: la fila enfocada se desmontaría con la ventana virtual y el
+   * foco caería en `<body>`, y la tele se quedaría sin desde dónde moverse.
    */
-  const cabezaLista = useRef<HTMLDivElement | null>(null);
-  const [ventana, setVentana] = useState<Ventana>(VENTANA_INICIAL);
+  const sintonizar = useCallback(
+    (canal: Channel) => {
+      onSelect(canal);
+      if (document.documentElement.dataset.input !== "dpad") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    },
+    [onSelect],
+  );
 
-  const [filtroPrevio, setFiltroPrevio] = useState(`${category}|${search}`);
-  const filtroActual = `${category}|${search}`;
-  if (filtroPrevio !== filtroActual) {
-    setFiltroPrevio(filtroActual);
-    setPintadas(LOTE);
-  }
+  const cambiarFiltro = useCallback((siguiente: Filtro) => {
+    setFiltro(siguiente);
+    setSeleccionado(null);
+  }, []);
 
+  const alternarMas = useCallback(() => {
+    // Al plegar «Más» con uno de sus temas elegido, se vuelve a Todo: un
+    // filtro puesto sin su chip a la vista es un filtro invisible.
+    if (masAbierto && !TEMAS_VISIBLES.has(filtro)) setFiltro("todo");
+    setMasAbierto(!masAbierto);
+  }, [masAbierto, filtro]);
+
+  const abrir = useCallback((region: Region) => {
+    setAbierta(region);
+    setEnfocar({ clave: `volver:${region}`, vez: Date.now() });
+  }, []);
+
+  const volver = useCallback(() => {
+    if (abierta) setEnfocar({ clave: `ver:${abierta}`, vez: Date.now() });
+    setAbierta(null);
+  }, [abierta]);
+
+  /**
+   * Atrás con una sección abierta la cierra, antes de que el shell se lleve la
+   * pantalla entera a Inicio. En fase de captura y con `stopPropagation`,
+   * como la guía de `fullscreen-player.tsx`: el `keydown` de
+   * `use-spatial-nav` escucha en la ventana y, en burbuja, llegaría antes.
+   */
   useEffect(() => {
-    const nodo = centinela.current;
-    if (!nodo || typeof IntersectionObserver === "undefined") return undefined;
-    const observador = new IntersectionObserver(
-      (entradas) => {
-        if (entradas.some((entrada) => entrada.isIntersecting)) {
-          setPintadas((actual) => Math.min(actual + LOTE, visible.length));
-        }
-      },
-      { rootMargin: "600px" },
-    );
-    observador.observe(nodo);
-    return () => observador.disconnect();
-  }, [visible.length]);
-
-  const conLaCasaDelante = useMemo(() => {
-    if (category !== "Todas" || search.trim() || deLaCasa.length === 0) return visible;
-    const suyos = new Set(deLaCasa.map((canal) => canal.id));
-    const presentes = deLaCasa.filter((canal) => visible.some((item) => item.id === canal.id));
-    if (presentes.length === 0) return visible;
-    return [...presentes, ...visible.filter((canal) => !suyos.has(canal.id))];
-  }, [visible, deLaCasa, category, search]);
-
-  const enLote = useMemo(
-    () => conLaCasaDelante.slice(0, pintadas),
-    [conLaCasaDelante, pintadas],
-  );
-  const filas = useMemo(
-    () => enLote.slice(ventana.desde, ventana.hasta),
-    [enLote, ventana.desde, ventana.hasta],
-  );
-
-  useEffect(() => {
-    const contenedor = contenedorFilas.current;
-    const cabeza = cabezaLista.current;
-    if (!contenedor || !cabeza) return undefined;
-
-    let pendiente = 0;
-    const recalcular = () => {
-      pendiente = 0;
-      const primera = contenedor.firstElementChild as HTMLElement | null;
-      const altoFila = primera ? primera.getBoundingClientRect().height + HUECO_FILA : 0;
-      const siguiente = calcularVentana({
-        desplazamiento: window.scrollY,
-        alto: window.innerHeight,
-        // El final de la cabecera y no el principio de `contenedor`: ese ya
-        // arrastra el hueco de arriba de la ventana MONTADA, que es lo que se
-        // está recalculando. Con un ancla que se mueve por su propio
-        // resultado, cada vuelta parte de donde quedó la anterior en vez de
-        // la posición real de la fila 0, y el error se acumula sin parar.
-        inicioLista: cabeza.getBoundingClientRect().bottom + window.scrollY,
-        altoFila,
-        total: enLote.length,
-      });
-      setVentana((actual) => (ventanaCambio(actual, siguiente) ? siguiente : actual));
+    if (!abierta) return undefined;
+    const alPulsar = (evento: KeyboardEvent) => {
+      if (!esTeclaAtras(evento)) return;
+      const objetivo = evento.target as HTMLElement | null;
+      if (objetivo?.tagName === "INPUT" && evento.key !== "Escape") return;
+      evento.preventDefault();
+      evento.stopPropagation();
+      volver();
     };
+    window.addEventListener("keydown", alPulsar, true);
+    return () => window.removeEventListener("keydown", alPulsar, true);
+  }, [abierta, volver]);
 
-    const alDesplazar = () => {
-      if (pendiente) return;
-      pendiente = requestAnimationFrame(recalcular);
-    };
+  /**
+   * Volver «Plegada» → la fila de «Ver los N» o de la sección plegada. Si la
+   * sección cerrada era una plegada, su fila se llama `plegada:` y no `ver:`.
+   */
+  const peticion = useMemo<PeticionDeFoco | null>(() => {
+    if (!enfocar) return null;
+    if (!enfocar.clave.startsWith("ver:")) return enfocar;
+    const region = enfocar.clave.slice(4);
+    const existe = filas.some((fila) => fila.clave === enfocar.clave);
+    return existe ? enfocar : { clave: `plegada:${region}`, vez: enfocar.vez };
+  }, [enfocar, filas]);
 
-    recalcular();
-    window.addEventListener("scroll", alDesplazar, { passive: true });
-    window.addEventListener("resize", alDesplazar);
-    return () => {
-      if (pendiente) cancelAnimationFrame(pendiente);
-      window.removeEventListener("scroll", alDesplazar);
-      window.removeEventListener("resize", alDesplazar);
-    };
-  }, [enLote.length]);
+  /** En la tele, la lupa lleva a Buscar: allí hay un teclado que se maneja con el mando. */
+  const buscarEnTv = useCallback(() => {
+    window.history.replaceState(null, "", `${window.location.pathname}?vista=buscar`);
+  }, []);
 
-  const totalDelFiltro = Math.max(
-    visible.length,
-    search.trim() ? 0 : category === "Todas" ? totalCanales : (recuentos.get(category) ?? 0),
-  );
-
-  const canal = visible.find((item) => item.id === seleccionado) ?? tuned ?? visible[0] ?? null;
-  const esFavorito = canal ? favorites.has(canal.id) : false;
+  const canal =
+    (seleccionado !== null ? visible.find((item) => item.id === seleccionado) : null) ??
+    tuned ??
+    visible[0] ??
+    null;
 
   return (
     <div className={`screen livetv-shell ${sinHueco ? "sin-hueco" : ""}`}>
-      <header className="livetv-topbar">
-        <div className="livetv-heading">
-          <h2>Canales</h2>
-          <span>
-            {totalCanales.toLocaleString("es-GT")} canales · {categories.length - 1} categorías
-          </span>
-        </div>
-
-        <div className="livetv-search">
-          <Search size={17} />
-          <input
-            data-nav="input"
-            value={search}
-            onChange={(evento) => onSearchChange(evento.target.value)}
-            placeholder="Buscar canal"
-            aria-label="Buscar canal"
-          />
-          {search && (
-            <button
-              type="button"
-              data-nav="button"
-              onClick={() => onSearchChange("")}
-              aria-label="Borrar búsqueda"
-            >
-              <X size={15} />
-            </button>
-          )}
-        </div>
-
-        <div className="flex shrink-0 items-center rounded-full border border-white/15 p-1">
-          <button
-            type="button"
-            data-nav="button"
-            onClick={() => setModo("lista")}
-            aria-pressed={modo === "lista"}
-            className={`flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
-              modo === "lista" ? "bg-white/15 text-white" : "text-muted hover:text-white"
-            }`}
-          >
-            <List size={16} aria-hidden="true" />
-            <span className="ml-1.5">Lista</span>
-          </button>
-          <button
-            type="button"
-            data-nav="button"
-            onClick={() => setModo("parrilla")}
-            aria-pressed={modo === "parrilla"}
-            className={`ml-1 flex items-center rounded-full px-3 py-1.5 text-sm transition-colors ${
-              modo === "parrilla" ? "bg-white/15 text-white" : "text-muted hover:text-white"
-            }`}
-          >
-            <CalendarClock size={16} aria-hidden="true" />
-            <span className="ml-1.5">Parrilla</span>
-          </button>
-        </div>
-      </header>
-
-      {/* Historial, no oferta: mismo riel compacto que «Seguir viendo» en
-          Inicio. Se recorta solo si no hay nada que contar (ver `MediaRail`). */}
-      <MediaRail
-        compacto
-        title="Vistos recientemente"
-        items={tarjetasRecientes}
-        onOpen={abrirReciente}
-        activeKey={tuned ? `canal-${tuned.id}` : null}
+      <BarraFiltros
+        total={Math.max(totalCanales, visible.length)}
+        filtro={filtro}
+        onFiltro={cambiarFiltro}
+        masAbierto={masAbierto}
+        onMas={alternarMas}
+        busqueda={busqueda}
+        onBusqueda={setBusqueda}
+        onBuscarEnTv={buscarEnTv}
+        ofrecerParrilla={ofrecerParrilla}
+        modo={enParrilla ? "parrilla" : "lista"}
+        onModo={setModo}
       />
 
-      <div className="livetv-columns">
-        <nav className="livetv-cats" aria-label="Categorías de canales">
-          {categories.map((nombre) => (
-            <button
-              type="button"
-              data-nav="button"
-              key={nombre}
-              className={category === nombre ? "is-active" : ""}
-              title={nombre}
-              onClick={() => {
-                onCategoryChange(nombre);
-                setSeleccionado(null);
-              }}
-            >
-              <span>{nombre}</span>
-              <em>{(nombre === "Todas" ? totalCanales : (recuentos.get(nombre) ?? 0)).toLocaleString("es-GT")}</em>
-            </button>
-          ))}
-        </nav>
+      {/* La búsqueda del shell es la de Buscar: si llega con algo, la lista
+          viene recortada por ella. Se dice y se puede quitar, en vez de
+          enseñar una lista corta sin explicación. */}
+      {search.trim() && (
+        <p className="livetv-aviso-busqueda" role="status">
+          <span>Mostrando solo lo que coincide con «{search.trim()}», de Buscar.</span>
+          <button type="button" data-nav="button" onClick={() => onSearchChange("")}>
+            <X aria-hidden="true" />
+            Quitar
+          </button>
+        </p>
+      )}
 
-        {modo === "parrilla" ? (
-          <main className="livetv-list" aria-label={`Parrilla de ${category}`}>
+      <div className="livetv-columns">
+        {/* `data-nav-entrada`: con el mando, entrar a Canales lleva el foco a
+            la primera fila y no a la marca de la barra (`use-spatial-nav`). */}
+        <main className="livetv-list" aria-label="Lista de canales" data-nav-entrada="">
+          {enParrilla ? (
             <ParrillaEpg
-              canales={visible}
+              canales={canalesALaVista}
               sintonizado={tuned}
               onSelect={sintonizar}
               ahora={instante}
             />
-          </main>
-        ) : (
-          <>
-            <main className="livetv-list" aria-label={category}>
-              <div className="livetv-list-head" ref={cabezaLista}>
-                <h3>{category}</h3>
-                <span>
-                  {enLote.length < totalDelFiltro
-                    ? `${enLote.length} de ${totalDelFiltro.toLocaleString("es-GT")}`
-                    : totalDelFiltro.toLocaleString("es-GT")}
-                </span>
-              </div>
-
-              {visible.length === 0 ? (
-                <div className="livetv-list-empty">
-                  <Search size={28} />
-                  <p>
-                    Ningún canal coincide con {search.trim() ? `«${search.trim()}»` : "esta categoría"}.
-                  </p>
-                  {search.trim() && (
-                    <button
-                      type="button"
-                      data-nav="button"
-                      className="secondary"
-                      onClick={() => onSearchChange("")}
-                    >
-                      Borrar búsqueda
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {ventana.huecoArriba > 0 && (
-                    <div style={{ height: ventana.huecoArriba }} aria-hidden="true" />
-                  )}
-                  <div className="livetv-rows" ref={contenedorFilas}>
-                    {filas.map((item) => (
-                      <ChannelRow
-                        key={item.id}
-                        channel={item}
-                        favorite={favorites.has(item.id)}
-                        caido={idsCaidos.has(item.id)}
-                        selected={canal?.id === item.id}
-                        onFocus={enfocarFila}
-                        onPlay={sintonizar}
-                        onToggleFavorite={alternarFavorito}
-                      />
-                    ))}
-                  </div>
-                  {ventana.huecoAbajo > 0 && (
-                    <div style={{ height: ventana.huecoAbajo }} aria-hidden="true" />
-                  )}
-                  <div ref={centinela} aria-hidden="true" />
-                </>
-              )}
-            </main>
-
-            <PanelCanal
-              canal={canal}
-              esFavorito={esFavorito}
-              onTune={onTune}
-              onToggleFavorite={onToggleFavorite}
+          ) : (
+            <ListaSecciones
+              filas={filas}
+              favoritos={favorites}
+              caidos={idsCaidos}
+              sonandoId={tuned?.id ?? null}
+              enfocar={peticion}
+              onFocusCanal={enfocarFila}
+              onPlay={sintonizar}
+              onToggleFavorite={alternarFavorito}
+              onAbrir={abrir}
+              onVolver={volver}
             />
-          </>
-        )}
+          )}
+        </main>
+
+        <PanelCanal
+          canal={canal}
+          sonando={canal !== null && canal.id === tuned?.id}
+          esFavorito={canal ? favorites.has(canal.id) : false}
+          onSelect={sintonizar}
+          onTune={onTune}
+          onToggleFavorite={onToggleFavorite}
+        />
       </div>
     </div>
   );
 }
+
+/** Los filtros que tienen chip propio siempre a la vista. */
+const TEMAS_VISIBLES = new Set<Filtro>(["mios", "todo", ...TEMAS_CON_CHIP]);

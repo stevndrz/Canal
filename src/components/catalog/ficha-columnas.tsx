@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { ExternalLink, Info } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
+import { formatearNota } from "@/lib/catalog/formato";
 
 /** Los pocos idiomas que aparecen de verdad en este catálogo. */
 const IDIOMAS: Record<string, string> = {
@@ -27,10 +28,13 @@ export function FichaColumnas({
   item,
   isSeries,
   minutos,
+  enTelevisor = false,
 }: {
   item: ResolvedCatalogItem;
   isSeries: boolean;
   minutos: string | null;
+  /** En la tele no se enlaza a IMDB: abriría otra pestaña fuera de la app. */
+  enTelevisor?: boolean;
 }) {
   return (
     <div className="ficha-columnas">
@@ -66,7 +70,7 @@ export function FichaColumnas({
         )}
       </div>
 
-      <FichaTecnica item={item} isSeries={isSeries} minutos={minutos} />
+      <FichaTecnica item={item} isSeries={isSeries} minutos={minutos} conEnlaces={!enTelevisor} />
     </div>
   );
 }
@@ -82,10 +86,13 @@ function FichaTecnica({
   item,
   isSeries,
   minutos,
+  conEnlaces,
 }: {
   item: ResolvedCatalogItem;
   isSeries: boolean;
   minutos: string | null;
+  /** Ver `FichaColumnas.enTelevisor`. */
+  conEnlaces: boolean;
 }) {
   const datos: { termino: string; valor: string }[] = [];
 
@@ -98,7 +105,7 @@ function FichaTecnica({
     datos.push({ termino: "Géneros", valor: item.generos.join(" · ") });
   }
   if (item.rating !== null && item.rating > 0) {
-    datos.push({ termino: "Valoración", valor: `${item.rating.toFixed(1)} sobre 10` });
+    datos.push({ termino: "Valoración", valor: `${formatearNota(item.rating)} sobre 10` });
   }
   if (item.originalLanguage) {
     datos.push({
@@ -110,7 +117,8 @@ function FichaTecnica({
     datos.push({ termino: "Temporadas", valor: String(item.seasons.length) });
   }
 
-  if (datos.length === 0 && !item.imdbId) return null;
+  const imdb = conEnlaces ? item.imdbId : null;
+  if (datos.length === 0 && !imdb) return null;
 
   return (
     <aside className="ficha-tecnica">
@@ -131,9 +139,9 @@ function FichaTecnica({
 
       {/* Solo cuando se sabe con certeza: `imdbId` llega vacío si TMDB no lo
           tiene, y aquí no se adivina una URL que podría llevar a otro título. */}
-      {item.imdbId && (
+      {imdb && (
         <a
-          href={`https://www.imdb.com/title/${item.imdbId}/`}
+          href={`https://www.imdb.com/title/${imdb}/`}
           target="_blank"
           rel="noopener noreferrer"
           className="secondary mt-3"

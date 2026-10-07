@@ -156,7 +156,7 @@ export function ParrillaEpg({
   return (
     <div className="parrilla flex flex-col">
       {estado === "sin-guia" && (
-        <p className="mb-3 rounded-lg bg-white/5 px-3 py-2 text-sm text-muted" role="status">
+        <p className="mb-3 rounded-lg bg-relleno px-3 py-2 text-sm text-muted" role="status">
           Esta lista no trae guía de programación, así que la parrilla sale vacía. Se puede
           configurar una con <code>EPG_URL</code>.
         </p>
@@ -172,7 +172,7 @@ export function ParrillaEpg({
           onClick={irAtras}
           disabled={enLimiteAtras}
           aria-label="Horas anteriores"
-          className="rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+          className="rounded-full border border-borde p-1.5 text-muted transition-colors hover:text-tinta-1 disabled:opacity-30 disabled:hover:text-tinta-2"
         >
           <ChevronLeft size={16} />
         </button>
@@ -182,7 +182,7 @@ export function ParrillaEpg({
           onClick={irAdelante}
           disabled={enLimiteAdelante}
           aria-label="Horas siguientes"
-          className="ml-1 rounded-full border border-white/15 p-1.5 text-muted transition-colors hover:text-white disabled:opacity-30 disabled:hover:text-muted"
+          className="ml-1 rounded-full border border-borde p-1.5 text-muted transition-colors hover:text-tinta-1 disabled:opacity-30 disabled:hover:text-tinta-2"
         >
           <ChevronRight size={16} />
         </button>
@@ -194,7 +194,7 @@ export function ParrillaEpg({
             type="button"
             data-nav="button"
             onClick={volverAhora}
-            className="ml-3 rounded-full border border-white/15 px-3 py-1 text-xs text-muted transition-colors hover:text-white"
+            className="ml-3 rounded-full border border-borde px-3 py-1 text-xs text-muted transition-colors hover:text-tinta-1"
           >
             Ahora
           </button>
@@ -202,14 +202,16 @@ export function ParrillaEpg({
       </div>
 
       {/* Cabecera de horas. Sticky para que al bajar por los canales se siga
-          sabiendo qué hora se está mirando. */}
-      <div className="sticky top-0 z-20 flex items-end border-b border-white/10 bg-black/80 pb-1 backdrop-blur">
+          sabiendo qué hora se está mirando. Fondo opaco y sin desenfoque: por
+          debajo pasan filas, no vídeo, y en una tele el desenfoque cuesta
+          fotogramas a cambio de nada. */}
+      <div className="sticky top-0 z-20 flex items-end border-b border-hairline bg-fondo pb-1">
         <span className="w-[8.5rem] shrink-0 sm:w-44" aria-hidden="true" />
         <div className="relative flex flex-1">
           {columnas.map((instante) => (
             <span
               key={instante}
-              className="shrink-0 border-l border-white/10 pl-2 text-xs text-muted"
+              className="shrink-0 border-l border-hairline pl-2 text-xs text-muted"
               style={{ width: `${100 / columnas.length}%` }}
             >
               {hora(instante)}
@@ -252,7 +254,7 @@ export function ParrillaEpg({
       </div>
 
       {cuantos < canales.length && (
-        <button type="button" data-nav="button" className="mt-3 self-center rounded-full border border-white/15 px-4 py-2 text-sm text-muted transition-colors hover:text-white" onClick={verMas}>
+        <button type="button" data-nav="button" className="mt-3 self-center rounded-full border border-borde px-4 py-2 text-sm text-muted transition-colors hover:text-tinta-1" onClick={verMas}>
           Ver más canales ({(canales.length - cuantos).toLocaleString("es-GT")} restantes)
         </button>
       )}
@@ -357,7 +359,7 @@ function FilaParrillaEsqueleto({ canal }: { canal: Channel }) {
       </div>
 
       <div className="flex flex-1 items-center px-2">
-        <div className="h-8 w-full animate-pulse rounded bg-white/5" />
+        <div className="h-8 w-full animate-pulse rounded bg-relleno" />
       </div>
     </div>
   );
@@ -377,7 +379,7 @@ function BloqueDePrograma({
   if (bloque.hueco) {
     return (
       <span
-        className="h-full shrink-0 border-l border-white/5"
+        className="h-full shrink-0 border-l border-hairline"
         style={{ width: `${bloque.ancho}%` }}
         aria-hidden="true"
       />
@@ -389,7 +391,7 @@ function BloqueDePrograma({
       type="button"
       data-nav="tile"
       className={`flex h-full shrink-0 flex-col justify-center overflow-hidden border-l px-2 text-left transition-colors ${
-        enEmision ? "border-accent bg-accent/15 text-white" : "border-white/10 text-muted hover:text-white"
+        enEmision ? "border-accent bg-accent/15 text-tinta-1" : "border-hairline text-muted hover:text-tinta-1"
       } ${bloque.cortadoAlInicio ? "border-l-0" : ""}`}
       style={{ width: `${bloque.ancho}%` }}
       onClick={onSelect}

@@ -135,6 +135,87 @@ function pick(
   return best;
 }
 
+/**
+ * ¿Esta flecha saca el foco de un campo de texto, o es del cursor?
+ *
+ * Antes ninguna flecha salía de un `<input>`: el campo de Buscar (con
+ * `autoFocus`) y el de Canales atrapaban el mando, y en la tele no había forma
+ * de llegar al teclado en pantalla ni a la lista. La regla es una sola para
+ * todos los campos, no un parche por vista:
+ *
+ * - ↑ y ↓ siempre salen de un campo de UNA línea, donde no tienen nada que
+ *   hacer. En un `<textarea>` mueven el cursor entre líneas: se quedan.
+ * - ← y → salen solo desde el borde: con el campo vacío, o con el cursor al
+ *   principio (←) o al final (→) y nada seleccionado. Dentro del texto siguen
+ *   moviendo el cursor, que es lo que espera quien escribe con un teclado.
+ *
+ * El precio, aceptado: en el PC, ↑/↓ ya no llevan el cursor al principio o al
+ * final del campo.
+ */
+export function saleDelCampo(
+  campo: Pick<HTMLInputElement, "tagName" | "value" | "selectionStart" | "selectionEnd">,
+  tecla: string,
+): boolean {
+  const unaLinea = campo.tagName === "INPUT";
+  if (tecla === "ArrowUp" || tecla === "ArrowDown") return unaLinea;
+  if (tecla !== "ArrowLeft" && tecla !== "ArrowRight") return false;
+  if (campo.value.length === 0) return true;
+  const { selectionStart: inicio, selectionEnd: fin } = campo;
+  // Campos sin cursor que consultar (email, number): las flechas son suyas.
+  if (inicio === null || fin === null || inicio !== fin) return false;
+  return tecla === "ArrowLeft" ? inicio === 0 : fin === campo.value.length;
+}
+
+/**
+ * El dígito de una tecla, o `null`. Por nombre y, si no lo trae, por código:
+ * hay mandos que mandan los números como "Unidentified" con su keyCode de
+ * siempre (48-57, o 96-105 del teclado numérico).
+ */
+export function digitoDeTecla(evento: Pick<KeyboardEvent, "key" | "keyCode">): string | null {
+  if (/^[0-9]$/.test(evento.key)) return evento.key;
+  if (evento.key && evento.key !== "Unidentified") return null;
+  if (evento.keyCode >= 48 && evento.keyCode <= 57) return String(evento.keyCode - 48);
+  if (evento.keyCode >= 96 && evento.keyCode <= 105) return String(evento.keyCode - 96);
+  return null;
+}
+
+/**
+ * El destino por el que se entra a una vista.
+ *
+ * `focusFirst` cogía el primer `[data-nav]` del DOM, que es la marca de la
+ * barra: al entrar a Canales con el mando, el foco se quedaba arriba y hacían
+ * falta varias ↓ —pasando por el vídeo— para llegar a la lista. Una vista
+ * marca su entrada con `data-nav-entrada`, en el propio destino o en un
+ * contenedor (entonces vale su primer destino). La lista de Canales, por
+ * ejemplo, es un contenedor virtual: su primera fila cambia y no puede llevar
+ * la marca ella misma.
+ */
+function destinoDeEntrada(root: HTMLElement, candidatos: Candidate[]): Candidate | null {
+  const anclas = root.querySelectorAll<HTMLElement>("[data-nav-entrada]");
+  for (const ancla of anclas) {
+    const dentro = candidatos.find(({ el }) => el === ancla || ancla.contains(el));
+    if (dentro) return dentro;
+  }
+  return null;
+}
+
+/**
+ * Deja a la vista, por debajo de la barra fija, un destino al que se ha
+ * llevado el foco sin desplazar (`preventScroll`). El scroll nativo de
+ * `focus()` lo pegaba al borde de arriba, debajo de la barra.
+ */
+function aLaVistaEnLaVentana(el: HTMLElement) {
+  const caja = el.getBoundingClientRect();
+  let barra = 0;
+  for (const cromo of document.querySelectorAll<HTMLElement>("[data-nav-chrome]")) {
+    const r = cromo.getBoundingClientRect();
+    if (r.height > 0 && r.top <= 0) barra = Math.max(barra, r.bottom);
+  }
+  if (caja.top < barra + 8 || caja.bottom > window.innerHeight - 8) {
+    window.scrollBy({ top: caja.top - barra - 24 });
+  }
+}
+
 /** Deja el elemento a la vista sin usar scrollIntoView (mueve la ventana en Tizen). */
 export function scrollNearest(el: HTMLElement) {
   let parent = el.parentElement;
@@ -222,12 +303,32 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       document.documentElement.dataset.input === "dpad" ||
       (typeof navigator !== "undefined" && esTelevisorUA(navigator.userAgent));
     if (esPunteroTosco() && !esMando) return;
-    const active = document.activeElement as HTMLElement | null;
-    if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) return;
+    /**
+     * Con ratón y teclado, tampoco al cargar: Chrome pinta el anillo en un
+     * `.focus()` de guion mientras no haya habido un clic, y en el PC se veía
+     * un recuadro blanco alrededor de la marca nada más abrir Inicio
+     * (`focusVisible: false` no lo evita). No hace falta: la primera flecha
+     * entra por `focusIn`, que ya sabe arrancar sin foco, y el tabulador
+     * funciona como en cualquier web. Ya enfocado algo, sí se sigue.
+     */
+    if (!esMando && (!document.activeElement || document.activeElement === document.body)) return;
     const candidates = collect(root);
-    const primero = candidates[0];
+    const entrada = destinoDeEntrada(root, candidates);
+    const active = document.activeElement as HTMLElement | null;
+    if (active && active !== document.body && root.contains(active) && active.hasAttribute("data-nav")) {
+      /**
+       * Ya hay foco: se respeta… salvo que se venga de la barra con el mando
+       * y la vista tenga entrada. Es «OK en Canales»: quien lo pulsa quiere
+       * ir a la lista, no quedarse en la pestaña. Con ratón no se toca: el
+       * clic en la pestaña no debe desplazar la página por debajo del vídeo.
+       */
+      const desdeLaBarra = active.closest("[data-nav-chrome]") !== null;
+      if (!(esMando && desdeLaBarra && entrada)) return;
+    }
+    const primero = entrada ?? candidates[0];
     if (primero) {
       primero.el.focus({ preventScroll: true });
+      if (entrada && esMando) aLaVistaEnLaVentana(primero.el);
       scrollNearest(primero.el);
     }
   }, [rootRef]);
@@ -243,8 +344,9 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
     const current = active && root.contains(active) && active.hasAttribute("data-nav") ? active : null;
 
     if (!current) {
-      candidates[0].el.focus();
-      scrollNearest(candidates[0].el);
+      const primero = destinoDeEntrada(root, candidates) ?? candidates[0];
+      primero.el.focus();
+      scrollNearest(primero.el);
       return;
     }
 
@@ -263,7 +365,8 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      // El input de búsqueda con teclado físico manda sobre la navegación.
+      // Dentro de un campo, las teclas son de quien escribe salvo las flechas
+      // que lo abandonan (ver `saleDelCampo`).
       const target = event.target as HTMLElement | null;
       const typing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA";
 
@@ -290,7 +393,31 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
         return;
       }
 
-      if (!enabled || typing) return;
+      /**
+       * Otro ya atendió esta tecla (la rejilla de servidores, el campo de
+       * Canales llevando el foco a los chips…). Moverlo otra vez aquí era el
+       * «doble salto»: cada flecha avanzaba dos.
+       */
+      if (event.defaultPrevented) return;
+
+      /**
+       * Los dígitos marcan canal ANTES de mirar `enabled`: a pantalla completa
+       * el hook está apagado para las flechas (zapean), y ahí es justo donde
+       * arranca la tele y donde más se marca. Antes este `return` iba primero
+       * y 1-0-3 no hacía nada. Dentro de un campo, nunca: un «7» escrito en el
+       * buscador es un 7, no un cambio de canal.
+       */
+      const digito = typing ? null : digitoDeTecla(event);
+      if (digito !== null) {
+        if (onDigit) {
+          event.preventDefault();
+          onDigit(digito);
+        }
+        return;
+      }
+
+      if (!enabled) return;
+      if (typing && !saleDelCampo(target as HTMLInputElement, event.key)) return;
 
       switch (event.key) {
         case "ArrowUp":
@@ -312,8 +439,6 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
         default:
           break;
       }
-
-      if (onDigit && /^[0-9]$/.test(event.key)) onDigit(event.key);
     };
 
     window.addEventListener("keydown", onKeyDown);

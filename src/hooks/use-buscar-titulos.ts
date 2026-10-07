@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { CardItem } from "@/lib/media-item";
 import type { MediaType } from "@/lib/catalog/types";
+import { leerRespuestaBusqueda, type EstadoBusqueda } from "@/lib/catalog/busqueda";
 
 /** Una ficha de resultado, con lo que hace falta para abrirla. */
 export interface TituloEncontrado extends CardItem {
@@ -24,10 +25,11 @@ export interface TituloEncontrado extends CardItem {
  *    tecla.
  */
 export function useBuscarTitulos(consulta: string) {
-  const [respuesta, setRespuesta] = useState<{ para: string; fichas: TituloEncontrado[] }>({
-    para: "",
-    fichas: [],
-  });
+  const [respuesta, setRespuesta] = useState<{
+    para: string;
+    fichas: TituloEncontrado[];
+    estado: EstadoBusqueda;
+  }>({ para: "", fichas: [], estado: "ok" });
   const [cargando, setCargando] = useState(false);
 
   const limpia = consulta.trim();
@@ -45,15 +47,22 @@ export function useBuscarTitulos(consulta: string) {
     const temporizador = setTimeout(() => {
       setCargando(true);
       fetch(`/api/buscar?q=${encodeURIComponent(limpia)}`, { signal: control.signal })
-        .then((respuesta) => respuesta.json())
-        .then((datos: { resultados: TituloEncontrado[] }) => {
-          setRespuesta({ para: limpia, fichas: datos.resultados ?? [] });
+        .then(async (http) => {
+          // El cuerpo se lee aunque el estado no sea 2xx: un 503 trae
+          // `disponible: false` y un 429 su propio aviso. Ver `busqueda.ts`.
+          const cuerpo: unknown = await http.json().catch(() => null);
+          const leida = leerRespuestaBusqueda<TituloEncontrado>(http.status, cuerpo);
+          setRespuesta({ para: limpia, fichas: leida.resultados, estado: leida.estado });
           setCargando(false);
         })
         .catch(() => {
-          // `AbortError` es lo normal aquí —una tecla más—, no un fallo. Y si
-          // fue un fallo de red, la mitad de canales sigue funcionando.
-          if (!control.signal.aborted) setCargando(false);
+          // `AbortError` es lo normal aquí —una tecla más—, no un fallo. Si
+          // fue la red, se dice «no disponible» para ESTA consulta: sin
+          // anotarla, `pendiente` se quedaría encendido para siempre y el
+          // esqueleto no se iría nunca.
+          if (control.signal.aborted) return;
+          setRespuesta({ para: limpia, fichas: [], estado: "no-disponible" });
+          setCargando(false);
         });
     }, 250);
 
@@ -74,8 +83,24 @@ export function useBuscarTitulos(consulta: string) {
    *     resultados viejos desaparecen en el mismo fotograma en que se teclea,
    *     en lugar de quedarse debajo del texto nuevo hasta que llegue la
    *     respuesta.
+   *
+   * `pendiente` es la otra cara del punto 2: hay algo escrito que se puede
+   * buscar y todavía no hay respuesta PARA ESO. Cubre el antirrebote y la red
+   * a la vez, y es lo que evita el parpadeo de «Sin resultados» entre tecla y
+   * tecla: medido, con «spi» decía «Sin resultados» a los 100 ms y tenía 16
+   * títulos a los 2,6 s. Mientras está pendiente se enseña el esqueleto.
    */
-  const resultados = buscable && respuesta.para === limpia ? respuesta.fichas : [];
+  const alDia = buscable && respuesta.para === limpia;
+  const resultados = alDia ? respuesta.fichas : [];
+  const pendiente = buscable && !alDia;
 
-  return { resultados, cargando: buscable && cargando };
+  return {
+    resultados,
+    cargando: buscable && cargando,
+    pendiente,
+    /** Hay al menos dos letras: con menos no se pregunta a nadie. */
+    buscable,
+    /** Cómo fue la última respuesta para lo que hay escrito. */
+    estado: alDia ? respuesta.estado : ("ok" as EstadoBusqueda),
+  };
 }

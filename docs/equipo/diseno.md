@@ -46,6 +46,120 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-07 (tercera pasada) — Cine de noche: neutros y sala de cine
+
+**Qué pidió el dueño.** El azul de la paleta nueva no le gustó; la funcionalidad
+sí. Mandó capturas de una app de cine de referencia y pidió que Cine y series
+(y la portada) se vieran así.
+
+**Qué se hizo.**
+
+- Paleta «cine de noche»: fondo `#0b0b0d`, superficies grises neutras, acento
+  blanco (`--acento: #f5f5f7`, tinta oscura encima). El rojo queda solo para
+  «en vivo». Los tokens semánticos no cambiaron de nombre: el cambio fue de
+  valores.
+- Barra superior: los destinos van juntos en una píldora de cristal oscura que
+  flota a la derecha, con el activo en blanco. La píldora es oscura por sí
+  misma (los televisores no desenfocan).
+- Héroe de Cine y series: título grande (hasta 76px), datos con icono (★ nota/10,
+  calendario, reloj), «Ver ahora» blanco y una píldora de cristal con ＋ Mi
+  lista, ⓘ Más info y tráiler. Cada icono tiene `aria-label` y `title`.
+- Fondo ambiental (`.cine-ambiente`): el arte destacado, desenfocado, tiñe la
+  página. Truco de rendimiento: se desenfoca una caja 8× menor con `blur(11px)`
+  y se amplía con `transform: scale(8)`. Cuesta 1/64 de desenfocar la pantalla
+  entera y funciona igual en la tele.
+- Filas: «Ver todo ›» a la derecha como enlace visible (antes era el título con
+  una flechita). Seis carteles por fila desde 1440px y siete desde 1760px. En
+  la tele se quedan seis.
+- Teléfono: la cabecera es un degradado que deja ver el arte y se vuelve
+  cristal al bajar. Tipo, género y orden van en una sola fila deslizable.
+
+**Trampas encontradas.**
+
+- Un degradado con `border-bottom: transparent` se repite por debajo del borde
+  y pinta una raya de 1px. La línea va con `box-shadow`.
+- `focus({ focusVisible: false })` no evita el anillo en Chrome. En PC ya no se
+  autoenfoca nada al cargar; la primera flecha entra por `focusIn`.
+- `Date.now()` en la caché de la M3U disparaba el «1 Issue» de Next 16 en
+  Inicio. Se cambió por `performance.now()`.
+
+### 2026-10-07 (segunda pasada) — El reproductor en vivo, al estilo Apple
+
+Pedido: «más profesional, más estandarizado; el zapeo, la barra inestable y
+fea, la forma de presentar EN VIVO y el nombre del canal no son Apple TV».
+
+- **Pantalla completa = la maqueta del reproductor de iPhone/Apple TV**
+  (`player/controles-vivo.tsx`): «‹ Salir» arriba a la izquierda; sonido,
+  guía y cast arriba a la derecha; ⏮ ⏯ ⏭ grandes en el centro; el rótulo del
+  canal abajo a la izquierda. Antes todo iba en una fila abajo más una
+  chuleta de teclas, y la cabecera repetía el estado en mono.
+- **El rótulo** (`player/info-vivo.tsx`), igual en Inicio y en pantalla
+  completa: logo, píldora de estado, número · categoría, **el nombre del
+  canal como lo más grande y blanco**, programa y barra con horas si hay EPG.
+  `estadoDeEmision` sale de `fullscreen-player.tsx` para que Inicio diga lo
+  mismo (antes ponía «EN VIVO» aunque no hubiera imagen).
+- **Píldora de estado**: roja (#ff3b30) con punto que late solo en directo;
+  «Conectando», «Cargando», «En pausa», «Sin señal» en gris o rojo apagado.
+- **Zapear ya no abre la guía.** Cada ↑/↓ abría la tira de 50 canales y
+  reiniciaba su reloj: la pantalla saltaba sin parar. Ahora sale el rótulo, y
+  la guía solo con OK o el botón. Si ya estaba abierta, la sigue.
+- **El nombre salía gris en Inicio** porque el velo de «Sintonizando…» (negro
+  al 55 %, z 10) tapaba la cabecera. El pie va ahora con z 11 y
+  `.live-card-marco` con `isolation: isolate`.
+- **Barra superior al hacer scroll**: el desenfoque no se aplicaba (computado
+  `none` en Chromium sin GPU, y no existe en muchas teles), así que el
+  contenido se leía nítido a través. Ahora es casi opaca (97 %).
+- **Inicio**: un solo marco (antes caja gris con borde + vídeo con borde), y
+  el pie lleva rótulo a la izquierda y mandos a la derecha, sobre el vídeo
+  desde 681px; debajo en teléfono. Primario blanco relleno; glifos rellenos.
+- **Tarjetas de canal y «Casa»**: el logo es la tarjeta (`.media-card
+  .is-canal` + `.poster`), sin caja alrededor. Ojo: el `<img>` va
+  `position: absolute` — un logo de 1000px empujaba el alto de la caja por
+  encima de su 16:9 y salía recortado.
+- **Ajustes** reordenado por quién lo usa: Pantalla, Reproducción, Canales,
+  y lo técnico en «Avanzado», todo en palabras normales.
+- Borrados: `player/panel-emision.tsx` y `livetv/live-card.tsx` (copia muerta
+  que nadie importaba).
+
+Pendiente: probar en una Tizen/Android TV real (overscan, rendimiento del
+latido de la píldora) — `dispositivos`.
+
+### 2026-10-07 — Una sola escala de texto, y la tele a diez pies
+
+Primer paso del rediseño («limpio como Apple TV, funcional como Netflix, para
+cualquier edad y cualquier pantalla»). Antes de rediseñar pantallas hacía falta
+una base: había **68 tamaños de letra distintos**, cada uno con su `clamp`.
+
+- **Ocho tokens** (`--texto-2xs` … `--texto-3xl`) en `shell.css`. Crecen en
+  línea recta de 390px a 1920px. Los 68 se mapearon por su tope. Tailwind
+  (`text-xs`…`text-5xl`, más un `text-2xs` nuevo) apunta a los mismos tokens
+  desde `@theme`, así que hoja y componente miden igual.
+- **Televisor**: `data-pantalla="tv"` en <html> cambia la base a `vw` (cuerpo
+  1,4vw ≈ 27px a 1920). En `vw` porque cada tele declara un viewport distinto
+  para la misma pantalla. Lo pone un guion en `<head>` (`tamano-texto.ts`) con
+  la misma tabla de `esTelevisorUA`, antes del primer pintado.
+- **Ajustes → Pantalla → Tamaño del texto** (Normal / Grande / Muy grande):
+  multiplica toda la escala con `--escala-texto`. Es la ayuda que más rinde
+  para personas mayores y no estorba a nadie.
+- **Contraste**: `prefers-contrast: more` sube los grises y vuelve opaco el
+  cristal; `forced-colors` devuelve el foco con `outline: Highlight`.
+  `--color-muted`/`--color-soft` de Tailwind ahora leen `--muted`/`--soft`.
+- **Arreglos que salieron al medir**: el anillo de foco de la primera ficha
+  de cada riel se recortaba (padding interno + margen negativo); la guía del
+  reproductor arrancaba en x = 0 (fuera del área segura de la tele); en TV la
+  chuleta de teclas se montaba sobre «Salir» (pasó a la izquierda); en las
+  fichas de canal el «CH 101» en mono se partía en dos líneas (ahora sans con
+  `tabular-nums` y sin cortes).
+
+Me sorprendió: subir un solo píxel el mínimo del móvil (11→12) cortaba «Cine y
+series» en la barra inferior. Los mínimos de la escala no son gratis: medir
+siempre en 390px.
+
+Pendiente, ya visto en las capturas: «Mi enlace» y «Ajustes» siguen hablando
+en técnico (HLS.js, worker…); la ficha de canal en móvil es una tarjeta dentro
+de otra tarjeta; la cabecera del reproductor embebido («Canal 7», punto de EN
+VIVO) está demasiado apagada.
+
 ### 2026-09-02 (segunda pasada) — El dial, no solo el color
 
 La entrada de abajo cambió el color y la tipografía y se quedó ahí: seguía
@@ -153,6 +267,44 @@ Nazco con la app ya funcionando.
 ---
 
 ## Lo siguiente
+
+Estado al cerrar la rama `agente-diseno` (2026-10-07). Lo hecho está en el
+diario de arriba; esto es lo que queda, ordenado por impacto.
+
+### Decisiones del dueño (no se tocan sin su sí)
+
+- **Televisores viejos.** Chromium < 94 no ejecuta el JS (`class static`, `?.`)
+  y < 99 descarta TODO el CSS en `@layer`. Arreglo propuesto: `browserslist`
+  con el Chromium del Tizen/WebOS más viejo que se quiera soportar +
+  `postcss-cascade-layers` para aplanar capas. Cuesta peso de bundle; hay que
+  decidir el suelo de versión.
+- **Renumerar canales** y **claves estables de favoritos** (hoy dependen del
+  número): cambiarlo migra los favoritos guardados en cada aparato.
+- **Teclas numéricas en Samsung:** hay que registrarlas con
+  `tizen.tvinputdevice.registerKey` en el cascarón; sin eso el mando no manda
+  los dígitos a la web.
+
+### Rendimiento (pendiente, sin medir en aparato real)
+
+- Pasar la auditoría en un televisor de verdad: el desenfoque de
+  `.cine-ambiente` (caja 8× menor ampliada) y el cristal de la barra se
+  midieron solo en Chromium de escritorio.
+- `media-card.tsx` usa `<img>` plano (aviso de ESLint): valorar un cargador
+  de `next/image` para TMDB, que ya da tamaños (`w185`, `w342`…) y ahorraría
+  ancho de banda en el teléfono.
+- La revisión adversarial + QA por dispositivos (agente `dispositivos`) no
+  llegó a correr: se cortó por el límite de sesión. Hacerla antes del
+  siguiente gran cambio visual.
+
+### Ideas de diseño propuestas al dueño (a la espera)
+
+1. Logo del título (imagen de TMDB `/images`) en vez del título en texto.
+2. Fila «Explorar por plataforma» con los logos de Netflix, Prime, Disney+…
+   (TMDB *watch providers*).
+3. Varios destacados en el héroe con puntos, solo con cambio manual (nunca
+   automático: mueve el fondo mientras se lee y obliga a perseguir el foco).
+
+### Menores
 
 - Repasar Ajustes y Favoritos, que aún no han tenido pasada de diseño.
 - Buscar clases pintadas sin ninguna regla: preguntar al navegador qué renderiza

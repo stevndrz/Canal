@@ -2,7 +2,9 @@ import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { TitleDetail } from "@/components/catalog/title-detail";
-import { findCatalogItem, resolveItem, resolveSeason } from "@/lib/catalog/catalog";
+import { EsqueletoFicha } from "@/components/catalog/esqueleto-ficha";
+import { FichaNoEncontrada } from "@/components/catalog/ficha-no-encontrada";
+import { findCatalogItem, resolveSeason, resolverFicha } from "@/lib/catalog/catalog";
 import { fetchSimilar } from "@/lib/catalog/discover";
 import type { MediaType } from "@/lib/catalog/types";
 import { esTelevisorUA } from "@/lib/dispositivo";
@@ -30,7 +32,11 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
   const item = findCatalogItem(mediaType as MediaType, id);
   if (!item) notFound();
 
-  const resolved = await resolveItem(item);
+  const { ficha: resolved, encontrada } = await resolverFicha(item);
+
+  // Ni en `catalog.json` ni en TMDB: antes se abría igual, titulada «Sin
+  // título» y con un reproductor buscando algo que no existe.
+  if (!encontrada) return <FichaNoEncontrada />;
 
   // La temporada llega por query (?t=2) para que el enlace sea compartible y
   // el botón de retroceso del navegador funcione como se espera.
@@ -95,7 +101,9 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
 
 export default function TitlePage(props: PropsDeFicha) {
   return (
-    <Suspense fallback={<div className="app-shell bg-black" />}>
+    /* El mismo dibujo que `loading.tsx`: barra, portada y marco del vídeo, no
+       un negro vacío. Ver `esqueleto-ficha.tsx`. */
+    <Suspense fallback={<EsqueletoFicha />}>
       <Ficha {...props} />
     </Suspense>
   );

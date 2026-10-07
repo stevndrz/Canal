@@ -24,6 +24,11 @@ const INTERACTIVO = [
   "[data-nav]",
   ".player-bar",
   ".guia",
+  // El fondo negro de «Sin señal»: tocarlo no puede pausar nada (no hay nada
+  // que pausar) ni despertar un `play()` que acabe en otro aviso. Sus botones
+  // ya los excluye `button`. `.player-conectando` NO va aquí a propósito: no
+  // recibe toques, y el dedo cae en el `<video>` como siempre.
+  ".player-fallo",
 ].join(",");
 
 export function esToqueEnElVideo(destino: EventTarget | null): boolean {

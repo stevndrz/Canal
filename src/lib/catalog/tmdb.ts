@@ -3,6 +3,7 @@ import "server-only";
 import type { MediaType } from "./types";
 import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
+import { nombreDeGenero, traducirGeneros } from "./generos";
 
 /**
  * Cliente mínimo de TMDB. Todo es opcional por diseño: sin respuesta o sin
@@ -121,10 +122,19 @@ async function tmdbFetch<T>(path: string): Promise<T | null> {
  * Cacheada como función (`use cache`): bajo `cacheComponents` el
  * `next: { revalidate }` de fetch ya no cachea. La credencial entra como
  * argumento para que la caché de una clave vieja no sirva a la nueva.
+ *
+ * **La duración depende de cómo fue.** Una respuesta buena se guarda días
+ * (`days`): el catálogo cambia una vez al día y TMDB cobra cuota por cada
+ * viaje. Un fallo se guarda solo minutos (`minutes`). Antes el `cacheLife`
+ * iba arriba, sin condición, y un tropiezo puntual de TMDB —un timeout de 5 s
+ * a las tres de la mañana— dejaba `/peliculas` vacía hasta el día siguiente
+ * aunque TMDB hubiera vuelto a los dos minutos. La guía de Next
+ * (`cacheLife.md`, «Conditional cache lifetimes») pide que se ejecute UNA sola
+ * llamada por invocación: por eso cada rama hace la suya justo antes de
+ * devolver, y ninguna antes del `fetch`.
  */
 async function tmdbConClave<T>(path: string, credential: string): Promise<T | null> {
   "use cache";
-  cacheLife("days");
 
   // TMDB reparte dos credenciales distintas en la misma pantalla de ajustes y
   // es fácil copiar la que no es. La v4 ("API Read Access Token") es un JWT y
@@ -146,15 +156,19 @@ async function tmdbConClave<T>(path: string, credential: string): Promise<T | nu
           ? " — revisa TMDB_API_KEY (sirve la API Key v3 o el API Read Access Token v4)"
           : "";
       console.error(`❌ TMDB respondió HTTP ${response.status} en ${path}${hint}`);
+      cacheLife("minutes");
       return null;
     }
-    return (await response.json()) as T;
+    const datos = (await response.json()) as T;
+    cacheLife("days");
+    return datos;
   } catch (error) {
     const reason =
       error instanceof Error && error.name === "TimeoutError"
         ? `no respondió en ${TMDB_TIMEOUT_MS / 1000}s`
         : String(error);
     console.error(`❌ Error consultando TMDB (${reason}) — ${path}`);
+    cacheLife("minutes");
     return null;
   }
 }
@@ -234,7 +248,9 @@ export async function fetchTitle(tmdbId: number, mediaType: MediaType): Promise<
       .map((season) => season.season_number),
     tagline: data.tagline ?? "",
     duracion: data.runtime ?? data.episode_run_time?.[0] ?? null,
-    generos: (data.genres ?? []).map((genero) => genero.name),
+    // En español también en series: TMDB deja «Soap» o «Sci-Fi & Fantasy» en
+    // inglés aunque se le pida `es-MX`. Ver `generos.ts`.
+    generos: (data.genres ?? []).map((genero) => nombreDeGenero(mediaType, genero.id, genero.name)),
     // Doce caben en un carril sin que haya que recorrerlo entero; más allá del
     // duodécimo nombre ya nadie está buscando a nadie.
     reparto: (data.credits?.cast ?? []).slice(0, 12).map((persona) => ({
@@ -279,6 +295,7 @@ interface TmdbListItem {
   release_date?: string;
   first_air_date?: string;
   vote_average?: number;
+  genre_ids?: number[];
 }
 
 interface TmdbListResponse {
@@ -296,6 +313,12 @@ export interface TmdbListEntry {
   backdrop: string | null;
   year: string | null;
   rating: number | null;
+  /**
+   * Ids de género, que las listas ya traen gratis. Sirven para filtrar sin
+   * pedir nada más: los programas de entrevistas fuera de «Series
+   * populares», el terror fuera del héroe. Ver `generos.ts`.
+   */
+  generoIds: number[];
 }
 
 /**
@@ -325,6 +348,7 @@ function toListEntry(item: TmdbListItem, fallbackType: MediaType): TmdbListEntry
     backdrop: tmdbImage(item.backdrop_path, BACKDROP_SIZE),
     year: date ? date.slice(0, 4) : null,
     rating: typeof item.vote_average === "number" ? Math.round(item.vote_average * 10) / 10 : null,
+    generoIds: item.genre_ids ?? [],
   };
 }
 
@@ -337,6 +361,12 @@ export interface TmdbPagina {
    * vacía. Sin acotar, el paginador ofrecería miles de páginas rotas.
    */
   totalPaginas: number;
+  /**
+   * TMDB no contestó (o no hay clave). Una lista vacía de verdad —un filtro
+   * sin títulos— llega con `fallo: false`, y la interfaz no puede confundir
+   * una cosa con la otra: ver `estado.ts`.
+   */
+  fallo: boolean;
 }
 
 /** Una lista de TMDB (discover/trending). Sin clave o sin respuesta, vacía. */
@@ -353,12 +383,13 @@ export async function fetchList(path: string, fallbackType: MediaType): Promise<
  */
 export async function fetchPagina(path: string, fallbackType: MediaType): Promise<TmdbPagina> {
   const data = await tmdbFetch<TmdbListResponse>(path);
-  if (!data?.results) return { entradas: [], totalPaginas: 0 };
+  if (!data?.results) return { entradas: [], totalPaginas: 0, fallo: true };
   return {
     entradas: data.results
       .map((item) => toListEntry(item, fallbackType))
       .filter((entry): entry is TmdbListEntry => entry !== null),
     totalPaginas: Math.min(data.total_pages ?? 1, TOPE_PAGINAS_TMDB),
+    fallo: false,
   };
 }
 
@@ -369,8 +400,11 @@ const TOPE_PAGINAS_TMDB = 500;
  * Busca en todo el catálogo de TMDB. Devuelve el título en español aunque la
  * película sea en inglés (`Batman Begins` -> `Batman inicia`), que es lo que
  * hace utilizable un catálogo internacional en casa.
+ *
+ * `null` cuando TMDB no contestó o no hay clave, y `[]` cuando contestó que no
+ * hay nada: son dos mensajes distintos para quien busca.
  */
-export async function searchTitles(query: string): Promise<TmdbListEntry[]> {
+export async function searchTitles(query: string): Promise<TmdbListEntry[] | null> {
   const term = query.trim();
   if (!term) return [];
   // `/search/multi` mezcla películas, series y personas; las personas se caen
@@ -378,7 +412,7 @@ export async function searchTitles(query: string): Promise<TmdbListEntry[]> {
   const data = await tmdbFetch<TmdbListResponse>(
     `/search/multi?query=${encodeURIComponent(term)}&include_adult=false`
   );
-  if (!data?.results) return [];
+  if (!data?.results) return null;
   return data.results
     .filter((item) => item.media_type === "movie" || item.media_type === "tv")
     .map((item) => toListEntry(item, "movie"))
@@ -414,13 +448,16 @@ export interface TmdbGenre {
 }
 
 /**
- * Géneros de un tipo, ya en español (`tmdbFetch` manda `es-MX`). Se piden por
- * separado porque las listas NO son la misma: en series no existe Terror y
- * Acción es 10759 y no 28. Cruzarlas da resultados vacíos sin decir por qué.
+ * Géneros de un tipo, en español. Se piden por separado porque las listas NO
+ * son la misma: en series no existe Terror y Acción es 10759 y no 28.
+ * Cruzarlas da resultados vacíos sin decir por qué.
+ *
+ * `tmdbFetch` ya manda `es-MX`, pero eso solo basta en películas: la lista de
+ * series llega con media docena en inglés. Ver `generos.ts`.
  */
 export async function fetchGenres(mediaType: MediaType): Promise<TmdbGenre[]> {
   const data = await tmdbFetch<{ genres?: TmdbGenre[] }>(`/genre/${mediaType}/list`);
-  return data?.genres ?? [];
+  return traducirGeneros(mediaType, data?.genres ?? []);
 }
 
 export function isTmdbConfigured(): boolean {

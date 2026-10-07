@@ -25,6 +25,7 @@ export function MediaRail({
   activeKey,
   count,
   href,
+  verTodos,
 }: {
   title: string;
   items: CardItem[];
@@ -36,6 +37,13 @@ export function MediaRail({
   count?: string;
   /** Enlace del título («Acción» → todas las de Acción). Sin él, texto plano. */
   href?: string;
+  /**
+   * La última ficha del riel: «Ver los 27 ›». Un riel de veinte de una sección
+   * de 527 no decía que había más ni cómo llegar; con el mando, además, el
+   * título no es un destino. La ficha sí: es la parada natural al final del
+   * recorrido hacia la derecha.
+   */
+  verTodos?: { total: number; de: string; onClick: () => void };
 }) {
   // Un riel vacío no se anuncia: mejor que la fila no exista a que exista con
   // un hueco. Favoritos y Seguir viendo empiezan vacíos siempre.
@@ -51,22 +59,18 @@ export function MediaRail({
 
   return (
     <section className={`rail ${posterMode ? "is-poster" : ""} ${compacto ? "is-compacto" : ""}`}>
+      {/* El título a la izquierda y «Ver todo» a la derecha, como en
+          cualquier tienda de cine: el enlace se ve como enlace —antes era el
+          propio título con una flecha pequeña, y casi nadie lo descubría—. */}
       <div className="rail-head">
-        {href ? (
-          <Link
-            data-nav="button"
-            href={href}
-            className="group flex items-center gap-2 transition-colors hover:text-red-500"
-          >
-            <h3>{title}</h3>
-            {/* La flecha se desliza al pasar el foco o el ratón: señala que el
-                título lleva a más, no que la fila entera sea un botón. */}
-            <ChevronRight className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" />
-          </Link>
-        ) : (
-          <h3>{title}</h3>
-        )}
+        <h3>{title}</h3>
         {count && <span>{count}</span>}
+        {href && (
+          <Link data-nav="button" href={href} className="rail-ver-todo" aria-label={`Ver todo: ${title}`}>
+            Ver todo
+            <ChevronRight aria-hidden="true" />
+          </Link>
+        )}
       </div>
 
       <RailScroller className="rail-strip" ariaLabel={title} overlay={posterMode}>
@@ -81,6 +85,26 @@ export function MediaRail({
             />
           </Envoltorio>
         ))}
+        {verTodos && (
+          <button
+            type="button"
+            data-nav="tile"
+            // `media-card` por el contrato del foco: las fichas de un riel no
+            // llevan el anillo de `globals.css` sino su propio realce (crecer
+            // y borde blanco en el marco), y esta es una ficha más del riel.
+            className="media-card rail-ver-todos"
+            onClick={verTodos.onClick}
+            aria-label={`Ver los ${verTodos.total.toLocaleString("es-GT")} canales de ${verTodos.de}`}
+          >
+            <span className="rail-ver-todos-marco" aria-hidden="true">
+              <span className="rail-ver-todos-cifra">{verTodos.total.toLocaleString("es-GT")}</span>
+              <ChevronRight />
+            </span>
+            <span className="rail-ver-todos-texto" aria-hidden="true">
+              Ver todos
+            </span>
+          </button>
+        )}
       </RailScroller>
     </section>
   );

@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { extrasCast, PlayerControls } from "@/components/player/player-controls";
+import { estadoDeEmision, InfoVivo } from "@/components/player/info-vivo";
 import { useCast } from "@/hooks/use-cast";
 import { esIPhone } from "@/lib/dispositivo";
+import { girarAHorizontal } from "@/lib/orientacion";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import { cambioDeSalud } from "@/lib/salud-de-la-emision";
 import type { Channel, PlaybackSettings } from "@/lib/types";
@@ -83,8 +85,14 @@ export function LiveCard({
       // nada del siguiente, y compararlos daría un flanco inventado. Por eso la
       // `ref` guarda de qué canal era la lectura, y no solo la lectura.
       const anterior = previo.current?.canal === channel.id ? previo.current.lectura : undefined;
-      previo.current = { canal: channel.id, lectura: siguiente };
-      const cambio = cambioDeSalud(anterior, siguiente);
+      // «Funciona» es haber dado imagen, no tener la intención de ver:
+      // `isPlaying` se pone en `true` en cuanto se zapea o se pulsa
+      // Reintentar, y sin esto un canal caído «revivía» antes de enseñar un
+      // solo fotograma. La lista de caídos oscilaba y escribía en
+      // `localStorage` en cada intento.
+      const lectura = { ...siguiente, isPlaying: siguiente.isPlaying && siguiente.ttffMs !== undefined };
+      previo.current = { canal: channel.id, lectura };
+      const cambio = cambioDeSalud(anterior, lectura);
       if (cambio) onSalud?.(channel.id, cambio === "revivio");
     },
     [channel.id, onSalud],
@@ -123,10 +131,15 @@ export function LiveCard({
    * a ver si llega el segundo daría un pausado con retardo, y el retardo en un
    * control tan básico se nota mucho más que el parpadeo que evita.
    */
-  const alTocar = useCallback((evento: React.MouseEvent) => {
-    if (!esToqueEnElVideo(evento.target)) return;
-    playerRef.current?.togglePlay();
-  }, []);
+  const alTocar = useCallback(
+    (evento: React.MouseEvent) => {
+      // Mientras conecta no hay nada que pausar: tocar para «ver si va» paraba
+      // el arranque, y el `play()` interrumpido acababa en un aviso falso.
+      if (!esToqueEnElVideo(evento.target) || state.conectando) return;
+      playerRef.current?.togglePlay();
+    },
+    [state.conectando],
+  );
 
   // El vídeo real vive dentro de StreamPlayer y se expone por método; Cast lo
   // necesita como ref, así que se copia en cuanto existe.
@@ -147,71 +160,52 @@ export function LiveCard({
       className="live-card"
       aria-label={`En directo: ${channel.name}`}
     >
-      {/* Sin `role="button"` ni `aria-label`: los tenía y repetían palabra por
-           palabra los del botón "Pantalla completa" de abajo, así que un lector
-           de pantalla anunciaba dos veces el mismo mando. El doble clic se queda
-           porque es lo que espera cualquiera que venga de un reproductor de
-           escritorio; con mando y con el dedo está el botón. */}
-      {/* `bg-zinc-900/90` y no `backdrop-blur`: este marco envuelve un `<video>`
-          en directo que cambia 25-30 veces por segundo, y el desenfoque obliga
-          al compositor a copiar y desenfocar ese fondo en cada fotograma — lo
-          más caro que hay en la GPU de un televisor, justo donde más se nota
-          (moverse entre canales). Más opaco para compensar sin el cristal. */}
-      <div className="live-card-marco border border-white/10 rounded-2xl overflow-hidden bg-zinc-900/90 shadow-xl shadow-black/40">
-        <div
-          className="live-card-video border border-white/10 bg-black"
-          onClick={alTocar}
-          onDoubleClick={expandir}
-        >
+      {/* Sin `role="button"` ni `aria-label` en el vídeo: repetían palabra por
+          palabra los del botón «Pantalla completa», y un lector de pantalla
+          anunciaba dos veces el mismo mando. El doble clic se queda porque es
+          lo que espera quien viene de un reproductor de escritorio.
+
+          Un solo marco. Antes eran dos cajas con borde, una dentro de otra
+          (`.live-card-marco` gris y `.live-card-video` negra), y se leía como
+          un formulario y no como una pantalla. */}
+      <div className="live-card-marco">
+        <div className="live-card-video" onClick={alTocar} onDoubleClick={expandir}>
           <StreamPlayer
             ref={playerRef}
             channel={channel}
             settings={settings}
             onStateChange={alCambiarEstado}
+            onSiguiente={onNext}
           />
-
-          <div className="live-card-top">
-          <span className="live-card-vivo">
-            <span className="live-dot" />
-            EN VIVO
-          </span>
-          <strong className="live-card-nombre">{channel.name}</strong>
-            <span className="live-card-meta">
-              {channel.number} · {channel.category}
-            </span>
-          </div>
-
-          {/* Aquí había un segundo «Este canal no está responde» con su propio
-              botón Reintentar, pintado ENCIMA del «Sin señal» que `StreamPlayer`
-              ya dibuja a pantalla completa dentro de este mismo marco. Eran dos
-              mensajes distintos del mismo fallo y dos botones que hacían lo
-              mismo, y con el mando había que pasar por los dos. Manda el del
-              reproductor, que es quien sabe qué pasó. */}
+          {/* El fallo lo cuenta `StreamPlayer`, que es quien sabe qué pasó; aquí
+              no se repite. */}
         </div>
 
-        {/* Dentro del marco, no fuera.
-            En escritorio la barra se posiciona **encima del vídeo**, en el
-            borde inferior, que es como se ve un reproductor y no un mando
-            suelto debajo de una imagen. En teléfono se queda debajo, en el
-            flujo: ahí la pantalla es estrecha, tapar el vídeo con una barra
-            cuesta caro, y además esa disposición —imagen arriba, botones
-            grandes abajo— es la que hace que se lea como un mando para pasar
-            el canal a la tele, que es justo lo que se quería. */}
-        <PlayerControls
-          variant="embedded"
-          isPlaying={state.isPlaying}
-          isMuted={state.isMuted}
-          onTogglePlay={() => playerRef.current?.togglePlay()}
-          onToggleMute={() => {
-            playerRef.current?.toggleMute();
-            onSilencio?.(!state.isMuted);
-          }}
-          onPrev={onPrev}
-          onNext={onNext}
-          fullscreen={{ active: false, onToggle: expandir }}
-          big={settings.bigControls}
-          extras={transmision}
-        />
+        {/* El pie: quién está en el aire y los mandos, en la misma franja.
+            En escritorio va ENCIMA del borde inferior del vídeo, sobre un
+            degradado, como el rótulo de una tele de pago. En teléfono va
+            debajo: ahí la imagen es pequeña y taparla cuesta caro.
+
+            Por encima del velo de «Sintonizando» (`z-index`), que antes se
+            comía la cabecera: por eso «Canal 7» y «EN VIVO» se veían grises. */}
+        <div className="live-card-pie">
+          <InfoVivo channel={channel} estado={estadoDeEmision(state)} talla="compacta" />
+          <PlayerControls
+            variant="embedded"
+            isPlaying={state.isPlaying}
+            isMuted={state.isMuted}
+            onTogglePlay={() => playerRef.current?.togglePlay()}
+            onToggleMute={() => {
+              playerRef.current?.toggleMute();
+              onSilencio?.(!state.isMuted);
+            }}
+            onPrev={onPrev}
+            onNext={onNext}
+            fullscreen={{ active: false, onToggle: expandir }}
+            big={settings.bigControls}
+            extras={transmision}
+          />
+        </div>
       </div>
 
       {castError && (
@@ -241,11 +235,13 @@ async function pedirPantallaCompleta(): Promise<void> {
   try {
     if (typeof raiz.requestFullscreen === "function") {
       await raiz.requestFullscreen({ navigationUI: "hide" });
-      return;
-    }
-    if (typeof raiz.webkitRequestFullscreen === "function") {
+    } else if (typeof raiz.webkitRequestFullscreen === "function") {
       await raiz.webkitRequestFullscreen();
     }
+    // Ya concedida, que es cuando Chrome deja bloquear la orientación: un
+    // Android en vertical pasa de una franja de 412×232 a 732×412. Las guardas
+    // (iPhone, tele, ratón, tableta) viven en `orientacion.ts`.
+    await girarAHorizontal();
   } catch {
     // Algunos navegadores de televisor la rechazan sobre <html>. No hay más
     // respaldo que ofrecer: la vista igualmente ocupa toda la ventana.

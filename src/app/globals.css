@@ -22,17 +22,47 @@
 
 @import "./shell.css" layer(components);
 
+/* Hojas por zona, SIN capa (ganan a Tailwind igual que el resto de esta
+   hoja). Van aquí arriba porque `@import` tiene que ir antes que cualquier
+   regla: lo que definan, una regla de esta hoja con la misma especificidad lo
+   pisa, así que no redefinen clases de aquí abajo, solo las suyas.
+   - ui.css: las primitivas de `src/components/ui/` (botón, chip, campo…).
+   - catalogo.css: Cine y series y la ficha. */
+@import "./ui.css";
+@import "./catalogo.css";
+
 /* ── Tokens de Tailwind ───────────────────────────────────────────────── */
 @theme {
-  --color-app: #000;
-  --color-surface: #101012;
-  --color-surface-2: #1c1c1f;
-  --color-mark: #1c1c1f;
-  --color-hairline: rgba(255, 255, 255, 0.08);
-  --color-live: #ff453a;
+  /**
+   * Los colores de Tailwind salen de los tokens semánticos de `shell.css`:
+   * `bg-superficie-2`, `text-tinta-3`, `bg-acento text-acento-tinta`… Así un
+   * componente con utilidades y una hoja propia pintan el mismo color, y
+   * cambiar la paleta no obliga a tocar ni un componente.
+   */
+  --color-fondo: var(--fondo);
+  --color-superficie-1: var(--superficie-1);
+  --color-superficie-2: var(--superficie-2);
+  --color-superficie-3: var(--superficie-3);
+  --color-relleno: var(--relleno);
+  --color-borde: var(--borde);
+  --color-tinta-1: var(--tinta-1);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-3: var(--tinta-3);
+  --color-acento: var(--acento);
+  --color-acento-tinta: var(--acento-tinta);
+  --color-acento-texto: var(--acento-texto);
+  --color-vivo: var(--vivo);
 
-  --color-accent: #f5f5f7;
-  --color-accent-on: #000;
+  /* Los nombres de antes, apuntando a lo mismo. */
+  --color-app: var(--fondo);
+  --color-surface: var(--superficie-1);
+  --color-surface-2: var(--superficie-2);
+  --color-mark: var(--superficie-2);
+  --color-hairline: var(--borde-sutil);
+  --color-live: var(--peligro);
+
+  --color-accent: var(--acento);
+  --color-accent-on: var(--acento-tinta);
 
   /**
    * Los dos grises secundarios, también como utilidades.
@@ -45,13 +75,32 @@
    * legible. Declarados aquí, `text-muted` y `text-soft` son utilidades de
    * verdad y hay una sola fuente para cada peso.
    */
-  --color-muted: rgba(245, 245, 247, 0.72);
-  --color-soft: rgba(245, 245, 247, 0.56);
+  --color-muted: var(--tinta-2);
+  --color-soft: var(--tinta-3);
+
+  /**
+   * Los tamaños de texto de Tailwind, enganchados a la escala de `shell.css`.
+   *
+   * Así `text-sm` en un componente y `var(--texto-sm)` en una hoja son el
+   * mismo tamaño, y los dos crecen igual en un televisor y con la preferencia
+   * de «Tamaño del texto». `--text-*` en `@theme` reemplaza al de Tailwind:
+   * los 3xl…5xl de su escala se pliegan a los dos titulares de la nuestra.
+   */
+  --text-2xs: var(--texto-2xs);
+  --text-xs: var(--texto-xs);
+  --text-sm: var(--texto-sm);
+  --text-base: var(--texto-base);
+  --text-lg: var(--texto-lg);
+  --text-xl: var(--texto-lg);
+  --text-2xl: var(--texto-xl);
+  --text-3xl: var(--texto-2xl);
+  --text-4xl: var(--texto-2xl);
+  --text-5xl: var(--texto-3xl);
 
   --radius-tile: 14px;
   --radius-card: 20px;
 
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font-sans: var(--font-figtree), -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /**
@@ -91,7 +140,9 @@
   }
 
   body {
-    color: var(--color-accent);
+    /* La tinta, no el acento: con un acento de color, todo el texto heredado
+       saldría celeste. */
+    color: var(--tinta-1);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -181,11 +232,11 @@
      que al menos las opciones se declaran oscuras. */
   option {
     background-color: var(--color-surface-2);
-    color: var(--color-accent);
+    color: var(--tinta-1);
   }
 
-  a { color: var(--color-accent); text-decoration: none; }
-  a:hover { color: var(--muted); }
+  a { color: var(--tinta-1); text-decoration: none; }
+  a:hover { color: var(--tinta-2); }
 }
 
 /* La ventana scrollea, salvo durante la reproducción: si la página puede
@@ -212,7 +263,9 @@ html[data-player="on"] body {
    (borde + halo en `.catalogo-buscador-campo`). */
 [data-nav]:not(.media-card):not(input):focus-visible,
 [data-input="dpad"] [data-nav]:not(.media-card):not(input):focus {
-  outline: 3px solid var(--color-accent);
+  /* Blanco siempre, sea cual sea el acento: el foco es lo único que dice
+     dónde está el mando a tres metros. */
+  outline: 3px solid var(--foco);
   outline-offset: 3px;
 }
 
@@ -259,13 +312,13 @@ html[data-player="on"] body {
 .buscar-vacio {
   margin: 0;
   padding: clamp(24px, 4vh, 48px) 0;
-  font-size: clamp(15px, 1.1vw, 19px);
+  font-size: var(--texto-base);
   color: var(--soft);
 }
 
 .buscar-recuento {
   margin: 0 0 14px;
-  font-size: clamp(12px, 0.9vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -273,7 +326,7 @@ html[data-player="on"] body {
 }
 
 /* mobile-nav-item span {
-  font-size: 10px;
+  font-size: var(--texto-2xs);
   line-height: 1.15;
   max-width: 100%;
   overflow: hidden;
@@ -319,15 +372,18 @@ html[data-player="on"] body {
   margin-bottom: clamp(24px, 3vh, 40px);
 }
 
+/* Un solo marco: el vídeo redondeado y el pie. Sin caja gris alrededor ni
+   segundo borde dentro — eso era lo que lo hacía parecer un formulario. */
 .live-card-marco {
   position: relative;
-  /* Un reproductor incrustado, no una portada.
-     A pantalla completa de un televisor, 16:9 sobre todo el ancho da más de
-     1000px de alto y no cabe nada más. Y `margin-inline: auto` es lo que lo
-     centra: sin él quedaba pegado a la izquierda con medio televisor en negro
-     al lado. */
+  /* A pantalla completa de un televisor, 16:9 sobre todo el ancho da más de
+     1000px de alto y no cabe nada más; `margin-inline: auto` lo centra. */
   width: min(100%, 116vh);
   margin-inline: auto;
+  /* Su propio contexto de apilado: el pie lleva `z-index` para quedar sobre
+     el vídeo, y sin esto competía con la barra superior fija y se pintaba
+     encima de ella al hacer scroll. */
+  isolation: isolate;
 }
 
 .live-card-video {
@@ -335,112 +391,104 @@ html[data-player="on"] body {
   aspect-ratio: 16 / 9;
   width: 100%;
   overflow: hidden;
-  border-radius: clamp(14px, 1.1vw, 22px);
-  background: #000;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.42));
+  border-radius: var(--radio-panel);
+  background: var(--fondo);
+  /* Un filo de luz, no un borde: separa la imagen del negro de la página sin
+     dibujar una caja. */
+  box-shadow: 0 0 0 1px var(--borde-sutil), var(--sombra-3);
   cursor: pointer;
 }
 
-.live-card-marco.is-cargando,
 .live-card-video.is-cargando {
-  background: linear-gradient(135deg, #16181f, #0a0b0f);
+  background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
 }
 
 .live-card-video video {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #000;
+  background: var(--fondo);
 }
 
-/* La franja superior no intercepta el doble clic: el gesto es sobre el vídeo. */
-.live-card-top {
-  position: absolute;
-  inset: 0 0 auto;
+/* ── El pie: rótulo + mandos ─────────────────────────────────────────────
+   En teléfono, debajo del vídeo y en el flujo: rótulo arriba, mandos abajo,
+   grandes y centrados — la tarjeta se lee como un mando a distancia.
+
+   Desde 681px, encima del borde inferior del vídeo sobre un degradado, el
+   rótulo a la izquierda y los mandos a la derecha, como el rótulo de una tele
+   de pago. Por encima del velo de «Sintonizando» (z 10) y del aviso de fallo:
+   antes los tapaba y el nombre del canal salía gris. */
+.live-card-pie {
   display: flex;
-  align-items: center;
-  gap: clamp(10px, 1vw, 18px);
-  padding: clamp(12px, 1.4vw, 22px) clamp(14px, 1.6vw, 26px);
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.78), transparent);
-  pointer-events: none;
+  flex-direction: column;
+  align-items: stretch;
+  margin-top: 14px;
 }
 
-.live-card-vivo {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  flex-shrink: 0;
-  font-size: clamp(10px, 0.72vw, 13px);
-  font-weight: 700;
-  letter-spacing: 0.16em;
+.live-card-pie .player-bar {
+  margin-top: 10px;
 }
 
-.live-card-vivo .live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--color-live, #ff453a);
-}
+/* Teléfono en vertical: el vídeo de borde a borde y pegado a la cabecera,
+   como el reproductor de YouTube. Con el margen lateral y las esquinas
+   redondeadas medía 350×197 en un iPhone de 390; sin ellos, 390×219 — un 24%
+   más de imagen, que en una pantalla tan pequeña es la diferencia entre ver
+   la tele y adivinarla. El rótulo y los mandos de debajo sí conservan el
+   margen, alineados con los rieles. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-card {
+    padding: 0;
+  }
 
-.live-card-nombre {
-  min-width: 0;
-  font-size: clamp(15px, 1.35vw, 26px);
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+  .live-card-video {
+    border-radius: 0;
+    box-shadow: none;
+  }
 
-.live-card-meta {
-  flex-shrink: 0;
-  font-size: clamp(11px, 0.85vw, 15px);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-/* ── Dónde vive la barra de controles ────────────────────────────────
-   En escritorio, **encima del vídeo**, apoyada en su borde inferior: así se lee
-   como un reproductor y no como un mando suelto debajo de una imagen. Se
-   desvanece cuando el ratón no está encima, para no tapar la emisión.
-
-   En teléfono se queda debajo, en el flujo. Ahí la pantalla es estrecha y tapar
-   el vídeo cuesta caro; además esa disposición —imagen arriba, botones grandes
-   abajo— es la que hace que se lea como un mando para pasar el canal a la tele. */
-@media (min-width: 681px) {
-  /**
-   * Siempre visible, no al pasar el ratón.
-   *
-   * Antes aparecía solo con `:hover`/`:focus-within`, y al acercarse el
-   * ratón la información se veía "salirse" del marco de la tarjeta — con
-   * mando no hay cursor que la revele nunca, así que en la práctica solo
-   * funcionaba para quien usa ratón, y encima con ese defecto. Visible
-   * siempre es lo que ya hacía el teléfono (ver `max-width: 680px` abajo) y
-   * es lo correcto para una app que se controla sobre todo con mando.
-   *
-   * Barra de ancho completo con su propio degradado, no una píldora
-   * centrada flotando sobre el vídeo: es lo mismo que ya hace
-   * `.live-card-top` arriba, solo que boca abajo. Antes la píldora traía su
-   * propio fondo de cristal para leerse sobre cualquier escena; ahora que
-   * los botones son círculos sin fondo propio (ver `.player-btn`), hace
-   * falta ESTE degradado detrás para que sigan viéndose sobre una imagen
-   * clara.
-   */
-  .live-card-marco .player-bar.is-embedded {
-    position: absolute;
-    inset: auto 0 0;
-    z-index: 5;
-    width: 100%;
-    max-width: none;
-    border-radius: 0 0 clamp(14px, 1.1vw, 22px) clamp(14px, 1.1vw, 22px);
-    background: linear-gradient(0deg, rgba(0, 0, 0, 0.78) 0%, transparent 100%);
-    padding: clamp(20px, 3vh, 36px) clamp(10px, 1.4vw, 18px) clamp(10px, 1.4vh, 16px);
+  .live-card-pie {
+    padding-inline: var(--margen);
   }
 }
 
-@media (max-width: 680px) {
-  .live-card-marco .player-bar.is-embedded {
-    margin-top: 12px;
+/* Solo en horizontal. Una tableta en vertical (768×1024) o una ventana
+   estrecha también pasan de 681px, y ahí el pie encima tapaba el 42 % de la
+   imagen: va debajo, en una fila (ver el bloque siguiente). */
+@media (min-width: 681px) and (orientation: landscape) {
+  .live-card-pie {
+    position: absolute;
+    inset: auto 0 0;
+    z-index: 11;
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin: 0;
+    padding: clamp(48px, 9vh, 120px) clamp(16px, 1.8vw, 32px) clamp(14px, 1.6vw, 26px);
+    border-radius: 0 0 var(--radio-panel) var(--radio-panel);
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.82) 0%, rgba(0, 0, 0, 0.5) 45%, transparent 100%);
+    /* La franja deja pasar los toques al vídeo (pausar, doble clic); solo los
+       botones los reciben. */
+    pointer-events: none;
+  }
+
+  .live-card-pie .player-bar {
+    margin: 0 0 0 16px;
+    flex-shrink: 0;
+    pointer-events: auto;
+  }
+}
+
+/* Tableta en vertical y ventana estrecha: el vídeo entero a la vista y, debajo,
+   rótulo a la izquierda y mandos a la derecha en una sola fila. */
+@media (min-width: 681px) and (orientation: portrait) {
+  .live-card-pie {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .live-card-pie .player-bar {
+    margin: 0 0 0 16px;
+    flex-shrink: 0;
   }
 }
 
@@ -454,7 +502,7 @@ html[data-player="on"] body {
    El orden físico es el de cualquier mando (⏮ ⏯ ⏭) y la tira de sistema
    (silencio, guía, cast, modo) se separa del dial con una línea sutil, no un
    panel: aquí no hay «EN VIVO · canal» que sostener, esa pastilla se quitó
-   —la misma información ya vive arriba, en `.live-card-top`/`PanelEmision`—.
+   —la misma información ya vive en el rótulo (`InfoVivo`)—.
 
    Ojo: `.player-btn` a secas también lo usan los avisos de error
    («Reproducir», «Reintentar»), que NO viven en la barra y siguen siendo
@@ -494,22 +542,26 @@ html[data-player="on"] body {
   gap: clamp(6px, 0.6vw, 12px);
   padding-left: clamp(10px, 1vw, 16px);
   margin-left: clamp(2px, 0.4vw, 6px);
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  border-left: 1px solid var(--borde);
 }
 
 /* Círculo de cristal, no rectángulo de panel: transparente en reposo, se
-   ilumina al tocarlo. Misma receta que `.atv-btn`. */
+   ilumina al tocarlo. Misma receta que `.atv-btn`.
+
+   Solo `transform` se anima: el fondo y el color cambian en seco. Animar el
+   fondo obliga a repintar en cada fotograma, y este botón va encima del
+   vídeo en directo de un televisor. */
 .player-btn {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radio-pill);
   background: transparent;
-  color: #fff;
+  color: var(--tinta-1);
   cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease, color 150ms ease;
+  transition: transform var(--dur-rapida) var(--ease);
 }
 
 .player-btn svg {
@@ -520,12 +572,12 @@ html[data-player="on"] body {
 }
 
 .player-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--relleno-hover);
   transform: scale(1.06);
 }
 
 .player-btn:active {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--relleno-activo);
   transform: scale(0.92);
 }
 
@@ -538,11 +590,13 @@ html[data-player="on"] body {
  * son el mismo gris. Invertido a blanco/negro se ve desde el sofá y de un
  * vistazo, que es lo que hacen los reproductores de televisor.
  */
+/* El glifo va en `--fondo` y no en `--acento-tinta`: el foco es blanco sea
+   cual sea el acento, y su tinta tiene que ser oscura siempre. */
 .player-btn:focus-visible,
 [data-input="dpad"] .player-btn:focus {
   outline: none;
-  background: #fff;
-  color: #000;
+  background: var(--foco);
+  color: var(--fondo);
   transform: scale(1.08);
 }
 
@@ -557,13 +611,13 @@ html[data-player="on"] body {
    segundo: el peor sitio posible para pedírselo a la GPU de un televisor. Se
    nota en el zapeo, no en una captura de pantalla. */
 .player-btn.is-primary {
-  border: 1.5px solid rgba(255, 255, 255, 0.28);
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid var(--borde-fuerte);
+  background: var(--relleno-activo);
+  box-shadow: var(--sombra-1);
 }
 
 .player-btn.is-primary:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: var(--relleno-activo);
 }
 
 /* Sin esto, el foco del mando se pierde en el botón que más hace falta ver:
@@ -572,14 +626,14 @@ html[data-player="on"] body {
    blanco de foco. */
 .player-btn.is-primary:focus-visible,
 [data-input="dpad"] .player-btn.is-primary:focus {
-  background: #fff;
-  color: #000;
+  background: var(--foco);
+  color: var(--fondo);
   border-color: transparent;
 }
 
 .player-btn.is-extra.is-active {
-  color: #ff453a;
-  background: rgba(255, 69, 58, 0.2);
+  color: var(--peligro);
+  background: var(--peligro-fondo);
 }
 
 /**
@@ -589,36 +643,311 @@ html[data-player="on"] body {
  * directo», y estar enviando a un Chromecast es lo contrario de una alarma.
  */
 .player-btn.is-emitiendo {
-  color: #30d158;
-  background: rgba(48, 209, 88, 0.2);
+  color: var(--exito);
+  background: var(--exito-fondo);
 }
 
-/* ── Cuando el enlace no da imagen ───────────────────────────────────── */
+/* ── Los avisos sobre el vídeo en directo ──────────────────────────────
+   Cuatro estados, y la píldora del rótulo siempre de acuerdo con el aviso:
+
+     Conectando      logo del canal que respira     CONECTANDO
+     Cargando        anillo pequeño (ya hubo imagen) CARGANDO
+     Toca para ver   círculo ▶ sobre el fotograma    EN PAUSA
+     Sin señal       logo apagado + dos botones      SIN SEÑAL
+
+   Van por DEBAJO de la capa de mandos de pantalla completa (z 10-12 frente a
+   `--capa-video-mandos`): «Salir», el sonido y el rótulo tienen que seguir
+   visibles y pulsables encima. Lo que sí estorbaba, el dial del centro, se
+   aparta con `.con-aviso` (ver «Pantalla completa» más abajo).
+
+   Margen y no `gap` en las filas de botones: los navegadores de tele viejos
+   no conocen el `gap` de flexbox. Y sin `aspect-ratio` en la placa del logo,
+   por lo mismo: mide lo que mida el logo. */
+
+/* Conectando. El logo del canal, grande, como Apple TV: dice QUÉ se está
+   cargando antes de leer nada. No recibe toques —`pointer-events` se hereda,
+   así que el logo y el texto tampoco—: el dedo cae en el `<video>` y
+   `esToqueEnElVideo` lo sigue reconociendo. Fondo sólido: al sintonizar no
+   hay imagen debajo que dejar ver. */
+.player-conectando {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  background: var(--fondo);
+}
+
+/* La misma placa que el logo del rótulo (`.vivo-logo`), en grande: un logo
+   oscuro sobre negro desaparecería sin ella. Respira con opacidad, que es lo
+   único que una tele vieja anima en el compositor sin repintar. */
+.player-conectando-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(104px, 30%, 340px);
+  min-height: clamp(64px, 18%, 210px);
+  padding: clamp(10px, 1.2vw, 26px) clamp(14px, 1.8vw, 36px);
+  border-radius: var(--radio-panel);
+  background: var(--relleno);
+  box-shadow: inset 0 0 0 1px var(--borde-sutil);
+  animation: cc-respira 1.8s ease-in-out infinite;
+}
+
+.player-conectando-logo img {
+  display: block;
+  max-width: 100%;
+  max-height: clamp(44px, 12vw, 150px);
+  object-fit: contain;
+}
+
+/* Sin logo, las iniciales: es texto, así que crece con la escala. */
+.player-conectando-logo b {
+  font-size: var(--texto-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tinta-2);
+}
+
+.player-conectando-texto {
+  margin: clamp(10px, 1.8vh, 26px) 0 0;
+  font-size: var(--texto-sm);
+  font-weight: 500;
+  color: var(--tinta-2);
+}
+
+@keyframes cc-respira {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-conectando-logo {
+    animation: none;
+  }
+}
+
+/* Cargando a mitad de emisión: ahí sí hay imagen, y no se tapa. Solo el
+   anillo, sentado en un disco oscuro para que se vea sobre una escena clara. */
+.player-cargando {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player-cargando::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(60px, 5vw, 96px);
+  height: clamp(60px, 5vw, 96px);
+  margin: calc(clamp(60px, 5vw, 96px) / -2) 0 0 calc(clamp(60px, 5vw, 96px) / -2);
+  border-radius: var(--radio-pill);
+  background: var(--cristal-video);
+}
+
+/* Toca para ver. Un solo botón del tamaño del vídeo: se toque donde se toque,
+   arranca. El velo deja ver el fotograma, que confirma que el canal está ahí.
+   En la capa de los demás avisos (nunca coincide con «Conectando»), y por
+   DEBAJO del pie de Inicio (z 11): con 12 tapaba el rótulo y los mandos en
+   escritorio y no dejaba pulsarlos. */
+.player-toca {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 16px;
+  border: 0;
+  background: var(--cristal-video);
+  color: var(--tinta-1);
+  font: inherit;
+  cursor: pointer;
+}
+
+.player-toca-circulo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(64px, 7vw, 128px);
+  height: clamp(64px, 7vw, 128px);
+  border-radius: var(--radio-pill);
+  background: var(--acento);
+  color: var(--acento-tinta);
+  box-shadow: var(--sombra-2);
+  transition: transform var(--dur-rapida) var(--ease);
+}
+
+/* El triángulo pesa a la izquierda: se corre un poco para que se lea
+   centrado en el círculo. */
+.player-toca-circulo svg {
+  width: 42%;
+  height: 42%;
+  margin-left: 7%;
+}
+
+.player-toca-texto {
+  margin-top: clamp(10px, 1.6vh, 22px);
+  font-size: var(--texto-base);
+  font-weight: 600;
+}
+
+/* El foco del mando agranda el círculo y lo rodea de blanco con un hueco
+   oscuro en medio: el círculo ya es claro, y un anillo pegado se fundiría con
+   él. El contorno general de `[data-nav]` rodearía el vídeo entero, así que
+   se anula aquí (misma especificidad que aquella regla y después en la hoja). */
+[data-nav].player-toca:not(input):focus-visible,
+[data-input="dpad"] [data-nav].player-toca:not(input):focus {
+  outline: none;
+}
+
+.player-toca:focus-visible .player-toca-circulo,
+[data-input="dpad"] .player-toca:focus .player-toca-circulo {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px var(--fondo), 0 0 0 8px var(--foco), var(--sombra-2);
+}
+
+.player-toca:active .player-toca-circulo {
+  transform: scale(0.94);
+}
+
+/* Lo que dice depende de con qué se maneja: «Toca» con el dedo o el ratón,
+   «Pulsa OK» con el mando. */
+.player-con-mando {
+  display: none;
+}
+
+html[data-pantalla="tv"] .player-con-mando,
+html[data-input="dpad"] .player-con-mando {
+  display: inline;
+}
+
+html[data-pantalla="tv"] .player-con-tacto,
+html[data-input="dpad"] .player-con-tacto {
+  display: none;
+}
+
+/* Sin señal (y el «No se pudo reproducir» de `native-player.tsx`, que comparte
+   la caja). El logo apagado dice qué canal falló sin leer nada. */
 .player-fallo {
   position: absolute;
   inset: 0;
   z-index: 10;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 10px;
-  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
   text-align: center;
-  background: rgba(0, 0, 0, 0.95);
+  background: var(--fondo);
+}
+
+.player-fallo .player-conectando-logo {
+  animation: none;
+  opacity: 0.4;
 }
 
 .player-fallo-titulo {
-  margin: 0;
-  font-size: clamp(17px, 1.4vw, 26px);
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  margin: clamp(10px, 1.8vh, 24px) 0 0;
+  font-size: var(--texto-lg);
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .player-fallo-detalle {
-  margin: 0 0 6px;
-  max-width: 42ch;
-  font-size: clamp(13px, 1vw, 17px);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  margin: 4px 0 0;
+  max-width: 38ch;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+.player-fallo-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: clamp(12px, 2vh, 28px);
+}
+
+.player-fallo-acciones > * + * {
+  margin-left: 10px;
+}
+
+/* El botón suelto de `native-player.tsx`, sin fila de acciones. */
+.player-fallo > .player-btn {
+  margin-top: clamp(12px, 2vh, 28px);
+}
+
+/* Botones de verdad: medían 113×28 con el texto pegado al borde porque las
+   tallas solo existían para `.player-bar .player-btn`. Altura de toque
+   cómoda para un dedo de niño o una mano que tiembla. */
+.player-fallo .player-btn {
+  min-height: var(--control-md);
+  padding: 0 22px;
+  font-size: var(--texto-base);
+  font-weight: 600;
+  background: var(--relleno-activo);
+}
+
+.player-fallo .player-btn svg {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+}
+
+.player-fallo .player-btn.is-primary {
+  border: 0;
+  background: var(--acento);
+  color: var(--acento-tinta);
+  box-shadow: none;
+}
+
+/* Foco: blanco e invertido como cualquier botón del reproductor, más un anillo
+   con hueco, porque el primario ya es claro en reposo y el cambio de fondo
+   solo no se vería. */
+.player-fallo .player-btn:focus-visible,
+[data-input="dpad"] .player-fallo .player-btn:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  box-shadow: 0 0 0 3px var(--fondo), 0 0 0 6px var(--foco);
+}
+
+/* En la tele, a la medida del texto de diez pies (unos 64px a 1920). */
+html[data-pantalla="tv"] .player-fallo .player-btn {
+  min-height: calc(var(--texto-base) * 2.4);
+  padding: 0 1.3em;
+}
+
+html[data-pantalla="tv"] .player-fallo .player-btn svg {
+  width: 1em;
+  height: 1em;
+}
+
+/* En Inicio con poco alto (teléfono en vertical: 219px; en horizontal: 242px)
+   el detalle no cabe junto a los botones: se calla, el título basta. */
+@media (max-width: 680px), (max-height: 520px) {
+  .live-card-video .player-fallo-detalle {
+    display: none;
+  }
+
+  .live-card-video .player-conectando-logo {
+    min-height: 0;
+  }
 }
 
 .player-sin-enlace {
@@ -627,7 +956,7 @@ html[data-player="on"] body {
   aspect-ratio: 16 / 9;
   border-radius: var(--radio-panel, 18px);
   background: var(--bg-card, #101012);
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: var(--texto-sm);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -688,7 +1017,7 @@ html[data-player="on"] body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #fff;
@@ -696,7 +1025,7 @@ html[data-player="on"] body {
 }
 
 .atv-top-version {
-  font-size: 12px;
+  font-size: var(--texto-xs);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.65);
 }
@@ -713,11 +1042,10 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.12);
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   color: #fff;
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 .atv-marca.is-verde {
@@ -732,7 +1060,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.72);
   padding: 4px 14px;
   text-align: center;
-  font-size: clamp(15px, 1.6vw, 22px);
+  font-size: var(--texto-lg);
   font-weight: 600;
   line-height: 1.45;
   color: #fff;
@@ -750,10 +1078,9 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 69, 58, 0.35);
   background: rgba(40, 6, 6, 0.82);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--texto-xs);
   color: #ffd9d6;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .atv-alerta-cerrar {
@@ -777,7 +1104,6 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.55);
   color: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
 }
 
 /* De cristal, no un disco blanco sólido: la misma familia que los botones de
@@ -797,7 +1123,6 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.5);
   color: #fff;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   transition: transform 180ms ease, background 180ms ease, opacity 280ms ease;
 }
 
@@ -834,7 +1159,7 @@ html[data-player="on"] body {
 .atv-tiempo {
   flex-shrink: 0;
   padding: 0 6px;
-  font-size: 13px;
+  font-size: var(--texto-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
@@ -922,7 +1247,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.16);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #fff;
@@ -991,7 +1316,6 @@ html[data-player="on"] body {
   background: rgba(255, 255, 255, 0.16);
   color: #fff;
   backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   box-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -1070,13 +1394,12 @@ html[data-player="on"] body {
   padding: 6px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
 }
 
 .atv-menu-titulo {
   margin: 0;
   padding: 8px 12px 4px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1090,7 +1413,7 @@ html[data-player="on"] body {
   gap: 10px;
   border-radius: 10px;
   padding: 9px 12px;
-  font-size: 14px;
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
   transition: background 120ms ease;
@@ -1127,7 +1450,7 @@ html[data-player="on"] body {
   }
 
   .atv-top-nombre {
-    font-size: 13px;
+    font-size: var(--texto-xs);
   }
 
   .atv-play-central {
@@ -1165,25 +1488,8 @@ html[data-player="on"] body {
   height: 22px;
 }
 
-.player-bar.is-fullscreen .player-btn {
-  width: 52px;
-  height: 52px;
-}
-
-.player-bar.is-fullscreen .player-btn.is-primary {
-  width: 64px;
-  height: 64px;
-}
-
-.player-bar.is-fullscreen .player-btn svg {
-  width: 23px;
-  height: 23px;
-}
-
-.player-bar.is-fullscreen .player-btn.is-primary svg {
-  width: 26px;
-  height: 26px;
-}
+/* Pantalla completa tiene sus propias tallas, junto a su maqueta: ver
+   «El reproductor en vivo» al final de esta hoja. */
 
 .player-bar.is-embedded .player-btn {
   width: 40px;
@@ -1246,8 +1552,8 @@ html[data-player="on"] body {
   width: auto;
   padding: 0 clamp(12px, 1vw, 18px);
   gap: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  font-size: clamp(13px, 0.92vw, 15px);
+  border: 1px solid var(--borde-fuerte);
+  font-size: var(--texto-xs);
   font-weight: 600;
 }
 
@@ -1270,12 +1576,6 @@ html[data-player="on"] body {
    capa, pase lo que pase con la especificidad. En `shell.css`, que entra en
    `components`, no hacían absolutamente nada. */
 
-/* El `p-6` de la tarjeta son 24px: casi un cuarto del ancho de una ficha
-   compacta. Ahí el aire sobra, la ficha ya es pequeña de por sí. */
-.rail.is-compacto .media-card {
-  padding: clamp(8px, 0.7vw, 14px);
-}
-
 /* La línea de «CH 102 · Guatemala» se va. No es esconder datos: a 168px no
    cabe —parte el número en dos renglones y deja la categoría en «Guatema…»—, y
    media palabra cortada informa menos que el silencio. El nombre del canal se
@@ -1285,175 +1585,6 @@ html[data-player="on"] body {
   display: none;
 }
 
-/* ── El panel de la emisión: la cabecera del reproductor ──────────────
-   Ver `panel-emision.tsx` para el porqué de cada módulo.
-
-   Dos decisiones que se ven en la tele antes que en el PC:
-
-   1. **Ni un `gap` de flexbox aquí.** Es de Chromium 84 y el parque de la casa
-      va de 53 a 79: en esas teles todos los huecos valdrían cero y el panel
-      saldría con las palabras pegadas. Separación por `margin`, que funciona
-      desde siempre, en vez de sumar cinco respaldos más a `[data-sin-gap]`.
-   2. **`tabular-nums` en todo el panel.** Sin ella el reloj, el `T+` y el
-      porcentaje cambian de ancho a cada segundo y arrastran la fila entera. */
-.panel-emision {
-  /* El mismo margen lateral que usa la pista de teclas de la barra de abajo
-     (`right-[3.35vw]`), para que la cabecera y el pie compartan encuadre.
-
-     No es cosmético: `tv-safe` solo aparta las muescas de iOS —en un navegador
-     de escritorio vale 0—, así que sin esto el panel salía pegado al borde y el
-     módulo de la hora quedaba cortado por la mitad. En un televisor es peor
-     todavía: el overscan se come el primer 3 % de la pantalla, y ahí es donde
-     estaba el estado de la emisión. */
-  padding-left: clamp(14px, 3.35vw, 74px);
-  padding-right: clamp(14px, 3.35vw, 74px);
-  font-variant-numeric: tabular-nums;
-}
-
-.panel-emision-fila {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-/* El estado, en una palabra. Casi todo monocromo: el rojo queda reservado al
-   directo y a los fallos, que es lo único que merece llamar la atención sobre
-   la imagen. */
-.panel-estado {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  margin-right: clamp(12px, 1.2vw, 22px);
-  padding: 5px clamp(8px, 0.7vw, 12px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 6px;
-  font-family: var(--font-mono);
-  font-size: clamp(11px, 0.8vw, 13px);
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  white-space: nowrap;
-}
-
-.panel-estado-punto {
-  width: 7px;
-  height: 7px;
-  margin-right: 8px;
-  border-radius: 999px;
-  background: var(--live, #e50914);
-}
-
-.panel-estado.is-vivo {
-  border-color: rgba(229, 9, 20, 0.55);
-  color: #fff;
-}
-
-.panel-estado.is-sin-senal {
-  border-color: rgba(229, 9, 20, 0.55);
-  background: rgba(229, 9, 20, 0.16);
-  color: #fff;
-}
-
-.panel-estado.is-pausa,
-.panel-estado.is-sintonizando {
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-}
-
-.panel-canal {
-  display: flex;
-  align-items: baseline;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.panel-canal b {
-  flex-shrink: 0;
-  margin-right: 10px;
-  font-size: clamp(13px, 1vw, 16px);
-  font-weight: 700;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-.panel-canal-nombre {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: clamp(17px, 1.45vw, 22px);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.panel-canal-cat {
-  flex-shrink: 0;
-  margin-left: clamp(8px, 0.8vw, 14px);
-  font-size: clamp(11px, 0.82vw, 13px);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-/* El programa. Con guía, cuánto lleva; sin ella, una regla que no afirma nada
-   que no se sepa. Nunca desaparece del todo: si apareciera y desapareciera
-   según el canal traiga EPG, la cabecera cambiaría de alto al zapear. */
-.panel-programa {
-  margin-top: clamp(8px, 0.8vw, 14px);
-}
-
-.panel-programa-texto {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  margin-bottom: 6px;
-  font-size: clamp(11px, 0.85vw, 14px);
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-}
-
-/* El porcentaje sí es mono: es una cifra de instrumento, no el nombre del
-   programa que va justo al lado. */
-.panel-programa-texto > span:last-child {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
-.panel-programa-texto > span:first-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-right: 12px;
-}
-
-.panel-programa-riel {
-  height: 3px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.16);
-  overflow: hidden;
-}
-
-/* Ámbar y no rojo: esto es progreso, no una alerta. El rojo se queda
-   reservado a `.panel-estado.is-vivo`/`is-sin-senal`, lo único que de verdad
-   pide llamar la atención. */
-.panel-programa-barra {
-  height: 100%;
-  background: var(--color-mission);
-}
-
-/* Sin guía la regla se queda, apagada y sin texto: marca el borde inferior de
-   la cabecera y mantiene el alto constante. */
-.panel-programa.is-vacio .panel-programa-riel {
-  height: 1px;
-  background: rgba(255, 255, 255, 0.12);
-  margin-top: clamp(12px, 1.1vw, 20px);
-}
-
-/* En teléfono, el nombre del canal se queda con el ancho entero si hace
-   falta: es el dato que más se mira. */
-@media (max-width: 720px) {
-  .panel-canal {
-    flex: 1 1 100%;
-    order: 2;
-    margin-top: 6px;
-  }
-}
 
 /* ── Buscador del catálogo ───────────────────────────────────────────
    Campo y botón son hermanos en una fila. Antes el botón iba en absolute
@@ -1464,43 +1595,40 @@ html[data-player="on"] body {
 /* Alineado a la izquierda como todo lo demás de la pantalla, no centrado.
    Centrado quedaba como una isla: el hero, los chips de filtro y los rieles
    arrancan todos en el margen y el buscador flotaba en medio. */
-.catalogo-buscador {
-  display: flex;
-  gap: 10px;
-  width: min(640px, 100%);
-  margin: clamp(18px, 2.6vh, 34px) var(--margen) clamp(16px, 2.2vh, 28px);
-}
-
 .catalogo-buscador-campo {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.6em;
   flex: 1;
   min-width: 0;
-  min-height: 52px;
-  padding: 0 20px;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
-  /* Cristal y no un gris plano: debajo pasa el degradado del hero, y un
-     relleno opaco lo cortaba en seco. */
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  transition: border-color 180ms var(--ease-native), background-color 180ms var(--ease-native);
+  /* En `em` además de en px: en la tele la letra crece en vw y un campo de
+     52 px fijos se quedaba bajo para su propio texto. */
+  min-height: max(var(--control-md), 2.5em);
+  padding: 0 0.4em 0 1em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  /* Relleno translúcido y SIN `backdrop-filter`: el desenfoque obliga al
+     compositor a copiar lo de debajo en cada fotograma, y en una tele eso se
+     nota más que lo que aporta. */
+  background: var(--relleno);
+  font-size: var(--texto-base);
+  transition: border-color var(--dur-media) var(--ease), background-color var(--dur-media) var(--ease);
 }
 
+/* El foco del campo es el de toda la app: blanco. Con el borde de 1 px más
+   un filo de otro píxel se ve a tres metros sin parecer otra pieza. */
 .catalogo-buscador-campo:focus-within {
-  border-color: rgba(255, 255, 255, 0.34);
-  background: rgba(255, 255, 255, 0.09);
-  box-shadow: var(--focus-glow, 0 0 0 3px rgba(255, 255, 255, 0.3));
+  border-color: var(--foco);
+  background: var(--relleno-hover);
+  box-shadow: 0 0 0 1px var(--foco);
 }
 
 .catalogo-buscador-campo svg {
-  width: 20px;
-  height: 20px;
+  width: 1.15em;
+  height: 1.15em;
   flex-shrink: 0;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 .catalogo-buscador-campo input {
@@ -1509,12 +1637,12 @@ html[data-player="on"] body {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: clamp(15px, 1.05vw, 18px);
+  font-size: var(--texto-base);
   outline: none;
 }
 
 .catalogo-buscador-campo input::placeholder {
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 /* El aspa nativa de `type=search` en WebKit es diminuta y de otro color. */
@@ -1523,30 +1651,27 @@ html[data-player="on"] body {
   appearance: none;
 }
 
-/* «Ordenar por» del catálogo. Mismo cristal que las píldoras de al lado, con
-   el hueco de la flecha que dibuja la regla base de `select`. */
+/* «Ordenar» del catálogo: de la altura de las píldoras de al lado (medía 34
+   px, por debajo de lo que se acierta con el dedo), con el hueco de la flecha
+   que dibuja la regla base de `select`. Solo `background-color`: el
+   `background` entero borraría esa flecha. El foco es el general de
+   `[data-nav]`, blanco como todo lo demás. */
 .catalogo-orden {
   flex-shrink: 0;
-  padding: 6px 30px 6px 12px;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
-  background-color: var(--bg-elevated, #1c1c1f);
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: 14px;
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 2.4em 0 1.1em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background-color: var(--relleno);
+  background-position: right 1em center;
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
+  font-weight: 500;
   cursor: pointer;
 }
 
 .catalogo-orden:hover {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  color: var(--text, #f5f5f7);
-}
-
-/* El desplegable no lleva `data-nav`, así que la regla general de foco no le
-   entra: se le pone aquí el suyo, o al tabular no se vería dónde está. */
-.catalogo-orden:focus-visible {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  color: var(--text, #f5f5f7);
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+  background-color: var(--relleno-hover);
 }
 
 /* ── Teléfono en horizontal ──────────────────────────────────────────
@@ -1563,32 +1688,64 @@ html[data-player="on"] body {
     border-radius: 8px;
   }
 
-  .player-btn {
+  /* Acotado a la barra: los botones de «Sin señal» también son `.player-btn`,
+     y «Otro canal» se quedaba en un círculo de 44px sin sitio para su texto. */
+  .player-bar .player-btn {
     min-height: 44px;
     min-width: 44px;
   }
 
-  .player-btn.is-primary {
+  .player-bar .player-btn.is-primary {
     min-height: 46px;
     padding: 0 16px;
   }
 
   /* Solo conservan la palabra el primario y el de pantalla completa: uno es el
      que se busca a ciegas, el otro el que cambia el modo entero. */
-  .player-btn:not(.is-primary):not(.is-mode) span {
+  .player-bar .player-btn:not(.is-primary):not(.is-mode) span {
     display: none;
   }
 
-  .player-btn:not(.is-primary):not(.is-mode) {
+  .player-bar .player-btn:not(.is-primary):not(.is-mode) {
     width: 44px;
     padding: 0;
     justify-content: center;
   }
 
-  /* La cabecera del reproductor también se aprieta: en horizontal el vídeo es
-     lo único que importa. */
-  .live-card-top {
-    padding: 8px 14px;
+  /* Los mandos bajan: fuera del vídeo, en una fila debajo, rótulo a la
+     izquierda. Encima de una imagen de 390px de alto tapaban el 71 % y se
+     montaban sobre el rótulo. El programa se calla: no cabe. */
+  .live-card-pie {
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 0;
+    background: none;
+    border-radius: 0;
+    pointer-events: auto;
+  }
+
+  .live-card-pie .player-bar {
+    margin: 0 0 0 12px;
+    padding: 0;
+  }
+
+  .live-card-pie .vivo-logo {
+    width: 52px;
+    margin-right: 10px;
+  }
+
+  .live-card-pie .vivo-programa {
+    display: none;
+  }
+
+  /* Al rótulo le quedan ~160px junto a los mandos: «102 · Generalista» se
+     cortaba en un «1» suelto, que se lee como otro número de canal. Media
+     cifra informa menos que ninguna; el nombre sí cabe entero. */
+  .live-card-pie .vivo-meta {
+    display: none;
   }
 
   /* El hueco superior de `.screen` está pensado para una pantalla alta: en
@@ -1600,11 +1757,15 @@ html[data-player="on"] body {
     padding-bottom: 20px;
   }
 
-  /* Y la tarjeta se acota por altura para que quepan vídeo y controles a la
-     vez. Más ancha se vería mejor el vídeo, pero los controles se irían fuera,
-     que es exactamente el problema que se está resolviendo. */
+  /* Y el vídeo, todo lo grande que deja el alto: el que queda tras la barra
+     superior y una fila de mandos, en 16:9. Antes se acotaba a 104vh y además
+     restaba 170px pensados para un televisor: en un iPhone tumbado medía
+     270×152; así mide 430×242, y los mandos siguen en el primer pliegue.
+     `vh` primero, como respaldo de los navegadores sin `svh` (iOS < 15.4). */
   .live-card-marco {
-    max-width: min(100%, 104vh);
+    width: min(100%, calc((100vh - var(--topbar-h) - 80px) * 16 / 9));
+    width: min(100%, calc((100svh - var(--topbar-h) - 80px) * 16 / 9));
+    max-width: none;
   }
 
   .live-card {
@@ -1619,10 +1780,10 @@ html[data-player="on"] body {
   gap: 10px;
   margin: 12px 0 0;
   padding: 10px 14px;
-  border: 1px solid rgba(255, 69, 58, 0.34);
-  border-radius: 14px;
-  background: rgba(255, 69, 58, 0.1);
-  font-size: clamp(13px, 0.95vw, 16px);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
+  background: var(--peligro-fondo);
+  font-size: var(--texto-sm);
 }
 
 .live-card-error button {
@@ -1677,18 +1838,20 @@ html[data-player="on"] body {
   pointer-events: none;
   background: linear-gradient(
     180deg,
-    rgba(0, 0, 0, 0.08) 0%,
-    rgba(0, 0, 0, 0.2) 42%,
-    rgba(0, 0, 0, 0.5) 70%,
-    rgba(0, 0, 0, 0.85) 88%,
-    #000 98%
+    rgba(var(--fondo-rgb), 0.08) 0%,
+    rgba(var(--fondo-rgb), 0.2) 42%,
+    rgba(var(--fondo-rgb), 0.5) 70%,
+    rgba(var(--fondo-rgb), 0.85) 88%,
+    var(--fondo) 98%
   );
 }
 
+/* Sin caja de 1200 px: la cabecera, el vídeo y el cuerpo arrancan en el
+   mismo `--margen` que la barra y los rieles. Con cajas de 1200 y 1440
+   centradas, en una tele había cinco bordes izquierdos distintos. */
 .ficha-cabecera {
   position: relative;
-  width: min(1200px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding-inline: var(--margen);
 }
 
@@ -1722,7 +1885,7 @@ html[data-player="on"] body {
   background: transparent;
   border: 0;
   color: var(--muted, rgba(255, 255, 255, 0.72));
-  font-size: clamp(11px, 0.78vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -1738,11 +1901,11 @@ html[data-player="on"] body {
   place-items: center;
   width: clamp(44px, 3.4vw, 54px);
   aspect-ratio: 1;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.13);
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  color: var(--text, #f5f5f7);
-  transition: background-color 160ms var(--ease), transform 160ms var(--ease);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-hover);
+  border: 1px solid var(--borde);
+  color: var(--tinta-1);
+  transition: background-color var(--dur-media) var(--ease), transform var(--dur-media) var(--ease);
 }
 
 .ficha-accion svg {
@@ -1751,26 +1914,37 @@ html[data-player="on"] body {
 }
 
 .ficha-accion:hover,
-.ficha-accion:focus-visible {
-  color: #fff;
+.ficha-accion:focus-visible,
+[data-input="dpad"] .ficha-accion:focus {
+  color: var(--tinta-1);
 }
 
-.ficha-accion:hover .ficha-accion-icono,
-.ficha-accion:focus-visible .ficha-accion-icono {
-  background: rgba(255, 255, 255, 0.24);
-  transform: scale(1.06);
+/* Con el mando el círculo se invierte —blanco con el icono oscuro— y crece:
+   el mismo gesto que el resto de botones, no un gris un poco más claro que a
+   tres metros no se distingue del de reposo. */
+.ficha-accion:hover .ficha-accion-icono {
+  background: var(--relleno-activo);
+  transform: scale(var(--foco-escala));
+}
+
+.ficha-accion:focus-visible .ficha-accion-icono,
+[data-input="dpad"] .ficha-accion:focus .ficha-accion-icono {
+  background: var(--foco);
+  border-color: var(--foco);
+  color: var(--fondo);
+  transform: scale(var(--foco-escala));
 }
 
 /* Ya está en «Mi lista»: el círculo se llena en vez de cambiar solo el texto.
-   El mismo verde que `.ficha-marca.is-si`, que es la misma idea. */
+   «Elegido» va con el acento, nunca con el blanco del foco. */
 .ficha-accion.is-activa {
-  color: var(--green, #00d588);
+  color: var(--acento-texto);
 }
 
 .ficha-accion.is-activa .ficha-accion-icono {
-  background: rgba(0, 213, 136, 0.18);
+  background: var(--acento-suave);
   border-color: transparent;
-  color: var(--green, #00d588);
+  color: var(--acento-texto);
 }
 
 /* «Volver» no es una acción sobre el título —es salir—, así que sale de la
@@ -1783,19 +1957,19 @@ html[data-player="on"] body {
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 46px;
-  height: 46px;
-  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.22));
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.42);
-  color: #fff;
-  transition: transform 160ms var(--ease), background-color 160ms var(--ease);
+  width: var(--control-md);
+  height: var(--control-md);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-pill);
+  background: var(--cristal);
+  color: var(--tinta-1);
+  transition: transform var(--dur-media) var(--ease), background-color var(--dur-media) var(--ease);
 }
 
 .ficha-volver:hover,
 .ficha-volver:focus-visible {
-  background: rgba(0, 0, 0, 0.7);
-  transform: scale(1.06);
+  background: var(--cristal-fuerte);
+  transform: scale(var(--foco-escala));
 }
 
 .ficha-volver svg {
@@ -1823,16 +1997,16 @@ html[data-player="on"] body {
   width: clamp(110px, 12vw, 190px);
   height: auto;
   flex-shrink: 0;
-  border-radius: clamp(10px, 0.8vw, 16px);
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-2);
+  border: 1px solid var(--borde-sutil);
 }
 
 .ficha-datos { min-width: 0; }
 
 .ficha-datos h1 {
   margin: 0;
-  font-size: clamp(26px, 3vw, 54px);
+  font-size: var(--texto-3xl);
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -1840,7 +2014,7 @@ html[data-player="on"] body {
 
 .ficha-tagline {
   margin: 10px 0 0;
-  font-size: clamp(14px, 1.05vw, 19px);
+  font-size: var(--texto-base);
   font-style: italic;
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
@@ -1851,21 +2025,24 @@ html[data-player="on"] body {
   align-items: center;
   gap: 14px;
   margin-top: 14px;
-  font-size: clamp(13px, 0.95vw, 17px);
+  font-size: var(--texto-sm);
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
 
+/* «★ 6,5» en el color del texto, con la estrella pequeña: una nota no es un
+   aviso, y el dorado la hacía competir con el título. */
 .ficha-nota {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  color: var(--gold, #ffcd3c);
+  gap: 0.3em;
+  color: var(--tinta-1);
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .ficha-nota svg {
-  width: 16px;
-  height: 16px;
+  width: 0.85em;
+  height: 0.85em;
   fill: currentColor;
 }
 
@@ -1885,7 +2062,7 @@ html[data-player="on"] body {
    paso no pueden partirse en dos líneas. */
 .ficha-generos {
   margin: 10px 0 0;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -1899,16 +2076,14 @@ html[data-player="on"] body {
  * para el primero, abajo para el segundo, ninguno de los dos de más.
  */
 .ficha-reproductor-slot {
-  width: min(1440px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding: clamp(12px, 2vh, 24px) var(--margen) 0;
+  /* «Reproducir» baja hasta aquí: que el vídeo no quede bajo la barra. */
+  scroll-margin-top: var(--topbar-h);
 }
 
 .ficha-cuerpo {
-  /* Columna más ancha: el reproductor aprovecha mejor el horizontal en
-     pantallas grandes en vez de quedar acotado a 1200px. */
-  width: min(1440px, 100%);
-  margin-inline: auto;
+  width: 100%;
   padding: 0 var(--margen) clamp(40px, 6vh, 80px);
 }
 
@@ -1962,22 +2137,29 @@ html[data-player="on"] body {
   z-index: 5;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid var(--color-mission-line);
-  border-radius: 999px;
-  background: rgba(6, 7, 9, 0.85);
-  color: #fff;
-  font-size: 14px;
+  gap: 0.5em;
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 1.1em;
+  /* El mismo «‹ Volver» de cristal que el directo, y sin desenfoque: va
+     encima del vídeo. Era ámbar: el único ámbar de la sección, y al
+     enfocarlo se volvía una franja amarilla que no se parecía a ningún otro
+     foco de la app. */
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-pill);
+  background: var(--cristal-video);
+  color: var(--tinta-1);
+  font-size: var(--texto-sm);
   font-weight: 600;
+  transition: transform var(--dur-media) var(--ease);
 }
 
 .ficha-cine-salir:hover,
-.ficha-cine-salir:focus-visible {
-  background: var(--color-mission);
-  color: #0a0a0a;
-  border-color: transparent;
+.ficha-cine-salir:focus-visible,
+[data-input="dpad"] .ficha-cine-salir:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  border-color: var(--foco);
+  transform: scale(var(--foco-escala));
 }
 
 .ficha-reproductor {
@@ -1993,7 +2175,8 @@ html[data-player="on"] body {
     122vh,
     max(calc((100vh - var(--ficha-hero-h) - 80px) * 16 / 9), 420px)
   );
-  margin-inline: auto;
+  /* Al margen, no centrado: la misma columna que el título de encima. */
+  margin-inline: 0;
   margin-bottom: clamp(14px, 2vh, 28px);
 }
 
@@ -2001,11 +2184,11 @@ html[data-player="on"] body {
    una línea que los separa por dentro. Suelto en la página, el selector
    parecía una sección más y había que buscarlo. */
 .ficha-conjunto {
-  border-radius: clamp(12px, 1vw, 20px);
+  border-radius: var(--radio-panel);
   overflow: hidden;
-  background: #0c0d10;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.5));
+  background: var(--superficie-1);
+  border: 1px solid var(--borde);
+  box-shadow: var(--sombra-2);
 }
 
 .ficha-marco {
@@ -2056,7 +2239,7 @@ html[data-player="on"] body {
   gap: clamp(8px, 1vw, 14px);
   margin: 0;
   color: var(--soft, rgba(245, 245, 247, 0.56));
-  font-size: clamp(12px, 0.85vw, 14px);
+  font-size: var(--texto-xs);
   line-height: 1.4;
 }
 
@@ -2068,7 +2251,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: var(--chip, rgba(245, 245, 247, 0.1));
   color: var(--text, #f5f5f7);
-  font-size: clamp(12px, 0.85vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2104,7 +2287,7 @@ html[data-player="on"] body {
 .servidor-marca {
   display: block;
   margin-top: 3px;
-  font-size: clamp(10px, 0.62vw, 12px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2131,7 +2314,7 @@ html[data-player="on"] body {
   gap: 6px;
   margin: 0;
   flex-shrink: 0;
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   color: var(--muted, rgba(255, 255, 255, 0.68));
 }
@@ -2152,7 +2335,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: var(--chip, rgba(255, 255, 255, 0.07));
   color: var(--muted, rgba(255, 255, 255, 0.72));
-  font-size: clamp(12px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -2161,21 +2344,21 @@ html[data-player="on"] body {
 
 .servidor:hover,
 .servidor:focus-visible {
-  background: var(--chip-focus, rgba(255, 255, 255, 0.18));
-  color: #fff;
+  background: var(--relleno-activo);
+  color: var(--tinta-1);
   transform: scale(1.03);
 }
 
 .servidor.is-active {
-  background: #fff;
+  background: var(--acento);
   border-color: transparent;
-  color: #0a0a0a;
+  color: var(--acento-tinta);
 }
 
 .servidores-nota {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: clamp(11px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
 }
 
 @media (max-width: 680px) {
@@ -2188,14 +2371,17 @@ html[data-player="on"] body {
   font-weight: 700;
 }
 
+/* Lo seguro va en verde de éxito; lo probable, en el texto de siempre sobre
+   un relleno neutro. Era un azul suelto (#7dabff) que no salía en ningún otro
+   sitio de la app. */
 .ficha-marca.is-si {
-  background: rgba(0, 213, 136, 0.16);
-  color: var(--green, #00d588);
+  background: var(--exito-fondo);
+  color: var(--exito);
 }
 
 .ficha-marca.is-quiza {
-  background: rgba(59, 130, 246, 0.16);
-  color: #7dabff;
+  background: var(--relleno);
+  color: var(--tinta-2);
 }
 
 .ficha-sin-fuente {
@@ -2220,14 +2406,14 @@ html[data-player="on"] body {
 
 .ficha-seccion h2 {
   margin: 0 0 clamp(12px, 1.6vh, 20px);
-  font-size: clamp(20px, 1.6vw, 30px);
+  font-size: var(--texto-xl);
   font-weight: 650;
 }
 
 .ficha-sinopsis {
   margin: 0;
   max-width: 78ch;
-  font-size: clamp(15px, 1.05vw, 18px);
+  font-size: var(--texto-base);
   line-height: 1.62;
   color: var(--muted, rgba(255, 255, 255, 0.74));
 }
@@ -2257,16 +2443,16 @@ html[data-player="on"] body {
   width: 100%;
   aspect-ratio: 2 / 3;
   object-fit: cover;
-  border-radius: clamp(10px, 0.8vw, 14px);
-  background: linear-gradient(135deg, #242735, #0b0b10);
+  border-radius: var(--radio-tarjeta);
+  background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
 }
 
 .ficha-persona-inicial {
   display: grid;
   place-items: center;
-  font-size: clamp(28px, 2.6vw, 44px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.32);
+  color: var(--tinta-3);
 }
 
 .ficha-persona figcaption {
@@ -2276,7 +2462,7 @@ html[data-player="on"] body {
 }
 
 .ficha-persona strong {
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 620;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2284,7 +2470,7 @@ html[data-player="on"] body {
 }
 
 .ficha-persona span {
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2327,9 +2513,11 @@ html[data-player="on"] body {
   background: var(--chip-focus, rgba(255, 255, 255, 0.14));
 }
 
+/* El capítulo que suena: marca de acento, no el blanco del foco. Con los dos
+   en blanco no se sabía si el mando estaba encima o si era el que se veía. */
 .ficha-episodio.is-active {
-  border-color: rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.14);
+  border-color: var(--acento);
+  background: var(--acento-suave);
 }
 
 .ficha-episodio-arte {
@@ -2339,11 +2527,11 @@ html[data-player="on"] body {
   width: 92px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
-  border-radius: 9px;
-  background: rgba(0, 0, 0, 0.45);
-  font-size: 13px;
+  border-radius: var(--radio-sm);
+  background: var(--superficie-2);
+  font-size: var(--texto-xs);
   font-weight: 700;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  color: var(--tinta-3);
 }
 
 .ficha-episodio-arte img { width: 100%; height: 100%; object-fit: cover; }
@@ -2351,7 +2539,7 @@ html[data-player="on"] body {
 .ficha-episodio-texto { min-width: 0; display: grid; gap: 4px; }
 .ficha-episodio-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ficha-episodio-texto span {
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2383,29 +2571,30 @@ html[data-player="on"] body {
 .paginador-flecha {
   display: grid;
   place-items: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  border-radius: 12px;
+  min-width: max(var(--control-md), 2.6em);
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 0.8em;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-md);
   background: transparent;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: clamp(14px, 1vw, 17px);
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease),
+    border-color var(--dur-media) var(--ease);
 }
 
 .paginador-numero:hover,
 .paginador-flecha:hover {
-  background: var(--chip, rgba(245, 245, 247, 0.1));
-  color: var(--text, #f5f5f7);
+  background: var(--relleno);
+  color: var(--tinta-1);
 }
 
 .paginador-numero.is-active {
-  background: #fff;
-  border-color: #fff;
-  color: #000;
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
 }
 
 .paginador-flecha svg {
@@ -2448,7 +2637,7 @@ html[data-player="on"] body {
 
 .estado-vacio-titulo {
   margin: 0;
-  font-size: clamp(16px, 1.25vw, 22px);
+  font-size: var(--texto-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -2457,52 +2646,31 @@ html[data-player="on"] body {
 .estado-vacio-detalle {
   margin: 0;
   max-width: 46ch;
-  font-size: clamp(13px, 0.98vw, 16px);
+  font-size: var(--texto-sm);
   color: var(--soft);
 }
 
 .estado-vacio .secondary {
   margin-top: 8px;
+  /* La salida de un estado vacío es lo único que hay que pulsar: objetivo
+     de 48 px, y en la tele a la medida de su letra. */
+  min-height: max(var(--control-md), 2.6em);
 }
 
-/* ── «Sintonizando…» ──────────────────────────────────────────────────
-   Encima del vídeo mientras no hay primer fotograma.
+/* ── El anillo de «Cargando» ──────────────────────────────────────────
+   Solo para un tirón a mitad de emisión (`.player-cargando`, junto a los
+   demás avisos del reproductor). Al conectar ya no gira nada: respira el logo.
 
    Gira con `transform`, no con `background-position` ni `box-shadow`: es la
    única propiedad que un navegador de televisor viejo puede animar en el
-   compositor, sin volver a maquetar ni repintar en cada fotograma. Un
-   esqueleto con brillo aquí costaría caro justo cuando la CPU está montando
-   el motor de vídeo. */
-.player-sintonizando {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
-  /* No tiene nada que pulsar, y tapaba el vídeo entero: mientras se
-     sintonizaba, tocar la imagen para pausar no hacía nada porque el clic se
-     lo quedaba este aviso. Lo encontró la prueba del navegador. */
-  pointer-events: none;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  gap: 16px;
-  padding: 24px;
-  text-align: center;
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.player-sintonizando p {
-  margin: 0;
-  max-width: 30ch;
-  font-size: clamp(13px, 1vw, 16px);
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-}
-
+   compositor, sin volver a maquetar ni repintar en cada fotograma. */
 .player-anillo {
-  width: clamp(30px, 3vw, 44px);
-  height: clamp(30px, 3vw, 44px);
-  border: 3px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-top-color: var(--text, #f5f5f7);
-  border-radius: 999px;
+  position: relative;
+  width: clamp(30px, 2.6vw, 50px);
+  height: clamp(30px, 2.6vw, 50px);
+  border: 3px solid var(--borde-fuerte);
+  border-top-color: var(--tinta-1);
+  border-radius: var(--radio-pill);
   animation: cc-giro 0.9s linear infinite;
 }
 
@@ -2524,44 +2692,16 @@ html[data-player="on"] body {
    `error.tsx` y `not-found.tsx` viven fuera del armazón —no hay barra ni
    reproductor cuando se pintan—, así que centran su estado vacío en la
    ventana en vez de apoyarse en el `.content` de las vistas. */
+/* El estado vacío lo pinta `PantallaMensaje` (`ui-vacio` a talla de
+   pantalla, en `ui.css`): aquí solo se centra en la ventana. `100vh` antes
+   de `100dvh` para los Chromium 99–107 de tele, que no conocen `dvh` y sin
+   respaldo se quedaban sin alto mínimo. */
 .pantalla-mensaje {
   display: grid;
   place-items: center;
+  min-height: 100vh;
   min-height: 100dvh;
-  padding: var(--margen) 0;
-}
-
-/**
- * A pantalla completa, `.estado-vacio` se queda corto.
- *
- * Sus medidas están pensadas para un panel dentro de una lista, con contenido
- * alrededor que le da escala. Solo, en 1920 × 1080 y a tres metros, era un
- * recuadro de 490 px con texto de 15 px perdido en negro: se lee desde el
- * escritorio y no se lee desde el sofá, que es donde se usa esta app.
- */
-.pantalla-mensaje .estado-vacio {
-  min-width: min(620px, 88vw);
-  gap: 14px;
-  padding: clamp(40px, 7vh, 92px) clamp(28px, 4vw, 76px);
-}
-
-.pantalla-mensaje .estado-vacio > svg {
-  width: clamp(40px, 3.6vw, 64px);
-  height: clamp(40px, 3.6vw, 64px);
-}
-
-.pantalla-mensaje .estado-vacio-titulo {
-  font-size: clamp(23px, 2.4vw, 44px);
-}
-
-.pantalla-mensaje .estado-vacio-detalle {
-  font-size: clamp(15px, 1.2vw, 22px);
-}
-
-.pantalla-mensaje .secondary {
-  min-height: clamp(48px, 3.6vw, 64px);
-  padding: 0 clamp(22px, 2vw, 38px);
-  font-size: clamp(15px, 1.15vw, 21px);
+  padding: var(--margen);
 }
 
 /* ── Esqueleto de carga ───────────────────────────────────────────────
@@ -2722,11 +2862,11 @@ html[data-player="on"] body {
   gap: 10px;
   margin: 0 var(--margen) clamp(14px, 2vh, 24px);
   padding: 13px 16px;
-  border: 1px solid rgba(255, 214, 10, 0.28);
-  border-radius: 14px;
-  background: rgba(255, 214, 10, 0.08);
-  font-size: clamp(13px, 0.95vw, 15px);
-  color: #ffe89a;
+  border: 1px solid var(--aviso);
+  border-radius: var(--radio-md);
+  background: var(--aviso-fondo);
+  font-size: var(--texto-xs);
+  color: var(--tinta-1);
 }
 
 .catalogo-aviso svg {
@@ -2734,13 +2874,13 @@ html[data-player="on"] body {
   height: 18px;
   flex: none;
   margin-top: 1px;
-  color: var(--gold);
+  color: var(--aviso);
 }
 
 .catalogo-aviso code {
   padding: 1px 5px;
   border-radius: 5px;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--fondo);
   font-size: 0.92em;
 }
 
@@ -2775,29 +2915,31 @@ html[data-player="on"] body {
    blancos al estar activos. Antes iban rellenos de gris, así que veinte
    géneros seguidos formaban una barra sólida donde no se distinguía el
    elegido. */
+/* 48 px como mínimo y 2,6 em en la tele, donde la letra crece en vw: con
+   44 px fijos la píldora quedaba justa para su propio texto a 1920. */
 .catalogo-chip {
   flex-shrink: 0;
-  min-height: 44px;
-  padding: 0 clamp(14px, 1.1vw, 20px);
+  min-height: max(var(--control-md), 2.6em);
+  padding: 0 1.1em;
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: 999px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
   background: transparent;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: clamp(13px, 0.92vw, 16px);
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  transition: background-color 160ms var(--ease-native), color 160ms var(--ease-native),
-    border-color 160ms var(--ease-native);
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease),
+    border-color var(--dur-media) var(--ease);
 }
 
 .catalogo-chip:hover,
 .catalogo-chip:focus-visible {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  background: var(--chip, rgba(245, 245, 247, 0.1));
-  color: var(--text, #f5f5f7);
+  border-color: var(--borde-fuerte);
+  background: var(--relleno);
+  color: var(--tinta-1);
 }
 
 /* La flecha de la píldora que abre el panel de géneros. */
@@ -2853,10 +2995,10 @@ html[data-player="on"] body {
   max-height: 82vh;
   overflow-y: auto;
   padding: clamp(20px, 2.4vw, 36px);
-  border: 1px solid rgba(245, 245, 247, 0.22);
-  border-radius: var(--radio-panel, 18px);
-  background: var(--bg-elevated, #1c1c1f);
-  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--borde-fuerte);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-2);
+  box-shadow: var(--sombra-3);
 }
 
 .genero-panel-cabecera {
@@ -2870,7 +3012,7 @@ html[data-player="on"] body {
 .genero-panel-cabecera h2 {
   margin: 0;
   color: var(--text, #f5f5f7);
-  font-size: clamp(19px, 1.6vw, 28px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -2905,14 +3047,14 @@ html[data-player="on"] body {
 .genero-rejilla .catalogo-chip {
   justify-content: center;
   width: 100%;
-  /* Sobre el gris del panel, el borde al 14% del chip se pierde. */
-  border-color: rgba(245, 245, 247, 0.2);
+  /* Sobre el gris del panel, el borde normal del chip se pierde. */
+  border-color: var(--borde-fuerte);
 }
 
 .catalogo-chip.is-active {
-  background: #fff;
-  border-color: #fff;
-  color: #000;
+  background: var(--acento);
+  border-color: var(--acento);
+  color: var(--acento-tinta);
   font-weight: 600;
 }
 
@@ -2950,7 +3092,7 @@ body {
 
 .livetv-acerca-texto {
   margin: 0;
-  font-size: clamp(13px, 0.98vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.55;
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
@@ -2977,7 +3119,7 @@ body {
 }
 
 .livetv-acerca-datos dt {
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2986,7 +3128,7 @@ body {
 
 .livetv-acerca-datos dd {
   margin: 0;
-  font-size: clamp(13px, 0.95vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 500;
   text-align: right;
   color: var(--text, #f5f5f7);
@@ -2994,7 +3136,7 @@ body {
 
 .livetv-acerca-nota {
   margin: 0;
-  font-size: clamp(11px, 0.82vw, 13px);
+  font-size: var(--texto-2xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -3004,8 +3146,14 @@ body {
 .guia {
   position: absolute;
   inset: auto 0 0;
-  z-index: 20;
-  padding: clamp(16px, 2.4vh, 28px) 0 clamp(96px, 13vh, 150px);
+  /* Entre el velo de los controles (25) y su capa (30): por debajo del velo,
+     el degradado oscuro de abajo apagaba la guía entera mientras se veían los
+     controles. La capa sigue encima, pero con la guía abierta solo enseña la
+     fila de arriba y no recibe toques fuera de sus botones. */
+  z-index: var(--capa-video-guia);
+  /* Abajo ya no hay barra que esquivar: los controles subieron al centro y
+     arriba (ver `controles-vivo.tsx`). Solo el margen seguro del televisor. */
+  padding: clamp(16px, 2.4vh, 28px) 0 clamp(28px, 5vh, 64px);
   /* Degradado opaco, SIN `backdrop-filter`.
      Este panel se abre ENCIMA del vídeo en reproducción, que es el peor sitio
      posible para un desenfoque de fondo: obliga a copiar y desenfocar una
@@ -3021,8 +3169,8 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding-bottom: clamp(10px, 1.4vh, 16px);
-  font-size: clamp(11px, 0.82vw, 14px);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
+  font-size: var(--texto-xs);
+  color: var(--tinta-3);
 }
 
 .guia-tira {
@@ -3031,6 +3179,21 @@ body {
   overflow-x: auto;
   padding: 6px 0 10px;
   scroll-snap-type: x proximity;
+}
+
+/* La cabecera y la tira arrancaban en x = 0, y un televisor recorta hasta un
+   5% de cada borde (*overscan*): el primer canal y «4.816 canales» quedaban
+   medio fuera. El mismo margen que el resto de la app, que a 1920 ronda ese
+   5%. La tira lo lleva por dentro para que al recorrer los canales sigan
+   pasando de borde a borde. */
+.guia-cabecera,
+.guia-tira {
+  padding-left: var(--margen);
+  padding-right: var(--margen);
+}
+
+.guia-tira {
+  scroll-padding-inline: var(--margen);
 }
 
 .guia-canal {
@@ -3050,10 +3213,12 @@ body {
   display: grid;
   place-items: center;
   aspect-ratio: 16 / 9;
-  border-radius: var(--radio-tarjeta, 12px);
+  border-radius: var(--radio-tarjeta);
   overflow: hidden;
-  background: linear-gradient(145deg, #1f1f23, #0a0a0c);
-  transition: transform 200ms var(--ease, ease), box-shadow 200ms var(--ease, ease);
+  background: linear-gradient(145deg, var(--arte-desde), var(--arte-hasta));
+  /* Solo crece animado; el anillo aparece en seco (animar `box-shadow`
+     repinta en cada fotograma, y esto va encima del vídeo). */
+  transition: transform var(--dur-media) var(--ease);
 }
 
 .guia-canal-arte img {
@@ -3063,10 +3228,10 @@ body {
 }
 
 .guia-canal-arte b {
-  font-size: clamp(18px, 1.8vw, 26px);
+  font-size: var(--texto-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
-  color: rgba(255, 255, 255, 0.34);
+  color: var(--tinta-3);
 }
 
 .guia-canal-arte em {
@@ -3074,55 +3239,177 @@ body {
   top: 6px;
   left: 8px;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-variant-numeric: tabular-nums;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--tinta-2);
 }
 
 .guia-canal p {
   margin: 0;
-  font-size: clamp(12px, 0.9vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 500;
-  color: var(--muted, rgba(245, 245, 247, 0.72));
+  color: var(--tinta-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* El sintonizado y el enfocado usan el mismo realce que las tarjetas del
-   resto de la app: crecer y rodearse de blanco. */
-.guia-canal.is-active .guia-canal-arte,
+/* El ENFOCADO: el realce de las tarjetas del resto de la app, crecer y
+   rodearse de blanco. Es solo del foco (y del ratón encima). */
 .guia-canal:hover .guia-canal-arte,
 .guia-canal:focus-visible .guia-canal-arte,
 [data-input="dpad"] .guia-canal:focus .guia-canal-arte {
-  transform: scale(1.05);
-  box-shadow: var(--foco-borde, 0 0 0 4px #fff), var(--foco-sombra, 0 20px 44px rgba(0, 0, 0, 0.7));
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+/* El ELEGIDO, el canal que suena: una marca, no el anillo. Antes llevaba el
+   mismo realce que el foco, y con el mando sobre otro canal había dos piezas
+   «enfocadas» a la vez: desde el sofá no se sabía cuál era cuál. Ahora lleva
+   la etiqueta «Viendo» en rojo de directo y un filo fino, que se distinguen
+   del anillo blanco incluso cuando coinciden (foco sobre el que suena). */
+.guia-canal.is-active .guia-canal-arte {
+  box-shadow: inset 0 0 0 2px var(--vivo);
+}
+
+/* Foco sobre el que suena: el anillo del foco Y la marca, los dos. */
+.guia-canal.is-active:hover .guia-canal-arte,
+.guia-canal.is-active:focus-visible .guia-canal-arte,
+[data-input="dpad"] .guia-canal.is-active:focus .guia-canal-arte {
+  box-shadow: var(--foco-borde), var(--foco-sombra), inset 0 0 0 2px var(--vivo);
+}
+
+.guia-canal-ahora {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 0.2em 0.55em;
+  border-radius: var(--radio-sm);
+  background: var(--vivo);
+  color: var(--vivo-tinta);
+  font-size: var(--texto-2xs);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .guia-canal.is-active p,
 .guia-canal:hover p {
-  color: var(--text, #f5f5f7);
+  color: var(--tinta-1);
 }
 
 /* ── Ajustes ─────────────────────────────────────────────────────────
-   Su encabezado era un `<h1>` suelto con clases propias: el único de la app
-   que no usaba `.section-heading`, y por eso no reservaba el hueco de la barra
-   fija y quedaba por debajo de ella. Ahora usa el mismo encabezado que
-   Favoritos y Categorías, y la columna va centrada: a 1920px estaba pegada a
-   la izquierda con medio televisor vacío al lado. */
-.ajustes {
-  width: min(880px, 100%);
-  margin-inline: auto;
+   Hecha con las primitivas (`src/components/ui`): el margen y el ancho los
+   pone `ContenedorVista`, los controles son `Segmentado`, `Interruptor`,
+   `Boton` y `Confirmacion`. Aquí solo queda la lista agrupada, como la de
+   Ajustes del iPhone: grupos con rótulo, filas separadas por una línea. */
+.ajustes-columna > * + * {
+  margin-top: clamp(24px, 3.6vh, 40px);
 }
 
-.ajustes-columna {
+.ajustes-lista {
+  overflow: hidden;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+}
+
+/* Sin puntos de corte: el texto pide 16em y el control lo que mida. Si caben
+   van en una línea; si no, el control baja. `margin-left: auto` lo deja a la
+   derecha en los dos casos, como el interruptor del iPhone. */
+.ajustes-fila {
   display: flex;
-  flex-direction: column;
-  gap: clamp(20px, 3vh, 34px);
+  flex-wrap: wrap;
+  align-items: center;
+  min-height: calc(var(--control-md) + 28px);
+  padding: 0.55em 1.1em;
 }
 
-.ajustes .section-heading {
-  padding-inline: 0;
+.ajustes-fila + .ajustes-fila {
+  border-top: 1px solid var(--borde-sutil);
+}
+
+/* 12em: a 390 px cabe el texto y el interruptor en la misma línea (con 16em
+   el interruptor bajaba solo a otra fila, lejos de su nombre). */
+.ajustes-fila-texto {
+  flex: 1 1 12em;
+  min-width: 0;
+  margin: 0.35em 1em 0.35em 0;
+}
+
+/* Las filas con elección larga piden más texto antes de compartir línea: con
+   «Muy grande» en la tele, el segmentado dejaba al nombre en una columna de
+   tres palabras. Así el segmentado baja a su propia línea antes. */
+.ajustes-fila.is-ancho .ajustes-fila-texto {
+  flex-basis: 20em;
+}
+
+.ajustes-fila-nombre {
+  margin: 0;
+  color: var(--tinta-1);
+  font-size: var(--texto-base);
+  font-weight: 550;
+}
+
+/* La pista se lee entera: truncada, «Si el navegador no lo deja, te…» no
+   decía nada. `anywhere` para la dirección de la lista M3U, que es una sola
+   palabra de 50 caracteres. */
+.ajustes-fila-pista {
+  margin: 0.2em 0 0;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.ajustes-fila-control {
+  display: flex;
+  justify-content: flex-end;
+  max-width: 100%;
+  margin: 0.35em 0 0.35em auto;
+}
+
+.ajustes-letra {
+  margin-right: 0.4em;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ajustes-dato {
+  color: var(--tinta-3);
+  font-size: var(--texto-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* En el teléfono, las elecciones largas (tamaño, calidad, motor) van debajo y
+   a todo el ancho: repartidas en la línea se tocan mejor con el pulgar que
+   amontonadas a la derecha. Los interruptores siguen a la derecha. */
+@media (max-width: 680px) {
+  .ajustes-fila.is-ancho .ajustes-fila-control {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+
+  .ajustes-fila.is-ancho .ui-segmentado {
+    display: flex;
+    width: 100%;
+  }
+
+  /* Cada opción mide lo que su palabra y reparte el sobrante; la «A» va
+     encima de su nombre, así las tres de tamaño caben a 320 px. A partes
+     iguales (`flex-basis: 0`) «Automática» se salía de su segmento. */
+  .ajustes-fila.is-ancho .ui-segmento {
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding-left: 0.4em;
+    padding-right: 0.4em;
+    white-space: normal;
+  }
+
+  .ajustes-fila.is-ancho .ajustes-letra {
+    margin: 0 0 0.15em;
+  }
 }
 
 /* ── La señal en directo en un televisor ─────────────────────────────
@@ -3133,7 +3420,10 @@ body {
    Antes iba acotado por `116vh`, que en un televisor dejaba el vídeo pequeño
    con bandas negras a los lados y, en pantallas bajas, empujaba los rieles
    fuera de la vista. */
-@media (min-width: 681px) {
+/* Con alto de sobra: los 170px son para que en una tele asome el primer riel.
+   En un teléfono tumbado (390px de alto) dejaban un vídeo de 152; ahí manda
+   el bloque «Teléfono en horizontal», que este ya no pisa. */
+@media (min-width: 681px) and (min-height: 521px) {
   .live-card-marco {
     width: min(100%, calc((100vh - var(--topbar-h) - 170px) * 16 / 9));
   }
@@ -3157,7 +3447,7 @@ body {
 
 @media (max-height: 520px) and (orientation: landscape) {
   .live-slot {
-    padding-top: calc(var(--topbar-h) + 10px);
+    padding-top: calc(var(--topbar-h) + 8px);
   }
 }
 
@@ -3167,210 +3457,188 @@ body {
   }
 }
 
+/* En vertical el vídeo va de borde a borde (ver `.live-card` arriba) y se
+   pega a la cabecera sin hueco: separado por una franja negra de 14px se leía
+   como una tarjeta suelta y no como la pantalla de la tele. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-slot {
+    padding-top: var(--topbar-h);
+  }
+}
+
 /* ── Mi enlace ───────────────────────────────────────────────────────
-   La tercera vía de reproducción, y la única con Ver en familia. Comparte el
-   lenguaje del resto: chips redondos, fondo sólido, objetivos de 44px. */
-.fuente {
-  width: min(1100px, 100%);
-  margin-inline: auto;
-}
+   La tercera vía de reproducción. Hecha con las primitivas: el margen lo pone
+   `ContenedorVista`, los campos son `Campo`, «Añadir» es `Boton` primario y
+   los mensajes, `Aviso`. Aquí queda el reparto del formulario y la lista. */
 
-.fuente .section-heading,
-.fuente .ficha-seccion {
-  padding-inline: 0;
-}
-
+/* Una columna en el teléfono (el botón a todo el ancho, fácil de acertar con
+   el pulgar) y una fila desde 760 px. Rejilla con `minmax(0, …)` para que el
+   campo del enlace encoja en vez de empujar «Añadir» fuera de la pantalla. */
 .fuente-alta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-gap: 14px;
+  align-items: end;
+  margin-bottom: 16px;
 }
 
-.fuente-campo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1 1 320px;
-  min-width: 0;
-  min-height: 54px;
-  padding: 0 18px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
-}
-
-.fuente-campo:focus-within {
-  border-color: rgba(255, 255, 255, 0.34);
-}
-
-.fuente-campo svg {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-}
-
-.fuente-campo input,
-.fuente-nombre {
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-size: clamp(14px, 1vw, 17px);
-  outline: none;
-}
-
-.fuente-campo input { flex: 1; }
-
-.fuente-nombre {
-  flex: 0 1 220px;
-  min-height: 54px;
-  padding: 0 18px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.16));
-  border-radius: 999px;
-  background: var(--chip, rgba(255, 255, 255, 0.08));
-}
-
-.fuente-anadir {
-  flex-shrink: 0;
-  min-height: 54px;
-  padding: 0 clamp(20px, 1.8vw, 32px);
-  border: 0;
-  border-radius: 999px;
-  background: #fff;
-  color: #0a0a0a;
-  font-size: clamp(14px, 1vw, 17px);
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.fuente-anadir:hover,
-.fuente-anadir:focus-visible { background: #e6e6e6; }
-
-.fuente-error,
-.fuente-aviso {
-  margin: 0 0 18px;
-  padding: 10px 16px;
-  border-radius: 12px;
-  font-size: clamp(13px, 0.92vw, 16px);
-}
-
-.fuente-error {
-  border: 1px solid rgba(255, 69, 58, 0.34);
-  background: rgba(255, 69, 58, 0.1);
+@media (min-width: 760px) {
+  .fuente-alta {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 17em) auto;
+  }
 }
 
 .fuente-aviso {
-  border: 1px solid rgba(255, 205, 60, 0.3);
-  background: rgba(255, 205, 60, 0.08);
-  color: var(--gold, #ffcd3c);
+  margin-bottom: 18px;
 }
 
 .fuente-reproductor {
-  margin-bottom: clamp(28px, 4.5vh, 56px);
-}
-
-.fuente-reproductor h3 {
-  margin: 0 0 14px;
-  font-size: clamp(18px, 1.4vw, 26px);
-  font-weight: 650;
+  margin: clamp(20px, 3vh, 36px) 0 clamp(28px, 4.5vh, 56px);
 }
 
 .fuente-marco.is-cargando {
   aspect-ratio: 16 / 9;
   width: 100%;
-  border-radius: clamp(12px, 1vw, 20px);
-  background: linear-gradient(135deg, #16181f, #0a0b0f);
+  border-radius: var(--radio-panel);
+  background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
 }
 
-.fuente-lista { display: grid; gap: 8px; }
+.fuente-guardados {
+  margin-top: clamp(28px, 4.5vh, 56px);
+}
+
+/* Lista agrupada, como la de Ajustes. Sin `overflow: hidden`: recortaría el
+   anillo de foco de la primera y la última fila. */
+.fuente-lista {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+}
 
 .fuente-fila {
   display: flex;
-  align-items: stretch;
-  gap: 8px;
-  border: 1px solid var(--line, rgba(255, 255, 255, 0.14));
-  border-radius: 14px;
-  background: var(--chip, rgba(255, 255, 255, 0.05));
-  overflow: hidden;
+  align-items: center;
+  padding: 3px;
 }
 
-.fuente-fila.is-active {
-  border-color: rgba(255, 255, 255, 0.42);
-  background: rgba(255, 255, 255, 0.12);
+.fuente-fila + .fuente-fila {
+  border-top: 1px solid var(--borde-sutil);
 }
 
 .fuente-fila-abrir {
   display: flex;
   align-items: center;
-  gap: 14px;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: 64px;
-  padding: 10px 14px;
+  min-height: calc(var(--control-md) + 16px);
+  padding: 0.5em 0.75em;
   border: 0;
+  border-radius: var(--radio-md);
   background: transparent;
   color: inherit;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.fuente-fila-abrir:hover,
-.fuente-fila-abrir:focus-visible { background: rgba(255, 255, 255, 0.08); }
-
-.fuente-fila-icono {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+@media (hover: hover) {
+  .fuente-fila-abrir:hover {
+    background: var(--relleno);
+  }
 }
 
-.fuente-fila-icono svg { width: 18px; height: 18px; }
+/* El foco de la fila, con el anillo de las primitivas. Dos reglas, nunca en
+   la misma lista (ver `ui.css`), y con especificidad para ganar al `outline`
+   rectangular de la regla general de `[data-nav]`. */
+.fuente-fila .fuente-fila-abrir[data-nav]:focus-visible {
+  outline: none;
+  background: var(--relleno);
+  box-shadow: var(--ui-anillo);
+}
 
-.fuente-fila-texto { min-width: 0; display: grid; gap: 3px; }
-.fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-input="dpad"] .fuente-fila .fuente-fila-abrir[data-nav]:focus {
+  outline: none;
+  background: var(--relleno);
+  box-shadow: var(--ui-anillo);
+}
+
+.fuente-fila-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.5em;
+  height: 2.5em;
+  margin-right: 0.9em;
+  border-radius: 50%;
+  background: var(--relleno);
+  color: var(--tinta-2);
+}
+
+.fuente-fila-icono svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+/* Lo que suena: el icono con el acento. Es «elegido», no foco: nada de
+   anillo blanco aquí. */
+.fuente-fila.is-active .fuente-fila-icono {
+  background: var(--acento);
+  color: var(--acento-tinta);
+}
+
+.fuente-fila-texto {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fuente-fila-texto strong,
 .fuente-fila-texto span {
-  font-size: clamp(11px, 0.8vw, 13px);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.fuente-fila-texto strong {
+  color: var(--tinta-1);
+  font-weight: 600;
+}
+
+.fuente-fila-texto span {
+  margin-top: 0.15em;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+}
+
 .fuente-clase {
   flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  font-style: normal;
-  font-size: 11px;
+  margin-left: 0.75em;
+  padding: 0.25em 0.65em;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  color: var(--tinta-2);
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 .fuente-quitar {
-  flex-shrink: 0;
-  width: 56px;
-  border: 0;
-  border-left: 1px solid var(--line, rgba(255, 255, 255, 0.12));
-  background: transparent;
-  color: var(--soft, rgba(245, 245, 247, 0.56));
-  cursor: pointer;
+  margin-left: 4px;
 }
 
-.fuente-quitar:hover,
-.fuente-quitar:focus-visible {
-  background: rgba(255, 69, 58, 0.16);
-  color: var(--red, #e74c3c);
+/* Quitar es tranquilo en reposo y avisa en rojo al apuntarlo. */
+@media (hover: hover) {
+  .fuente-fila .ui-boton.fuente-quitar:not(:disabled):hover {
+    background: var(--peligro-fondo);
+    color: var(--peligro);
+  }
 }
-
-.fuente-quitar svg { width: 18px; height: 18px; }
 
 /* ── La ficha en columnas ────────────────────────────────────────────
    Sinopsis y reparto en la ancha; la ficha técnica al lado. En una sola
@@ -3406,10 +3674,10 @@ body {
 .ficha-tecnica {
   min-width: 0;
   padding: clamp(20px, 1.8vw, 30px);
-  border: 1px solid var(--line-bright, rgba(255, 255, 255, 0.16));
-  border-radius: clamp(14px, 1.1vw, 20px);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
-  box-shadow: var(--shadow, 0 18px 48px rgba(0, 0, 0, 0.35));
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-panel);
+  background: var(--superficie-1);
+  box-shadow: var(--sombra-1);
 }
 
 /* Mismo tamaño que `.ficha-seccion h2`: antes era notablemente más chico y
@@ -3420,7 +3688,7 @@ body {
   align-items: center;
   gap: 10px;
   margin: 0 0 clamp(14px, 1.6vh, 20px);
-  font-size: clamp(20px, 1.6vw, 30px);
+  font-size: var(--texto-xl);
   font-weight: 650;
 }
 
@@ -3438,7 +3706,7 @@ body {
 }
 
 .ficha-tecnica dt {
-  font-size: clamp(11px, 0.78vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3447,7 +3715,7 @@ body {
 
 .ficha-tecnica dd {
   margin: 4px 0 0;
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.45;
   color: var(--text, #ededed);
 }
@@ -3579,7 +3847,7 @@ body {
 .casa-titulo {
   margin: 0 0 clamp(10px, 1.4vh, 16px);
   text-align: center;
-  font-size: clamp(19px, 1.42vw, 27px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -3595,35 +3863,49 @@ body {
   gap: clamp(12px, 1.4vw, 26px);
 }
 
+/* Como las fichas de canal: el logo es la tarjeta y el texto va debajo,
+   suelto. Antes había una caja con borde alrededor de otra caja con el logo. */
 .casa-boton {
   display: grid;
   justify-items: center;
   width: clamp(150px, 15vw, 260px);
-  padding: clamp(12px, 1.2vw, 20px);
-  border: 1px solid var(--line, rgba(245, 245, 247, 0.14));
-  border-radius: var(--radio-panel, 18px);
-  background: var(--bg-card, #101012);
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: inherit;
   cursor: pointer;
-  transition: border-color 160ms var(--ease-native), transform 160ms var(--ease-native);
 }
 
-/* El canal que está sonando ahora mismo. */
-.casa-boton.is-active {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
-  background: var(--bg-elevated, #1c1c1f);
+.casa-arte {
+  transition: transform 220ms var(--ease-native), box-shadow 220ms var(--ease-native);
 }
 
-.casa-boton:hover {
-  border-color: var(--line-bright, rgba(255, 255, 255, 0.28));
+/* El foco crece y se rodea de blanco, en el logo y no en el botón entero:
+   el mismo gesto que todas las carátulas. Se apaga el contorno global de
+   `[data-nav]` con un selector más fuerte que el suyo. */
+.casa .casa-fila [data-nav].casa-boton:focus-visible,
+[data-input="dpad"] .casa .casa-fila [data-nav].casa-boton:focus {
+  outline: none;
 }
 
-/* El foco crece: el mismo gesto que el resto de la app. El contorno blanco lo
-   pone la regla global de `[data-nav]`. */
-.casa-boton:focus-visible,
-[data-input="dpad"] .casa-boton:focus {
-  transform: scale(1.04);
-  border-color: transparent;
+.casa-boton:hover .casa-arte,
+.casa-boton:focus-visible .casa-arte,
+[data-input="dpad"] .casa-boton:focus .casa-arte {
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+/* El que suena ahora: un punto rojo delante del nombre, el mismo rojo de la
+   píldora EN VIVO del reproductor. */
+.casa-boton.is-active .casa-nombre::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: 999px;
+  background: #ff3b30;
+  vertical-align: 0.12em;
 }
 
 /* El logo, con sitio de sobra: son los tres canales que hay que reconocer de
@@ -3646,7 +3928,7 @@ body {
 }
 
 .casa-marca {
-  font-size: clamp(24px, 2.4vw, 40px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--soft, rgba(245, 245, 247, 0.56));
@@ -3654,7 +3936,7 @@ body {
 
 .casa-nombre {
   max-width: 100%;
-  font-size: clamp(14px, 1.05vw, 19px);
+  font-size: var(--texto-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
   overflow: hidden;
@@ -3664,7 +3946,7 @@ body {
 
 .casa-numero {
   margin-top: 2px;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   font-variant-numeric: tabular-nums;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -3679,7 +3961,6 @@ body {
 
   .casa-boton {
     width: auto;
-    padding: 10px;
   }
 }
 
@@ -3702,7 +3983,7 @@ body {
    empuja al extremo, contra las píldoras de temporada. */
 .ficha-episodios-cuenta {
   margin-left: auto;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   font-variant-numeric: tabular-nums;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -3741,7 +4022,7 @@ body {
 }
 
 .ficha-episodio:focus-within {
-  border-color: rgba(255, 255, 255, 0.45);
+  border-color: var(--foco);
 }
 
 .ficha-episodio-abrir {
@@ -3766,14 +4047,14 @@ body {
   display: grid;
   place-items: center;
   opacity: 0;
-  background: rgba(0, 0, 0, 0.42);
-  transition: opacity 160ms var(--ease, ease);
+  background: var(--cristal);
+  transition: opacity var(--dur-media) var(--ease);
 }
 
 .ficha-episodio-play svg {
   width: 22px;
   height: 22px;
-  color: #fff;
+  color: var(--tinta-1);
 }
 
 @media (hover: hover) {
@@ -3814,14 +4095,14 @@ body {
 
 .ficha-episodio-visto:hover,
 .ficha-episodio-visto:focus-visible {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #fff;
+  border-color: var(--borde-fuerte);
+  color: var(--tinta-1);
 }
 
 .ficha-episodio-visto[aria-pressed="true"] {
   border-color: transparent;
-  background: rgba(0, 213, 136, 0.18);
-  color: var(--green, #00d588);
+  background: var(--exito-fondo);
+  color: var(--exito);
 }
 
 /* Un capítulo visto se apaga, pero **no se esconde ni se tacha**: sigue
@@ -3864,7 +4145,7 @@ body {
   }
 
   .ficha-datos h1 {
-    font-size: 24px;
+    font-size: var(--texto-xl);
     /* Un título de tres palabras largas no debe empujar el vídeo fuera de la
        pantalla; a partir de dos líneas se recorta. */
     display: -webkit-box;
@@ -3875,7 +4156,7 @@ body {
 
   .ficha-tagline {
     margin-top: 6px;
-    font-size: 13px;
+    font-size: var(--texto-xs);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -3885,12 +4166,12 @@ body {
   .ficha-meta {
     gap: 10px;
     margin-top: 10px;
-    font-size: 13px;
+    font-size: var(--texto-xs);
   }
 
   .ficha-generos {
     margin-top: 8px;
-    font-size: 12px;
+    font-size: var(--texto-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -3953,4 +4234,566 @@ body {
     width: 100%;
   }
 
+}
+
+
+/* ═══ El reproductor en vivo ══════════════════════════════════════════════
+   Ver `controles-vivo.tsx` (pantalla completa), `info-vivo.tsx` (el rótulo) y
+   `live-card.tsx` (Inicio).
+
+   La referencia es el reproductor de iPhone y de Apple TV, que es el que ya
+   sabe usar todo el mundo: salir arriba a la izquierda, ajustes arriba a la
+   derecha, el dial en el centro y quién está en el aire abajo. Tres reglas:
+
+   1. **El nombre del canal es lo más grande y lo más blanco.** Todo lo demás
+      del rótulo (estado, número, programa) va un paso por debajo.
+   2. **Una sola marca de color: la píldora roja de EN VIVO.** El resto,
+      blanco sobre negro translúcido. El ámbar de «sala de control» se queda
+      en el reproductor de películas, donde mide progreso de verdad.
+   3. **Sin desenfoque sobre el vídeo.** Los círculos son negro translúcido
+      sólido: desenfocar una imagen que cambia 30 veces por segundo es lo más
+      caro que se le puede pedir a la GPU de un televisor. */
+
+/* ── La píldora de estado ─────────────────────────────────────────────── */
+.vivo-pildora {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.28em 0.62em;
+  border-radius: 0.42em;
+  background: var(--relleno-hover);
+  color: var(--tinta-1);
+  font-size: var(--texto-2xs);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* El rojo del directo con su tinta: un rótulo de 12px en negrita y
+   mayúsculas, que es texto grande en la práctica y se lee como marca antes
+   que como palabra. */
+.vivo-pildora.is-vivo,
+.vivo-pildora.is-emitiendo {
+  background: var(--vivo);
+  color: var(--vivo-tinta);
+}
+
+.vivo-pildora.is-sin-senal {
+  background: var(--peligro-fondo);
+  color: var(--peligro);
+}
+
+.vivo-pildora-punto {
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.45em;
+  border-radius: var(--radio-pill);
+  background: currentColor;
+  animation: vivo-latido 1.6s ease-in-out infinite;
+}
+
+@keyframes vivo-latido {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vivo-pildora-punto {
+    animation: none;
+  }
+}
+
+/* ── El rótulo ────────────────────────────────────────────────────────── */
+.vivo-info {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+/* Sobre una escena clara el texto necesita algo más que el degradado. Solo
+   donde el rótulo va ENCIMA del vídeo: en el teléfono, en la tableta en
+   vertical y en el teléfono tumbado va debajo, sobre el fondo de la página, y
+   la sombra dibujaba un recuadro turbio detrás de las letras. Se quita con un
+   selector más fuerte (`.live-card-marco …`) porque este va después. */
+.vivo-capa .vivo-info,
+.live-card-pie .vivo-info {
+  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.45);
+}
+
+@media (max-width: 680px), (max-height: 520px), (orientation: portrait) {
+  .live-card-marco .live-card-pie .vivo-info {
+    text-shadow: none;
+  }
+}
+
+.vivo-logo {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  aspect-ratio: 16 / 10;
+  width: 76px;
+  margin-right: 14px;
+  border-radius: 10px;
+  background: var(--relleno);
+  box-shadow: inset 0 0 0 1px var(--borde-sutil);
+  overflow: hidden;
+}
+
+.vivo-logo img {
+  max-width: 78%;
+  max-height: 74%;
+  object-fit: contain;
+}
+
+.vivo-logo b {
+  font-size: var(--texto-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--tinta-3);
+}
+
+.vivo-texto {
+  min-width: 0;
+}
+
+/* Margen y no `gap`: los navegadores de la tele de la casa (Chromium 53–79)
+   no conocen el `gap` de flexbox. */
+.vivo-linea {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-bottom: 4px;
+}
+
+.vivo-meta {
+  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-2);
+}
+
+.vivo-numero {
+  font-weight: 600;
+  color: var(--tinta-1);
+}
+
+.vivo-nombre {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-xl);
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--tinta-1);
+}
+
+.vivo-programa {
+  margin: 3px 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-sm);
+  color: var(--tinta-2);
+}
+
+.vivo-info.is-grande .vivo-logo {
+  width: clamp(96px, 7.4vw, 168px);
+  margin-right: clamp(16px, 1.4vw, 28px);
+  border-radius: clamp(12px, 0.9vw, 18px);
+}
+
+.vivo-info.is-grande .vivo-linea {
+  margin-bottom: 8px;
+}
+
+.vivo-info.is-grande .vivo-nombre {
+  font-size: var(--texto-3xl);
+}
+
+.vivo-info.is-grande .vivo-programa {
+  margin-top: 6px;
+  font-size: var(--texto-base);
+}
+
+/* ── La barra del programa ────────────────────────────────────────────── */
+.vivo-barra {
+  display: flex;
+  align-items: center;
+  margin-top: clamp(16px, 2.2vh, 28px);
+}
+
+.vivo-barra-hora {
+  flex-shrink: 0;
+  font-size: var(--texto-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-2);
+}
+
+.vivo-barra-riel {
+  flex: 1 1 auto;
+  height: 4px;
+  margin: 0 14px;
+  border-radius: var(--radio-pill);
+  background: var(--relleno-activo);
+  overflow: hidden;
+}
+
+.vivo-barra-relleno {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--acento-texto);
+}
+
+/* ── Pantalla completa ────────────────────────────────────────────────── */
+
+/* El velo: oscuro arriba y abajo, limpio en el centro. */
+.vivo-velo {
+  position: absolute;
+  inset: 0;
+  z-index: var(--capa-video-velo);
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.62) 0%,
+    rgba(0, 0, 0, 0) 24%,
+    rgba(0, 0, 0, 0) 50%,
+    rgba(0, 0, 0, 0.88) 100%
+  );
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+}
+
+.vivo-velo.is-visible {
+  opacity: 1;
+}
+
+/* La capa. `pointer-events: none` en la raíz y `auto` solo en los botones
+   visibles: un toque en la imagen sigue llegando al vídeo. El margen lateral
+   nunca baja del 4% del ancho, que es lo que recorta un televisor. */
+.player-bar.vivo-capa {
+  position: absolute;
+  inset: 0;
+  z-index: var(--capa-video-mandos);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "salir . ajustes"
+    "dial dial dial"
+    "rotulo rotulo rotulo";
+  align-items: start;
+  padding: max(clamp(18px, 3.4vh, 54px), env(safe-area-inset-top))
+    max(var(--margen), 4vw, env(safe-area-inset-right))
+    max(clamp(20px, 4.4vh, 64px), env(safe-area-inset-bottom))
+    max(var(--margen), 4vw, env(safe-area-inset-left));
+  gap: 0;
+  border-radius: 0;
+  background: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 300ms var(--ease);
+}
+
+.player-bar.vivo-capa.is-visible {
+  opacity: 1;
+}
+
+.player-bar.vivo-capa.is-visible .player-btn {
+  pointer-events: auto;
+}
+
+.vivo-salir {
+  grid-area: salir;
+  justify-self: start;
+}
+
+.vivo-ajustes {
+  grid-area: ajustes;
+  display: flex;
+  align-items: center;
+}
+
+.vivo-ajustes > * + * {
+  margin-left: clamp(8px, 0.8vw, 16px);
+}
+
+.vivo-dial {
+  grid-area: dial;
+  place-self: center;
+  display: flex;
+  align-items: center;
+}
+
+.vivo-dial > * + * {
+  margin-left: clamp(28px, 4vw, 80px);
+}
+
+.vivo-rotulo {
+  grid-area: rotulo;
+  min-width: 0;
+}
+
+/* Con la guía abierta, la guía es el pie: el dial y el rótulo se apartan
+   para no quedar debajo de ella. Arriba sigue todo, para poder cerrarla. */
+.vivo-capa.con-guia .vivo-dial,
+.vivo-capa.con-guia .vivo-rotulo {
+  visibility: hidden;
+}
+
+/* ── Los avisos de `StreamPlayer` a pantalla completa ──────────────────
+   Con un aviso que pide algo («Toca para ver», «Sin señal»), el dial del
+   centro se aparta: caía encima del título del aviso («S⏸l») y en «Sin señal»
+   seguía ofreciendo «Pausar». Arriba (Salir, sonido, guía) y el rótulo
+   siguen. `fullscreen-player.tsx` lleva el foco al aviso si estaba en el
+   dial: un botón con `visibility: hidden` conserva el foco en las teles
+   viejas, y OK lo pulsaría sin verse. */
+.reproductor-completo.con-aviso .vivo-dial {
+  visibility: hidden;
+}
+
+/* El velo oscurece arriba y abajo para leer los mandos sobre la imagen. Con
+   un aviso no hay imagen que vencer (el aviso trae su fondo), y el velo, que
+   va por encima, apagaba «Reintentar» a gris. */
+.reproductor-completo.con-aviso .vivo-velo {
+  opacity: 0;
+}
+
+/* Conectando con mando: se zapea con ↑↓, el dial sobra y el logo manda. */
+html[data-pantalla="tv"] .reproductor-completo.is-conectando .vivo-dial,
+html[data-input="dpad"] .reproductor-completo.is-conectando .vivo-dial {
+  visibility: hidden;
+}
+
+/* En pantalla completa el logo es más grande: se mira desde el sofá. */
+.reproductor-completo .player-conectando-logo {
+  width: clamp(140px, 20vw, 380px);
+  min-height: clamp(88px, 12.5vw, 240px);
+}
+
+.reproductor-completo .player-conectando-logo img {
+  max-height: clamp(60px, 9vw, 170px);
+}
+
+.reproductor-completo .player-conectando-texto {
+  font-size: var(--texto-base);
+}
+
+/* Con dedo o ratón el dial se queda (⏭ para seguir zapeando), así que el
+   logo espera a que se escondan los controles para no quedar debajo de él.
+   La píldora del rótulo ya dice CONECTANDO mientras tanto. */
+.reproductor-completo .player-conectando {
+  transition: opacity var(--dur-lenta) var(--ease);
+}
+
+html:not([data-pantalla="tv"]):not([data-input="dpad"])
+  .reproductor-completo.con-controles
+  .player-conectando {
+  opacity: 0;
+}
+
+/* Teléfono tumbado a pantalla completa (412px de alto): logo, detalle y
+   botones no caben entre la fila de «Salir» y el rótulo, y los botones se
+   montaban sobre el nombre del canal. El aviso se encoge y se queda en la
+   franja libre: arriba la fila de «Salir», abajo el rótulo. */
+@media (max-height: 520px) {
+  .reproductor-completo .player-fallo,
+  .reproductor-completo .player-conectando {
+    padding-top: 64px;
+    padding-bottom: 96px;
+  }
+
+  .reproductor-completo .player-fallo-detalle {
+    display: none;
+  }
+
+  .reproductor-completo .player-conectando-logo {
+    width: clamp(104px, 18vw, 200px);
+    min-height: 0;
+  }
+
+  .reproductor-completo .player-conectando-logo img {
+    max-height: 64px;
+  }
+}
+
+/* El aviso de Cast. Opaco y sin desenfoque: va encima del vídeo en directo.
+   Por encima de los mandos, porque pide que alguien lo lea y lo cierre. */
+.vivo-aviso {
+  position: absolute;
+  /* Debajo de la fila de «Salir»: su margen superior más su alto, y aire. */
+  top: calc(clamp(18px, 3.4vh, 54px) + clamp(48px, 3.4vw, 72px) + 16px);
+  left: max(var(--margen), 4vw);
+  right: max(var(--margen), 4vw);
+  z-index: var(--capa-video-aviso);
+  display: flex;
+  align-items: flex-start;
+  padding: 14px 16px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-lg);
+  background: var(--cristal-fuerte);
+  font-size: var(--texto-sm);
+}
+
+.vivo-aviso p {
+  flex: 1;
+  margin: 0 10px;
+  color: var(--tinta-2);
+}
+
+.vivo-aviso-icono {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  color: var(--peligro);
+}
+
+.vivo-aviso-cerrar {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -12px -10px -12px 0;
+  border-radius: var(--radio-pill);
+  color: var(--tinta-2);
+}
+
+/* Los botones: negro translúcido y glifo blanco relleno. */
+.player-bar.vivo-capa .player-btn {
+  width: clamp(48px, 3.4vw, 72px);
+  height: clamp(48px, 3.4vw, 72px);
+  border: 0;
+  background: var(--cristal-video);
+  box-shadow: none;
+}
+
+.player-bar.vivo-capa .player-btn svg {
+  width: clamp(22px, 1.5vw, 32px);
+  height: clamp(22px, 1.5vw, 32px);
+}
+
+.player-bar.vivo-capa .player-btn.is-transport {
+  width: clamp(60px, 4.6vw, 96px);
+  height: clamp(60px, 4.6vw, 96px);
+}
+
+.player-bar.vivo-capa .player-btn.is-transport svg {
+  width: clamp(24px, 1.8vw, 38px);
+  height: clamp(24px, 1.8vw, 38px);
+}
+
+.player-bar.vivo-capa .player-btn.is-primary {
+  width: clamp(80px, 6.2vw, 132px);
+  height: clamp(80px, 6.2vw, 132px);
+}
+
+.player-bar.vivo-capa .player-btn.is-primary svg {
+  width: clamp(32px, 2.6vw, 56px);
+  height: clamp(32px, 2.6vw, 56px);
+}
+
+.player-bar.vivo-capa .player-btn:hover {
+  background: var(--cristal-fuerte);
+}
+
+.player-bar.vivo-capa .player-btn.is-emitiendo {
+  color: var(--exito);
+}
+
+/* «Salir»: una píldora con palabra. */
+.player-bar.vivo-capa .player-btn.is-mode {
+  width: auto;
+  padding: 0 clamp(18px, 1.4vw, 28px) 0 clamp(12px, 1vw, 20px);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+}
+
+.player-bar.vivo-capa .player-btn.is-mode svg {
+  margin-right: 4px;
+}
+
+/* El foco es el de siempre en esta app: invertido a blanco, se ve desde el
+   sofá. Repetido aquí porque las reglas de arriba ganan en especificidad. */
+.player-bar.vivo-capa .player-btn:focus-visible,
+[data-input="dpad"] .player-bar.vivo-capa .player-btn:focus {
+  background: var(--foco);
+  color: var(--fondo);
+}
+
+/* Teléfono: el dial un punto más compacto y el rótulo sin el programa si no
+   cabe. En vertical el vídeo es una franja, y la capa entera va dentro. */
+@media (max-width: 680px) {
+  .vivo-dial > * + * {
+    margin-left: 22px;
+  }
+
+  .vivo-info.is-grande .vivo-logo {
+    width: 72px;
+  }
+
+  .vivo-info.is-grande .vivo-nombre {
+    font-size: var(--texto-xl);
+  }
+}
+
+/* ── Inicio: los mandos sobre el vídeo ────────────────────────────────── */
+
+/* El primario es el único botón relleno: blanco con el glifo negro. Es el que
+   se busca a ciegas, y así se encuentra antes de leer nada. */
+.player-bar.is-embedded .player-btn.is-primary {
+  border: 0;
+  background: var(--acento);
+  color: var(--acento-tinta);
+  box-shadow: var(--sombra-1);
+}
+
+.player-bar.is-embedded .player-btn.is-primary:hover {
+  background: var(--acento-hover);
+}
+
+/* Enfocado, el primario ya relleno no puede «invertirse»: se rodea de blanco
+   con un hueco oscuro, que se ve desde el sofá sea cual sea el acento. */
+.player-bar.is-embedded .player-btn.is-primary:focus-visible,
+[data-input="dpad"] .player-bar.is-embedded .player-btn.is-primary:focus {
+  background: var(--foco);
+  color: var(--fondo);
+  box-shadow: 0 0 0 3px var(--fondo), 0 0 0 6px var(--foco);
+}
+
+.player-bar.is-embedded .player-bar-extras {
+  border-left-color: var(--borde);
+}
+
+/* El rótulo de Inicio, en teléfono, va debajo del vídeo y a la izquierda; el
+   logo se encoge para que el nombre tenga sitio. */
+@media (max-width: 680px) {
+  .live-card-pie .vivo-logo {
+    width: 60px;
+    margin-right: 12px;
+  }
+}
+
+/* La guía: el canal que suena, en blanco y con el punto rojo del directo.
+   La regla general de `.guia-canal p` lo dejaba en gris, igual que los demás. */
+.guia .guia-canal.is-active p:first-of-type {
+  color: var(--tinta-1);
+  font-weight: 600;
+}
+
+.guia .guia-canal.is-active p:first-of-type::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: var(--radio-pill);
+  background: var(--vivo);
+  vertical-align: 0.1em;
 }

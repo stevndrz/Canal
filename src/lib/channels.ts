@@ -2,6 +2,8 @@ import type { Channel } from "@/lib/types";
 import { CATEGORY_ORDER } from "@/lib/categories";
 import { normalizeChannelName } from "@/lib/text";
 import { publicConfig } from "@/lib/config";
+import { NOMBRE_DE_REGION, REGIONES } from "@/lib/origenes";
+import { apartarCaidos, type IndiceSecciones } from "@/lib/secciones-canales";
 
 // CATEGORY_ORDER vive en categories.ts: es también quien clasifica cada canal
 // en m3u.ts, así que una sola lista evita que las dos rutinas se desincronicen
@@ -33,31 +35,9 @@ export function withChannelNumbers(channels: Channel[]): Channel[] {
   });
 }
 
-function fold(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
-}
-
-export interface ChannelQuery {
-  search?: string;
-  category?: string;
-  favoritesOnly?: boolean;
-  favorites?: Set<number>;
-}
-
-export function filterChannels(channels: Channel[], query: ChannelQuery): Channel[] {
-  const q = fold((query.search ?? "").trim());
-  const { category, favoritesOnly, favorites } = query;
-
-  return channels.filter((channel) => {
-    if (favoritesOnly && !favorites?.has(channel.id)) return false;
-    if (category && category !== "Todas" && channel.category !== category) return false;
-    if (!q) return true;
-    return fold(channel.name).includes(q) || channel.number.startsWith(q);
-  });
-}
+// `filterChannels` (nombre o prefijo del n\u00famero, con categor\u00eda) se retir\u00f3: la
+// b\u00fasqueda de canales vive en `buscar-canales.ts`, por niveles de relevancia y
+// con \u00edndice, y la categor\u00eda ya no es estado del shell.
 
 export function groupByCategory(channels: Channel[]) {
   const groups = new Map<string, Channel[]>();
@@ -71,12 +51,95 @@ export function groupByCategory(channels: Channel[]) {
     .map(([category, items]) => ({ category, items }));
 }
 
-/** Canal siguiente/anterior con wrap, dentro de la lista visible. */
-export function stepChannel(list: Channel[], currentId: number, delta: number) {
+/**
+ * Canal siguiente/anterior dentro de la lista de zapeo, SIN dar la vuelta.
+ *
+ * Antes daba la vuelta al llegar a un extremo, y con la lista entera como
+ * contexto eso era un desastre: al arrancar la tele en Canal 7, ↑↑ pasaba por
+ * Canal 3 y saltaba a «餘姚姚江文化», el último de 4.816. En un extremo ahora
+ * no pasa nada (`null`), y es el contexto (`ampliarTramo`) quien decide si
+ * después viene otra sección.
+ */
+export function stepChannel(list: Channel[], currentId: number, delta: number): Channel | null {
   if (list.length === 0) return null;
   const index = list.findIndex((channel) => channel.id === currentId);
   if (index === -1) return list[0];
-  return list[(index + delta + list.length) % list.length];
+  return list[index + delta] ?? null;
+}
+
+/* ── Contexto de zapeo ──────────────────────────────────────────────────── */
+
+/**
+ * Un trozo de lo que se recorre con ↑/↓ y Canal+/−: «Mis canales y
+ * Guatemala», «Centroamérica»… o los resultados de una búsqueda.
+ */
+export interface SeccionZapeo {
+  clave: string;
+  titulo: string;
+  canales: Channel[];
+}
+
+/**
+ * Qué secciones están en juego ahora, por posición (las dos incluidas).
+ *
+ * Posiciones y no canales a propósito: cuando llega la lista completa los
+ * objetos `Channel` cambian, pero la cadena de secciones es la misma y en el
+ * mismo orden, así que el tramo sigue señalando lo mismo.
+ */
+export interface TramoZapeo {
+  desde: number;
+  hasta: number;
+}
+
+/** Los canales del tramo, en orden y sin repetir (un favorito sale una vez). */
+export function canalesDelTramo(secciones: readonly SeccionZapeo[], tramo: TramoZapeo): Channel[] {
+  const vistos = new Set<number>();
+  const lista: Channel[] = [];
+  for (let i = Math.max(0, tramo.desde); i <= tramo.hasta && i < secciones.length; i++) {
+    for (const canal of secciones[i].canales) {
+      if (vistos.has(canal.id)) continue;
+      vistos.add(canal.id);
+      lista.push(canal);
+    }
+  }
+  return lista;
+}
+
+/**
+ * La sección donde vive un canal: la primera que lo trae. Así un canal de la
+ * casa o un favorito cae en «Mis canales y Guatemala», que es desde donde se
+ * eligió casi siempre, y uno de Honduras en Centroamérica.
+ */
+export function tramoDeCanal(secciones: readonly SeccionZapeo[], canalId: number): TramoZapeo | null {
+  const indice = secciones.findIndex((seccion) => seccion.canales.some((canal) => canal.id === canalId));
+  return indice === -1 ? null : { desde: indice, hasta: indice };
+}
+
+/**
+ * Al llegar al último canal del tramo, se le suma la sección siguiente (y al
+ * primero, la anterior): la próxima ↓ sigue por Centroamérica en vez de
+ * quedarse clavada o de saltar al otro lado del mundo. Las secciones vacías
+ * se saltan. Devuelve el MISMO objeto si no cambia, para no repintar.
+ */
+export function ampliarTramo(
+  secciones: readonly SeccionZapeo[],
+  tramo: TramoZapeo,
+  canalId: number,
+): TramoZapeo {
+  const lista = canalesDelTramo(secciones, tramo);
+  if (lista.length === 0) return tramo;
+  let { desde, hasta } = tramo;
+  if (lista[lista.length - 1].id === canalId) {
+    let siguiente = hasta + 1;
+    while (siguiente < secciones.length && secciones[siguiente].canales.length === 0) siguiente++;
+    if (siguiente < secciones.length) hasta = siguiente;
+  }
+  if (lista[0].id === canalId) {
+    let anterior = desde - 1;
+    while (anterior >= 0 && secciones[anterior].canales.length === 0) anterior--;
+    if (anterior >= 0) desde = anterior;
+  }
+  return desde === tramo.desde && hasta === tramo.hasta ? tramo : { desde, hasta };
 }
 
 /**
@@ -133,22 +196,67 @@ export function canalDeArranque(
 ): number | null {
   if (channels.length === 0) return null;
 
-  if (ultimo?.nombre) {
-    const esperado = normalizeChannelName(ultimo.nombre);
-    // Primero donde estaba: en el caso normal —la lista no ha cambiado— esto
-    // acierta sin recorrer 7.822 canales.
-    const enSuSitio = channels[ultimo.id - 1];
-    if (enSuSitio && normalizeChannelName(enSuSitio.name) === esperado) return enSuSitio.id;
-    // Se movió de sitio: se busca por nombre antes de rendirse.
-    const movido = channels.find((canal) => normalizeChannelName(canal.name) === esperado);
-    if (movido) return movido.id;
-    // Ya no está en la lista: se cae a lo de siempre en vez de abrir en un
-    // canal cualquiera que hoy ocupe esa posición.
-  }
+  // Ya no está en la lista: se cae a lo de siempre en vez de abrir en un
+  // canal cualquiera que hoy ocupe esa posición.
+  const guardado = buscarUltimo(channels, ultimo);
+  if (guardado !== null) return guardado;
 
   const buscado = normalizeChannelName(publicConfig.canalInicial);
   const preferido = channels.find((canal) => normalizeChannelName(canal.name) === buscado);
   if (preferido) return preferido.id;
 
   return (canalesDeCasa(channels)[0] ?? channels[0]).id;
+}
+
+/**
+ * El último canal guardado, si está en ESTA lista; si no, `null`.
+ *
+ * Aparte de `canalDeArranque` porque quien arranca necesita distinguir «no
+ * estaba» de «me quedo con el de siempre»: con red lenta la primera lista es
+ * el recorte de ~200 del HTML, el canal guardado puede no venir en él, y dar
+ * el arranque por hecho entonces dejaba la tele en Canal 7 para siempre
+ * aunque la lista completa sí lo trajera cuatro segundos después.
+ */
+export function buscarUltimo(channels: readonly Channel[], ultimo?: UltimoCanal | null): number | null {
+  if (!ultimo?.nombre || channels.length === 0) return null;
+  const esperado = normalizeChannelName(ultimo.nombre);
+  // Primero donde estaba: en el caso normal —la lista no ha cambiado— esto
+  // acierta sin recorrer 7.822 canales. Con el recorte, los ids siguen siendo
+  // posiciones en la lista completa, así que se busca por id y no por índice.
+  const enSuSitio = channels[ultimo.id - 1];
+  if (enSuSitio && enSuSitio.id === ultimo.id && normalizeChannelName(enSuSitio.name) === esperado) {
+    return enSuSitio.id;
+  }
+  // Se movió de sitio (o la lista es el recorte): por nombre antes de rendirse.
+  const movido = channels.find((canal) => normalizeChannelName(canal.name) === esperado);
+  return movido ? movido.id : null;
+}
+
+/**
+ * La cadena de secciones que se zapea, siempre la misma y en el mismo orden:
+ * «Mis canales y Guatemala» (la casa y los favoritos delante, sin repetir) y
+ * después cada región, de lo cercano a lo lejano. Es el contexto con el que
+ * arranca la tele y el de todo canal elegido desde una sección.
+ *
+ * Siempre las nueve, aunque alguna venga vacía: `TramoZapeo` las señala por
+ * posición. Dentro de cada una, el orden de Canales y los caídos al final.
+ */
+export function cadenaDeZapeo(
+  indice: IndiceSecciones,
+  misCanales: readonly Channel[],
+  caidos: ReadonlySet<number>,
+): SeccionZapeo[] {
+  const primera: SeccionZapeo = {
+    clave: "mios",
+    titulo: "Mis canales y Guatemala",
+    canales: apartarCaidos([...misCanales, ...(indice.porRegion.get("guatemala") ?? [])], caidos),
+  };
+  const resto = REGIONES.filter((region) => region !== "guatemala").map(
+    (region): SeccionZapeo => ({
+      clave: region,
+      titulo: NOMBRE_DE_REGION[region],
+      canales: apartarCaidos(indice.porRegion.get(region) ?? [], caidos),
+    }),
+  );
+  return [primera, ...resto];
 }

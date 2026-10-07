@@ -6,8 +6,16 @@ import type { FilaDeTarjetas } from "@/components/catalog/catalog-row";
 import { channelToCard, conProgreso, enCursoACard, type CardItem } from "@/lib/media-item";
 import { useProgreso } from "@/hooks/use-progreso";
 import { useContinuar } from "@/hooks/use-continuar";
-import { groupByCategory } from "@/lib/channels";
-import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
+import { QUE_SE_PINTA, recuentosDeLista } from "@/lib/canales-empaquetados";
+import { publicConfig } from "@/lib/config";
+import { claveDeTema } from "@/lib/temas";
+import {
+  claveDeRecuento,
+  fichaDe,
+  normalizarCasa,
+  rielesDeInicio,
+  type RielDeInicio,
+} from "@/lib/secciones-canales";
 import { MediaRail } from "@/components/media/media-rail";
 import { FilaCasa } from "./fila-casa";
 
@@ -33,8 +41,8 @@ interface HomeViewProps {
 }
 
 /**
- * Cuántas categorías se ofrecen antes de mandar a Canales, y cuántos canales
- * lleva cada riel.
+ * Cuántos rieles de canales se ofrecen antes de mandar a Canales, y cuántos
+ * canales lleva cada uno.
  *
  * Salen de `QUE_SE_PINTA` porque **son también los canales que el servidor
  * manda en el HTML**: el recorte de la portada se calcula con estos dos
@@ -71,7 +79,20 @@ export function HomeView({
     [channels, favorites],
   );
 
-  const grupos = useMemo(() => groupByCategory(channels).slice(0, MAX_GRUPOS), [channels]);
+  /**
+   * Los rieles de canales: Guatemala, los vecinos y lo que más se busca por
+   * tema (ver `RIELES_DE_INICIO`). Se ordenan con las mismas funciones que
+   * usa el servidor para decidir qué canales viajan en el HTML: si no, el
+   * riel abriría con huecos hasta que llegara la lista completa.
+   *
+   * Antes eran las seis primeras categorías viejas, sin forma de ver más, y
+   * Canal 3, Canal 7 y Guatevisión salían en «Casa» y otra vez justo debajo.
+   */
+  const casa = useMemo(() => normalizarCasa(publicConfig.canalesDeCasa), []);
+  const grupos = useMemo(
+    () => rielesDeInicio(channels, fichaDe, casa, { porRiel: MAX_POR_RIEL }).slice(0, MAX_GRUPOS),
+    [channels, casa],
+  );
 
   /* Estables con `useCallback`: `MediaCard` está memoizada, y un manejador
      nuevo por render anulaba el `memo` y repintaba las ~200 tarjetas de Inicio
@@ -143,15 +164,44 @@ export function HomeView({
     () => favoriteChannels.map((c) => channelToCard(c)),
     [favoriteChannels],
   );
-  const rielesDeCanal = useMemo(
-    () =>
-      grupos.map(({ category, items }) => ({
-        category,
-        total: items.length,
-        tarjetas: items.slice(0, MAX_POR_RIEL).map((c) => channelToCard(c)),
-      })),
-    [grupos],
-  );
+  const rielesDeCanal = useMemo(() => {
+    // Los totales de la lista COMPLETA aunque `channels` sea aún el recorte
+    // del HTML: «Ver los 527», no «Ver los 20». Ver `recuentosDeLista`.
+    const recuentos = recuentosDeLista(channels);
+    return grupos.map(({ riel, items, total }) => ({
+      riel,
+      total: Math.max(
+        total,
+        recuentos?.get(claveDeRecuento(riel.region ?? null, riel.tema ?? null)) ?? 0,
+      ),
+      tarjetas: items.map((c) => channelToCard(c)),
+    }));
+  }, [grupos, channels]);
+
+  /**
+   * «Ver los N ›» lleva a Canales con esa sección abierta (o ese tema
+   * elegido). Va por la URL —`?vista=canales&seccion=…`— porque es la puerta
+   * que `dashboard.tsx` ya ofrece para pedir una vista desde fuera, y con
+   * `replaceState` no se recarga nada ni se apila historial. Canales lee el
+   * parámetro al montar y deja la URL limpia.
+   */
+  const verSeccion = useCallback((riel: RielDeInicio) => {
+    const destino = riel.region
+      ? `seccion=${riel.region}`
+      : riel.tema
+        ? `tema=${claveDeTema(riel.tema)}`
+        : "";
+    const ir = () =>
+      window.history.replaceState(null, "", `${window.location.pathname}?vista=canales&${destino}`);
+    // Si la URL ya dijera «canales», el shell no vería ningún cambio: se
+    // limpia primero y se pide en el fotograma siguiente.
+    if (new URLSearchParams(window.location.search).get("vista") === "canales") {
+      window.history.replaceState(null, "", window.location.pathname);
+      window.setTimeout(ir, 0);
+    } else {
+      ir();
+    }
+  }, []);
 
   const tunedKey = tuned ? `canal-${tuned.id}` : null;
 
@@ -181,23 +231,29 @@ export function HomeView({
         activeKey={tunedKey}
       />
 
+      {/* «Mis canales», como en Canales: lo que se marca con la estrella. */}
       <MediaRail
         compacto
-        title="Tus favoritos"
+        title="Mis canales"
         items={tarjetasFavoritas}
         onOpen={abrirCanal}
         count={favoriteChannels.length > 0 ? `${favoriteChannels.length}` : undefined}
         activeKey={tunedKey}
       />
 
-      {rielesDeCanal.map(({ category, total, tarjetas }) => (
+      {rielesDeCanal.map(({ riel, total, tarjetas }) => (
         <MediaRail
-          key={category}
-          title={category}
+          key={riel.clave}
+          title={riel.titulo}
           items={tarjetas}
           onOpen={abrirCanal}
-          count={`${total}`}
+          count={total.toLocaleString("es-GT")}
           activeKey={tunedKey}
+          verTodos={
+            total > tarjetas.length
+              ? { total, de: riel.titulo, onClick: () => verSeccion(riel) }
+              : undefined
+          }
         />
       ))}
 

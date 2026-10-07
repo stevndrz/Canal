@@ -1,17 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
+  QUE_SE_PINTA,
   desempaquetarCanales,
   empaquetarCanales,
   posicionesIniciales,
   recortarPaquete,
   recuentosDe,
+  recuentosDeLista,
+  type CanalDeOrigen,
   type PaqueteCanales,
 } from "./canales-empaquetados";
-import { CATEGORY_ORDER, filterChannels, groupByCategory, withChannelNumbers } from "./channels";
+import { CATEGORY_ORDER, canalesDeCasa, withChannelNumbers } from "./channels";
+import { paisDe } from "./origenes";
+import { TEMAS } from "./temas";
+import {
+  claveDeRecuento,
+  fichaDe,
+  filasDeCanales,
+  indexarCanales,
+  normalizarCasa,
+  rielesDeInicio,
+} from "./secciones-canales";
+import { publicConfig } from "./config";
 import type { Channel } from "./types";
 
-/** Un canal como lo deja `m3u.ts`, sin `id` ni `number`. */
-function canal(name: string, category: string, extra: Partial<Channel> = {}) {
+/**
+ * Un canal como lo deja `m3u.ts`, sin `id` ni `number`: `category` es todavía
+ * la categoría de numeración, y el tema y el país van aparte.
+ */
+function canal(
+  name: string,
+  category: string,
+  extra: Partial<Channel> & { tema?: string; pais?: string } = {},
+): CanalDeOrigen {
   return {
     name,
     category,
@@ -22,11 +43,11 @@ function canal(name: string, category: string, extra: Partial<Channel> = {}) {
 }
 
 const MUESTRA = [
-  canal("Canal 3", "Guatemala"),
-  canal("Canal 7", "Guatemala"),
-  canal("ESPN", "Deportes"),
-  canal("Canal 9", "Guatemala"),
-  canal("Fox Sports", "Deportes"),
+  canal("Canal 3", "Guatemala", { tema: "Generalista", pais: "gt" }),
+  canal("Canal 7", "Guatemala", { tema: "Generalista", pais: "gt" }),
+  canal("ESPN", "Deportes", { tema: "Deportes", pais: "us" }),
+  canal("Canal 9", "Guatemala", { tema: "Generalista", pais: "gt" }),
+  canal("Fox Sports", "Deportes", { tema: "Deportes", pais: "mx" }),
 ];
 
 describe("ida y vuelta", () => {
@@ -35,10 +56,31 @@ describe("ida y vuelta", () => {
     expect(canales).toHaveLength(MUESTRA.length);
     for (const [i, esperado] of MUESTRA.entries()) {
       expect(canales[i].name).toBe(esperado.name);
-      expect(canales[i].category).toBe(esperado.category);
       expect(canales[i].logoUrl).toBe(esperado.logoUrl);
       expect(canales[i].streamUrl).toBe(esperado.streamUrl);
     }
+  });
+
+  it("`category` llega con el TEMA, y el país se apunta aparte", () => {
+    // Lo que las pantallas enseñan junto al canal: «Deportes», no la
+    // categoría de numeración (que en la mitad de la lista decía
+    // «Internacional»).
+    const canales = desempaquetarCanales(empaquetarCanales(MUESTRA));
+    expect(canales.map((c) => c.category)).toEqual(MUESTRA.map((c) => c.tema));
+    expect(canales.map((c) => paisDe(c))).toEqual(MUESTRA.map((c) => c.pais));
+  });
+
+  it("sin campo nuevo en Channel: las claves son las de siempre", () => {
+    const [reconstruido] = desempaquetarCanales(empaquetarCanales([MUESTRA[0]]));
+    expect(Object.keys(reconstruido).sort()).toEqual(
+      ["category", "id", "logoUrl", "name", "number", "streamUrl"].sort(),
+    );
+  });
+
+  it("sin tema de la lista, lo saca del nombre", () => {
+    const [reconstruido] = desempaquetarCanales(empaquetarCanales([canal("TUDN", "Deportes")]));
+    expect(reconstruido.category).toBe("Deportes");
+    expect(paisDe(reconstruido)).toBe("");
   });
 
   it("el `id` sale de la posición: por eso no hace falta mandarlo", () => {
@@ -123,19 +165,31 @@ describe("la numeración es la MISMA que antes", () => {
   });
 });
 
-describe("la tabla de categorías", () => {
-  it("guarda cada categoría UNA vez, no una por canal", () => {
+describe("las tablas: categorías, temas y pares", () => {
+  it("guarda cada categoría, cada tema y cada par UNA vez, no uno por canal", () => {
     const paquete = empaquetarCanales(MUESTRA);
+    expect(paquete.v).toBe(2);
     expect(paquete.categorias).toEqual(["Guatemala", "Deportes"]);
-    expect(paquete.canales.map((c) => c[1])).toEqual([0, 0, 1, 0, 1]);
+    expect(paquete.temas).toEqual(["Generalista", "Deportes"]);
+    // Canal 3, 7 y 9 comparten par; ESPN y Fox Sports no (distinto país).
+    expect(paquete.pares).toEqual([
+      [0, "gt", 0],
+      [1, "us", 1],
+      [1, "mx", 1],
+    ]);
+    expect(paquete.canales.map((c) => c[1])).toEqual([0, 0, 1, 0, 2]);
+    expect(paquete.cuentasPares).toEqual([3, 1, 1]);
   });
 
   it("no pierde una categoría que no esté en CATEGORY_ORDER", () => {
     // Una lista M3U ajena puede traer cualquier cosa; perderla al empaquetar
-    // cambiaría la clasificación del canal.
+    // cambiaría el número del canal.
     const rara = [canal("Rareza", "Categoría Inventada")];
-    const [reconstruido] = desempaquetarCanales(empaquetarCanales(rara));
-    expect(reconstruido.category).toBe("Categoría Inventada");
+    const paquete = empaquetarCanales(rara);
+    expect(paquete.categorias).toEqual(["Categoría Inventada"]);
+    const [reconstruido] = desempaquetarCanales(paquete);
+    // Desconocida → al final, como siempre: la centena de después de todas.
+    expect(reconstruido.number).toBe(String(CATEGORY_ORDER.length * 100 + 1));
   });
 
   it("aguanta un índice fuera de rango sin reventar", () => {
@@ -146,31 +200,90 @@ describe("la tabla de categorías", () => {
       canales: [["X", 9, "l", "s"]],
     };
     expect(() => desempaquetarCanales(roto)).not.toThrow();
-    expect(desempaquetarCanales(roto)[0].category).toBe("Entretenimiento");
+    expect(desempaquetarCanales(roto)[0].category).toBe("Otros");
+    const rotoV2: PaqueteCanales = { ...roto, v: 2, temas: [], pares: [], cuentasPares: [] };
+    expect(() => desempaquetarCanales(rotoV2)).not.toThrow();
+  });
+});
+
+describe("el borde puede servir un paquete v1 a un JS nuevo", () => {
+  /** Lo que mandaba el servidor antes: el hueco apunta a `categorias`. */
+  const V1: PaqueteCanales = {
+    categorias: ["Guatemala", "Deportes", "Internacional", "Entretenimiento"],
+    cuentas: [2, 1, 1, 1],
+    total: 5,
+    canales: [
+      ["Canal 3", 0, "l", "https://s.test/3"],
+      ["Canal 7", 0, "l", "https://s.test/7"],
+      ["ESPN", 1, "l", "https://s.test/espn"],
+      ["NHK World News", 2, "l", "https://s.test/nhk"],
+      ["Comedy Central", 3, "l", "https://s.test/cc"],
+    ],
+  };
+
+  it("lo entiende: mismos ids y mismos números que con v2", () => {
+    const canales = desempaquetarCanales(V1);
+    expect(canales.map((c) => c.id)).toEqual([1, 2, 3, 4, 5]);
+    expect(canales.map((c) => c.number)).toEqual(["101", "102", "201", "1201", "901"]);
+  });
+
+  it("y saca un tema razonable de la categoría vieja o del nombre", () => {
+    const canales = desempaquetarCanales(V1);
+    expect(canales.map((c) => c.category)).toEqual([
+      "Otros",
+      "Otros",
+      "Deportes",
+      // «Internacional» no es un tema: se pregunta al nombre.
+      "Noticias",
+      "Variedades",
+    ]);
+    // Lo único que un v1 sabe del país es la categoría Guatemala.
+    expect(paisDe(canales[0])).toBe("gt");
+    expect(paisDe(canales[2])).toBe("");
+  });
+
+  it("recortar un v1 sigue siendo un v1", () => {
+    const recortado = recortarPaquete(V1, [0, 3]);
+    expect(recortado.v).toBeUndefined();
+    expect(desempaquetarCanales(recortado).map((c) => c.number)).toEqual(["101", "1201"]);
   });
 });
 
 /**
- * Una lista con la forma de la de verdad: ordenada por categoría, como la deja
- * `sortChannels`, con las doce categorías y tamaños desiguales.
+ * Una lista con la forma de la de verdad: ordenada por categoría de numeración,
+ * como la deja `sortChannels`, con las doce categorías y tamaños desiguales, y
+ * con temas y países repartidos como en la lista por defecto (mucho de fuera,
+ * poco de Guatemala).
  */
+const PAISES = ["us", "jp", "de", "", "ar", "co", "mx", "hn", "sv", "es", "do", "gt"];
 const REALISTA = CATEGORY_ORDER.flatMap((categoria, i) =>
-  Array.from({ length: 40 + i * 130 }, (_, n) => canal(`${categoria} ${n}`, categoria)),
+  Array.from({ length: 40 + i * 130 }, (_, n) =>
+    canal(`${categoria} ${n}`, categoria, {
+      tema: TEMAS[(n + i) % TEMAS.length],
+      // Guatemala casi siempre de Guatemala; el resto, de cualquier sitio.
+      pais: categoria === "Guatemala" && n % 5 !== 0 ? "gt" : PAISES[(n * 7 + i) % PAISES.length],
+    }),
+  ),
+).concat(
+  // Los de la casa, que en la lista real existen y viajan siempre.
+  publicConfig.canalesDeCasa.map((nombre) =>
+    canal(nombre, "General", { tema: "Generalista", pais: "gt" }),
+  ),
 );
 
-/** Lo que pintan de verdad las dos pantallas: `LOTE` y `MAX_GRUPOS`×`MAX_POR_RIEL`. */
-const QUE_PINTA = { lote: 60, grupos: 6, porGrupo: 20 };
+const casa = normalizarCasa(publicConfig.canalesDeCasa);
 
 describe("el recorte: mandar solo lo que se pinta", () => {
   const completo = empaquetarCanales(REALISTA);
-  const recortado = recortarPaquete(completo, posicionesIniciales(completo, QUE_PINTA));
+  const recortado = recortarPaquete(completo, posicionesIniciales(completo, QUE_SE_PINTA));
   const todos = desempaquetarCanales(completo);
   const pocos = desempaquetarCanales(recortado);
 
   it("manda un puñado de canales, no la lista entera", () => {
     expect(REALISTA.length).toBeGreaterThan(7_000);
-    // Los 60 del primer lote más 6 rieles de 20, quitando lo que se solapa.
-    expect(pocos.length).toBeLessThanOrEqual(60 + 6 * 20);
+    // Seis secciones abiertas con su holgura y seis rieles de veinte, con
+    // solapes: del orden de 200, como antes.
+    expect(pocos.length).toBeLessThanOrEqual(6 * (QUE_SE_PINTA.porSeccion + 7) + 6 * 20);
     expect(pocos.length).toBeLessThan(REALISTA.length / 20);
   });
 
@@ -191,8 +304,16 @@ describe("el recorte: mandar solo lo que se pinta", () => {
     }
   });
 
-  it("los recuentos por categoría siguen siendo los de la lista COMPLETA", () => {
-    // La columna de Canales tiene que decir «Deportes 170», no «Deportes 20».
+  it("y el tema y el país", () => {
+    const porNombre = new Map(todos.map((c) => [c.name, c]));
+    for (const pocoCanal of pocos) {
+      const deVerdad = porNombre.get(pocoCanal.name)!;
+      expect(pocoCanal.category).toBe(deVerdad.category);
+      expect(paisDe(pocoCanal)).toBe(paisDe(deVerdad));
+    }
+  });
+
+  it("los recuentos siguen siendo los de la lista COMPLETA", () => {
     const recuentos = recuentosDe(recortado);
     for (const categoria of CATEGORY_ORDER) {
       const deVerdad = REALISTA.filter((c) => c.category === categoria).length;
@@ -200,23 +321,42 @@ describe("el recorte: mandar solo lo que se pinta", () => {
     }
     expect(recortado.total).toBe(REALISTA.length);
     expect(recortado.categorias).toEqual(completo.categorias);
+    // Y por región y tema, que es lo que dice «Ver los N».
+    const enSudamerica = REALISTA.filter((c) => c.pais === "ar" || c.pais === "co").length;
+    expect(recuentos.get(claveDeRecuento("sudamerica", null))).toBe(enSudamerica);
+    expect(recuentos.get(claveDeRecuento(null, null))).toBe(REALISTA.length);
+    // Colgados de la lista, para Inicio, que recibe canales y no el paquete.
+    expect(recuentosDeLista(pocos)?.get(claveDeRecuento("sudamerica", null))).toBe(enSudamerica);
   });
 
-  it("Canales pinta exactamente el mismo primer lote", () => {
-    const conTodo = filterChannels(todos, { category: "Todas" }).slice(0, QUE_PINTA.lote);
-    const conPocos = filterChannels(pocos, { category: "Todas" }).slice(0, QUE_PINTA.lote);
-    expect(conPocos.map((c) => c.id)).toEqual(conTodo.map((c) => c.id));
+  it("Canales abre con las mismas cabezas de sección que con la lista entera", () => {
+    const opciones = (canales: Channel[]) => ({
+      filtro: "todo" as const,
+      abierta: null,
+      busqueda: "",
+      deLaCasa: canalesDeCasa(canales),
+      favoritos: [],
+      recientes: [],
+      caidos: new Set<number>(),
+      porSeccion: QUE_SE_PINTA.porSeccion,
+      recuentos: recuentosDe(completo),
+    });
+    const conTodo = filasDeCanales({ indice: indexarCanales(todos, casa), ...opciones(todos) });
+    const conPocos = filasDeCanales({ indice: indexarCanales(pocos, casa), ...opciones(pocos) });
+    expect(conPocos.map((f) => f.clave)).toEqual(conTodo.map((f) => f.clave));
   });
 
-  it("Inicio pinta los mismos rieles, con los mismos canales", () => {
-    const conTodo = groupByCategory(todos).slice(0, QUE_PINTA.grupos);
-    const conPocos = groupByCategory(pocos).slice(0, QUE_PINTA.grupos);
-    expect(conPocos.map((g) => g.category)).toEqual(conTodo.map((g) => g.category));
+  it("Inicio pinta los mismos rieles, con los mismos canales y los mismos totales", () => {
+    const rieles = (canales: Channel[]) =>
+      rielesDeInicio(canales, fichaDe, casa, { porRiel: QUE_SE_PINTA.porGrupo }).map(
+        ({ riel, items }) => ({ riel: riel.clave, ids: items.map((c) => c.id) }),
+      );
+    expect(rieles(pocos)).toEqual(rieles(todos));
+  });
 
-    for (const [i, grupo] of conPocos.entries()) {
-      const esperados = conTodo[i].items.slice(0, QUE_PINTA.porGrupo).map((c) => c.id);
-      expect(grupo.items.slice(0, QUE_PINTA.porGrupo).map((c) => c.id)).toEqual(esperados);
-    }
+  it("los de la casa viajan aunque estén al final de la lista", () => {
+    const nombres = new Set(pocos.map((c) => c.name));
+    for (const nombre of publicConfig.canalesDeCasa) expect(nombres.has(nombre)).toBe(true);
   });
 
   it("el canal de arranque viaja aunque esté en mitad de la lista", () => {
@@ -226,7 +366,7 @@ describe("el recorte: mandar solo lo que se pinta", () => {
     const lejos = 5_000;
     const conExtra = recortarPaquete(
       completo,
-      posicionesIniciales(completo, { ...QUE_PINTA, ademas: [lejos] }),
+      posicionesIniciales(completo, { ...QUE_SE_PINTA, ademas: [lejos] }),
     );
     const nombres = new Set(desempaquetarCanales(conExtra).map((c) => c.name));
     expect(nombres.has(REALISTA[lejos].name)).toBe(true);
@@ -251,10 +391,10 @@ describe("el recorte: mandar solo lo que se pinta", () => {
     expect(recortado.recorte).toBeDefined();
   });
 
-  it("y pesa dos órdenes de magnitud menos, que es el objetivo", () => {
+  it("y pesa más de un orden de magnitud menos, que es el objetivo", () => {
     const antes = JSON.stringify(completo).length;
     const ahora = JSON.stringify(recortado).length;
-    expect(ahora).toBeLessThan(antes / 20);
+    expect(ahora).toBeLessThan(antes / 10);
   });
 });
 
@@ -272,6 +412,12 @@ describe("el ahorro real", () => {
     const comoAntes = JSON.stringify(
       muchos.map((c, i) => ({ ...c, id: i + 1, number: String(100 + i) })),
     ).length;
+    // Con tema y país, como los deja hoy `m3u.ts`: los pares no pueden
+    // comerse el ahorro de las tuplas.
+    for (const [i, c] of muchos.entries()) {
+      c.tema = TEMAS[i % TEMAS.length];
+      c.pais = ["us", "gt", "mx", "hn", "es", "jp", "de", "ar"][i % 8];
+    }
     const comoAhora = JSON.stringify(empaquetarCanales(muchos)).length;
 
     // No se afina el número exacto —depende de los datos— pero el orden de
