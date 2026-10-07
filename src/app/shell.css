@@ -329,16 +329,20 @@
   align-items: center;
   gap: clamp(12px, 1.5vw, 28px);
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.5) 60%, transparent);
-  transition: background 240ms var(--ease), backdrop-filter 240ms var(--ease);
+  background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.7), rgba(var(--fondo-rgb), 0.25) 65%, transparent);
+  transition: background 240ms var(--ease);
 }
 
 /* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
    solo no basta para que se lean los destinos. */
 .sidebar.is-scrolled {
-  background: var(--glass);
-  backdrop-filter: saturate(180%) blur(22px);
-  border-bottom: 1px solid var(--line);
+  background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.92), rgba(var(--fondo-rgb), 0.6) 70%, transparent);
+}
+
+/* Con la píldora ya oscura, al bajar basta con apretar un poco su cristal:
+   antes la barra entera se volvía un bloque sólido de borde a borde. */
+.sidebar.is-scrolled nav {
+  background: var(--cristal-fuerte);
 }
 
 .profile-cluster,
@@ -354,12 +358,23 @@
   min-width: 0;
 }
 
+/* Los destinos van juntos en una píldora de cristal que flota a la derecha,
+   con el activo en blanco: el lenguaje de las capturas de referencia del
+   dueño (y de tvOS). La píldora es oscura por sí misma, sin depender del
+   desenfoque, para que se lea sobre cualquier fotograma también en un
+   televisor, que no desenfoca. */
 .sidebar nav {
   display: flex;
-  justify-content: center;
+  justify-self: end;
   align-items: center;
-  gap: clamp(2px, 0.35vw, 8px);
+  gap: clamp(2px, 0.25vw, 6px);
   min-width: 0;
+  padding: 5px;
+  border-radius: var(--radio-pill);
+  background: rgba(var(--fondo-rgb), 0.55);
+  border: 1px solid var(--borde);
+  backdrop-filter: saturate(180%) blur(24px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 /* Acotado a la barra con `>` a propósito: `top-right` se usa también como
@@ -377,7 +392,7 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 clamp(11px, 1vw, 18px);
   border: 0;
   border-radius: 999px;
@@ -668,6 +683,26 @@
   .rail.is-poster .rail-strip {
     --carteles: 5;
   }
+}
+
+/* En pantallas anchas, seis y siete: a 1920 cinco carteles salían de 350px,
+   tanto que en el primer pantallazo cabía una sola fila. Siete deja ver dos
+   filas enteras, como en las tiendas de cine de referencia. En la tele se
+   queda en seis: desde el sofá el cartel tiene que seguir leyéndose. */
+@media (min-width: 1440px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 6;
+  }
+}
+
+@media (min-width: 1760px) {
+  .rail.is-poster .rail-strip {
+    --carteles: 7;
+  }
+}
+
+:root[data-pantalla="tv"] .rail.is-poster .rail-strip {
+  --carteles: 6;
 }
 
 /* Las flechas del riel. Solo con puntero: con mando se navega por foco y con
@@ -1774,9 +1809,19 @@
        del borde. */
     padding: var(--safe-top) max(16px, env(safe-area-inset-right)) 0
       max(16px, env(safe-area-inset-left));
+    /* Arriba del todo deja ver el arte que hay detrás (el héroe de Cine y
+       series llega hasta el borde); al bajar se vuelve cristal. */
+    background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.78), rgba(var(--fondo-rgb), 0.3) 70%, transparent);
+    /* Sin borde: con un borde transparente el degradado se repite por
+       debajo de él y pintaba una raya oscura de 1px sobre la foto. La línea
+       del estado con cristal es una sombra. */
+    border-bottom: 0;
+  }
+
+  .mobile-header.is-scrolled {
     background: var(--glass);
     backdrop-filter: saturate(180%) blur(20px);
-    border-bottom: 1px solid var(--line);
+    box-shadow: 0 1px 0 var(--line);
   }
 
   .mobile-brand {

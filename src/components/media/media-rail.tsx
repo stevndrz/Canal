@@ -59,22 +59,18 @@ export function MediaRail({
 
   return (
     <section className={`rail ${posterMode ? "is-poster" : ""} ${compacto ? "is-compacto" : ""}`}>
+      {/* El título a la izquierda y «Ver todo» a la derecha, como en
+          cualquier tienda de cine: el enlace se ve como enlace —antes era el
+          propio título con una flecha pequeña, y casi nadie lo descubría—. */}
       <div className="rail-head">
-        {href ? (
-          <Link
-            data-nav="button"
-            href={href}
-            className="group flex items-center gap-2 transition-colors hover:text-red-500"
-          >
-            <h3>{title}</h3>
-            {/* La flecha se desliza al pasar el foco o el ratón: señala que el
-                título lleva a más, no que la fila entera sea un botón. */}
-            <ChevronRight className="h-5 w-5 shrink-0 transition-transform group-hover:translate-x-1" />
-          </Link>
-        ) : (
-          <h3>{title}</h3>
-        )}
+        <h3>{title}</h3>
         {count && <span>{count}</span>}
+        {href && (
+          <Link data-nav="button" href={href} className="rail-ver-todo" aria-label={`Ver todo: ${title}`}>
+            Ver todo
+            <ChevronRight aria-hidden="true" />
+          </Link>
+        )}
       </div>
 
       <RailScroller className="rail-strip" ariaLabel={title} overlay={posterMode}>
