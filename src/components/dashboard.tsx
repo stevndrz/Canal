@@ -17,6 +17,7 @@ import {
   tramoDeCanal,
   type SeccionZapeo,
   type TramoZapeo,
+  type UltimoCanal,
 } from "@/lib/channels";
 import { indexarCanales, normalizarCasa, unirMisCanales } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
@@ -36,11 +37,9 @@ import {
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { useMarcado } from "@/hooks/use-marcado";
 import { salirDeLaApp } from "@/lib/salir-de-la-app";
-import {
-  usePersistedJson,
-  usePersistedRecents,
-  usePersistedSet,
-} from "@/hooks/use-persisted-set";
+import { usePersistedJson } from "@/hooks/use-persisted-set";
+import { useFavoritosDeCanal, useRecientesDeCanal } from "@/hooks/use-canales-guardados";
+import { claveDeCanalEstable } from "@/lib/claves-canal";
 import { TopNav } from "@/components/shell/top-nav";
 import { VistaActiva } from "@/components/vista-activa";
 import { LiveCardSkeleton } from "@/components/live-card-skeleton";
@@ -188,7 +187,7 @@ export function Dashboard({
    * corrige en cuanto llega. Se guarda el nombre además del id porque el id es
    * posicional: ver `UltimoCanal`.
    */
-  const [ultimo, guardarUltimo] = usePersistedJson("canalcasa:ultimo", { id: 0, nombre: "" });
+  const [ultimo, guardarUltimo] = usePersistedJson<UltimoCanal>("canalcasa:ultimo", { id: 0, nombre: "" });
   const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   /** Para no pisar al canal que la persona haya elegido mientras esto llegaba. */
   const arranqueAplicado = useRef(false);
@@ -213,14 +212,15 @@ export function Dashboard({
     { mapa: {} },
   );
 
-  const favorites = usePersistedSet("canalcasa:favorites");
-  const recents = usePersistedRecents("canalcasa:recents");
-
   /**
    * ¿Ya está aquí la lista entera? Sin recorte, el HTML la traía toda. Con
    * él, hasta que llega `/api/canales`.
    */
   const listaCompleta = !paquete.recorte || completo !== null;
+
+  /** Por clave estable, no por posición: ver `claves-canal.ts`. */
+  const favorites = useFavoritosDeCanal(channels, listaCompleta);
+  const recents = useRecientesDeCanal(channels, listaCompleta);
 
   /**
    * Abrir en el último canal visto, en cuanto se sepa cuál es y esté en la
@@ -404,7 +404,7 @@ export function Dashboard({
       anotarReciente(channel.id);
       // Marcado como aplicado para que lo guardado no pise esta elección.
       arranqueAplicado.current = true;
-      guardarUltimo({ id: channel.id, nombre: channel.name });
+      guardarUltimo({ id: channel.id, nombre: channel.name, clave: claveDeCanalEstable(channel) });
     },
     [anotarReciente, guardarUltimo],
   );
