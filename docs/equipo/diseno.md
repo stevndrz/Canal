@@ -46,6 +46,43 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-07 (tercera pasada) — Cine de noche: neutros y sala de cine
+
+**Qué pidió el dueño.** El azul de la paleta nueva no le gustó; la funcionalidad
+sí. Mandó capturas de una app de cine de referencia y pidió que Cine y series
+(y la portada) se vieran así.
+
+**Qué se hizo.**
+
+- Paleta «cine de noche»: fondo `#0b0b0d`, superficies grises neutras, acento
+  blanco (`--acento: #f5f5f7`, tinta oscura encima). El rojo queda solo para
+  «en vivo». Los tokens semánticos no cambiaron de nombre: el cambio fue de
+  valores.
+- Barra superior: los destinos van juntos en una píldora de cristal oscura que
+  flota a la derecha, con el activo en blanco. La píldora es oscura por sí
+  misma (los televisores no desenfocan).
+- Héroe de Cine y series: título grande (hasta 76px), datos con icono (★ nota/10,
+  calendario, reloj), «Ver ahora» blanco y una píldora de cristal con ＋ Mi
+  lista, ⓘ Más info y tráiler. Cada icono tiene `aria-label` y `title`.
+- Fondo ambiental (`.cine-ambiente`): el arte destacado, desenfocado, tiñe la
+  página. Truco de rendimiento: se desenfoca una caja 8× menor con `blur(11px)`
+  y se amplía con `transform: scale(8)`. Cuesta 1/64 de desenfocar la pantalla
+  entera y funciona igual en la tele.
+- Filas: «Ver todo ›» a la derecha como enlace visible (antes era el título con
+  una flechita). Seis carteles por fila desde 1440px y siete desde 1760px. En
+  la tele se quedan seis.
+- Teléfono: la cabecera es un degradado que deja ver el arte y se vuelve
+  cristal al bajar. Tipo, género y orden van en una sola fila deslizable.
+
+**Trampas encontradas.**
+
+- Un degradado con `border-bottom: transparent` se repite por debajo del borde
+  y pinta una raya de 1px. La línea va con `box-shadow`.
+- `focus({ focusVisible: false })` no evita el anillo en Chrome. En PC ya no se
+  autoenfoca nada al cargar; la primera flecha entra por `focusIn`.
+- `Date.now()` en la caché de la M3U disparaba el «1 Issue» de Next 16 en
+  Inicio. Se cambió por `performance.now()`.
+
 ### 2026-10-07 (segunda pasada) — El reproductor en vivo, al estilo Apple
 
 Pedido: «más profesional, más estandarizado; el zapeo, la barra inestable y
