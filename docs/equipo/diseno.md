@@ -268,6 +268,44 @@ Nazco con la app ya funcionando.
 
 ## Lo siguiente
 
+Estado al cerrar la rama `agente-diseno` (2026-10-07). Lo hecho está en el
+diario de arriba; esto es lo que queda, ordenado por impacto.
+
+### Decisiones del dueño (no se tocan sin su sí)
+
+- **Televisores viejos.** Chromium < 94 no ejecuta el JS (`class static`, `?.`)
+  y < 99 descarta TODO el CSS en `@layer`. Arreglo propuesto: `browserslist`
+  con el Chromium del Tizen/WebOS más viejo que se quiera soportar +
+  `postcss-cascade-layers` para aplanar capas. Cuesta peso de bundle; hay que
+  decidir el suelo de versión.
+- **Renumerar canales** y **claves estables de favoritos** (hoy dependen del
+  número): cambiarlo migra los favoritos guardados en cada aparato.
+- **Teclas numéricas en Samsung:** hay que registrarlas con
+  `tizen.tvinputdevice.registerKey` en el cascarón; sin eso el mando no manda
+  los dígitos a la web.
+
+### Rendimiento (pendiente, sin medir en aparato real)
+
+- Pasar la auditoría en un televisor de verdad: el desenfoque de
+  `.cine-ambiente` (caja 8× menor ampliada) y el cristal de la barra se
+  midieron solo en Chromium de escritorio.
+- `media-card.tsx` usa `<img>` plano (aviso de ESLint): valorar un cargador
+  de `next/image` para TMDB, que ya da tamaños (`w185`, `w342`…) y ahorraría
+  ancho de banda en el teléfono.
+- La revisión adversarial + QA por dispositivos (agente `dispositivos`) no
+  llegó a correr: se cortó por el límite de sesión. Hacerla antes del
+  siguiente gran cambio visual.
+
+### Ideas de diseño propuestas al dueño (a la espera)
+
+1. Logo del título (imagen de TMDB `/images`) en vez del título en texto.
+2. Fila «Explorar por plataforma» con los logos de Netflix, Prime, Disney+…
+   (TMDB *watch providers*).
+3. Varios destacados en el héroe con puntos, solo con cambio manual (nunca
+   automático: mueve el fondo mientras se lee y obliga a perseguir el foco).
+
+### Menores
+
 - Repasar Ajustes y Favoritos, que aún no han tenido pasada de diseño.
 - Buscar clases pintadas sin ninguna regla: preguntar al navegador qué renderiza
   y compararlo con el CSS servido. Así aparecieron cuatro.
