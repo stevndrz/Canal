@@ -43,7 +43,12 @@ export function esPunteroTosco(): boolean {
  * Un falso positivo no rompe nada: como mucho reordena los servidores.
  */
 export function esTelevisorUA(userAgent: string): boolean {
-  return /Tizen|Web0S|WebOS|SmartTV|Smart-TV|HbbTV|NetCast|VIDAA|BRAVIA|AppleTV|GoogleTV|Android TV|CrKey|Roku|PhilipsTV|AFT[A-Z]/i.test(
-    userAgent,
-  );
+  return PATRON_TELEVISOR.test(userAgent);
 }
+
+/**
+ * La tabla de `esTelevisorUA`, suelta para que el guion de arranque de
+ * `layout.tsx` la copie tal cual: ahí no hay módulos, solo una cadena.
+ */
+export const PATRON_TELEVISOR =
+  /Tizen|Web0S|WebOS|SmartTV|Smart-TV|HbbTV|NetCast|VIDAA|BRAVIA|AppleTV|GoogleTV|Android TV|CrKey|Roku|PhilipsTV|AFT[A-Z]/i;

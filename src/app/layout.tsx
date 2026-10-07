@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
+import { GUION_ARRANQUE_PANTALLA } from "@/lib/tamano-texto";
 import "./globals.css";
 
 /**
@@ -72,7 +73,19 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="es" data-input="pointer" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    // `suppressHydrationWarning`: el guion de abajo añade `data-pantalla` y
+    // `data-texto` antes de que React hidrate, y es a propósito.
+    <html
+      lang="es"
+      data-input="pointer"
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
+      <head>
+        {/* Televisor y tamaño de texto, antes del primer pintado. Ver
+            `tamano-texto.ts`. */}
+        <script dangerouslySetInnerHTML={{ __html: GUION_ARRANQUE_PANTALLA }} />
+      </head>
       <body>
         {/* Antes que nada: en los navegadores de televisor el `gap` de flexbox
             no existe y todos los huecos de la app valen cero. Ver

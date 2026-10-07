@@ -106,6 +106,72 @@
 
   /* La curva de tvOS: sale rápido y frena largo. */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  /* ── Escala tipográfica ─────────────────────────────────────────────
+     Ocho tamaños para toda la app, en lugar de los 68 que había (cada
+     pantalla traía su propio `clamp`). Cada uno crece en línea recta de un
+     teléfono de 390px a una pantalla de 1920px y se para ahí.
+
+     Los mínimos son los de un teléfono leído por cualquiera: nada por debajo
+     de 12px, y el cuerpo en 16px para no obligar a hacer zoom.
+
+     Dos multiplicadores encima, y por eso nadie usa `--t-*` directamente:
+     - `data-pantalla="tv"` en <html> cambia la base a tamaños de diez pies
+       (abajo, junto a los demás modos).
+     - `--escala-texto` es la preferencia de la persona (Ajustes → Tamaño del
+       texto). La pone un guion en `layout.tsx` antes de pintar. */
+  --t-2xs: clamp(12px, 11.75px + 0.065vw, 13px);
+  --t-xs: clamp(13px, 12.49px + 0.131vw, 15px);
+  --t-sm: clamp(14px, 13.24px + 0.196vw, 17px);
+  --t-base: clamp(16px, 15.24px + 0.196vw, 19px);
+  --t-lg: clamp(17px, 15.73px + 0.327vw, 22px);
+  --t-xl: clamp(20px, 17.96px + 0.523vw, 28px);
+  --t-2xl: clamp(26px, 21.92px + 1.046vw, 42px);
+  --t-3xl: clamp(30px, 24.39px + 1.438vw, 52px);
+
+  --escala-texto: 1;
+
+  --texto-2xs: calc(var(--t-2xs) * var(--escala-texto));
+  --texto-xs: calc(var(--t-xs) * var(--escala-texto));
+  --texto-sm: calc(var(--t-sm) * var(--escala-texto));
+  --texto-base: calc(var(--t-base) * var(--escala-texto));
+  --texto-lg: calc(var(--t-lg) * var(--escala-texto));
+  --texto-xl: calc(var(--t-xl) * var(--escala-texto));
+  --texto-2xl: calc(var(--t-2xl) * var(--escala-texto));
+  --texto-3xl: calc(var(--t-3xl) * var(--escala-texto));
+
+  /* Lo mínimo que se puede tocar o apuntar. 44px es el de Apple; el dedo de
+     un niño o una mano con temblor agradece los 48 de Android. */
+  --toque: 48px;
+}
+
+/* ── Televisor: tamaños de diez pies ──────────────────────────────────────
+   Se mira a tres metros. A 1920px la escala de arriba se queda en 17px de
+   cuerpo, que en una tele es letra de contrato. Aquí se mide en `vw` y no en
+   píxeles porque cada televisor declara un viewport distinto (1920, 1280 o
+   960) para la misma pantalla física: en proporción al ancho, el texto ocupa
+   lo mismo en todos.
+
+   Referencia: tvOS pide 23pt de pie de foto y 29pt de cuerpo a 1920. Esto se
+   queda un escalón por debajo para no romper rejillas pensadas para 17px; la
+   preferencia de «Grande» lo lleva hasta ahí. */
+:root[data-pantalla="tv"] {
+  --t-2xs: 1vw;
+  --t-xs: 1.1vw;
+  --t-sm: 1.25vw;
+  --t-base: 1.4vw;
+  --t-lg: 1.6vw;
+  --t-xl: 2vw;
+  --t-2xl: 2.8vw;
+  --t-3xl: 3.6vw;
+}
+
+:root[data-texto="grande"] {
+  --escala-texto: 1.15;
+}
+
+:root[data-texto="enorme"] {
+  --escala-texto: 1.3;
 }
 
 /* ═══ Armazón ═══════════════════════════════════════════════════════════ */
@@ -231,7 +297,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font-size: clamp(14px, 1.02vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -318,14 +384,14 @@
 .marca {
   display: grid;
   line-height: 1.04;
-  font-size: clamp(12px, 0.88vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.015em;
   color: var(--text);
 }
 
 .top-clock {
-  font-size: clamp(13px, 0.95vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: var(--soft);
   font-variant-numeric: tabular-nums;
@@ -384,7 +450,7 @@
 }
 
 .rail.is-compacto .rail-head h3 {
-  font-size: clamp(14px, 1vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   color: var(--soft);
 }
@@ -426,7 +492,7 @@
 
 .rail-head h3 {
   margin: 0;
-  font-size: clamp(19px, 1.42vw, 27px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -434,7 +500,7 @@
 
 .rail-head span {
   color: var(--soft);
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -461,6 +527,13 @@
   /* Aire arriba y abajo para que la tarjeta enfocada quepa al crecer sin que
       el riel la recorte. */
   padding: 10px var(--margen) clamp(18px, 2.4vh, 30px) 0;
+  /* El anillo de foco sale 6px por fuera de la ficha (3 de grosor + 3 de
+     separación) y la primera, pegada al borde del riel, lo perdía por la
+     izquierda: `overflow-x: auto` recorta. Se abre ese hueco por dentro y se
+     devuelve por fuera, así la columna sigue alineada con el título. */
+  padding-left: 10px;
+  margin-left: -10px;
+  scroll-padding-left: 10px;
   scrollbar-width: none;
 }
 
@@ -641,7 +714,7 @@
 .media-card > strong {
   display: block;
   min-width: 0;
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
   color: var(--muted);
@@ -658,7 +731,7 @@
   align-items: baseline;
   gap: 7px;
   min-width: 0;
-  font-size: clamp(11px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -764,7 +837,7 @@
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.78), 0 1px 3px rgba(0, 0, 0, 0.6);
   /* text-3xl md:text-5xl: 30px en móvil, 48px en pantallas grandes. Iba
      hasta 84px y con el héroe ya acotado se comía la cabecera entera. */
-  font-size: clamp(30px, 3.4vw, 48px);
+  font-size: var(--texto-3xl);
   font-weight: 800;
   max-width: 42rem; /* max-w-2xl */
   line-height: 1.05;
@@ -776,7 +849,7 @@
 .hero-lema {
   margin: clamp(8px, 1.2vh, 14px) 0 0;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75);
-  font-size: clamp(14px, 1.15vw, 21px);
+  font-size: var(--texto-lg);
   font-style: italic;
   color: var(--muted);
 }
@@ -788,7 +861,7 @@
   flex-wrap: wrap;
   gap: clamp(8px, 0.9vw, 16px);
   margin-top: clamp(12px, 1.8vh, 22px);
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: var(--muted);
 }
@@ -825,7 +898,7 @@
 
 .hero-sinopsis {
   margin: 0.75rem 0;
-  font-size: clamp(14px, 1vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.55;
   /* Era `#d4d4d4` a pelo —un `neutral-300` escrito a mano— en vez del token.
      Sobre una foto clara la sombra es lo que la sostiene. */
@@ -894,7 +967,7 @@
 
 .section-heading h2 {
   margin: 0;
-  font-size: clamp(28px, 2.6vw, 50px);
+  font-size: var(--texto-3xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text);
@@ -906,7 +979,7 @@
 .eyebrow {
   margin: 0 0 8px;
   color: var(--muted);
-  font-size: clamp(13px, 0.96vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.005em;
 }
@@ -941,7 +1014,7 @@
 .livetv-list-empty {
   padding: clamp(28px, 5vh, 60px) var(--margen);
   color: var(--soft);
-  font-size: clamp(15px, 1.1vw, 19px);
+  font-size: var(--texto-base);
 }
 
 /* ═══ Buscador ══════════════════════════════════════════════════════════ */
@@ -982,7 +1055,7 @@
   flex: 1;
   min-width: 0;
   color: var(--text);
-  font-size: clamp(15px, 1.15vw, 20px);
+  font-size: var(--texto-lg);
 }
 
 .buscar-campo input::placeholder {
@@ -1019,13 +1092,13 @@
 
 .livetv-heading h2 {
   margin: 0;
-  font-size: clamp(24px, 2.2vw, 40px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .livetv-heading span {
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1048,7 +1121,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
 }
 
 .livetv-search input::placeholder {
@@ -1106,7 +1179,7 @@
   border-radius: 999px;
   background: transparent;
   color: var(--muted);
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   white-space: nowrap;
   transition: background-color 160ms var(--ease), color 160ms var(--ease),
     border-color 160ms var(--ease);
@@ -1152,7 +1225,7 @@
   gap: 10px;
   margin-bottom: 10px;
   color: var(--soft);
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
 }
 
 .livetv-rows {
@@ -1208,7 +1281,7 @@
   border-radius: 8px;
   overflow: hidden;
   background: var(--bg-card);
-  font-size: 13px;
+  font-size: var(--texto-xs);
   font-weight: 700;
   color: var(--soft);
 }
@@ -1236,7 +1309,7 @@
   align-items: baseline;
   gap: 8px;
   min-width: 0;
-  font-size: clamp(14px, 1.02vw, 18px);
+  font-size: var(--texto-base);
   font-weight: 500;
   letter-spacing: -0.01em;
 }
@@ -1252,7 +1325,7 @@
 /* Monograma de dos letras cuando el canal no trae logo, que en una lista M3U
    es la mayoría. */
 .livetv-row-mark {
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--soft);
@@ -1263,7 +1336,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: clamp(12px, 0.86vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1280,7 +1353,7 @@
 .livetv-row-copy small {
   display: block;
   margin-top: 2px;
-  font-size: clamp(11px, 0.78vw, 13px);
+  font-size: var(--texto-2xs);
   /* Es texto, y encima pequeño: `--soft`, nunca `--faint`. */
   color: var(--soft);
   overflow: hidden;
@@ -1332,7 +1405,7 @@
   padding: 3px 8px;
   border-radius: 6px;
   background: var(--chip);
-  font-size: 10px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   color: var(--soft);
@@ -1384,7 +1457,7 @@
   padding: clamp(28px, 5vh, 56px) 16px;
   text-align: center;
   color: var(--soft);
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
 }
 
 .livetv-program {
@@ -1397,7 +1470,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  font-size: clamp(12px, 0.88vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft);
 }
 
@@ -1412,7 +1485,7 @@
   min-height: 46px;
   padding: 0 clamp(16px, 1.4vw, 26px);
   border-radius: 999px;
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
   transition: transform 160ms var(--ease), background-color 160ms var(--ease);
@@ -1590,7 +1663,7 @@
     display: flex;
     align-items: center;
     gap: 9px;
-    font-size: 15px;
+    font-size: var(--texto-sm);
     font-weight: 700;
     letter-spacing: -0.02em;
     color: var(--text);
@@ -1638,13 +1711,16 @@
     justify-items: center;
     align-content: center;
     gap: 3px;
-    padding: 6px 2px;
+    padding: 6px 0;
     border: 0;
     border-radius: 14px;
     background: transparent;
     color: var(--soft);
-    font-size: 11px;
+    font-size: var(--texto-2xs);
     font-weight: 500;
+    /* A 12px, «Cine y series» va justa en la casilla de un iPhone de 390px:
+       sin el margen lateral y con el tracking un pelín cerrado, entra entera. */
+    letter-spacing: -0.015em;
     line-height: 1.15;
     text-align: center;
     transition: color 180ms var(--ease), background-color 180ms var(--ease),
@@ -1734,7 +1810,7 @@
     border-radius: 12px;
     background: transparent;
     color: var(--text);
-    font-size: 16px;
+    font-size: var(--texto-base);
     font-weight: 500;
     text-align: left;
   }
@@ -1792,5 +1868,48 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ═══ Contraste ═════════════════════════════════════════════════════════
+   Quien pide más contraste en su sistema (iOS: «Aumentar contraste»;
+   Windows y macOS tienen el suyo) lo pide porque los grises translúcidos no
+   los distingue. Se suben los cuatro pesos de texto y las líneas, y el
+   cristal deja de ser cristal: sobre una carátula, el desenfoque es justo lo
+   que mezcla el texto con el fondo. */
+
+@media (prefers-contrast: more) {
+  :root {
+    --muted: rgba(245, 245, 247, 0.92);
+    --soft: rgba(245, 245, 247, 0.84);
+    --faint: rgba(245, 245, 247, 0.66);
+    --line: rgba(245, 245, 247, 0.4);
+    --line-bright: rgba(255, 255, 255, 0.7);
+    --glass: rgba(10, 10, 12, 0.97);
+    --glass-strong: rgba(10, 10, 12, 0.98);
+  }
+}
+
+/* Colores forzados (Windows «Alto contraste»): el sistema repinta todo con
+   su paleta y se lleva los fondos. Lo que no tiene borde desaparece, y el
+   foco —que aquí es un borde por `box-shadow`, que se borra— también. Se
+   devuelve con `outline`, que sí sobrevive, en el color de selección del
+   sistema. */
+@media (forced-colors: active) {
+  [data-nav]:focus-visible,
+  [data-input="dpad"] [data-nav]:focus,
+  .media-card:focus-visible .poster,
+  [data-input="dpad"] .media-card:focus .poster {
+    outline: 3px solid Highlight;
+    outline-offset: 3px;
+  }
+
+  .nav-item.is-active {
+    border: 2px solid Highlight;
+  }
+
+  .poster,
+  .rail-arrow {
+    border: 1px solid CanvasText;
   }
 }

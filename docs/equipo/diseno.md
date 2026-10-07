@@ -46,6 +46,42 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-07 — Una sola escala de texto, y la tele a diez pies
+
+Primer paso del rediseño («limpio como Apple TV, funcional como Netflix, para
+cualquier edad y cualquier pantalla»). Antes de rediseñar pantallas hacía falta
+una base: había **68 tamaños de letra distintos**, cada uno con su `clamp`.
+
+- **Ocho tokens** (`--texto-2xs` … `--texto-3xl`) en `shell.css`. Crecen en
+  línea recta de 390px a 1920px. Los 68 se mapearon por su tope. Tailwind
+  (`text-xs`…`text-5xl`, más un `text-2xs` nuevo) apunta a los mismos tokens
+  desde `@theme`, así que hoja y componente miden igual.
+- **Televisor**: `data-pantalla="tv"` en <html> cambia la base a `vw` (cuerpo
+  1,4vw ≈ 27px a 1920). En `vw` porque cada tele declara un viewport distinto
+  para la misma pantalla. Lo pone un guion en `<head>` (`tamano-texto.ts`) con
+  la misma tabla de `esTelevisorUA`, antes del primer pintado.
+- **Ajustes → Pantalla → Tamaño del texto** (Normal / Grande / Muy grande):
+  multiplica toda la escala con `--escala-texto`. Es la ayuda que más rinde
+  para personas mayores y no estorba a nadie.
+- **Contraste**: `prefers-contrast: more` sube los grises y vuelve opaco el
+  cristal; `forced-colors` devuelve el foco con `outline: Highlight`.
+  `--color-muted`/`--color-soft` de Tailwind ahora leen `--muted`/`--soft`.
+- **Arreglos que salieron al medir**: el anillo de foco de la primera ficha
+  de cada riel se recortaba (padding interno + margen negativo); la guía del
+  reproductor arrancaba en x = 0 (fuera del área segura de la tele); en TV la
+  chuleta de teclas se montaba sobre «Salir» (pasó a la izquierda); en las
+  fichas de canal el «CH 101» en mono se partía en dos líneas (ahora sans con
+  `tabular-nums` y sin cortes).
+
+Me sorprendió: subir un solo píxel el mínimo del móvil (11→12) cortaba «Cine y
+series» en la barra inferior. Los mínimos de la escala no son gratis: medir
+siempre en 390px.
+
+Pendiente, ya visto en las capturas: «Mi enlace» y «Ajustes» siguen hablando
+en técnico (HLS.js, worker…); la ficha de canal en móvil es una tarjeta dentro
+de otra tarjeta; la cabecera del reproductor embebido («Canal 7», punto de EN
+VIVO) está demasiado apagada.
+
 ### 2026-09-02 (segunda pasada) — El dial, no solo el color
 
 La entrada de abajo cambió el color y la tipografía y se quedó ahí: seguía

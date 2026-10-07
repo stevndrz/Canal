@@ -415,8 +415,11 @@ export function FullscreenPlayer({
 
         {/* La pista cambia con el contexto, porque las teclas cambian: con la
             guía abierta ← → recorren canales, y sin ella llevan el foco por
-            esta misma barra. Una chuleta que miente es peor que ninguna. */}
-        <div className="absolute right-[3.35vw] hidden items-center gap-5 text-[13px] text-soft xl:flex">
+            esta misma barra. Una chuleta que miente es peor que ninguna.
+            A la izquierda y no a la derecha: los controles van centrados y a
+            la derecha queda «Salir», que con el texto a tamaño de televisor
+            se montaba encima de la pista. */}
+        <div className="absolute left-[3.35vw] hidden items-center gap-4 text-2xs text-soft xl:flex">
           <span>↑↓ cambiar canal</span>
           <span>{showGuide ? "← → recorrer" : "← → controles"}</span>
           <span>{showGuide ? "OK sintonizar" : "OK guía"}</span>

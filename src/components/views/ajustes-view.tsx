@@ -1,6 +1,14 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import type { PlaybackSettings } from "@/lib/types";
+import {
+  TAMANOS_TEXTO,
+  aplicarTamanoTexto,
+  leerTamanoTexto,
+  suscribirTamanoTexto,
+  type TamanoTexto,
+} from "@/lib/tamano-texto";
 
 interface AjustesViewProps {
   settings: PlaybackSettings;
@@ -27,6 +35,50 @@ const CALIDAD_LABELS: Record<PlaybackSettings["calidad"], string> = {
   "1080p": "1080p",
 };
 
+const TAMANO_LABELS: Record<TamanoTexto, string> = {
+  normal: "Normal",
+  grande: "Grande",
+  enorme: "Muy grande",
+};
+
+/**
+ * Tres botones y no un deslizador: con el mando un deslizador pide aprender
+ * un gesto, y tres opciones con nombre se entienden de un vistazo. Cada letra
+ * «A» va en el tamaño que promete, así se elige mirando y no leyendo.
+ */
+function SelectorTamanoTexto() {
+  // "normal" en el servidor; el valor real vive en `localStorage`, que solo
+  // existe en el navegador.
+  const tamano = useSyncExternalStore(suscribirTamanoTexto, leerTamanoTexto, () => "normal");
+
+  return (
+    <div role="group" aria-label="Tamaño del texto" className="flex flex-wrap gap-2">
+      {TAMANOS_TEXTO.map((opcion, i) => {
+        const activa = opcion === tamano;
+        return (
+          <button
+            key={opcion}
+            type="button"
+            data-nav="button"
+            aria-pressed={activa}
+            onClick={() => aplicarTamanoTexto(opcion)}
+            className={`inline-flex min-h-[48px] items-center gap-2 rounded-2xl border px-4 text-sm font-medium transition-colors ${
+              activa
+                ? "border-transparent bg-accent text-accent-on"
+                : "border-white/10 bg-white/[0.06] hover:bg-white/[0.13]"
+            }`}
+          >
+            <span aria-hidden="true" className="font-semibold" style={{ fontSize: `${1 + i * 0.25}em` }}>
+              A
+            </span>
+            {TAMANO_LABELS[opcion]}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Row({
   label,
   hint,
@@ -44,7 +96,7 @@ function Row({
     <div className="flex min-h-[76px] flex-col items-start gap-3 border-b border-white/[0.06] px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-5 sm:px-5 sm:py-4.5">
       <div className="min-w-0 flex-1">
         <p className="text-base font-medium">{label}</p>
-        <p className="mt-1 text-[13px] text-soft sm:truncate">{hint}</p>
+        <p className="mt-1 text-xs text-soft sm:truncate">{hint}</p>
       </div>
       <div className="flex w-full shrink-0 justify-start sm:w-auto sm:justify-end">{children}</div>
     </div>
@@ -108,6 +160,15 @@ export function AjustesView({
       </section>
 
       <div className="ajustes-columna">
+        <section>
+          <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Pantalla</h2>
+          <div className="overflow-hidden rounded-[18px] border border-hairline">
+            <Row label="Tamaño del texto" hint="Agranda las letras de toda la app en este aparato">
+              <SelectorTamanoTexto />
+            </Row>
+          </div>
+        </section>
+
         <section>
           <h2 className="mb-3 text-xs uppercase tracking-[0.16em] text-soft">Fuente</h2>
           <div className="overflow-hidden rounded-[18px] border border-hairline">

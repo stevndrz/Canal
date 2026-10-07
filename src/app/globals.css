@@ -45,8 +45,27 @@
    * legible. Declarados aquí, `text-muted` y `text-soft` son utilidades de
    * verdad y hay una sola fuente para cada peso.
    */
-  --color-muted: rgba(245, 245, 247, 0.72);
-  --color-soft: rgba(245, 245, 247, 0.56);
+  --color-muted: var(--muted);
+  --color-soft: var(--soft);
+
+  /**
+   * Los tamaños de texto de Tailwind, enganchados a la escala de `shell.css`.
+   *
+   * Así `text-sm` en un componente y `var(--texto-sm)` en una hoja son el
+   * mismo tamaño, y los dos crecen igual en un televisor y con la preferencia
+   * de «Tamaño del texto». `--text-*` en `@theme` reemplaza al de Tailwind:
+   * los 3xl…5xl de su escala se pliegan a los dos titulares de la nuestra.
+   */
+  --text-2xs: var(--texto-2xs);
+  --text-xs: var(--texto-xs);
+  --text-sm: var(--texto-sm);
+  --text-base: var(--texto-base);
+  --text-lg: var(--texto-lg);
+  --text-xl: var(--texto-lg);
+  --text-2xl: var(--texto-xl);
+  --text-3xl: var(--texto-2xl);
+  --text-4xl: var(--texto-2xl);
+  --text-5xl: var(--texto-3xl);
 
   --radius-tile: 14px;
   --radius-card: 20px;
@@ -259,13 +278,13 @@ html[data-player="on"] body {
 .buscar-vacio {
   margin: 0;
   padding: clamp(24px, 4vh, 48px) 0;
-  font-size: clamp(15px, 1.1vw, 19px);
+  font-size: var(--texto-base);
   color: var(--soft);
 }
 
 .buscar-recuento {
   margin: 0 0 14px;
-  font-size: clamp(12px, 0.9vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -273,7 +292,7 @@ html[data-player="on"] body {
 }
 
 /* mobile-nav-item span {
-  font-size: 10px;
+  font-size: var(--texto-2xs);
   line-height: 1.15;
   max-width: 100%;
   overflow: hidden;
@@ -371,7 +390,7 @@ html[data-player="on"] body {
   align-items: center;
   gap: 7px;
   flex-shrink: 0;
-  font-size: clamp(10px, 0.72vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -385,7 +404,7 @@ html[data-player="on"] body {
 
 .live-card-nombre {
   min-width: 0;
-  font-size: clamp(15px, 1.35vw, 26px);
+  font-size: var(--texto-xl);
   font-weight: 650;
   letter-spacing: -0.01em;
   overflow: hidden;
@@ -395,7 +414,7 @@ html[data-player="on"] body {
 
 .live-card-meta {
   flex-shrink: 0;
-  font-size: clamp(11px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -609,7 +628,7 @@ html[data-player="on"] body {
 
 .player-fallo-titulo {
   margin: 0;
-  font-size: clamp(17px, 1.4vw, 26px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -617,7 +636,7 @@ html[data-player="on"] body {
 .player-fallo-detalle {
   margin: 0 0 6px;
   max-width: 42ch;
-  font-size: clamp(13px, 1vw, 17px);
+  font-size: var(--texto-sm);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -627,7 +646,7 @@ html[data-player="on"] body {
   aspect-ratio: 16 / 9;
   border-radius: var(--radio-panel, 18px);
   background: var(--bg-card, #101012);
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: var(--texto-sm);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -688,7 +707,7 @@ html[data-player="on"] body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 15px;
+  font-size: var(--texto-sm);
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #fff;
@@ -696,7 +715,7 @@ html[data-player="on"] body {
 }
 
 .atv-top-version {
-  font-size: 12px;
+  font-size: var(--texto-xs);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.65);
 }
@@ -713,7 +732,7 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.12);
   padding: 3px 10px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   color: #fff;
   backdrop-filter: blur(12px);
@@ -732,7 +751,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.72);
   padding: 4px 14px;
   text-align: center;
-  font-size: clamp(15px, 1.6vw, 22px);
+  font-size: var(--texto-lg);
   font-weight: 600;
   line-height: 1.45;
   color: #fff;
@@ -750,7 +769,7 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 69, 58, 0.35);
   background: rgba(40, 6, 6, 0.82);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--texto-xs);
   color: #ffd9d6;
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -834,7 +853,7 @@ html[data-player="on"] body {
 .atv-tiempo {
   flex-shrink: 0;
   padding: 0 6px;
-  font-size: 13px;
+  font-size: var(--texto-xs);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
@@ -922,7 +941,7 @@ html[data-player="on"] body {
   background: rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.16);
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: #fff;
@@ -1076,7 +1095,7 @@ html[data-player="on"] body {
 .atv-menu-titulo {
   margin: 0;
   padding: 8px 12px 4px;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -1090,7 +1109,7 @@ html[data-player="on"] body {
   gap: 10px;
   border-radius: 10px;
   padding: 9px 12px;
-  font-size: 14px;
+  font-size: var(--texto-sm);
   font-weight: 500;
   color: rgba(255, 255, 255, 0.92);
   transition: background 120ms ease;
@@ -1127,7 +1146,7 @@ html[data-player="on"] body {
   }
 
   .atv-top-nombre {
-    font-size: 13px;
+    font-size: var(--texto-xs);
   }
 
   .atv-play-central {
@@ -1247,7 +1266,7 @@ html[data-player="on"] body {
   padding: 0 clamp(12px, 1vw, 18px);
   gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.22);
-  font-size: clamp(13px, 0.92vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 600;
 }
 
@@ -1329,7 +1348,7 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 6px;
   font-family: var(--font-mono);
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.16em;
   white-space: nowrap;
@@ -1369,7 +1388,7 @@ html[data-player="on"] body {
 .panel-canal b {
   flex-shrink: 0;
   margin-right: 10px;
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -1378,7 +1397,7 @@ html[data-player="on"] body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: clamp(17px, 1.45vw, 22px);
+  font-size: var(--texto-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
 }
@@ -1386,7 +1405,7 @@ html[data-player="on"] body {
 .panel-canal-cat {
   flex-shrink: 0;
   margin-left: clamp(8px, 0.8vw, 14px);
-  font-size: clamp(11px, 0.82vw, 13px);
+  font-size: var(--texto-2xs);
   text-transform: uppercase;
   letter-spacing: 0.12em;
   color: var(--soft, rgba(245, 245, 247, 0.56));
@@ -1404,7 +1423,7 @@ html[data-player="on"] body {
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: clamp(11px, 0.85vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
 
@@ -1509,7 +1528,7 @@ html[data-player="on"] body {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: clamp(15px, 1.05vw, 18px);
+  font-size: var(--texto-base);
   outline: none;
 }
 
@@ -1532,7 +1551,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background-color: var(--bg-elevated, #1c1c1f);
   color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: 14px;
+  font-size: var(--texto-sm);
   cursor: pointer;
 }
 
@@ -1622,7 +1641,7 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 69, 58, 0.34);
   border-radius: 14px;
   background: rgba(255, 69, 58, 0.1);
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
 }
 
 .live-card-error button {
@@ -1722,7 +1741,7 @@ html[data-player="on"] body {
   background: transparent;
   border: 0;
   color: var(--muted, rgba(255, 255, 255, 0.72));
-  font-size: clamp(11px, 0.78vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -1832,7 +1851,7 @@ html[data-player="on"] body {
 
 .ficha-datos h1 {
   margin: 0;
-  font-size: clamp(26px, 3vw, 54px);
+  font-size: var(--texto-3xl);
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1.05;
@@ -1840,7 +1859,7 @@ html[data-player="on"] body {
 
 .ficha-tagline {
   margin: 10px 0 0;
-  font-size: clamp(14px, 1.05vw, 19px);
+  font-size: var(--texto-base);
   font-style: italic;
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
@@ -1851,7 +1870,7 @@ html[data-player="on"] body {
   align-items: center;
   gap: 14px;
   margin-top: 14px;
-  font-size: clamp(13px, 0.95vw, 17px);
+  font-size: var(--texto-sm);
   color: var(--muted, rgba(255, 255, 255, 0.7));
 }
 
@@ -1885,7 +1904,7 @@ html[data-player="on"] body {
    paso no pueden partirse en dos líneas. */
 .ficha-generos {
   margin: 10px 0 0;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -1969,7 +1988,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: rgba(6, 7, 9, 0.85);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--texto-sm);
   font-weight: 600;
 }
 
@@ -2056,7 +2075,7 @@ html[data-player="on"] body {
   gap: clamp(8px, 1vw, 14px);
   margin: 0;
   color: var(--soft, rgba(245, 245, 247, 0.56));
-  font-size: clamp(12px, 0.85vw, 14px);
+  font-size: var(--texto-xs);
   line-height: 1.4;
 }
 
@@ -2068,7 +2087,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: var(--chip, rgba(245, 245, 247, 0.1));
   color: var(--text, #f5f5f7);
-  font-size: clamp(12px, 0.85vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2104,7 +2123,7 @@ html[data-player="on"] body {
 .servidor-marca {
   display: block;
   margin-top: 3px;
-  font-size: clamp(10px, 0.62vw, 12px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2131,7 +2150,7 @@ html[data-player="on"] body {
   gap: 6px;
   margin: 0;
   flex-shrink: 0;
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   color: var(--muted, rgba(255, 255, 255, 0.68));
 }
@@ -2152,7 +2171,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: var(--chip, rgba(255, 255, 255, 0.07));
   color: var(--muted, rgba(255, 255, 255, 0.72));
-  font-size: clamp(12px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -2175,7 +2194,7 @@ html[data-player="on"] body {
 .servidores-nota {
   margin-left: auto;
   flex-shrink: 0;
-  font-size: clamp(11px, 0.8vw, 14px);
+  font-size: var(--texto-xs);
 }
 
 @media (max-width: 680px) {
@@ -2220,14 +2239,14 @@ html[data-player="on"] body {
 
 .ficha-seccion h2 {
   margin: 0 0 clamp(12px, 1.6vh, 20px);
-  font-size: clamp(20px, 1.6vw, 30px);
+  font-size: var(--texto-xl);
   font-weight: 650;
 }
 
 .ficha-sinopsis {
   margin: 0;
   max-width: 78ch;
-  font-size: clamp(15px, 1.05vw, 18px);
+  font-size: var(--texto-base);
   line-height: 1.62;
   color: var(--muted, rgba(255, 255, 255, 0.74));
 }
@@ -2264,7 +2283,7 @@ html[data-player="on"] body {
 .ficha-persona-inicial {
   display: grid;
   place-items: center;
-  font-size: clamp(28px, 2.6vw, 44px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.32);
 }
@@ -2276,7 +2295,7 @@ html[data-player="on"] body {
 }
 
 .ficha-persona strong {
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 620;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2284,7 +2303,7 @@ html[data-player="on"] body {
 }
 
 .ficha-persona span {
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2341,7 +2360,7 @@ html[data-player="on"] body {
   overflow: hidden;
   border-radius: 9px;
   background: rgba(0, 0, 0, 0.45);
-  font-size: 13px;
+  font-size: var(--texto-xs);
   font-weight: 700;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -2351,7 +2370,7 @@ html[data-player="on"] body {
 .ficha-episodio-texto { min-width: 0; display: grid; gap: 4px; }
 .ficha-episodio-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ficha-episodio-texto span {
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2390,7 +2409,7 @@ html[data-player="on"] body {
   border-radius: 12px;
   background: transparent;
   color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
@@ -2448,7 +2467,7 @@ html[data-player="on"] body {
 
 .estado-vacio-titulo {
   margin: 0;
-  font-size: clamp(16px, 1.25vw, 22px);
+  font-size: var(--texto-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -2457,7 +2476,7 @@ html[data-player="on"] body {
 .estado-vacio-detalle {
   margin: 0;
   max-width: 46ch;
-  font-size: clamp(13px, 0.98vw, 16px);
+  font-size: var(--texto-sm);
   color: var(--soft);
 }
 
@@ -2493,7 +2512,7 @@ html[data-player="on"] body {
 .player-sintonizando p {
   margin: 0;
   max-width: 30ch;
-  font-size: clamp(13px, 1vw, 16px);
+  font-size: var(--texto-sm);
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
 
@@ -2551,17 +2570,17 @@ html[data-player="on"] body {
 }
 
 .pantalla-mensaje .estado-vacio-titulo {
-  font-size: clamp(23px, 2.4vw, 44px);
+  font-size: var(--texto-2xl);
 }
 
 .pantalla-mensaje .estado-vacio-detalle {
-  font-size: clamp(15px, 1.2vw, 22px);
+  font-size: var(--texto-lg);
 }
 
 .pantalla-mensaje .secondary {
   min-height: clamp(48px, 3.6vw, 64px);
   padding: 0 clamp(22px, 2vw, 38px);
-  font-size: clamp(15px, 1.15vw, 21px);
+  font-size: var(--texto-lg);
 }
 
 /* ── Esqueleto de carga ───────────────────────────────────────────────
@@ -2725,7 +2744,7 @@ html[data-player="on"] body {
   border: 1px solid rgba(255, 214, 10, 0.28);
   border-radius: 14px;
   background: rgba(255, 214, 10, 0.08);
-  font-size: clamp(13px, 0.95vw, 15px);
+  font-size: var(--texto-xs);
   color: #ffe89a;
 }
 
@@ -2785,7 +2804,7 @@ html[data-player="on"] body {
   border-radius: 999px;
   background: transparent;
   color: var(--muted, rgba(245, 245, 247, 0.72));
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -2870,7 +2889,7 @@ html[data-player="on"] body {
 .genero-panel-cabecera h2 {
   margin: 0;
   color: var(--text, #f5f5f7);
-  font-size: clamp(19px, 1.6vw, 28px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -2950,7 +2969,7 @@ body {
 
 .livetv-acerca-texto {
   margin: 0;
-  font-size: clamp(13px, 0.98vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.55;
   color: var(--muted, rgba(245, 245, 247, 0.72));
 }
@@ -2977,7 +2996,7 @@ body {
 }
 
 .livetv-acerca-datos dt {
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2986,7 +3005,7 @@ body {
 
 .livetv-acerca-datos dd {
   margin: 0;
-  font-size: clamp(13px, 0.95vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 500;
   text-align: right;
   color: var(--text, #f5f5f7);
@@ -2994,7 +3013,7 @@ body {
 
 .livetv-acerca-nota {
   margin: 0;
-  font-size: clamp(11px, 0.82vw, 13px);
+  font-size: var(--texto-2xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -3021,7 +3040,7 @@ body {
   justify-content: space-between;
   gap: 16px;
   padding-bottom: clamp(10px, 1.4vh, 16px);
-  font-size: clamp(11px, 0.82vw, 14px);
+  font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
@@ -3031,6 +3050,21 @@ body {
   overflow-x: auto;
   padding: 6px 0 10px;
   scroll-snap-type: x proximity;
+}
+
+/* La cabecera y la tira arrancaban en x = 0, y un televisor recorta hasta un
+   5% de cada borde (*overscan*): el primer canal y «4.816 canales» quedaban
+   medio fuera. El mismo margen que el resto de la app, que a 1920 ronda ese
+   5%. La tira lo lleva por dentro para que al recorrer los canales sigan
+   pasando de borde a borde. */
+.guia-cabecera,
+.guia-tira {
+  padding-left: var(--margen);
+  padding-right: var(--margen);
+}
+
+.guia-tira {
+  scroll-padding-inline: var(--margen);
 }
 
 .guia-canal {
@@ -3063,7 +3097,7 @@ body {
 }
 
 .guia-canal-arte b {
-  font-size: clamp(18px, 1.8vw, 26px);
+  font-size: var(--texto-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: rgba(255, 255, 255, 0.34);
@@ -3074,14 +3108,14 @@ body {
   top: 6px;
   left: 8px;
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-variant-numeric: tabular-nums;
   color: rgba(255, 255, 255, 0.5);
 }
 
 .guia-canal p {
   margin: 0;
-  font-size: clamp(12px, 0.9vw, 15px);
+  font-size: var(--texto-xs);
   font-weight: 500;
   color: var(--muted, rgba(245, 245, 247, 0.72));
   overflow: hidden;
@@ -3217,7 +3251,7 @@ body {
   border: 0;
   background: transparent;
   color: inherit;
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
   outline: none;
 }
 
@@ -3240,7 +3274,7 @@ body {
   border-radius: 999px;
   background: #fff;
   color: #0a0a0a;
-  font-size: clamp(14px, 1vw, 17px);
+  font-size: var(--texto-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -3253,7 +3287,7 @@ body {
   margin: 0 0 18px;
   padding: 10px 16px;
   border-radius: 12px;
-  font-size: clamp(13px, 0.92vw, 16px);
+  font-size: var(--texto-sm);
 }
 
 .fuente-error {
@@ -3273,7 +3307,7 @@ body {
 
 .fuente-reproductor h3 {
   margin: 0 0 14px;
-  font-size: clamp(18px, 1.4vw, 26px);
+  font-size: var(--texto-xl);
   font-weight: 650;
 }
 
@@ -3334,7 +3368,7 @@ body {
 .fuente-fila-texto { min-width: 0; display: grid; gap: 3px; }
 .fuente-fila-texto strong { font-weight: 620; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fuente-fila-texto span {
-  font-size: clamp(11px, 0.8vw, 13px);
+  font-size: var(--texto-2xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3347,7 +3381,7 @@ body {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
   font-style: normal;
-  font-size: 11px;
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3420,7 +3454,7 @@ body {
   align-items: center;
   gap: 10px;
   margin: 0 0 clamp(14px, 1.6vh, 20px);
-  font-size: clamp(20px, 1.6vw, 30px);
+  font-size: var(--texto-xl);
   font-weight: 650;
 }
 
@@ -3438,7 +3472,7 @@ body {
 }
 
 .ficha-tecnica dt {
-  font-size: clamp(11px, 0.78vw, 13px);
+  font-size: var(--texto-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -3447,7 +3481,7 @@ body {
 
 .ficha-tecnica dd {
   margin: 4px 0 0;
-  font-size: clamp(13px, 0.95vw, 16px);
+  font-size: var(--texto-sm);
   line-height: 1.45;
   color: var(--text, #ededed);
 }
@@ -3579,7 +3613,7 @@ body {
 .casa-titulo {
   margin: 0 0 clamp(10px, 1.4vh, 16px);
   text-align: center;
-  font-size: clamp(19px, 1.42vw, 27px);
+  font-size: var(--texto-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -3646,7 +3680,7 @@ body {
 }
 
 .casa-marca {
-  font-size: clamp(24px, 2.4vw, 40px);
+  font-size: var(--texto-2xl);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--soft, rgba(245, 245, 247, 0.56));
@@ -3654,7 +3688,7 @@ body {
 
 .casa-nombre {
   max-width: 100%;
-  font-size: clamp(14px, 1.05vw, 19px);
+  font-size: var(--texto-sm);
   font-weight: 600;
   letter-spacing: -0.01em;
   overflow: hidden;
@@ -3664,7 +3698,7 @@ body {
 
 .casa-numero {
   margin-top: 2px;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   font-variant-numeric: tabular-nums;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -3702,7 +3736,7 @@ body {
    empuja al extremo, contra las píldoras de temporada. */
 .ficha-episodios-cuenta {
   margin-left: auto;
-  font-size: clamp(12px, 0.85vw, 15px);
+  font-size: var(--texto-xs);
   font-variant-numeric: tabular-nums;
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
@@ -3864,7 +3898,7 @@ body {
   }
 
   .ficha-datos h1 {
-    font-size: 24px;
+    font-size: var(--texto-xl);
     /* Un título de tres palabras largas no debe empujar el vídeo fuera de la
        pantalla; a partir de dos líneas se recorta. */
     display: -webkit-box;
@@ -3875,7 +3909,7 @@ body {
 
   .ficha-tagline {
     margin-top: 6px;
-    font-size: 13px;
+    font-size: var(--texto-xs);
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -3885,12 +3919,12 @@ body {
   .ficha-meta {
     gap: 10px;
     margin-top: 10px;
-    font-size: 13px;
+    font-size: var(--texto-xs);
   }
 
   .ficha-generos {
     margin-top: 8px;
-    font-size: 12px;
+    font-size: var(--texto-xs);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

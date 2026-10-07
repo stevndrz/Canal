@@ -93,7 +93,7 @@ function ChannelGlassCard({
             }`}
           />
         ) : item.mark ? (
-          <span className="absolute inset-0 grid place-items-center font-mono text-2xl tracking-widest text-soft">
+          <span className="absolute inset-0 grid place-items-center text-2xl font-semibold tracking-wide text-soft">
             {item.mark}
           </span>
         ) : (
@@ -112,8 +112,8 @@ function ChannelGlassCard({
       <strong className="mt-3 truncate font-semibold text-sm text-muted transition-colors group-hover:text-white">
         {item.title}
       </strong>
-      <span className="card-canal-meta mt-1 flex items-center gap-1 font-mono text-xs text-muted">
-        {item.metaRight && <span>CH {item.metaRight}</span>}
+      <span className="card-canal-meta mt-1 flex min-w-0 items-center gap-1.5 text-xs tabular-nums text-soft">
+        {item.metaRight && <span className="shrink-0 whitespace-nowrap">CH {item.metaRight}</span>}
         {item.metaRight && item.meta && <span aria-hidden="true">·</span>}
         {item.meta && <span className="truncate">{item.meta}</span>}
       </span>
