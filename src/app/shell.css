@@ -30,15 +30,13 @@
 :root {
   color-scheme: dark;
 
-  /* ══ Paleta «Azul Guatemala» ═══════════════════════════════════════════
-     Tinta azul casi negra y el celeste de la bandera (#4997D0) aclarado para
-     leerse sobre oscuro. Tres colores, tres funciones que no se mezclan:
-       celeste = lo elegido y lo primario · blanco = el foco · rojo = en vivo.
-     Elegida entre cinco direcciones probadas sobre la app real (grafito,
-     azul, atardecer, nocturno, hiperlegible): el celeste da identidad propia,
-     no se confunde con el rojo del directo (daltonismo) y cumple AAA con su
-     tinta encima (8,3:1). Valores medidos: --tinta-3 ≥ 5,1:1 en todas las
-     superficies; blanco sobre --vivo 4,68:1.
+  /* ══ Paleta: cine de noche ═════════════════════════════════════════════
+     Neutros grafito y el blanco como única marca de selección, como Apple TV
+     y Netflix: el color lo pone el arte de cada título (el fondo de Cine y
+     series se tiñe con la portada). Se probó una paleta propia en azul
+     («Azul Guatemala») y el dueño la descartó: el azul competía con las
+     carátulas. Del intento se quedan el rojo de directo (#e0281e, blanco
+     encima 4,68:1) y los tokens.
 
   ══ Tokens semánticos ══════════════════════════════════════════════════
      El color de toda la app sale de aquí, por su FUNCIÓN y no por su valor:
@@ -55,77 +53,77 @@
        el foco. Nunca el mismo realce para las dos cosas. */
 
   /* Superficies, de atrás hacia delante. */
-  --fondo: #060a14;
+  --fondo: #0b0b0d;
   /* El fondo en componentes, para los velos que se funden con la página
      (`rgba(var(--fondo-rgb), .9)`): un velo negro sobre fondo azul dejaba
      una costura. */
-  --fondo-rgb: 6, 10, 20;
-  --superficie-1: #0c1322;
-  --superficie-2: #141d31;
-  --superficie-3: #1d2944;
+  --fondo-rgb: 11, 11, 13;
+  --superficie-1: #151517;
+  --superficie-2: #1f1f22;
+  --superficie-3: #2a2a2e;
   /* El degradado de las carátulas y logos mientras no hay imagen. */
-  --arte-desde: #18233a;
-  --arte-hasta: #0a1020;
+  --arte-desde: #1f1f22;
+  --arte-hasta: #111113;
 
   /* Rellenos translúcidos: chips, botones secundarios, filas al pasar. */
-  --relleno-sutil: rgba(150, 185, 240, 0.06);
-  --relleno: rgba(150, 185, 240, 0.1);
-  --relleno-hover: rgba(150, 185, 240, 0.16);
-  --relleno-activo: rgba(150, 185, 240, 0.2);
+  --relleno-sutil: rgba(245, 245, 247, 0.06);
+  --relleno: rgba(245, 245, 247, 0.1);
+  --relleno-hover: rgba(245, 245, 247, 0.16);
+  --relleno-activo: rgba(245, 245, 247, 0.2);
 
   /* Cristal: barras y paneles que flotan sobre contenido. Sobre el vídeo en
      directo, negro translúcido SIN desenfoque (--cristal-video). */
-  --cristal: rgba(10, 17, 32, 0.76);
-  --cristal-fuerte: rgba(16, 25, 44, 0.9);
-  --cristal-video: rgba(8, 14, 28, 0.62);
+  --cristal: rgba(24, 24, 27, 0.72);
+  --cristal-fuerte: rgba(32, 32, 36, 0.9);
+  --cristal-video: rgba(24, 24, 27, 0.6);
 
   /* Líneas. */
-  --borde-sutil: rgba(148, 178, 228, 0.1);
-  --borde: rgba(148, 178, 228, 0.16);
-  --borde-fuerte: rgba(170, 200, 245, 0.32);
+  --borde-sutil: rgba(245, 245, 247, 0.08);
+  --borde: rgba(245, 245, 247, 0.12);
+  --borde-fuerte: rgba(245, 245, 247, 0.26);
 
   /* Tinta: el texto, en cuatro pesos. Medidos contra el fondo, no a ojo:
        --tinta-3  6,03:1 (5,45:1 sobre una tarjeta)
        --tinta-4  3,45:1 → no vale para texto. */
-  --tinta-1: #f1f5fc;
-  --tinta-2: rgba(214, 228, 250, 0.76);
-  --tinta-3: rgba(196, 214, 242, 0.62);
-  --tinta-4: rgba(190, 210, 240, 0.42);
+  --tinta-1: #f5f5f7;
+  --tinta-2: rgba(245, 245, 247, 0.76);
+  --tinta-3: rgba(245, 245, 247, 0.62);
+  --tinta-4: rgba(245, 245, 247, 0.4);
 
   /* El acento: lo elegido, lo activo y el botón principal. */
-  --acento: #5cb3f2;
-  --acento-hover: #7cc4f6;
-  --acento-tinta: #04111f;
+  --acento: #f5f5f7;
+  --acento-hover: #ffffff;
+  --acento-tinta: #0b0b0d;
   /* El acento sobre fondo oscuro, para texto y trazos finos (enlaces,
      progreso, la barra de un programa). */
-  --acento-texto: #6fbdf4;
+  --acento-texto: #f5f5f7;
   /* Lo elegido sin relleno pleno (fila seleccionada, nav del teléfono). */
-  --acento-suave: rgba(92, 179, 242, 0.16);
+  --acento-suave: rgba(245, 245, 247, 0.14);
   /* Brillo del acento detrás de piezas de marca (el logo, la portada). */
-  --acento-halo: rgba(73, 151, 208, 0.16);
+  --acento-halo: rgba(255, 255, 255, 0.05);
 
   /* Estados. «Vivo» es solo para lo que está en el aire. */
-  --vivo: #dc2f2b;
+  --vivo: #e0281e;
   --vivo-tinta: #fff;
-  --peligro: #ff5a52;
-  --peligro-fondo: rgba(255, 90, 82, 0.12);
-  --exito: #3ddc97;
-  --exito-fondo: rgba(61, 220, 151, 0.14);
-  --aviso: #ffc94d;
-  --aviso-fondo: rgba(255, 201, 77, 0.08);
+  --peligro: #ff453a;
+  --peligro-fondo: rgba(255, 69, 58, 0.12);
+  --exito: #30d158;
+  --exito-fondo: rgba(48, 209, 88, 0.16);
+  --aviso: #ffd60a;
+  --aviso-fondo: rgba(255, 214, 10, 0.08);
   --info: var(--acento-texto);
 
   /* Foco: borde blanco pegado a la pieza, crecimiento del 6% y sombra
      profunda. Es lo que hace un televisor. */
   --foco: #fff;
   --foco-borde: 0 0 0 4px var(--foco);
-  --foco-sombra: 0 26px 60px rgba(0, 4, 14, 0.78);
+  --foco-sombra: 0 26px 60px rgba(0, 0, 0, 0.78);
   --foco-escala: 1.06;
 
   /* Profundidad. */
-  --sombra-1: 0 2px 16px rgba(0, 4, 14, 0.45);
-  --sombra-2: 0 16px 40px rgba(0, 4, 14, 0.55);
-  --sombra-3: 0 24px 64px rgba(0, 4, 14, 0.7);
+  --sombra-1: 0 2px 16px rgba(0, 0, 0, 0.45);
+  --sombra-2: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --sombra-3: 0 24px 64px rgba(0, 0, 0, 0.7);
 
   /* Forma. */
   --radio-sm: 8px;
@@ -457,7 +455,7 @@
   width: clamp(34px, 2.3vw, 44px);
   height: clamp(34px, 2.3vw, 44px);
   border-radius: 12px;
-  background: linear-gradient(150deg, #2a5a8e, #10213c);
+  background: linear-gradient(150deg, #2c2c2e, #131315);
   border: 1px solid var(--line);
 }
 
