@@ -39,6 +39,26 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Servidores: Vimeus primero, Multiembed de recaída
+
+Pedido del dueño: «solo el cuarto o quinto funciona». Probé cada servidor con
+Playwright desde el contenedor (película 155):
+
+| Servidor | Resultado | Decisión |
+|---|---|---|
+| Vimeus | carga «S1 vimeos.net»; aquí no reproduce por el códec del Chromium de prueba | 1.º en películas |
+| Multiembed | puerta de Cloudflare; al dueño le funciona | 2.º (recaída); en tele, al final |
+| vidsrc.pm | «Not found» en todo | retirado |
+| Videasy | 403 «Access denied» | retirado |
+| VidLink | el servidor de vídeo responde 428 | retirado |
+| VidZee | descarga HLS y segmentos, duración real; películas y series | nuevo |
+| VidRock | igual que VidZee; subtítulos solo en inglés | nuevo |
+
+Sorpresas: ninguno responde distinto si no tiene el título (todos 200), así
+que solo Vimeus filtra por estado. La etiqueta «Subtítulos en español» se
+quitó: el único que los traía era VidSrc. Este Chromium no trae H.264: la
+prueba válida es «pide un .m3u8 / el `<video>` tiene duración», no «se ve».
+
 ### 2026-09-02 — Modo cine: el reproductor ocupa la pantalla, pero solo en TV
 
 Pedido explícito: en el cascarón de un televisor, seleccionar un título tiene

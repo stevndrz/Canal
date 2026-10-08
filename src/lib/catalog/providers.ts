@@ -11,7 +11,8 @@ import { publicConfig } from "@/lib/config";
  * se puede preguntar.
  *
  * ⚠️ Estos dominios ROTAN sin aviso (AutoEmbed desapareció en 2026, VideoEasy
- * migró de .net a .to). Si varios fallan a la vez con error de DNS, comprobar
+ * migró de .net a .to, vidsrc.pm murió en octubre de 2026). Si varios fallan
+ * a la vez con error de DNS, comprobar
  * con `curl -I https://dominio/` y actualizar aquí.
  *
  * Marcadores admitidos: {tmdbId} {season} {episode}
@@ -33,10 +34,8 @@ export interface EmbedProvider {
    * Si entrega subtítulos en español DE VERDAD. Se enseña en el botón, así que
    * no es una nota interna sino una promesa: solo va a `true` lo comprobado.
    *
-   * Solo VidSrc (`ds_lang=es`, probado). Videasy estuvo en `true` por el
-   * parámetro que publican, sin comprobar: no los trae —su paquete menciona
-   * subtítulos 4 veces en 722 KB—. Vidlink acepta `sub_file`, pero es para
-   * pasarle tú un `.vtt`, y aquí no hay ninguno.
+   * Hoy ninguno: el único que los traía de verdad era VidSrc (`ds_lang=es`),
+   * retirado en octubre de 2026 porque su dominio murió.
    */
   spanishSubtitles: boolean;
   /**
@@ -55,10 +54,10 @@ export interface EmbedProvider {
    * El proveedor **dice** con un estado HTTP cuándo no tiene un título — la
    * única pregunta honesta que admite un embed desde fuera.
    *
-   * Comprobado con curl contra catorce ids reales: Vimeus da 404 y Vidlink
-   * 500 cuando no lo tienen, 200 cuando sí. Videasy y VidSrc dan 200 siempre
-   * (resuelven en cliente) y Multiembed 403 de Cloudflare, que habla de quien
-   * pregunta y no del título. Solo se marca lo verificado.
+   * Comprobado con curl contra ids reales: Vimeus da 404 cuando no lo tiene,
+   * 200 cuando sí. Vidzee y Vidrock dan 200 siempre (resuelven en cliente) y
+   * Multiembed redirige a un reto de Cloudflare, que habla de quien pregunta y
+   * no del título. Solo se marca lo verificado.
    */
   compruebaPorEstado?: boolean;
 }
@@ -86,19 +85,40 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
  */
 
 /**
- * El orden es el producto: decide qué se ve al abrir una ficha. Vimeus primero
- * en películas (doblaje latino), VidSrc primero en series (los únicos
- * subtítulos de verdad), Videasy y Vidlink de relevo, Multiembed el último.
+ * El orden es el producto: decide qué se ve al abrir una ficha.
  *
- * ⚠️ El precio de VidSrc delante es su puerta antirrobot: subtítulos a cambio
- * de que a veces haya que pulsar «Probar otro servidor».
+ * Revisado el 2026-10-08 a petición del dueño, que en su casa solo veía
+ * funcionar Vimeus (doblaje latino) y «el último» (Multiembed):
+ *
+ * 1. **Vimeus**: el principal, por el doblaje latino. Solo películas.
+ * 2. **Multiembed**: la recaída, normalmente en inglés con subtítulos. Es el
+ *    que el dueño confirma que funciona en sus aparatos.
+ * 3. **Vidzee** y 4. **Vidrock**: nuevos. Comprobado con un navegador de
+ *    verdad que llegan al vídeo (descargan la lista HLS y los segmentos, y
+ *    saben la duración exacta: Inception 2:28:07, Dune 2 2:45:48), sin puerta
+ *    antirrobot, sin ventanas emergentes en la prueba, y con series.
+ *
+ * Retirados ese mismo día, comprobado:
+ * - `vidsrc.pm` responde «Not found» incluso con Inception o Dune: dominio
+ *   muerto. La familia VidSrc sigue viva en `vidsrc.sh`, pero detrás de una
+ *   puerta que en la prueba no dejó ver nada; era el único con subtítulos en
+ *   español y de momento no hay sustituto comprobado.
+ * - Videasy (`player.videasy.to`) devuelve «Access denied».
+ * - Vidlink carga su reproductor, pero el servidor de vídeo responde 428 y no
+ *   entrega nada.
+ *
+ * Cómo volver a probarlos: abrir el embed en un navegador y mirar en la
+ * pestaña de red si llega un `.m3u8` con 200. Un 200 de la página del embed
+ * no significa nada: casi todos lo dan aunque luego fallen por dentro.
  */
-const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
+const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
+  {
     // El del doblaje latino. Solo películas — verificado 2026-08-24: /e/movie
     // → 200, y las siete variantes de serie probadas → 404.
     //
     // Ojo, `vimeos.net` es OTRO sitio: sus embeds llevan un hash opaco por
     // título resuelto en su backend, así que no se pueden armar por plantilla.
+    // Es el reproductor que Vimeus carga por dentro («S1 vimeos.net»).
     id: "vimeus",
     movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
     tv: "",
@@ -107,46 +127,31 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [  {
     compruebaPorEstado: true,
   },
   {
-    // El de los SUBTÍTULOS (`ds_lang=es`, verificado) y el primero en series.
-    // Su puerta antirrobot es el precio; ver el comentario de orden arriba.
-    id: "vidsrc",
-    movie: "https://vidsrc.pm/embed/movie?tmdb={tmdbId}&ds_lang=es",
-    tv: "https://vidsrc.pm/embed/tv?tmdb={tmdbId}&season={season}&episode={episode}&ds_lang=es",
-    spanishSubtitles: true,
-    // Verificado 2026-08-26 con la serie tmdb=123192 que lo destapó: anida
-    // `nextgencloudfabric.com`, y ahí vive la puerta de Turnstile.
-    puertaAntirrobot: true,
-  },
-  {
-    // El relevo limpio: sin puerta antirrobot ni librerías de anuncios. No
-    // trae subtítulos propios, por eso no encabeza.
-    id: "videasy",
-    movie: "https://player.videasy.to/movie/{tmdbId}",
-    tv: "https://player.videasy.to/tv/{tmdbId}/{season}/{episode}",
-    // Estaba en `true` sin comprobar. No los trae: ver el campo arriba.
-    spanishSubtitles: false,
-  },
-  {
-    // Sin puerta (verificado 2026-08-24), pero el que MÁS anuncios trae:
-    // carga `aclib` (AdCash) y `processPopunderQueue`, que abre pestaña cada
-    // 30 s. Los parámetros salen de su propio paquete, no de suponer:
-    // `autoplay=true` arranca sin tocar el vídeo —clave con un mando— y
-    // `poster=false` se salta un clic, o sea un popunder menos.
-    id: "vidlink",
-    movie: "https://vidlink.pro/movie/{tmdbId}?autoplay=true&poster=false",
-    tv: "https://vidlink.pro/tv/{tmdbId}/{season}/{episode}?autoplay=true&poster=false",
-    spanishSubtitles: false,
-    // Responde 500 cuando no lo tiene.
-    compruebaPorEstado: true,
-  },
-  {
+    // La recaída. Detrás de una comprobación de Cloudflare (verificado: 403
+    // con reto desde un servidor), que en un teléfono o un PC se pasa sola:
+    // es el que el dueño confirma que le funciona.
     id: "multiembed",
     movie: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1",
     tv: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1&season={season}&episode={episode}",
     spanishSubtitles: false,
-    // También detrás de una comprobación de Cloudflare (verificado: 403 con
-    // reto en película y en serie).
     puertaAntirrobot: true,
+  },
+  {
+    // Nuevo (2026-10-08). Manda `frame-ancestors *`, así que se deja meter en
+    // el iframe aunque también envíe `X-Frame-Options: SAMEORIGIN` (los
+    // navegadores dan prioridad al primero). Responde 200 siempre: no se puede
+    // preguntar si tiene el título.
+    id: "vidzee",
+    movie: "https://player.vidzee.wtf/embed/movie/{tmdbId}",
+    tv: "https://player.vidzee.wtf/embed/tv/{tmdbId}/{season}/{episode}",
+    spanishSubtitles: false,
+  },
+  {
+    // Nuevo (2026-10-08). Subtítulos solo en inglés en su caché.
+    id: "vidrock",
+    movie: "https://vidrock.net/movie/{tmdbId}",
+    tv: "https://vidrock.net/tv/{tmdbId}/{season}/{episode}",
+    spanishSubtitles: false,
   },
 ];
 
@@ -200,7 +205,7 @@ export function getProviders(): EmbedProvider[] {
  * Reordena dejando al final los proveedores con puerta antirrobot.
  *
  * SOLO para televisores. En un teléfono o un ordenador esas puertas se pasan
- * solas y VidSrc va delante, con sus subtítulos, como debe. En un televisor la
+ * solas y Multiembed va segundo, como debe. En un televisor la
  * puerta no pasa y el marco se recarga sin fin: ahí sus subtítulos no existen
  * de verdad, porque no llega a haber vídeo.
  *

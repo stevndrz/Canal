@@ -43,6 +43,22 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Canal 7: la fuente no está muerta, está bloqueada por país
+
+El dueño pidió otra fuente para Canal 7. Lo encontrado:
+
+- La de la lista (`d1zq2gydd8y59v.cloudfront.net/ts:abr.m3u8`) da 403 desde
+  fuera de Guatemala. La web oficial (chapintv.com/envivo-canal-7) muestra lo
+  mismo: «Este programa no puede ser visto desde el extranjero». Desde casa
+  debería abrir: el directo lo pide el navegador de cada aparato, no Vercel.
+- iptv-org trae dos alternativas, ambas `http://…:8000`. En la app (https)
+  serían contenido mixto y el navegador las bloquea. Pasarlas por Vercel
+  costaría ancho de banda y, además, saldrían desde EE. UU.
+- Ojo: `canales-caidos.ts` aparta un canal en ese aparato tras 2 fallos
+  seguidos durante 7 días. Si se probó fuera del país, puede seguir apartado.
+
+No se cambió nada en el código.
+
 ### 2026-10-08 — Favoritos por clave estable y el mando de Samsung/LG
 
 (Hecho en la rama `mejoras-rendimiento`; el detalle está en `diseno.md`.)

@@ -685,9 +685,11 @@ function ReproductorCatalogo({
                  prometer pistas que quizá no existan. */
               spokenInSpanish ? (
                 <span className="ficha-marca is-si">Hablada en español</span>
-              ) : (
+              ) : servidores.some((servidor) => servidor.subtitulos) ? (
+                // Solo si algún servidor de la lista los trae: desde que murió
+                // VidSrc (oct. 2026) ninguno, y la marca sería una promesa falsa.
                 <span className="ficha-marca is-quiza">Subtítulos en español</span>
-              )
+              ) : null
             }
           />
         </div>
