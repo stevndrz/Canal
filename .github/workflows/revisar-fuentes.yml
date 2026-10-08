@@ -1,0 +1,44 @@
+name: Revisar fuentes
+
+# Cada lunes comprueba los canales oficiales de Guatemala y los servidores de
+# cine (`scripts/revisar-fuentes.mjs`). Si algo cayó, abre un issue — o comenta
+# en el que ya esté abierto— y GitHub avisa por correo. Si todo vuelve a
+# responder, lo cierra solo. También se puede lanzar a mano desde Actions.
+on:
+  schedule:
+    - cron: "17 13 * * 1" # lunes 07:17 en Guatemala (UTC-6)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  revisar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Revisar
+        id: revision
+        run: node scripts/revisar-fuentes.mjs --salida informe.md
+        continue-on-error: true
+
+      - name: Avisar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULTADO: ${{ steps.revision.outcome }}
+        run: |
+          TITULO="Fuentes caídas (revisión semanal)"
+          ABIERTO=$(gh issue list --state open --search "in:title \"$TITULO\"" --json number --jq '.[0].number')
+          if [ "$RESULTADO" = "failure" ]; then
+            if [ -n "$ABIERTO" ]; then gh issue comment "$ABIERTO" --body-file informe.md
+            else gh issue create --title "$TITULO" --body-file informe.md; fi
+          elif [ -n "$ABIERTO" ]; then
+            gh issue close "$ABIERTO" --comment "Todo vuelve a responder. $(head -1 informe.md)"
+          fi
