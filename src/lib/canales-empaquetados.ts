@@ -10,6 +10,7 @@ import {
   type Ficha,
 } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
+import { numerarCanales } from "@/lib/numeracion";
 
 /**
  * Cómo viajan los canales del servidor al navegador.
@@ -84,8 +85,18 @@ export type ParEmpaquetado = [tema: number, pais: string, categoria: number];
 export interface RecorteCanales {
   /** Posición de cada canal dentro de la lista completa. De ahí sale el `id`. */
   posiciones: number[];
-  /** Cuántos canales de su categoría le preceden, más uno. De ahí, el número. */
+  /**
+   * Cuántos canales de su categoría le preceden, más uno: la numeración vieja.
+   * Se sigue mandando para el JS de antes, que puede convivir unos minutos con
+   * este paquete por la caché del borde.
+   */
   ordinales: number[];
+  /**
+   * El número de cada canal del recorte con la numeración nueva
+   * (`numeracion.ts`). Hace falta la lista COMPLETA para calcularlo (el orden
+   * por nombre dentro de cada región), así que lo pone el servidor.
+   */
+  numeros?: number[];
 }
 
 export interface PaqueteCanales {
@@ -253,10 +264,11 @@ function guiaDe(canal: CanalDeOrigen): GuiaEmpaquetada | undefined {
 }
 
 /**
- * Posición de una categoría dentro del orden conocido.
+ * Posición de una categoría dentro del orden conocido. Solo la usa el
+ * respaldo de la numeración VIEJA (centenas por categoría), para un recorte
+ * de un servidor anterior que aún no traiga `numeros`.
  *
- * Las que no estén en `CATEGORY_ORDER` van al final, que es el mismo criterio
- * que usaba `withChannelNumbers`.
+ * Las que no estén en `CATEGORY_ORDER` van al final.
  */
 function ordenDeCategoria(categoria: string): number {
   const indice = CATEGORY_ORDER.indexOf(categoria as (typeof CATEGORY_ORDER)[number]);
@@ -278,8 +290,26 @@ function ordenDeCategoria(categoria: string): number {
  * numeración solo sirve para el número, y se usa aquí mismo. El país no tiene
  * campo: se apunta aparte con `anotarPais` (ver `origenes.ts`).
  */
+/** Una cuenta por paquete: numerar ordena 4.816 nombres. */
+const NUMEROS_DEL_PAQUETE = new WeakMap<PaqueteCanales, number[]>();
+
+/** El número de cada canal del paquete COMPLETO, en su orden. Ver `numeracion.ts`. */
+export function numerosDelPaquete(paquete: PaqueteCanales): number[] {
+  let numeros = NUMEROS_DEL_PAQUETE.get(paquete);
+  if (!numeros) {
+    numeros = numerarCanales(
+      paquete.canales.map((tupla) => ({
+        nombre: tupla[0],
+        pais: fichaDeTupla(paquete, tupla).pais,
+        url: tupla[3],
+      })),
+    );
+    NUMEROS_DEL_PAQUETE.set(paquete, numeros);
+  }
+  return numeros;
+}
+
 export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
-  const vistos = new Map<number, number>();
   const recorte = paquete.recorte;
 
   const canales = paquete.canales.map((tupla, indice) => {
@@ -301,18 +331,19 @@ export function desempaquetarCanales(paquete: PaqueteCanales): Channel[] {
     const centena = ordenDeCategoria(categoria) * 100;
     const { tema, pais } = fichaDeTupla(paquete, tupla);
 
-    let dentro: number;
+    // La numeración nueva (`numeracion.ts`). Con un recorte de un servidor
+    // de antes, sin `numeros`, se cae a la vieja hasta que llegue la lista.
+    let numero: number;
     if (recorte) {
-      dentro = recorte.ordinales[indice] ?? indice + 1;
+      numero = recorte.numeros?.[indice] ?? centena + (recorte.ordinales[indice] ?? indice + 1);
     } else {
-      dentro = (vistos.get(indiceCategoria) ?? 0) + 1;
-      vistos.set(indiceCategoria, dentro);
+      numero = numerosDelPaquete(paquete)[indice];
     }
 
     const canal: Channel = {
       id: (recorte ? (recorte.posiciones[indice] ?? indice) : indice) + 1,
       name: nombre,
-      number: String(centena + dentro),
+      number: String(numero),
       category: tema,
       logoUrl,
       streamUrl,
@@ -376,6 +407,7 @@ export function recortarPaquete(paquete: PaqueteCanales, posiciones: number[]): 
     recorte: {
       posiciones: orden,
       ordinales: orden.map((posicion) => ordinales.get(posicion) ?? 1),
+      numeros: orden.map((posicion) => numerosDelPaquete(paquete)[posicion]),
     },
   };
 }

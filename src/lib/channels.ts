@@ -20,21 +20,9 @@ function orderIndex(category: string): number {
   return CATEGORY_ORDER.indexOf(category as (typeof CATEGORY_ORDER)[number]);
 }
 
-/**
- * Renumera al estilo IPTV: 101+, 201+, 301+ por categoría.
- * Con 500+ canales un índice plano (1..N) no dice nada; la centena sí.
- * m3u.ts ya deja los canales ordenados por CATEGORY_PRIORITY + nombre,
- * así que sólo hay que asignar el número.
- */
-export function withChannelNumbers(channels: Channel[]): Channel[] {
-  const seen = new Map<string, number>();
-  return channels.map((channel) => {
-    const base = (orderIndex(channel.category) + 1 || CATEGORY_ORDER.length) * 100;
-    const next = (seen.get(channel.category) ?? 0) + 1;
-    seen.set(channel.category, next);
-    return { ...channel, number: String(base + next) };
-  });
-}
+// La numeración vive en `numeracion.ts` (fijos de Guatemala + un bloque por
+// región). La de centenas por categoría, `withChannelNumbers`, se retiró:
+// repetía 885 números con la lista por defecto.
 
 // `filterChannels` (nombre o prefijo del n\u00famero, con categor\u00eda) se retir\u00f3: la
 // b\u00fasqueda de canales vive en `buscar-canales.ts`, por niveles de relevancia y

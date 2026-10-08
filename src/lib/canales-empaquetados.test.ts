@@ -10,7 +10,7 @@ import {
   type CanalDeOrigen,
   type PaqueteCanales,
 } from "./canales-empaquetados";
-import { CATEGORY_ORDER, canalesDeCasa, withChannelNumbers } from "./channels";
+import { CATEGORY_ORDER, canalesDeCasa } from "./channels";
 import { paisDe } from "./origenes";
 import { TEMAS } from "./temas";
 import {
@@ -143,25 +143,22 @@ describe("ida y vuelta", () => {
   });
 });
 
-describe("la numeración es la MISMA que antes", () => {
-  it("coincide con `withChannelNumbers`, canal por canal", () => {
-    // Es el contrato que no se puede romper: los números de canal son lo que
-    // la gente teclea con el mando.
-    const comoAntes = withChannelNumbers(
-      MUESTRA.map((c, i) => ({ ...c, id: i + 1, number: "0" }) as Channel),
-    );
-    const comoAhora = desempaquetarCanales(empaquetarCanales(MUESTRA));
-    expect(comoAhora.map((c) => c.number)).toEqual(comoAntes.map((c) => c.number));
-  });
-
-  it("numera por centenas de categoría, no de corrido", () => {
+describe("la numeración: fijos de Guatemala y un bloque por región", () => {
+  it("Canal 3 es el 3 y Canal 7 el 7; el resto, en el bloque de su región", () => {
     const canales = desempaquetarCanales(empaquetarCanales(MUESTRA));
     const porNombre = new Map(canales.map((c) => [c.name, c.number]));
-    // Guatemala y Deportes tienen centenas distintas, y cada una cuenta desde 1.
-    expect(porNombre.get("Canal 3")).not.toBe(porNombre.get("ESPN"));
-    expect(porNombre.get("Canal 3")!.slice(-2)).toBe("01");
-    expect(porNombre.get("ESPN")!.slice(-2)).toBe("01");
-    expect(porNombre.get("Canal 7")!.slice(-2)).toBe("02");
+    expect(porNombre.get("Canal 3")).toBe("3");
+    expect(porNombre.get("Canal 7")).toBe("7");
+    expect(porNombre.get("Canal 9")).toBe("30"); // resto de Guatemala
+    expect(porNombre.get("Fox Sports")).toBe("300"); // México
+    expect(porNombre.get("ESPN")).toBe("3000"); // Estados Unidos
+  });
+
+  it("el recorte del HTML trae los MISMOS números que la lista completa", () => {
+    const paquete = empaquetarCanales(MUESTRA);
+    const completa = desempaquetarCanales(paquete);
+    const recorte = desempaquetarCanales(recortarPaquete(paquete, [2, 4]));
+    expect(recorte.map((c) => c.number)).toEqual([completa[2].number, completa[4].number]);
   });
 });
 
@@ -188,8 +185,8 @@ describe("las tablas: categorías, temas y pares", () => {
     const paquete = empaquetarCanales(rara);
     expect(paquete.categorias).toEqual(["Categoría Inventada"]);
     const [reconstruido] = desempaquetarCanales(paquete);
-    // Desconocida → al final, como siempre: la centena de después de todas.
-    expect(reconstruido.number).toBe(String(CATEGORY_ORDER.length * 100 + 1));
+    // Sin país: al bloque «Sin país».
+    expect(reconstruido.number).toBe("9000");
   });
 
   it("aguanta un índice fuera de rango sin reventar", () => {
@@ -221,10 +218,12 @@ describe("el borde puede servir un paquete v1 a un JS nuevo", () => {
     ],
   };
 
-  it("lo entiende: mismos ids y mismos números que con v2", () => {
+  it("lo entiende: mismos ids, y numera con lo que sabe del país", () => {
     const canales = desempaquetarCanales(V1);
     expect(canales.map((c) => c.id)).toEqual([1, 2, 3, 4, 5]);
-    expect(canales.map((c) => c.number)).toEqual(["101", "102", "201", "1201", "901"]);
+    // Un v1 solo sabe que Canal 3 y 7 son de Guatemala; el resto, sin país,
+    // por nombre: Comedy Central, ESPN, NHK.
+    expect(canales.map((c) => c.number)).toEqual(["3", "7", "9001", "9002", "9000"]);
   });
 
   it("y saca un tema razonable de la categoría vieja o del nombre", () => {
@@ -245,7 +244,7 @@ describe("el borde puede servir un paquete v1 a un JS nuevo", () => {
   it("recortar un v1 sigue siendo un v1", () => {
     const recortado = recortarPaquete(V1, [0, 3]);
     expect(recortado.v).toBeUndefined();
-    expect(desempaquetarCanales(recortado).map((c) => c.number)).toEqual(["101", "1201"]);
+    expect(desempaquetarCanales(recortado).map((c) => c.number)).toEqual(["3", "9002"]);
   });
 });
 

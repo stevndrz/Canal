@@ -46,6 +46,23 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 (segunda pasada) — Numeración nueva y la barra del iPhone
+
+- **La barra de «Canal Casa» a media pantalla en el iPhone** (captura del
+  dueño, Cine y series, iOS 26). Es un fallo de Safari reportado (Apple
+  Developer Forums 800125, WebKit 300523): tras abrir y cerrar el teclado el
+  área visible se queda corrida y las barras `fixed` aparecen desplazadas;
+  la de abajo, fuera de la pantalla. No se reproduce en Chromium. Arreglo:
+  `use-viewport-visible.ts` mide `visualViewport` y mueve las dos barras (y
+  la hoja «Más») lo que se haya corrido; cero en el caso normal. **Sin
+  verificar en un iPhone de verdad**: confirmarlo con el dueño.
+- **Numeración aplicada** (`numeracion.ts`): Canal 3 = 3, Canal 7 = 7, TN23
+  = 23, Guatevisión = 25; el resto de Guatemala desde el 30 y un bloque por
+  región. El orden es por texto normalizado y no con `Intl.Collator`, para
+  que el servidor (que numera el recorte del HTML, `recorte.numeros`) y una
+  tele vieja (que numera la lista completa) den el mismo número. Se retiró
+  `withChannelNumbers`.
+
 ### 2026-10-08 — Rendimiento, teles viejas, mando y Cine y series (rama `mejoras-rendimiento`)
 
 Pedido del dueño, en orden: favoritos que no se pierdan, los números del
@@ -60,7 +77,7 @@ al abrir: los ids viejos se traducen contra la lista de hoy, esperando a la
 lista completa si alguno no vino en el recorte; lo viejo **no se borra**
 (`canalcasa:favorites` queda de copia). Recientes y «último canal» igual.
 
-**Numeración.** Propuesta en `numeracion-propuesta.md`, sin aplicar: hoy
+**Numeración.** Propuesta en `numeracion.md`, sin aplicar: hoy
 hay 885 números repetidos (las categorías de más de 99 se desbordan).
 
 **Mando.** Samsung no entrega 0-9 ni Info hasta que el cascarón los pide
@@ -371,8 +388,10 @@ impacto.
 
 ### Decisiones del dueño (no se tocan sin su sí)
 
-- **Renumerar canales**: propuesta en `numeracion-propuesta.md` (fijos para
-  los de casa + bloques por región). Hoy hay 885 números repetidos.
+- **Más fijos**: añadir a `FIJOS_DE_GUATEMALA` los que la familia marque de
+  memoria (hay hueco del 1 al 29).
+- **Confirmar en el iPhone** que la barra de arriba ya no se corre tras usar
+  el buscador.
 - **Logos de canales**: son lo más pesado de la app (2-2,7 MB por pantalla,
   PNG de imgur a 512 px pintados a 88). imgur da miniaturas pero en JPEG
   sin transparencia (un logo transparente saldría con cuadro negro). La vía

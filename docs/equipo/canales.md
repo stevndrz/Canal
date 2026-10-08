@@ -53,7 +53,8 @@ después: qué cambió, por qué, y qué me sorprendió.
   canal nuevo. Migración automática y sin borrar lo viejo. Ojo: 7 claves de
   la lista por defecto las comparten dos canales (misma señal en dos
   categorías); marcar uno marca los dos, y está aceptado.
-- **Numeración**: propuesta en `numeracion-propuesta.md`, sin aplicar.
+- **Numeración**: aplicada después en `numeracion.ts` (ver
+  `numeracion.md`): fijos de Guatemala y un bloque por región.
 - **Mando**: Samsung necesita `registerKey` para 0-9 e Info (cascarón,
   reempaquetar); LG manda CH+/CH− como 33/34. Marcado a 1,5 s, número
   grande con el nombre del canal previsto.
