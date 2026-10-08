@@ -4826,7 +4826,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   --cristal-fuerte: rgba(24, 24, 26, 0.98);
 }
 
-:root[data-pantalla="tv"] .cine-ambiente {
+:root[data-pantalla="tv"] .cine-ambiente-marco {
   display: none;
 }
 
@@ -4848,4 +4848,32 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 
 :root[data-pantalla="tv"] .hero-grupo {
   background: rgba(var(--fondo-rgb), 0.78);
+}
+
+/* ═══ Dedos: nada por debajo de 44 px ══════════════════════════════════
+   Revisión en iPhone (390 px) con Playwright: la marca de arriba medía
+   78×34, «Pantalla completa» del reproductor 40 de ancho, «Ver todo» 40 de
+   alto, el interruptor 31 y los servidores de la ficha 36. Con el dedo de
+   una persona mayor eso es tocar el de al lado. Solo con puntero grueso:
+   en el PC y en la tele las medidas no cambian. */
+@media (pointer: coarse) {
+  .mobile-brand,
+  .rail-ver-todo,
+  .servidor,
+  .ficha-aviso-accion,
+  .ficha-aviso-accion.is-suave {
+    min-height: 44px;
+  }
+
+  .player-bar.is-embedded .player-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* La pista sigue igual de discreta; crece el área que se toca. */
+  .ui-interruptor {
+    min-width: 51px;
+    min-height: 44px;
+    align-items: center;
+  }
 }
