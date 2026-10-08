@@ -43,6 +43,20 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Revisión semanal de la lista entera del gist
+
+- `scripts/revisar-lista.mjs` pide cada URL de la lista (48 a la vez, 12 s de
+  tope, segunda oportunidad a los caídos) y clasifica: responde / caído /
+  bloqueado por país (403 «from your country» o 451, que nunca se quita
+  porque GitHub revisa desde EE. UU.).
+- Cada lunes deja el informe en un issue fijo («Lista M3U: canales caídos»)
+  y un borrador `lista-limpia.m3u` sin los caídos **dos semanas seguidas**.
+  No publica nada: el gist lo edita el dueño.
+- El historial entre semanas va como artefacto, no en `actions/cache`: la
+  caché se borra a los 7 días sin uso, justo el intervalo.
+- `M3U_POR_DEFECTO` ya no lleva el hash de revisión del gist: con él, lo que
+  el dueño editara no llegaba nunca a la app.
+
 ### 2026-10-08 — Canal 3, 7 y TN23: la fuente no estaba bloqueada, había cambiado
 
 Corrige la entrada de abajo. La hipótesis buena era la (c): **cambió de URL**.

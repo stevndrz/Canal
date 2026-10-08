@@ -18,9 +18,15 @@ import "server-only";
  * reserva y hay que darlo por comprometido; ver `docs/SEGURIDAD.md`.
  */
 
-/** Para que la app funcione recién clonada. `M3U_URL` la sustituye. */
+/**
+ * Para que la app funcione recién clonada. `M3U_URL` la sustituye.
+ *
+ * Sin el hash de revisión en la ruta: con él (`raw/<hash>/gistfile1.txt`) la
+ * app se quedaba para siempre en esa versión y lo que el dueño editara en el
+ * gist no llegaba nunca. Así sirve la última, con unos minutos de caché.
+ */
 const M3U_POR_DEFECTO =
-  "https://gist.githubusercontent.com/stevndrz/8249817782d5a3c659f963f565916243/raw/8591ec832c3a5a04c311439cdcb82e6460a21f91/gistfile1.txt";
+  "https://gist.githubusercontent.com/stevndrz/8249817782d5a3c659f963f565916243/raw/gistfile1.txt";
 
 const TMDB_POR_DEFECTO = "https://api.themoviedb.org/3";
 

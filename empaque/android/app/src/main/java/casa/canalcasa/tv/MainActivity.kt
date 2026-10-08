@@ -1,8 +1,10 @@
 package casa.canalcasa.tv
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
@@ -55,6 +57,14 @@ class MainActivity : ComponentActivity() {
     private var vistaAPantallaCompleta: View? = null
     private var avisoDeSalida: WebChromeClient.CustomViewCallback? = null
 
+    /** El dominio de la app, sin `www.`. Lo que no sea esto no ocupa la pantalla. */
+    private var dominioApp = ""
+
+    private fun esDeLaApp(url: Uri): Boolean {
+        val host = url.host ?: return false
+        return dominioApp.isNotEmpty() && (host == dominioApp || host.endsWith(".$dominioApp"))
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +87,7 @@ class MainActivity : ComponentActivity() {
 
         webView = WebView(this)
         setContentView(webView)
+        dominioApp = Uri.parse(url).host.orEmpty().removePrefix("www.")
         configurar(webView)
         aPantallaCompleta()
 
@@ -162,6 +173,18 @@ class MainActivity : ComponentActivity() {
          */
         vista.addJavascriptInterface(PuenteDeSalida(), "CanalCasaAndroid")
 
+        /**
+         * Pestañas de publicidad: que no se abran, y que no tapen la película.
+         *
+         * Una WebView sin ventanas múltiples no ignora `window.open()`: carga
+         * el anuncio EN LA MISMA VISTA, encima de la app. Con ventanas
+         * múltiples activadas y `onCreateWindow` devolviendo `false` (abajo),
+         * la petición se descarta sin más. Va junto a `shouldOverrideUrlLoading`,
+         * que corta el otro camino: un anuncio que navega la ventana entera.
+         */
+        ajustes.setSupportMultipleWindows(true)
+        ajustes.javaScriptCanOpenWindowsAutomatically = false
+
         vista.setBackgroundColor(android.graphics.Color.BLACK)
 
         /**
@@ -199,11 +222,36 @@ class MainActivity : ComponentActivity() {
             override fun onHideCustomView() {
                 cerrarPantallaCompleta()
             }
+
+            /** `false` = no se crea ninguna ventana. Ver `setSupportMultipleWindows`. */
+            override fun onCreateWindow(
+                view: WebView,
+                isDialog: Boolean,
+                isUserGesture: Boolean,
+                resultMsg: Message,
+            ): Boolean = false
         }
         vista.webViewClient = object : WebViewClient() {
             override fun onPageFinished(view: WebView?, url: String?) {
                 paginaViva = true
             }
+
+            /**
+             * La ventana principal solo navega dentro de la app.
+             *
+             * Los iframes de los servidores de cine pueden intentar llevarse la
+             * ventana entera a un anuncio. Aquí no hay pestañas ni barra de
+             * direcciones: si lo consiguen, la película desaparece y Atrás
+             * tampoco ayuda. Lo de los marcos (`isForMainFrame` falso) no se
+             * toca: es donde viven los propios reproductores.
+             */
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                request.isForMainFrame && !esDeLaApp(request.url)
+
+            /** Lo mismo para Android 5 y 6, que solo llaman a esta versión. */
+            @Deprecated("Solo la usan Android 5 y 6")
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+                !esDeLaApp(Uri.parse(url))
 
             /**
              * Solo importa el fallo del documento PRINCIPAL.

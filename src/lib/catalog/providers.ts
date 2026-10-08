@@ -51,6 +51,17 @@ export interface EmbedProvider {
    */
   puertaAntirrobot?: boolean;
   /**
+   * Reproduce dentro de un iframe con `sandbox` sin `allow-popups`, que es lo
+   * único que impide de verdad que la publicidad abra pestañas nuevas.
+   *
+   * Solo los comprobados: varios lo detectan y se niegan a reproducir. Probado
+   * 2026-10-08 con Playwright (Matrix, dos clics dentro): Vidzee pide igual sus
+   * `.m3u8` con sandbox; Vidrock responde «Sandbox Not Allowed» y, sin él,
+   * abrió una pestaña al primer clic. Multiembed no se puede probar desde un
+   * servidor (reto de Cloudflare).
+   */
+  toleraSandbox?: boolean;
+  /**
    * El proveedor **dice** con un estado HTTP cuándo no tiene un título — la
    * única pregunta honesta que admite un embed desde fuera.
    *
@@ -145,6 +156,7 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     movie: "https://player.vidzee.wtf/embed/movie/{tmdbId}",
     tv: "https://player.vidzee.wtf/embed/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: false,
+    toleraSandbox: true,
   },
   {
     // Nuevo (2026-10-08). Subtítulos solo en inglés en su caché.
@@ -291,6 +303,11 @@ export function servidoresEmbed(
         }]
       : [];
   });
+}
+
+/** Si el servidor con este id aguanta `sandbox` (ver `toleraSandbox`). */
+export function aguantaSandbox(id: string): boolean {
+  return EMBED_PROVIDERS.some((provider) => provider.id === id && provider.toleraSandbox === true);
 }
 
 /** Lo que `servidoresEmbed` devuelve, con la etiqueta aún provisional. */

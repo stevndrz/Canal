@@ -4,6 +4,10 @@ name: Revisar fuentes
 # cine (`scripts/revisar-fuentes.mjs`). Si algo cayó, abre un issue — o comenta
 # en el que ya esté abierto— y GitHub avisa por correo. Si todo vuelve a
 # responder, lo cierra solo. También se puede lanzar a mano desde Actions.
+#
+# El segundo trabajo revisa la lista M3U entera del gist
+# (`scripts/revisar-lista.mjs`) y deja el informe en un issue fijo, que se
+# reescribe cada semana, más un borrador `lista-limpia.m3u` como artefacto.
 on:
   schedule:
     - cron: "17 13 * * 1" # lunes 07:17 en Guatemala (UTC-6)
@@ -12,6 +16,7 @@ on:
 permissions:
   contents: read
   issues: write
+  actions: read # para bajar el historial de la semana anterior
 
 jobs:
   revisar:
@@ -42,3 +47,51 @@ jobs:
           elif [ -n "$ABIERTO" ]; then
             gh issue close "$ABIERTO" --comment "Todo vuelve a responder. $(head -1 informe.md)"
           fi
+
+  lista:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # El historial va como artefacto y no en `actions/cache`: la caché se
+      # borra a los 7 días sin uso, que es justo lo que tarda en volver a correr.
+      - name: Historial de la semana anterior
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ANTERIOR=$(gh run list --workflow revisar-fuentes.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')
+          if [ -n "$ANTERIOR" ]; then
+            gh run download "$ANTERIOR" --name historial-lista --dir revision-lista || echo "Sin historial: se empieza de cero."
+          fi
+
+      - name: Revisar la lista
+        run: node scripts/revisar-lista.mjs
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: historial-lista
+          path: revision-lista/historial.json
+          retention-days: 90
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lista-limpia
+          path: |
+            revision-lista/lista-limpia.m3u
+            revision-lista/informe.md
+
+      - name: Informe en el issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITULO="Lista M3U: canales caídos"
+          ENLACE="Borrador sin los caídos: artefacto **lista-limpia** de ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          printf '%s\n\n%s\n' "$(cat revision-lista/informe.md)" "$ENLACE" | head -c 60000 > cuerpo.md
+          ABIERTO=$(gh issue list --state open --search "in:title \"$TITULO\"" --json number --jq '.[0].number')
+          if [ -n "$ABIERTO" ]; then gh issue edit "$ABIERTO" --body-file cuerpo.md
+          else gh issue create --title "$TITULO" --body-file cuerpo.md; fi
