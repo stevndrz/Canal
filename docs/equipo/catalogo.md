@@ -39,6 +39,23 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Pop-ups: sandbox solo donde lo aguantan, y la app Android
+
+- `sandbox` sin `allow-popups` es lo único que impide de verdad que un iframe
+  ajeno abra pestañas. Puesto a todos rompía la reproducción, así que ahora va
+  por proveedor (`toleraSandbox`). Probado con Playwright (Matrix, dos clics):
+  **Vidzee** reproduce igual con sandbox, pantalla completa incluida, y
+  `window.open` devuelve `null`; **Vidrock** dice «Sandbox Not Allowed» y sin
+  él abrió una pestaña al primer clic; **Multiembed** no se puede probar desde
+  un servidor (reto de Cloudflare). Vimeus ya iba cubierto por su proxy.
+- App Android: una WebView sin ventanas múltiples carga el `window.open` EN
+  LA MISMA VISTA, tapando la película. Ahora `onCreateWindow` lo descarta y
+  `shouldOverrideUrlLoading` no deja que la ventana principal salga del
+  dominio de la app. Efecto aceptado: en la tele, los enlaces externos (IMDb,
+  tráiler en YouTube) no hacen nada.
+- No se intentó esquivar la detección de sandbox de Vidrock: sería saltarse
+  una protección del proveedor.
+
 ### 2026-10-08 — Servidores: Vimeus primero, Multiembed de recaída
 
 Pedido del dueño: «solo el cuarto o quinto funciona». Probé cada servidor con
