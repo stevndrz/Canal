@@ -200,12 +200,29 @@ function destinoDeEntrada(root: HTMLElement, candidatos: Candidate[]): Candidate
 }
 
 /**
+ * La caja de un destino, contando el título de su sección si es el primero.
+ *
+ * En Canales, al entrar con el mando, la primera fila quedaba justo debajo
+ * de la barra y su título («Mis canales») por detrás de ella: se veía la
+ * lista, pero no de qué era. Si la fila de encima es un título de sección,
+ * el borde de arriba que hay que dejar a la vista es el del título.
+ */
+export function cajaConTitulo(el: HTMLElement): { top: number; bottom: number } {
+  const caja = el.getBoundingClientRect();
+  const previa = el.closest(".livetv-item")?.previousElementSibling;
+  if (previa?.classList.contains("livetv-seccion")) {
+    return { top: previa.getBoundingClientRect().top, bottom: caja.bottom };
+  }
+  return { top: caja.top, bottom: caja.bottom };
+}
+
+/**
  * Deja a la vista, por debajo de la barra fija, un destino al que se ha
  * llevado el foco sin desplazar (`preventScroll`). El scroll nativo de
  * `focus()` lo pegaba al borde de arriba, debajo de la barra.
  */
 function aLaVistaEnLaVentana(el: HTMLElement) {
-  const caja = el.getBoundingClientRect();
+  const caja = cajaConTitulo(el);
   let barra = 0;
   for (const cromo of document.querySelectorAll<HTMLElement>("[data-nav-chrome]")) {
     const r = cromo.getBoundingClientRect();

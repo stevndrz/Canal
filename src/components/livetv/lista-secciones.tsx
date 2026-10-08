@@ -1,12 +1,13 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Globe2, MapPinOff, Flag } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe2, MapPinOff, Flag, Star } from "lucide-react";
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Channel } from "@/lib/types";
 import { NOMBRE_DE_REGION, type Region } from "@/lib/origenes";
 import { cifra, type Fila } from "@/lib/secciones-canales";
 import { calcularVentana, ventanaCambio, type Ventana } from "@/lib/ventana-lista";
 import { ChannelRow } from "./channel-row";
+import { cajaConTitulo } from "@/hooks/use-spatial-nav";
 
 /**
  * La lista de Canales por secciones, con ventana virtual.
@@ -149,7 +150,7 @@ export function ListaSecciones({
     );
     if (fila) {
       fila.focus({ preventScroll: true });
-      const caja = fila.getBoundingClientRect();
+      const caja = cajaConTitulo(fila);
       const barra = altoDeLaBarra();
       if (caja.top < barra + 8 || caja.bottom > window.innerHeight - 8) {
         window.scrollBy({ top: caja.top - barra - 16 });
@@ -207,6 +208,7 @@ export function ListaSecciones({
             case "aviso":
               return (
                 <div key={fila.clave} className="livetv-item livetv-aviso" data-fila={fila.clave}>
+                  {fila.clave === "aviso:mios" && <Star aria-hidden="true" className="livetv-aviso-icono" />}
                   <p>{fila.texto}</p>
                 </div>
               );
