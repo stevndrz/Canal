@@ -1829,6 +1829,10 @@
     position: fixed;
     inset: 0 0 auto;
     z-index: 60;
+    /* Pegada a lo que se ve aunque Safari de iOS 26 deje el área visible
+       corrida tras cerrar el teclado. Cero en el caso normal. Ver
+       `use-viewport-visible.ts`. */
+    transform: translateY(var(--vv-arriba, 0px));
     display: flex;
     align-items: center;
     gap: 10px;
@@ -1878,6 +1882,7 @@
     position: fixed;
     inset: auto 0 0;
     z-index: 60;
+    transform: translateY(var(--vv-abajo, 0px));
     display: flex;
     justify-content: space-around;
     align-items: stretch;
@@ -1975,6 +1980,8 @@
     left: max(8px, env(safe-area-inset-left));
     right: max(8px, env(safe-area-inset-right));
     bottom: calc(62px + env(safe-area-inset-bottom));
+    /* Con la barra de abajo, si Safari la corre (ver `.mobile-bottom-nav`). */
+    transform: translateY(var(--vv-abajo, 0px));
     display: grid;
     gap: 2px;
     padding: 8px;
