@@ -11,26 +11,26 @@ function paraTipo(tipo: "movie" | "tv") {
 /**
  * El orden de los proveedores ES el producto: decide qué se ve al abrir una
  * ficha, antes de que nadie toque un botón. Lo decidió el dueño el
- * 2026-10-08: Vimeus (latino) primero y Multiembed de recaída, que eran los
- * únicos que le funcionaban. Ver el comentario de `EMBED_PROVIDERS`.
+ * 2026-10-08: Vimeus (latino) primero y Vidzee de recaída, que es el que de
+ * verdad le reproduce en el teléfono. Ver el comentario de `EMBED_PROVIDERS`.
  */
 describe("orden de los proveedores", () => {
   it("en PELÍCULAS manda Vimeus: es el del doblaje latino", () => {
     expect(paraTipo("movie")[0].id).toBe("vimeus");
   });
 
-  it("la recaída es Multiembed, justo detrás", () => {
-    expect(paraTipo("movie")[1].id).toBe("multiembed");
+  it("la recaída es Vidzee, justo detrás", () => {
+    expect(paraTipo("movie")[1].id).toBe("vidzee");
   });
 
-  it("en SERIES manda Multiembed, porque Vimeus no las cubre", () => {
+  it("en SERIES manda Vidzee, porque Vimeus no las cubre", () => {
     // La ruta de series de Vimeus responde 404, así que ni aparece.
     expect(paraTipo("tv").map((p) => p.id)).not.toContain("vimeus");
-    expect(paraTipo("tv")[0].id).toBe("multiembed");
+    expect(paraTipo("tv")[0].id).toBe("vidzee");
   });
 
   it("todos siguen ahí, en el orden acordado, y los muertos ya no", () => {
-    expect(getProviders().map((p) => p.id)).toEqual(["vimeus", "multiembed", "vidzee", "vidrock"]);
+    expect(getProviders().map((p) => p.id)).toEqual(["vimeus", "vidzee", "multiembed", "vidrock"]);
   });
 
   it("nadie se anuncia con subtítulos en español: hoy ninguno los trae comprobados", () => {
