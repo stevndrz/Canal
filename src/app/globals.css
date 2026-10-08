@@ -4806,3 +4806,46 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   background: var(--vivo);
   vertical-align: 0.1em;
 }
+
+/* ═══ La tele, sin desenfoques ══════════════════════════════════════════
+   Medido (Chromium con la CPU a 6×, bajando por Cine y series con el mando):
+   con el fondo ambiental desenfocado y el cristal de la barra, ~37 fotogramas
+   por segundo y diez tirones de más de 50 ms; sin ellos, ~48 y cuatro. En un
+   televisor la GPU es lo más justo que hay, y un `blur()` se recalcula en
+   cada fotograma que se mueve algo por debajo.
+
+   - El fondo ambiental se apaga. Se probó dejarlo sin el `blur()` (lo caro):
+     rinde igual que apagado, pero la imagen ampliada se reconoce —un
+     astronauta fantasma debajo del héroe—. Sin el desenfoque no tiene
+     sentido, y con él es lo que más pesa.
+   - El cristal se vuelve casi opaco: sin desenfoque, uno translúcido deja
+     leer nítido lo que pasa por debajo (la misma regla que en las teles que
+     no saben desenfocar, más abajo en `shell.css`). */
+:root[data-pantalla="tv"] {
+  --cristal: rgba(18, 18, 20, 0.97);
+  --cristal-fuerte: rgba(24, 24, 26, 0.98);
+}
+
+:root[data-pantalla="tv"] .cine-ambiente {
+  display: none;
+}
+
+:root[data-pantalla="tv"] .sidebar nav,
+:root[data-pantalla="tv"] .rail-arrow,
+:root[data-pantalla="tv"] .hero-grupo,
+:root[data-pantalla="tv"] .atv-marca,
+:root[data-pantalla="tv"] .atv-alerta,
+:root[data-pantalla="tv"] .atv-carga,
+:root[data-pantalla="tv"] .atv-play-central,
+:root[data-pantalla="tv"] .atv-btn.is-play,
+:root[data-pantalla="tv"] .atv-menu {
+  backdrop-filter: none;
+}
+
+:root[data-pantalla="tv"] .sidebar nav {
+  background: var(--cristal-fuerte);
+}
+
+:root[data-pantalla="tv"] .hero-grupo {
+  background: rgba(var(--fondo-rgb), 0.78);
+}
