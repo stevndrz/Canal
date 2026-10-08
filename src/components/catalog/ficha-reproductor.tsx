@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { Info } from "lucide-react";
 import { ServerPicker } from "./server-picker";
 import {
-  aguantaSandbox,
   buildEmbedUrl,
   getProviders,
   ordenarParaTelevisor,
@@ -17,9 +16,6 @@ import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en
 import { claveDeTitulo } from "@/lib/progreso";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { accionDeTecla } from "@/lib/teclas-mando";
-
-/** Todo lo que un reproductor necesita, menos `allow-popups` y `allow-top-navigation`. */
-const SANDBOX_SIN_POPUPS = "allow-scripts allow-same-origin allow-forms allow-presentation";
 
 /**
  * Cuánto se espera antes de ofrecer el cambio de servidor.
@@ -548,12 +544,10 @@ function ReproductorCatalogo({
               }
             />
           ) : (
-            /* `sandbox` solo en los servidores que lo aguantan
-               (`toleraSandbox`). Puesto a todos, varios lo detectan y se
-               niegan a reproducir («iframe sandbox detected»); y tampoco para
-               el bucle de recargas, que vive en un marco anidado. Lo que SÍ
-               hace es quitar `allow-popups`: la publicidad no puede abrir
-               pestañas ni navegar la ventana entera. */
+            /* Sin `sandbox`. Se probó (por proveedor, con `allow-popups`
+               quitado) y en casa del dueño ninguno reproducía con él; varios
+               además lo detectan («iframe sandbox detected»). Los anuncios se
+               aceptan a cambio de que funcione. */
             <iframe
               // Un marco nuevo por servidor: cambiar solo el `src` deja dentro
               // el historial del anterior, y con él su bucle de recargas.
@@ -568,7 +562,6 @@ function ReproductorCatalogo({
               tabIndex={abierto ? 0 : -1}
               allowFullScreen
               allow="autoplay; encrypted-media; fullscreen"
-              sandbox={aguantaSandbox(activo.id) ? SANDBOX_SIN_POPUPS : undefined}
               referrerPolicy="origin"
             />
           )}

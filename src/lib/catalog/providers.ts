@@ -51,19 +51,6 @@ export interface EmbedProvider {
    */
   puertaAntirrobot?: boolean;
   /**
-   * Reproduce dentro de un iframe con `sandbox` sin `allow-popups`, que es lo
-   * único que impide de verdad que la publicidad abra pestañas nuevas.
-   *
-   * Solo los comprobados: varios lo detectan y se niegan a reproducir. Probado
-   * 2026-10-08 con Playwright (Matrix, dos clics dentro): Vidzee pide igual sus
-   * `.m3u8` con sandbox; Vidrock responde «Sandbox Not Allowed» y, sin él,
-   * abrió una pestaña al primer clic. Multiembed no se puede probar desde un
-   * servidor (reto de Cloudflare).
-   */
-  toleraSandbox?: boolean;
-  // Hoy ninguno lo lleva: el dueño comprobó el 2026-10-08 que con sandbox no
-  // le reproducía ninguno en casa, aunque en la prueba automática Vidzee sí.
-  /**
    * El proveedor **dice** con un estado HTTP cuándo no tiene un título — la
    * única pregunta honesta que admite un embed desde fuera.
    *
@@ -88,13 +75,11 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
  * pero en una app de TV no hay reglas— sale una pestaña y un anuncio de 30 s
  * delante del contenido.
  *
- * Hubo un intento de arreglarlo con un proxy propio (`/api/proxy/vimeus`,
- * `/api/proxy/vimeos-asset`) que reescribía el HTML de `vimeus.com` quitando
- * esos dos guiones. Se desconectó: servir ese HTML reescrito desde nuestro
- * propio origen —en vez de `vimeus.com` cargado en un iframe cruzado, que es
- * como espera correr— dejó a JWPlayer sin reproducir nada. Las dos rutas
- * siguen en el repo por si se retoma, pero antes hay que resolver por qué
- * cambiar de origen rompe el reproductor, no solo limpiar los anuncios.
+ * Hubo un intento de arreglarlo con un proxy propio que reescribía el HTML
+ * de `vimeus.com` quitando esos dos guiones. Rompía JWPlayer (servirlo desde
+ * nuestro origen y no desde el suyo lo dejaba sin reproducir) y se retiró del
+ * todo el 2026-10-08: dos rutas públicas sin usar eran solo superficie de
+ * abuso. El dueño acepta los anuncios de Vimeus a cambio de que funcione.
  */
 
 /**
@@ -309,11 +294,6 @@ export function servidoresEmbed(
         }]
       : [];
   });
-}
-
-/** Si el servidor con este id aguanta `sandbox` (ver `toleraSandbox`). */
-export function aguantaSandbox(id: string): boolean {
-  return EMBED_PROVIDERS.some((provider) => provider.id === id && provider.toleraSandbox === true);
 }
 
 /** Lo que `servidoresEmbed` devuelve, con la etiqueta aún provisional. */
