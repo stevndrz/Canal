@@ -2107,10 +2107,13 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
  * lo demás se apoya abajo a la izquierda, como en Apple TV.
  */
 @media (min-width: 900px) {
+  /* El relleno de arriba deja sitio fijo a «Volver»: con un título de tres
+     líneas el bloque crece hacia arriba y, sin él, se le montaba encima. */
   .ficha-portada.con-fondo {
     --ficha-hero-h: clamp(460px, 74vh, 860px);
     display: flex;
     align-items: flex-end;
+    padding-top: calc(var(--topbar-h) + var(--control-sm) + clamp(36px, 5vh, 56px));
     background-position: center 20%;
   }
 
@@ -2157,8 +2160,19 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
     position: relative;
   }
 
+  /* Más discreto: un círculo de cristal de 40 px alineado con el margen,
+     no un botón que compita con «Reproducir». */
   .con-fondo .ficha-volver {
     top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
+    width: var(--control-sm);
+    height: var(--control-sm);
+    border-color: var(--borde);
+    backdrop-filter: saturate(160%) blur(20px);
+  }
+
+  .con-fondo .ficha-volver svg {
+    width: 19px;
+    height: 19px;
   }
 
   .con-fondo .ficha-titular {
@@ -2166,11 +2180,13 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   }
 
   .con-fondo .ficha-datos {
-    max-width: min(760px, 52vw);
+    max-width: min(880px, 56vw);
   }
 
+  /* Más contenido que antes: con títulos largos («La noche del demonio:
+     Están entre nosotros») a 96 px salían tres líneas que se comían el arte. */
   .con-fondo .ficha-datos h1 {
-    font-size: clamp(44px, 4.6vw, 96px);
+    font-size: clamp(40px, 3.8vw, 76px);
     font-weight: 800;
     letter-spacing: -0.035em;
     line-height: 0.98;
