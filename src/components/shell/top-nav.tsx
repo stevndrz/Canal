@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useViewportVisible } from "@/hooks/use-viewport-visible";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
 import { useReloj } from "@/hooks/use-reloj";
@@ -74,6 +74,24 @@ function MarcaInicio({ className, onIr }: { className: string; onIr: () => void 
       </span>
     </button>
   );
+}
+
+/**
+ * Lleva el cristal deslizante de la barra hasta un destino.
+ *
+ * Se escribe en el estilo del elemento y no en estado de React: se mueve a
+ * cada paso del ratón y del mando, y un render por movimiento no aporta nada.
+ * Sin destino (ninguna sección activa, p. ej. en Ajustes) el cristal se apaga.
+ */
+function moverIndicador(indicador: HTMLElement | null, destino: Element | null) {
+  if (!indicador) return;
+  if (!(destino instanceof HTMLElement)) {
+    indicador.classList.remove("is-visible");
+    return;
+  }
+  indicador.style.setProperty("--x", `${destino.offsetLeft}px`);
+  indicador.style.setProperty("--w", `${destino.offsetWidth}px`);
+  indicador.classList.add("is-visible");
 }
 
 export function TopNav({
@@ -160,13 +178,47 @@ export function TopNav({
 
   const ajustesActivo = AJUSTES ? isActive(AJUSTES, view, pathname) : false;
 
+  /* El cristal que marca dónde se está. Reposa bajo el destino activo y se
+     desliza al que tenga encima el ratón o el mando; al salir, vuelve. */
+  const refNav = useRef<HTMLElement | null>(null);
+  const refIndicador = useRef<HTMLSpanElement | null>(null);
+  const volverAlActivo = () =>
+    moverIndicador(refIndicador.current, refNav.current?.querySelector(".nav-item.is-active") ?? null);
+  const seguir = (evento: { target: EventTarget }) => {
+    const destino = evento.target instanceof Element ? evento.target.closest(".nav-item") : null;
+    if (destino) moverIndicador(refIndicador.current, destino);
+  };
+
+  // Al cambiar de sección, y si cambia el ancho (las etiquetas se esconden
+  // por debajo de 1500 px), el cristal se recoloca bajo el activo.
+  useLayoutEffect(() => {
+    const recolocar = () =>
+      moverIndicador(refIndicador.current, refNav.current?.querySelector(".nav-item.is-active") ?? null);
+    recolocar();
+    window.addEventListener("resize", recolocar);
+    return () => window.removeEventListener("resize", recolocar);
+  }, [pathname, view]);
+
   return (
     <>
       {/* Escritorio y TV */}
       <aside className={`sidebar ${scrolled ? "is-scrolled" : ""}`} aria-label="Secciones" data-nav-chrome>
         <MarcaInicio className="profile-cluster" onIr={() => irA("home")} />
 
-        <nav>{DESTINOS.map((item) => renderItem(item, "nav-item"))}</nav>
+        <nav
+          ref={refNav}
+          onPointerOver={seguir}
+          onFocus={seguir}
+          onPointerLeave={volverAlActivo}
+          // Solo al salir de la barra: entre dos destinos el foco pasa sin
+          // que el cristal tenga que volver al activo y rebotar.
+          onBlur={(evento) => {
+            if (!evento.currentTarget.contains(evento.relatedTarget)) volverAlActivo();
+          }}
+        >
+          <span ref={refIndicador} className="nav-indicador" aria-hidden="true" />
+          {DESTINOS.map((item) => renderItem(item, "nav-item"))}
+        </nav>
 
         <div className="top-right">
           <span className="top-clock">{clock}</span>

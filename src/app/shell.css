@@ -339,12 +339,6 @@
   background: linear-gradient(180deg, rgba(var(--fondo-rgb), 0.92), rgba(var(--fondo-rgb), 0.6) 70%, transparent);
 }
 
-/* Con la píldora ya oscura, al bajar basta con apretar un poco su cristal:
-   antes la barra entera se volvía un bloque sólido de borde a borde. */
-.sidebar.is-scrolled nav {
-  background: var(--cristal-fuerte);
-}
-
 .profile-cluster,
 .sidebar nav,
 .top-right {
@@ -358,23 +352,65 @@
   min-width: 0;
 }
 
-/* Los destinos van juntos en una píldora de cristal que flota a la derecha,
-   con el activo en blanco: el lenguaje de las capturas de referencia del
-   dueño (y de tvOS). La píldora es oscura por sí misma, sin depender del
-   desenfoque, para que se lea sobre cualquier fotograma también en un
-   televisor, que no desenfoca. */
+/* Los destinos, sueltos y centrados sobre el degradado de la barra, sin
+   cápsula alrededor: el dueño prefirió la barra de antes. Lo que marca dónde
+   se está es `.nav-indicador`, un cristal que se desliza entre destinos. */
 .sidebar nav {
+  position: relative;
   display: flex;
-  justify-self: end;
+  justify-self: center;
   align-items: center;
-  gap: clamp(2px, 0.25vw, 6px);
+  gap: clamp(2px, 0.4vw, 8px);
   min-width: 0;
-  padding: 5px;
-  border-radius: var(--radio-pill);
-  background: rgba(var(--fondo-rgb), 0.55);
-  border: 1px solid var(--borde);
-  backdrop-filter: saturate(180%) blur(24px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+/* El cristal: translúcido, con un filo de luz arriba, y se desliza al
+   destino que tenga encima el ratón o el mando (`top-nav.tsx` le da `--x` y
+   `--w`). La curva frena al llegar, como en tvOS: se siente que se pasa por
+   encima, no que se pulsa un botón. */
+.nav-indicador {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: var(--w, 0);
+  height: 42px;
+  border-radius: var(--radio-md);
+  background: var(--relleno-hover);
+  border: 1px solid var(--borde-sutil);
+  box-shadow: inset 0 1px 0 var(--borde), var(--sombra-1);
+  backdrop-filter: saturate(160%) blur(20px);
+  transform: translate(var(--x, 0), -50%);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 420ms cubic-bezier(0.32, 0.72, 0, 1),
+    width 420ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms var(--ease);
+}
+
+.nav-indicador.is-visible {
+  opacity: 1;
+}
+
+/* Con teclado o mando, el foco lo dice el cristal, más claro, en vez del
+   contorno blanco del resto de la app: encima de la barra, un aro blanco era
+   justo el «botón» que se quería quitar. Lo bastante fuerte para leerse a
+   tres metros. La selección se dobla a propósito para ganarle a la regla
+   general de foco de `globals.css`. */
+.sidebar nav:focus-within .nav-indicador {
+  background: var(--relleno-activo);
+  border-color: var(--borde-fuerte);
+}
+
+.sidebar nav .nav-item.nav-item[data-nav]:focus-visible,
+[data-input="dpad"] .sidebar nav .nav-item.nav-item[data-nav]:focus {
+  outline: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-indicador {
+    transition: opacity 200ms var(--ease);
+  }
 }
 
 /* Acotado a la barra con `>` a propósito: `top-right` se usa también como
@@ -386,23 +422,25 @@
   justify-self: end;
 }
 
-/* El destino: una píldora. Apagada en reposo, blanca cuando está activa —el
-   mismo par de estados que usa el selector de tvOS. */
+/* El destino: texto e icono sobre el cristal deslizante. Apagado en reposo,
+   blanco encima o activo. Sin fondo propio: el fondo lo pone el cristal. */
 .nav-item {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 9px;
   min-height: 42px;
   padding: 0 clamp(11px, 1vw, 18px);
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radio-md);
   background: transparent;
-  color: var(--muted);
+  color: var(--tinta-3);
   font-size: var(--texto-base);
   font-weight: 500;
   letter-spacing: -0.01em;
   white-space: nowrap;
-  transition: background-color 180ms var(--ease), color 180ms var(--ease);
+  transition: color 220ms var(--ease);
 }
 
 .nav-item svg {
@@ -411,14 +449,13 @@
   flex: none;
 }
 
-.nav-item:hover {
-  color: var(--text);
-  background: var(--chip);
+.nav-item:hover,
+.nav-item:focus-visible {
+  color: var(--tinta-1);
 }
 
 .nav-item.is-active {
-  color: var(--acento-tinta);
-  background: var(--acento);
+  color: var(--tinta-1);
   font-weight: 600;
 }
 
