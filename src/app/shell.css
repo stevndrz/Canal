@@ -375,9 +375,8 @@
 }
 
 /* El destino: texto e icono, apagado en reposo. Activo, un cristal fino
-   (relleno translúcido y filo de luz) como en el Figma. Encima, dos capas
-   translúcidas asoman escalonadas por detrás —el efecto «LAYERS» que pidió el
-   dueño, en gris para que no cante sobre el arte—. */
+   (relleno translúcido y filo de luz) como en el Figma; encima, solo se
+   aclara. Simple a propósito: las capas escalonadas se probaron y se quitaron. */
 .nav-item {
   position: relative;
   z-index: 1;
@@ -403,40 +402,11 @@
   flex: none;
 }
 
-.nav-item::before,
-.nav-item::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background: var(--relleno-sutil);
-  border: 1px solid var(--borde-sutil);
-  opacity: 0;
-  transform: translateY(0);
-  transition: opacity 200ms var(--ease), transform 260ms var(--ease);
-  pointer-events: none;
-}
-
 .nav-item:hover,
 .nav-item:focus-visible,
 [data-input="dpad"] .nav-item:focus {
   color: var(--tinta-1);
-  background: var(--relleno);
-}
-
-.nav-item:hover::before,
-.nav-item:focus-visible::before,
-[data-input="dpad"] .nav-item:focus::before {
-  opacity: 1;
-  transform: translateY(4px);
-}
-
-.nav-item:hover::after,
-.nav-item:focus-visible::after,
-[data-input="dpad"] .nav-item:focus::after {
-  opacity: 0.6;
-  transform: translateY(8px);
+  background: var(--relleno-sutil);
 }
 
 .nav-item.is-active {
@@ -446,12 +416,6 @@
   box-shadow: inset 0 1px 0 var(--borde), 0 0 0 1px var(--borde-sutil);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .nav-item::before,
-  .nav-item::after {
-    transition: opacity 200ms var(--ease);
-  }
-}
 
 .settings-gear {
   display: grid;
