@@ -43,6 +43,23 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Favoritos por clave estable y el mando de Samsung/LG
+
+(Hecho en la rama `mejoras-rendimiento`; el detalle está en `diseno.md`.)
+
+- **Favoritos, recientes y último canal** se guardan por clave
+  `nombre-normalizado.país` (`claves-canal.ts`, `use-canales-guardados.ts`),
+  no por `id`. El `id` es la posición en la lista y cambiaba con cualquier
+  canal nuevo. Migración automática y sin borrar lo viejo. Ojo: 7 claves de
+  la lista por defecto las comparten dos canales (misma señal en dos
+  categorías); marcar uno marca los dos, y está aceptado.
+- **Numeración**: propuesta en `numeracion-propuesta.md`, sin aplicar.
+- **Mando**: Samsung necesita `registerKey` para 0-9 e Info (cascarón,
+  reempaquetar); LG manda CH+/CH− como 33/34. Marcado a 1,5 s, número
+  grande con el nombre del canal previsto.
+- Pendiente: el APK de Android TV no traduce `KEYCODE_CHANNEL_UP/DOWN` a
+  teclas de la web (habría que hacerlo en `MainActivity.kt`, como Volumen +).
+
 ### 2026-09-14 (tercera pasada) — Dos trampas de foco más, probando ya con la app instalada
 
 Con el foco huérfano arreglado (entrada de abajo), aparecieron dos más al
