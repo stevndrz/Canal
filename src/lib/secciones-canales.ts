@@ -307,7 +307,7 @@ export function filasDeCanales(opciones: OpcionesFilas): Fila[] {
     // de la fila no se descubre sola.
     const hayFavoritos = misCanales.length > opciones.deLaCasa.length;
     if (!hayFavoritos && (filtro === "mios" || filtro === "todo")) {
-      filas.push({ tipo: "aviso", clave: "aviso:mios", texto: "Pulsa ☆ en un canal para tenerlo aquí" });
+      filas.push({ tipo: "aviso", clave: "aviso:mios", texto: "Marca la estrella de un canal y aparecerá aquí y en Inicio" });
     }
   }
 

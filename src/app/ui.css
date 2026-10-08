@@ -626,8 +626,10 @@
   margin-bottom: clamp(22px, 3.4vh, 40px);
 }
 
+/* El mismo tamaño que «Canales» y «Cine y series»: eran el único título de
+   página un escalón más grande. */
 .ui-encabezado[data-talla="pagina"] .ui-encabezado-titulo {
-  font-size: var(--texto-3xl);
+  font-size: var(--texto-2xl);
   letter-spacing: -0.03em;
 }
 
@@ -805,10 +807,14 @@
    El margen va siempre; el ancho máximo se suma por dentro. `max()` con el
    área segura para el iPhone en horizontal (la muesca a un lado). Pisa el
    `padding` lateral de `.screen` y `.tv-safe` del armazón, que van en capa. */
+/* Pegado al margen izquierdo, como Canales y Cine y series, y no centrado:
+   con la columna en medio de una pantalla de 1920, Ajustes y Mi enlace
+   tenían su propio borde izquierdo, distinto del de la barra y del resto de
+   pantallas (la misma razón por la que el héroe dejó su caja de 1.700 px). */
 .ui-contenedor {
   box-sizing: border-box;
   width: 100%;
-  margin-left: auto;
+  margin-left: 0;
   margin-right: auto;
   padding-left: max(var(--margen), env(safe-area-inset-left, 0px));
   padding-right: max(var(--margen), env(safe-area-inset-right, 0px));

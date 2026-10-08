@@ -2380,10 +2380,22 @@
   padding: 0 14px;
 }
 
+/* El aviso de «Mis canales» vacío: la estrella dorada es la misma que se
+   marca en la fila, para que se reconozca al verla. Tinta 2 y no 3: es la
+   única explicación de cómo se consigue un favorito, no una nota al pie. */
+.livetv-aviso-icono {
+  flex-shrink: 0;
+  width: 1.1em;
+  height: 1.1em;
+  margin-right: 0.6em;
+  color: var(--gold);
+  font-size: var(--texto-base);
+}
+
 .livetv-aviso p {
   margin: 0;
   font-size: var(--texto-sm);
-  color: var(--tinta-3);
+  color: var(--tinta-2);
 }
 
 /* «Ver los 527 de Sudamérica ›», «Todas las secciones» y las regiones
