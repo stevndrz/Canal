@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { loadM3uPlaylist, type ParsedChannel } from "@/lib/m3u";
 import { fetchEpg, getEpgEntry } from "@/lib/epg";
 import {
@@ -20,7 +21,7 @@ import { serverConfig } from "@/lib/config.server";
  */
 
 /** Lo que se guarda entre peticiones para no rehacer el mismo trabajo. */
-let memoria: { origen: unknown; paquete: PaqueteCanales; json: string } | null = null;
+let memoria: { origen: unknown; paquete: PaqueteCanales; json: string; etag: string } | null = null;
 
 /**
  * Empaqueta la lista una vez por descarga, no una por visita.
@@ -38,15 +39,18 @@ let memoria: { origen: unknown; paquete: PaqueteCanales; json: string } | null =
  * vez de recalcularse contra la hora exacta de cada visita. Un programa dura
  * media hora larga; cinco minutos de desfase no los ve nadie desde el sofá.
  */
-export async function paqueteDeCanales(): Promise<{ paquete: PaqueteCanales; json: string }> {
+export async function paqueteDeCanales(): Promise<{ paquete: PaqueteCanales; json: string; etag: string }> {
   const { channels, epgUrl } = await loadM3uPlaylist();
   if (memoria?.origen === channels) return memoria;
 
   const conGuia = await conProgramacion(channels, epgUrl);
   const paquete = empaquetarCanales(conGuia);
   const json = JSON.stringify(paquete);
+  // Huella del contenido, para que el navegador pueda preguntar «¿cambió?» y
+  // recibir un 304 sin cuerpo en vez de la lista entera. Ver `/api/canales`.
+  const etag = `"${createHash("sha1").update(json).digest("base64url")}"`;
 
-  memoria = { origen: channels, paquete, json };
+  memoria = { origen: channels, paquete, json, etag };
   return memoria;
 }
 
