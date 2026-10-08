@@ -4,6 +4,14 @@ import type { MediaType } from "./types";
 import { cacheLife } from "next/cache";
 import { serverConfig } from "@/lib/config.server";
 import { nombreDeGenero, traducirGeneros } from "./generos";
+import {
+  REGION_PLATAFORMAS,
+  elegirLogo,
+  plataformasDeLaRegion,
+  type LogoTmdb,
+  type Plataforma,
+  type ProveedorTmdb,
+} from "./plataformas";
 
 /**
  * Cliente mínimo de TMDB. Todo es opcional por diseño: sin respuesta o sin
@@ -43,6 +51,8 @@ export const BACKDROP_SIZE = "w1280";
 /** Retratos del reparto: doce por ficha; `w780` sería peso muerto. */
 export const PROFILE_SIZE = "w342";
 export const STILL_SIZE = "w300";
+/** Logo del título en el héroe: se pinta a ~480 px como mucho. */
+export const LOGO_SIZE = "w500";
 
 export function tmdbImage(path: string | null | undefined, size: string): string | null {
   return path ? `${IMAGE_BASE}/${size}${path}` : null;
@@ -440,6 +450,33 @@ export async function fetchTrailer(tmdbId: number, mediaType: MediaType): Promis
  */
 export async function fetchRecommendations(mediaType: MediaType, tmdbId: number): Promise<TmdbListEntry[]> {
   return fetchList(`/${mediaType}/${tmdbId}/recommendations`, mediaType);
+}
+
+/**
+ * El logo del título para el héroe (`/images`), en español o sin idioma.
+ *
+ * Una petición por título, y solo para los pocos que se enseñan en el héroe;
+ * cacheada días como todo lo de TMDB. `include_image_language` es lo que
+ * hace que vengan también los logos sin idioma (`null`): sin él, con
+ * `language=es-MX`, TMDB solo devuelve los marcados en español.
+ */
+export async function fetchLogo(tmdbId: number, mediaType: MediaType): Promise<string | null> {
+  const data = await tmdbFetch<{ logos?: LogoTmdb[] }>(
+    `/${mediaType}/${tmdbId}/images?include_image_language=es,null`,
+  );
+  return tmdbImage(elegirLogo(data?.logos), LOGO_SIZE);
+}
+
+/**
+ * Las plataformas de streaming que hay en Guatemala, ya cruzadas con la lista
+ * que se ofrece (`plataformas.ts`). Las de películas bastan: son las mismas
+ * empresas para series.
+ */
+export async function fetchPlataformas(): Promise<Plataforma[]> {
+  const data = await tmdbFetch<{ results?: ProveedorTmdb[] }>(
+    `/watch/providers/movie?watch_region=${REGION_PLATAFORMAS}`,
+  );
+  return plataformasDeLaRegion(data?.results ?? []);
 }
 
 export interface TmdbGenre {

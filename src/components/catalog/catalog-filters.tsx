@@ -54,7 +54,8 @@ function href(
   tipo: MediaFilter,
   genero: number | null,
   validos: GenerosValidos | undefined,
-  orden: OrdenCatalogo
+  orden: OrdenCatalogo,
+  plataforma: number | null = null
 ): string {
   const params = new URLSearchParams();
   if (tipo !== "todo") params.set("tipo", tipo);
@@ -65,6 +66,7 @@ function href(
     (tipo === "todo" ? validos.movie.has(genero) || validos.tv.has(genero) : validos[tipo].has(genero));
   if (genero && aplica) params.set("genero", String(genero));
   if (orden !== "populares") params.set("orden", orden);
+  if (plataforma) params.set("plataforma", String(plataforma));
 
   const cadena = params.toString();
   return cadena ? `/peliculas?${cadena}` : "/peliculas";
@@ -76,6 +78,7 @@ export function CatalogFilters({
   generos,
   generosValidos,
   orden = "populares",
+  plataforma = null,
 }: {
   tipo: MediaFilter;
   genero: number | null;
@@ -83,6 +86,8 @@ export function CatalogFilters({
   generosValidos?: GenerosValidos;
   /** Se conserva en los enlaces para que cambiar de género no resetee el orden. */
   orden?: OrdenCatalogo;
+  /** Netflix, Prime Video…: también se conserva al cambiar de tipo o género. */
+  plataforma?: number | null;
 }) {
   /* Una fila a la izquierda, en el mismo margen que el héroe y los rieles.
      Centrada quedaba como una isla en mitad de la pantalla y, con el mando,
@@ -93,7 +98,7 @@ export function CatalogFilters({
         <Link
           key={id}
           data-nav="button"
-          href={href(id, genero, generosValidos, orden)}
+          href={href(id, genero, generosValidos, orden, plataforma)}
           aria-current={tipo === id ? "true" : undefined}
           className={chip(tipo === id)}
         >
@@ -105,7 +110,7 @@ export function CatalogFilters({
         <GeneroPanel
           generos={generos}
           activo={genero}
-          hrefDe={(id) => href(tipo, id, generosValidos, orden)}
+          hrefDe={(id) => href(tipo, id, generosValidos, orden, plataforma)}
         />
       )}
     </div>

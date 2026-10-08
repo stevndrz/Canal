@@ -200,6 +200,21 @@ function destinoDeEntrada(root: HTMLElement, candidatos: Candidate[]): Candidate
 }
 
 /**
+ * Entrar a un grupo (`data-nav-grupo`) desde fuera lleva a su elemento
+ * marcado (`aria-pressed="true"`), no al que quede más cerca.
+ *
+ * Nació con los puntos del héroe de Cine y series: al llegar con → desde
+ * «Mi lista», el foco caía en el primer punto aunque el destacado elegido
+ * fuera el cuarto, y había que buscarlo. Dentro del grupo, las flechas
+ * siguen siendo geométricas.
+ */
+function entradaDeGrupo(siguiente: HTMLElement, actual: HTMLElement): HTMLElement {
+  const grupo = siguiente.closest<HTMLElement>("[data-nav-grupo]");
+  if (!grupo || grupo.contains(actual)) return siguiente;
+  return grupo.querySelector<HTMLElement>('[data-nav][aria-pressed="true"]') ?? siguiente;
+}
+
+/**
  * La caja de un destino, contando el título de su sección si es el primero.
  *
  * En Canales, al entrar con el mando, la primera fila quedaba justo debajo
@@ -375,8 +390,9 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       current.closest("[data-nav-chrome]") !== null,
     );
     if (next) {
-      next.focus();
-      scrollNearest(next);
+      const destino = entradaDeGrupo(next, current);
+      destino.focus();
+      scrollNearest(destino);
     }
   }, [rootRef]);
 

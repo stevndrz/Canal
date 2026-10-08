@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { CalendarDays, Clock, Film, Info, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { formatearDuracion, formatearNota } from "@/lib/catalog/formato";
@@ -39,6 +40,8 @@ function arteAmbiental(url: string): string {
 export function HeroDestacado({
   item,
   trailerUrl,
+  logoUrl,
+  pie,
 }: {
   item: ResolvedCatalogItem;
   /**
@@ -47,6 +50,17 @@ export function HeroDestacado({
    * título. Sin tráiler, el botón simplemente no existe.
    */
   trailerUrl?: string | null;
+  /**
+   * El logo del título (TMDB `/images`), en español o sin idioma. Sin él se
+   * pinta el título en texto, como siempre. Ver `elegirLogo`.
+   */
+  logoUrl?: string | null;
+  /**
+   * Lo que va al final de la fila de acciones: los puntos del carrusel. En
+   * la MISMA fila y no debajo: así ↓ desde «Ver ahora» sigue llevando al
+   * buscador, y los puntos se alcanzan con →.
+   */
+  pie?: ReactNode;
 }) {
   const arte = item.backdrop ?? item.poster;
   const ficha = `/peliculas/${item.mediaType}/${item.id}`;
@@ -77,9 +91,9 @@ export function HeroDestacado({
           // quedaba muerta al 80 %. El borde de abajo lo disuelve una máscara en
           // `catalogo.css`, para que el héroe acabe en transparente sobre el
           // fondo de la app en vez de en una línea recta.
-          // eslint-disable-next-line @next/next/no-img-element
           //
           // `srcset`: el teléfono pide `w780` y no `w1280`. Ver `imagen-tmdb.ts`.
+          // eslint-disable-next-line @next/next/no-img-element
           <img className="hero-arte" {...fondoResponsivo(arte)} alt="" fetchPriority="high" />
         )}
 
@@ -87,8 +101,15 @@ export function HeroDestacado({
           mismo borde que la cabecera y los rieles de debajo. Eran cuatro
           bordes izquierdos distintos en la misma pantalla. */}
         <div className="hero-copy">
-          <h1 className="hero-titulo" id="hero-titulo">
-            {item.title}
+          <h1 className={`hero-titulo ${logoUrl ? "con-logo" : ""}`} id="hero-titulo">
+            {logoUrl ? (
+              // El logo ES el título: `alt` con el nombre, para el lector de
+              // pantalla y por si la imagen no carga.
+              // eslint-disable-next-line @next/next/no-img-element -- logo de TMDB ya dimensionado (w500)
+              <img className="hero-logo" src={logoUrl} alt={item.title} />
+            ) : (
+              item.title
+            )}
           </h1>
 
           {item.tagline && <p className="hero-lema">{item.tagline}</p>}
@@ -163,6 +184,8 @@ export function HeroDestacado({
                 </a>
               )}
             </div>
+
+            {pie}
           </div>
         </div>
       </section>

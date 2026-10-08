@@ -253,7 +253,8 @@ html[data-player="on"] body {
    secas cuando la entrada es un mando (`data-input="dpad"`, que lo pone
    `useRemoteInput`). Un mando no tiene Tab, así que ahí el foco siempre se ve.
 
-   Las tarjetas se excluyen: tienen su propio realce en `shell.css`, que crece
+   Las tarjetas (y las fichas de plataforma) se excluyen: tienen su propio
+   realce en `shell.css` y `catalogo.css`, que crece
    la carátula y le pone el borde encima en lugar de rodear el botón entero. */
 :focus { outline: none; }
 
@@ -261,8 +262,8 @@ html[data-player="on"] body {
    clicar con ratón (así lo define la spec) y dibujaba un rectángulo blanco
    alrededor del buscador. El campo ya avisa de su foco con `:focus-within`
    (borde + halo en `.catalogo-buscador-campo`). */
-[data-nav]:not(.media-card):not(input):focus-visible,
-[data-input="dpad"] [data-nav]:not(.media-card):not(input):focus {
+[data-nav]:not(.media-card):not(.plataforma):not(input):focus-visible,
+[data-input="dpad"] [data-nav]:not(.media-card):not(.plataforma):not(input):focus {
   /* Blanco siempre, sea cual sea el acento: el foco es lo único que dice
      dónde está el mando a tres metros. */
   outline: 3px solid var(--foco);

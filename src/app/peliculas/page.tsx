@@ -2,7 +2,6 @@ import { Suspense } from "react";
 import { Clapperboard, SearchX, WifiOff } from "lucide-react";
 import { CatalogGrid } from "@/components/catalog/catalog-row";
 import { CatalogRowsPersonalizadas } from "@/components/catalog/catalog-rows-personalizadas";
-import { HeroDestacado } from "@/components/catalog/hero-destacado";
 import { Paginador } from "@/components/catalog/paginador";
 import { EstadoVacio } from "@/components/catalog/estado-vacio";
 import { CatalogSearch } from "@/components/catalog/catalog-search";
@@ -14,7 +13,10 @@ import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 import { catalogToCard } from "@/lib/media-item";
 import { getCatalogo } from "@/lib/catalog/catalog";
 import { fetchFiltered, type OrdenCatalogo } from "@/lib/catalog/discover";
-import { fetchGenres, fetchTrailer, isTmdbConfigured } from "@/lib/catalog/tmdb";
+import { fetchGenres, fetchLogo, fetchPlataformas, fetchTrailer, isTmdbConfigured } from "@/lib/catalog/tmdb";
+import { plataformaValida } from "@/lib/catalog/plataformas";
+import { FilaPlataformas } from "@/components/catalog/fila-plataformas";
+import { HeroCarrusel } from "@/components/catalog/hero-carrusel";
 import type { EstadoCatalogo } from "@/lib/catalog/estado";
 import { GENERO_TERROR } from "@/lib/catalog/generos";
 import type { CatalogSection } from "@/lib/catalog/types";
@@ -36,6 +38,7 @@ interface Filtro {
   genero?: string;
   pagina?: string;
   orden?: string;
+  plataforma?: string;
 }
 
 /**
@@ -53,8 +56,14 @@ interface Filtro {
  * el entrar.
  */
 async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
-  const { q, tipo: tipoParam, genero: generoParam, pagina: paginaParam, orden: ordenParam } =
-    await filtro;
+  const {
+    q,
+    tipo: tipoParam,
+    genero: generoParam,
+    pagina: paginaParam,
+    orden: ordenParam,
+    plataforma: plataformaParam,
+  } = await filtro;
   const query = q?.trim() ?? "";
 
   const tipo: MediaFilter = tipoParam === "movie" || tipoParam === "tv" ? tipoParam : "todo";
@@ -68,7 +77,9 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
    */
   const orden: OrdenCatalogo =
     ordenParam === "top" || ordenParam === "recientes" ? ordenParam : "populares";
-  const filtrando = tipo !== "todo" || genero !== null;
+  /** Netflix, Prime Video… Solo ids de la lista cerrada: ver `plataformas.ts`. */
+  const plataforma = plataformaValida(plataformaParam);
+  const filtrando = tipo !== "todo" || genero !== null || plataforma !== null;
   const enCuadricula = filtrando || orden !== "populares";
 
   /**
@@ -86,6 +97,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
     if (tipo !== "todo") p.set("tipo", tipo);
     if (genero) p.set("genero", String(genero));
     if (orden !== "populares") p.set("orden", orden);
+    if (plataforma) p.set("plataforma", String(plataforma));
     if (n > 1) p.set("pagina", String(n));
     const cadena = p.toString();
     return cadena ? `/peliculas?${cadena}` : "/peliculas";
@@ -103,10 +115,11 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   // diez filas del catálogo, que son diez peticiones a TMDB. Las dos listas de
   // géneros sí siempre: no coinciden entre tipos (series no tiene Terror) y
   // alimentan tanto las píldoras como la validez del filtro aplicado.
-  const [catalogo, generosPeli, generosSerie] = await Promise.all([
+  const [catalogo, generosPeli, generosSerie, plataformas] = await Promise.all([
     enCuadricula || conConsulta ? null : getCatalogo(),
     fetchGenres("movie"),
     fetchGenres("tv"),
+    conConsulta ? [] : fetchPlataformas(),
   ]);
   const rows: CatalogSection[] = catalogo?.filas ?? [];
 
@@ -118,7 +131,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   // el que la gente reconoce; al pasar a Series se cambian por los suyos.
   const generos = tipo === "tv" ? generosSerie : generosPeli;
   const cuadricula = enCuadricula && !conConsulta
-    ? await fetchFiltered(tipo, genero, validos, pagina, orden)
+    ? await fetchFiltered(tipo, genero, validos, pagina, orden, plataforma)
     : null;
   const configurado = isTmdbConfigured();
 
@@ -152,10 +165,11 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
   }
 
   /**
-   * El héroe rota en cada visita: se elige al azar entre los diez primeros
-   * títulos con arte apaisado de las filas. Mostrar siempre el mismo
-   * convertía la cabecera en un mueble; el sorteo no cuesta ninguna petición
-   * extra — los candidatos ya estaban en `rows`.
+   * Los destacados del héroe: hasta cinco, elegidos al azar en cada visita
+   * entre los diez primeros títulos con arte apaisado de las filas. Se cambia
+   * entre ellos con los puntos de debajo, SOLO a mano: un carrusel automático
+   * mueve el fondo mientras alguien lee la sinopsis y, con el mando, obliga a
+   * perseguir el botón.
    *
    * Nunca uno de terror: es lo primero que se ve al entrar, y en casa entra
    * todo el mundo. El terror sigue en su fila y en su género.
@@ -165,24 +179,52 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
    */
   const candidatos = rows
     .flatMap((fila) => fila.items)
-    .filter((item) => item.backdrop && !item.generoIds?.includes(GENERO_TERROR))
+    .filter((item, i, todos) => item.backdrop && !item.generoIds?.includes(GENERO_TERROR) && todos.findIndex((otro) => otro.id === item.id) === i)
     .slice(0, 10);
   // eslint-disable-next-line react-hooks/purity -- RSC: corre una vez por request.
-  const destacado = candidatos.length > 0 ? candidatos[Math.floor(Math.random() * candidatos.length)] : null;
+  const sorteo = candidatos.map((item) => ({ item, peso: Math.random() }));
+  const elegidos = sorteo.sort((x, y) => x.peso - y.peso).slice(0, 5).map(({ item }) => item);
 
   /**
-   * El tráiler del héroe, en una petición aparte.
+   * Tráiler y logo de cada destacado, en paralelo.
    *
-   * `destacado` sale de `fetchCatalogRows()`, que no pide vídeos —costaría una
-   * petición por cada título de cada fila, veinte de sobra para lo que se
-   * pinta—. Aquí ya se eligió a UNO solo, así que una petición extra es
-   * barata, y `tmdbConClave` la deja cacheada un día igual que el resto.
+   * Las filas no traen ni vídeos ni logos —costaría dos peticiones por cada
+   * título de cada fila—; aquí son como mucho cinco títulos, dos peticiones
+   * cada uno, y `tmdbConClave` las deja cacheadas un día.
    */
-  const heroTrailer =
-    destacado?.tmdbId != null ? await fetchTrailer(destacado.tmdbId, destacado.mediaType) : null;
+  const destacados = await Promise.all(
+    elegidos.map(async (item) => {
+      const [trailerUrl, logoUrl] =
+        item.tmdbId != null
+          ? await Promise.all([fetchTrailer(item.tmdbId, item.mediaType), fetchLogo(item.tmdbId, item.mediaType)])
+          : [null, null];
+      return { item, trailerUrl, logoUrl };
+    }),
+  );
+
+  /**
+   * «Explorar por plataforma», encima del catálogo. Con una plataforma
+   * elegida se sigue viendo, con ella marcada: tocarla otra vez la quita.
+   */
+  const filaPlataformas =
+    plataformas.length > 0 ? (
+      <FilaPlataformas
+        plataformas={plataformas}
+        activa={plataforma}
+        hrefDe={(id) => {
+          const p = new URLSearchParams();
+          if (tipo !== "todo") p.set("tipo", tipo);
+          if (genero) p.set("genero", String(genero));
+          if (orden !== "populares") p.set("orden", orden);
+          if (id !== null) p.set("plataforma", String(id));
+          const cadena = p.toString();
+          return cadena ? `/peliculas?${cadena}` : "/peliculas";
+        }}
+      />
+    ) : null;
 
   /** El contenido bajo la cabecera: filas curadas o cuadrilla + paginación. */
-  const contenido = cuadricula ? (
+  const resultados = cuadricula ? (
     cuadricula.items.length > 0 ? (
       <>
         {/* La conversión a tarjeta ocurre AQUÍ, en el servidor, y no dentro de
@@ -195,7 +237,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
       <EstadoVacio
         Icono={SearchX}
         titulo="No hay títulos con estos filtros"
-        detalle="Prueba con otro género o con «Todo»."
+        detalle={plataforma ? "Prueba con otra plataforma, otro género o con «Todo»." : "Prueba con otro género o con «Todo»."}
         accion={{ href: "/peliculas", texto: "Ver todo el catálogo" }}
       />
     )
@@ -208,12 +250,18 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
       }))}
     />
   );
+  const contenido = conConsulta ? null : (
+    <>
+      {filaPlataformas}
+      {resultados}
+    </>
+  );
 
   return (
     <CatalogSearch
       initialQuery={query}
       orden={orden}
-      cabecera={destacado ? <HeroDestacado item={destacado} trailerUrl={heroTrailer} /> : null}
+      cabecera={destacados.length > 0 ? <HeroCarrusel destacados={destacados} /> : null}
       /* La página no tenía ningún título propio, y eso era parte de por qué se
          leía como «solo pelis»: lo único que la nombraba era la barra de
          arriba, que además decía «Películas». */
@@ -225,6 +273,7 @@ async function SeccionCatalogo({ filtro }: { filtro: Promise<Filtro> }) {
           generos={generos}
           generosValidos={validos}
           orden={orden}
+          plataforma={plataforma}
         />
       }
     >
