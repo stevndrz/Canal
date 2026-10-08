@@ -1817,6 +1817,7 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 
 .ficha-portada {
   position: relative;
+  background-image: var(--fondo-ficha, none);
   background-size: cover;
   background-position: center 15%;
   /* Altura MÍNIMA, no fija: con título largos o pantallas bajas, el bloque
@@ -1825,6 +1826,14 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   min-height: var(--ficha-hero-h);
   padding-top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
   padding-bottom: clamp(16px, 3vh, 40px);
+}
+
+/* En el teléfono, el fondo en `w780`: el de 1280 pesaba cuatro veces más y
+   detrás del velo no se distingue. */
+@media (max-width: 700px) {
+  .ficha-portada {
+    background-image: var(--fondo-ficha-movil, var(--fondo-ficha, none));
+  }
 }
 
 /* El velo va sobre el fondo, no sobre el contenido. Arranca ya ligeramente

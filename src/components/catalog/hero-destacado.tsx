@@ -3,6 +3,7 @@ import { CalendarDays, Clock, Film, Info, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { formatearDuracion, formatearNota } from "@/lib/catalog/formato";
 import { claveCatalogo } from "@/lib/media-item";
+import { fondoResponsivo } from "@/lib/catalog/imagen-tmdb";
 import { BotonMiLista } from "./boton-mi-lista";
 
 /**
@@ -76,7 +77,9 @@ export function HeroDestacado({
           // `catalogo.css`, para que el héroe acabe en transparente sobre el
           // fondo de la app en vez de en una línea recta.
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="hero-arte" src={arte} alt="" fetchPriority="high" />
+          //
+          // `srcset`: el teléfono pide `w780` y no `w1280`. Ver `imagen-tmdb.ts`.
+          <img className="hero-arte" {...fondoResponsivo(arte)} alt="" fetchPriority="high" />
         )}
 
         {/* Sin caja centrada de 1700 px: el texto arranca en `--margen`, el
