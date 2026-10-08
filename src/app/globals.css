@@ -294,10 +294,16 @@ html[data-player="on"] body {
   align-items: start;
 }
 
+/* Solo con el teclado abierto (en la tele, o pedido con «Teclado en
+   pantalla»): sin él, los resultados ocupan todo el ancho. */
 @media (min-width: 1024px) {
-  .buscar-cuerpo {
+  .buscar-cuerpo.con-teclado {
     grid-template-columns: minmax(0, clamp(380px, 30vw, 520px)) minmax(0, 1fr);
   }
+}
+
+.buscar-cuerpo {
+  margin-top: clamp(20px, 3vh, 36px);
 }
 
 .buscar-resultados { min-width: 0; }
