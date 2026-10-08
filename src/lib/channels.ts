@@ -1,6 +1,7 @@
 import type { Channel } from "@/lib/types";
 import { CATEGORY_ORDER } from "@/lib/categories";
 import { normalizeChannelName } from "@/lib/text";
+import { claveDeCanalEstable, idsEnOrden } from "@/lib/claves-canal";
 import { publicConfig } from "@/lib/config";
 import { NOMBRE_DE_REGION, REGIONES } from "@/lib/origenes";
 import { apartarCaidos, type IndiceSecciones } from "@/lib/secciones-canales";
@@ -178,6 +179,11 @@ export function canalesDeCasa(channels: Channel[]): Channel[] {
 export interface UltimoCanal {
   id: number;
   nombre: string;
+  /**
+   * Clave estable (`claves-canal.ts`). Ausente en lo guardado antes de que
+   * existiera: entonces se busca por nombre, como siempre.
+   */
+  clave?: string;
 }
 
 /**
@@ -224,10 +230,20 @@ export function buscarUltimo(channels: readonly Channel[], ultimo?: UltimoCanal 
   // acierta sin recorrer 7.822 canales. Con el recorte, los ids siguen siendo
   // posiciones en la lista completa, así que se busca por id y no por índice.
   const enSuSitio = channels[ultimo.id - 1];
-  if (enSuSitio && enSuSitio.id === ultimo.id && normalizeChannelName(enSuSitio.name) === esperado) {
+  const mismo = enSuSitio
+    ? ultimo.clave
+      ? claveDeCanalEstable(enSuSitio) === ultimo.clave
+      : normalizeChannelName(enSuSitio.name) === esperado
+    : false;
+  if (enSuSitio && enSuSitio.id === ultimo.id && mismo) {
     return enSuSitio.id;
   }
-  // Se movió de sitio (o la lista es el recorte): por nombre antes de rendirse.
+  // Se movió de sitio (o la lista es el recorte). Por clave si la hay: el
+  // nombre solo confunde el Canal 3 de Guatemala con el de Argentina.
+  if (ultimo.clave) {
+    const porClave = idsEnOrden([ultimo.clave], channels)[0];
+    if (porClave !== undefined) return porClave;
+  }
   const movido = channels.find((canal) => normalizeChannelName(canal.name) === esperado);
   return movido ? movido.id : null;
 }

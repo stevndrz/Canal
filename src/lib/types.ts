@@ -8,7 +8,7 @@
  *
  * Por eso ya no están: `description` (un "Señal en vivo de X" generado que no
  * leía nadie), `logoText` (`channelMark()` lo deriva del nombre), `isFavorite`
- * (el estado real vive en el store, indexado por `streamUrl`) e `isLive`
+ * (el estado real vive en el aparato, por clave estable: `claves-canal.ts`) e `isLive`
  * (valía `true` en los 7.822). Entre los cuatro sumaban 1,4 MB.
  *
  * Regla: si un valor se puede calcular en el cliente, se calcula en el

@@ -21,11 +21,12 @@ import { normalizeText } from "./text";
 import { TEMAS, type Tema } from "./temas";
 import { NOMBRE_DE_REGION, REGIONES, nombreDePais, paisDe, regionDePais, type Region } from "./origenes";
 
+/** Fuera de la función por lo mismo que en `text.ts`: en las teles viejas cuesta crearla. */
+const NO_LETRA_NI_NUMERO = /[^\p{L}\p{N}]+/gu;
+
 /** Minúsculas, sin tildes y con la puntuación hecha espacios: «TN23 (HD)» → «tn23 hd». */
 function plano(texto: string): string {
-  return normalizeText(texto)
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim();
+  return normalizeText(texto).replace(NO_LETRA_NI_NUMERO, " ").trim();
 }
 
 /* ── Sinónimos ──────────────────────────────────────────────────────────── */

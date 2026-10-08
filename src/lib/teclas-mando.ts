@@ -18,7 +18,13 @@
  */
 
 /** Lo que el reproductor sabe hacer con una tecla del mando. */
-export type AccionDeMando = "reproducir" | "parar" | "canal-arriba" | "canal-abajo" | "subir-volumen";
+export type AccionDeMando =
+  | "reproducir"
+  | "parar"
+  | "canal-arriba"
+  | "canal-abajo"
+  | "subir-volumen"
+  | "info";
 
 /**
  * Código numérico → acción.
@@ -37,6 +43,14 @@ const POR_CODIGO: ReadonlyMap<number, AccionDeMando> = new Map([
   [428, "canal-abajo"], // ChannelDown
   [175, "subir-volumen"], // VolumeUp (el keyCode estándar que usa Chromium)
   [24, "subir-volumen"], // KEYCODE_VOLUME_UP de Android, por si llega en crudo
+  [457, "info"], // Info (Samsung y LG)
+  /**
+   * CH+ y CH− de LG. webOS no usa 427/428: los manda como 33/34, que son los
+   * códigos de RePág/AvPág de un teclado. En un PC eso hace que AvPág zapee a
+   * pantalla completa, que es justo lo que se espera de esa tecla ahí.
+   */
+  [33, "canal-arriba"], // ChannelUp de LG webOS (PageUp)
+  [34, "canal-abajo"], // ChannelDown de LG webOS (PageDown)
 ]);
 
 /** Nombre de `event.key` → acción, para los navegadores que sí lo mandan. */
@@ -51,6 +65,7 @@ const POR_NOMBRE: ReadonlyMap<string, AccionDeMando> = new Map([
   ["MediaStop", "parar"],
   ["AudioVolumeUp", "subir-volumen"],
   ["VolumeUp", "subir-volumen"],
+  ["Info", "info"],
 ]);
 
 /**
@@ -72,8 +87,10 @@ export function accionDeTecla(evento: {
 /**
  * Los nombres que hay que pedirle a Tizen con `registerKey` para que lleguen.
  *
- * En un televisor Samsung, las teclas de reproducción **no se entregan a la
- * aplicación** hasta que esta las reclama. Sin esta lista, la tabla de arriba
+ * En un televisor Samsung, las teclas de reproducción, los NÚMEROS y la de
+ * Info **no se entregan a la aplicación** hasta que esta las reclama. Solo
+ * llegan solas las flechas, OK y Atrás. Por eso, durante meses, marcar «7» en
+ * el mando de la Samsung no hacía nada aunque el marcado funcionara en el PC. Sin esta lista, la tabla de arriba
  * no llega a consultarse nunca: el evento no ocurre. Lo hace el arranque del
  * paquete (`empaque/tizen/index.html`), que es el único sitio donde el objeto
  * `tizen` existe.
@@ -85,4 +102,15 @@ export const TECLAS_A_REGISTRAR = [
   "MediaStop",
   "ChannelUp",
   "ChannelDown",
+  "Info",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
 ] as const;

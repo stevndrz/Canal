@@ -200,12 +200,44 @@ function destinoDeEntrada(root: HTMLElement, candidatos: Candidate[]): Candidate
 }
 
 /**
+ * Entrar a un grupo (`data-nav-grupo`) desde fuera lleva a su elemento
+ * marcado (`aria-pressed="true"`), no al que quede más cerca.
+ *
+ * Nació con los puntos del héroe de Cine y series: al llegar con → desde
+ * «Mi lista», el foco caía en el primer punto aunque el destacado elegido
+ * fuera el cuarto, y había que buscarlo. Dentro del grupo, las flechas
+ * siguen siendo geométricas.
+ */
+function entradaDeGrupo(siguiente: HTMLElement, actual: HTMLElement): HTMLElement {
+  const grupo = siguiente.closest<HTMLElement>("[data-nav-grupo]");
+  if (!grupo || grupo.contains(actual)) return siguiente;
+  return grupo.querySelector<HTMLElement>('[data-nav][aria-pressed="true"]') ?? siguiente;
+}
+
+/**
+ * La caja de un destino, contando el título de su sección si es el primero.
+ *
+ * En Canales, al entrar con el mando, la primera fila quedaba justo debajo
+ * de la barra y su título («Mis canales») por detrás de ella: se veía la
+ * lista, pero no de qué era. Si la fila de encima es un título de sección,
+ * el borde de arriba que hay que dejar a la vista es el del título.
+ */
+export function cajaConTitulo(el: HTMLElement): { top: number; bottom: number } {
+  const caja = el.getBoundingClientRect();
+  const previa = el.closest(".livetv-item")?.previousElementSibling;
+  if (previa?.classList.contains("livetv-seccion")) {
+    return { top: previa.getBoundingClientRect().top, bottom: caja.bottom };
+  }
+  return { top: caja.top, bottom: caja.bottom };
+}
+
+/**
  * Deja a la vista, por debajo de la barra fija, un destino al que se ha
  * llevado el foco sin desplazar (`preventScroll`). El scroll nativo de
  * `focus()` lo pegaba al borde de arriba, debajo de la barra.
  */
 function aLaVistaEnLaVentana(el: HTMLElement) {
-  const caja = el.getBoundingClientRect();
+  const caja = cajaConTitulo(el);
   let barra = 0;
   for (const cromo of document.querySelectorAll<HTMLElement>("[data-nav-chrome]")) {
     const r = cromo.getBoundingClientRect();
@@ -358,8 +390,9 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       current.closest("[data-nav-chrome]") !== null,
     );
     if (next) {
-      next.focus();
-      scrollNearest(next);
+      const destino = entradaDeGrupo(next, current);
+      destino.focus();
+      scrollNearest(destino);
     }
   }, [rootRef]);
 

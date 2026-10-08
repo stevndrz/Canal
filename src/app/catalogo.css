@@ -197,6 +197,22 @@ html[data-input="dpad"] .hero-icono:focus {
    según la superficie, así que esto cuesta 1/64 de un `blur(90px)` a
    pantalla completa, y la ampliación la hace la GPU gratis. Medio ancho de
    más a cada lado tapa el borde que el desenfoque deja transparente. */
+/* El marco recorta lo que la ampliación saca por los lados. Sin él, en el
+   teléfono la página medía ~10 px más que la pantalla: el navegador se
+   alejaba para enseñarla entera y la barra de abajo quedaba cortada (medido:
+   viewport de 866 px en un iPhone de 844). Mismo tamaño que ocupa el fondo
+   ya ampliado, así que lo que se ve no cambia. */
+.cine-ambiente-marco {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 190vh;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .cine-ambiente {
   position: absolute;
   top: 0;
@@ -220,6 +236,7 @@ html[data-input="dpad"] .hero-icono:focus {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  .cine-ambiente-marco,
   .cine-ambiente {
     display: none;
   }
@@ -294,6 +311,10 @@ html[data-input="dpad"] .rail-ver-todo:focus {
 
   .cine-ambiente {
     height: calc(140vh / 8);
+  }
+
+  .cine-ambiente-marco {
+    height: 140vh;
   }
 }
 
@@ -541,6 +562,21 @@ html[data-input="dpad"] .rail-ver-todo:focus {
 
 .poster-frame-arte.is-cargada {
   opacity: 1;
+}
+
+/* Teles de 2019: sin `aspect-ratio`. Mismo respaldo que `.poster` en
+   `shell.css`. */
+@supports not (aspect-ratio: 1 / 1) {
+  .poster-frame {
+    height: 0;
+    padding-bottom: 150%;
+  }
+
+  .poster-frame-arte {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
 }
 
 .poster-frame-hueco {
@@ -901,3 +937,169 @@ html[data-input="dpad"] .rail-ver-todo:focus {
 [data-sin-gap] .catalogo-esqueleto-controles > * {
   margin: 0 12px 12px 0;
 }
+
+/* ── El logo del título en el héroe ───────────────────────────────────────
+   Cuando TMDB tiene logo en español (o sin idioma), es el título: como en
+   las apps de las plataformas. Acotado en alto Y en ancho porque los hay muy
+   apaisados («El caballero de la noche») y muy altos (los cuadrados). */
+.hero-titulo.con-logo {
+  max-width: none;
+  line-height: 0;
+}
+
+.hero-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(36vw, 520px);
+  max-height: clamp(84px, 16vh, 190px);
+  object-fit: contain;
+  object-position: left bottom;
+  /* Una sombra suave, para que un logo oscuro no se pierda sobre el velo. */
+  filter: drop-shadow(0 2px 14px rgba(0, 0, 0, 0.55));
+}
+
+@media (max-width: 700px) {
+  .hero-logo {
+    max-width: 72vw;
+    max-height: 96px;
+  }
+}
+
+/* ── Los puntos del héroe ─────────────────────────────────────────────────
+   Al final de la fila de acciones. Pequeños a la vista, grandes al tacto: el botón mide 32 px (44 con el
+   dedo, ver «Dedos» en `globals.css`) y el punto de dentro 10. El actual se
+   alarga en píldora blanca, que se distingue sin depender del color. Margen
+   y no `gap`: las teles viejas no lo conocen en flex. */
+.hero-puntos {
+  display: flex;
+  align-items: center;
+  margin-left: clamp(10px, 1.4vw, 28px);
+}
+
+.hero-punto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  cursor: pointer;
+}
+
+.hero-punto > span {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radio-pill);
+  background: var(--tinta-3);
+  transition: width var(--dur-lenta) var(--ease), background-color var(--dur-lenta) var(--ease);
+}
+
+.hero-punto.is-actual > span {
+  width: 26px;
+  background: var(--tinta-1);
+}
+
+@media (hover: hover) {
+  .hero-punto:hover > span {
+    background: var(--tinta-1);
+  }
+}
+
+:root[data-pantalla="tv"] .hero-punto {
+  min-width: 2.6vw;
+  min-height: 2.6vw;
+}
+
+:root[data-pantalla="tv"] .hero-punto > span {
+  width: 0.7vw;
+  height: 0.7vw;
+}
+
+:root[data-pantalla="tv"] .hero-punto.is-actual > span {
+  width: 1.8vw;
+}
+
+@media (pointer: coarse) {
+  .hero-punto {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* ── Explorar por plataforma ──────────────────────────────────────────────
+   Fichas cuadradas con el logo de cada plataforma y su nombre debajo, en el
+   mismo riel que las demás filas. Más estrechas que un cartel: son botones
+   de filtro, no títulos. */
+.rail-plataformas .rail-strip {
+  grid-auto-columns: clamp(96px, 8.4vw, 168px);
+}
+
+.plataforma {
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+  color: var(--tinta-2);
+  text-align: center;
+  border-radius: var(--radio-tarjeta);
+  transition: color 160ms var(--ease);
+}
+
+.plataforma img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-1);
+  transition: transform var(--dur-lenta) var(--ease), box-shadow var(--dur-lenta) var(--ease);
+}
+
+.plataforma-nombre {
+  display: block;
+  max-width: 100%;
+  margin-top: 8px;
+  overflow: hidden;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.plataforma:focus-visible img,
+[data-input="dpad"] .plataforma:focus img {
+  transform: scale(var(--foco-escala));
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+.plataforma:focus-visible,
+[data-input="dpad"] .plataforma:focus {
+  outline: none;
+  color: var(--tinta-1);
+}
+
+@media (hover: hover) {
+  .plataforma:hover img {
+    transform: scale(var(--foco-escala));
+  }
+
+  .plataforma:hover {
+    color: var(--tinta-1);
+  }
+}
+
+/* La elegida: aro blanco fijo y nombre en blanco, aunque el foco esté en
+   otra parte. */
+.plataforma.is-elegida img {
+  box-shadow: 0 0 0 3px var(--tinta-1), var(--sombra-1);
+}
+
+.plataforma.is-elegida {
+  color: var(--tinta-1);
+}
+
+/* Aspect-ratio no existe en las teles de 2019; el logo de TMDB ya es
+   cuadrado, así que basta con su alto natural (`height: auto`). */

@@ -134,7 +134,7 @@ describe("filasDeCanales: el resumen", () => {
   });
 
   it("sin favoritos, explica cómo tener uno", () => {
-    expect(filas.some((f) => f.tipo === "aviso" && f.texto.includes("☆"))).toBe(true);
+    expect(filas.some((f) => f.tipo === "aviso" && f.clave === "aviso:mios" && f.texto.includes("estrella"))).toBe(true);
     const conFavorito = filasDeCanales(opciones({ favoritos: [hch] }));
     expect(conFavorito.some((f) => f.tipo === "aviso")).toBe(false);
     expect(canalesDe(conFavorito).slice(0, 4)).toEqual(["Canal 3", "Canal 7", "Guatevision", "HCH"]);

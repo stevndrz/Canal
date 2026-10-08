@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 /**
  * Set de ids en localStorage. Sin cuenta ni base de datos: favoritos,
@@ -57,41 +57,6 @@ export function usePersistedSet<T extends string | number = number>(key: string)
   const clear = useCallback(() => persist(new Set()), [persist]);
 
   return { ids, toggle, clear };
-}
-
-/** Lista ordenada por uso reciente (los últimos vistos primero). */
-export function usePersistedRecents(key: string, limit = 12) {
-  const [ids, setIds] = useState<number[]>([]);
-
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(key);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setIds(JSON.parse(raw) as number[]);
-    } catch {}
-  }, [key]);
-
-  const push = useCallback(
-    (id: number) => {
-      setIds((current) => {
-        const next = [id, ...current.filter((value) => value !== id)].slice(0, limit);
-        try {
-          window.localStorage.setItem(key, JSON.stringify(next));
-        } catch {}
-        return next;
-      });
-    },
-    [key, limit],
-  );
-
-  /**
-   * El objeto, memorizado. Devolver `{ ids, push }` a pelo creaba una identidad
-   * nueva en cada render, y eso llegaba lejos: cambiaba `select` en
-   * `dashboard.tsx`, con él el `onOpen` de las tarjetas, y el comparador de
-   * `memo(MediaCard)` dejaba de acertar. Medido: 121 tarjetas repintadas por
-   * sintonizar un canal.
-   */
-  return useMemo(() => ({ ids, push }), [ids, push]);
 }
 
 /**

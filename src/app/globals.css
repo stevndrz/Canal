@@ -253,7 +253,8 @@ html[data-player="on"] body {
    secas cuando la entrada es un mando (`data-input="dpad"`, que lo pone
    `useRemoteInput`). Un mando no tiene Tab, así que ahí el foco siempre se ve.
 
-   Las tarjetas se excluyen: tienen su propio realce en `shell.css`, que crece
+   Las tarjetas (y las fichas de plataforma) se excluyen: tienen su propio
+   realce en `shell.css` y `catalogo.css`, que crece
    la carátula y le pone el borde encima en lugar de rodear el botón entero. */
 :focus { outline: none; }
 
@@ -261,8 +262,8 @@ html[data-player="on"] body {
    clicar con ratón (así lo define la spec) y dibujaba un rectángulo blanco
    alrededor del buscador. El campo ya avisa de su foco con `:focus-within`
    (borde + halo en `.catalogo-buscador-campo`). */
-[data-nav]:not(.media-card):not(input):focus-visible,
-[data-input="dpad"] [data-nav]:not(.media-card):not(input):focus {
+[data-nav]:not(.media-card):not(.plataforma):not(input):focus-visible,
+[data-input="dpad"] [data-nav]:not(.media-card):not(.plataforma):not(input):focus {
   /* Blanco siempre, sea cual sea el acento: el foco es lo único que dice
      dónde está el mando a tres metros. */
   outline: 3px solid var(--foco);
@@ -1817,6 +1818,7 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 
 .ficha-portada {
   position: relative;
+  background-image: var(--fondo-ficha, none);
   background-size: cover;
   background-position: center 15%;
   /* Altura MÍNIMA, no fija: con título largos o pantallas bajas, el bloque
@@ -1825,6 +1827,14 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   min-height: var(--ficha-hero-h);
   padding-top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
   padding-bottom: clamp(16px, 3vh, 40px);
+}
+
+/* En el teléfono, el fondo en `w780`: el de 1280 pesaba cuatro veces más y
+   detrás del velo no se distingue. */
+@media (max-width: 700px) {
+  .ficha-portada {
+    background-image: var(--fondo-ficha-movil, var(--fondo-ficha, none));
+  }
 }
 
 /* El velo va sobre el fondo, no sobre el contenido. Arranca ya ligeramente
@@ -4796,4 +4806,75 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   border-radius: var(--radio-pill);
   background: var(--vivo);
   vertical-align: 0.1em;
+}
+
+/* ═══ La tele, sin desenfoques ══════════════════════════════════════════
+   Medido (Chromium con la CPU a 6×, bajando por Cine y series con el mando):
+   con el fondo ambiental desenfocado y el cristal de la barra, ~37 fotogramas
+   por segundo y diez tirones de más de 50 ms; sin ellos, ~48 y cuatro. En un
+   televisor la GPU es lo más justo que hay, y un `blur()` se recalcula en
+   cada fotograma que se mueve algo por debajo.
+
+   - El fondo ambiental se apaga. Se probó dejarlo sin el `blur()` (lo caro):
+     rinde igual que apagado, pero la imagen ampliada se reconoce —un
+     astronauta fantasma debajo del héroe—. Sin el desenfoque no tiene
+     sentido, y con él es lo que más pesa.
+   - El cristal se vuelve casi opaco: sin desenfoque, uno translúcido deja
+     leer nítido lo que pasa por debajo (la misma regla que en las teles que
+     no saben desenfocar, más abajo en `shell.css`). */
+:root[data-pantalla="tv"] {
+  --cristal: rgba(18, 18, 20, 0.97);
+  --cristal-fuerte: rgba(24, 24, 26, 0.98);
+}
+
+:root[data-pantalla="tv"] .cine-ambiente-marco {
+  display: none;
+}
+
+:root[data-pantalla="tv"] .sidebar nav,
+:root[data-pantalla="tv"] .rail-arrow,
+:root[data-pantalla="tv"] .hero-grupo,
+:root[data-pantalla="tv"] .atv-marca,
+:root[data-pantalla="tv"] .atv-alerta,
+:root[data-pantalla="tv"] .atv-carga,
+:root[data-pantalla="tv"] .atv-play-central,
+:root[data-pantalla="tv"] .atv-btn.is-play,
+:root[data-pantalla="tv"] .atv-menu {
+  backdrop-filter: none;
+}
+
+:root[data-pantalla="tv"] .sidebar nav {
+  background: var(--cristal-fuerte);
+}
+
+:root[data-pantalla="tv"] .hero-grupo {
+  background: rgba(var(--fondo-rgb), 0.78);
+}
+
+/* ═══ Dedos: nada por debajo de 44 px ══════════════════════════════════
+   Revisión en iPhone (390 px) con Playwright: la marca de arriba medía
+   78×34, «Pantalla completa» del reproductor 40 de ancho, «Ver todo» 40 de
+   alto, el interruptor 31 y los servidores de la ficha 36. Con el dedo de
+   una persona mayor eso es tocar el de al lado. Solo con puntero grueso:
+   en el PC y en la tele las medidas no cambian. */
+@media (pointer: coarse) {
+  .mobile-brand,
+  .rail-ver-todo,
+  .servidor,
+  .ficha-aviso-accion,
+  .ficha-aviso-accion.is-suave {
+    min-height: 44px;
+  }
+
+  .player-bar.is-embedded .player-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* La pista sigue igual de discreta; crece el área que se toca. */
+  .ui-interruptor {
+    min-width: 51px;
+    min-height: 44px;
+    align-items: center;
+  }
 }

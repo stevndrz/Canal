@@ -46,6 +46,104 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Rendimiento, teles viejas, mando y Cine y series (rama `mejoras-rendimiento`)
+
+Pedido del dueño, en orden: favoritos que no se pierdan, los números del
+mando en Samsung/LG, que funcione en teles de 2019, rendimiento, revisión por
+dispositivos y tres ideas de diseño que estaban a la espera.
+
+**Favoritos.** Se guardaban por `id`, que es la POSICIÓN en la lista: un
+canal nuevo delante y el favorito pasaba a ser otro. Ahora van por clave
+estable `nombre-normalizado.país` (`canal7.gt`), derivada de lo que el canal
+ya trae (`claves-canal.ts`, sin campos nuevos en `Channel`). Migración sola
+al abrir: los ids viejos se traducen contra la lista de hoy, esperando a la
+lista completa si alguno no vino en el recorte; lo viejo **no se borra**
+(`canalcasa:favorites` queda de copia). Recientes y «último canal» igual.
+
+**Numeración.** Propuesta en `numeracion-propuesta.md`, sin aplicar: hoy
+hay 885 números repetidos (las categorías de más de 99 se desbordan).
+
+**Mando.** Samsung no entrega 0-9 ni Info hasta que el cascarón los pide
+con `registerKey`: añadidos (hay que **reempaquetar el `.wgt`**, ver
+`EMPAQUETADO.md`) y una prueba vigila que la lista del cascarón y la de
+`teclas-mando.ts` no se separen. LG manda CH+/CH− como 33/34: reconocidos.
+El número marcado sale grande con el nombre del canal previsto y salta a
+los 1,5 s.
+
+**Teles de 2019** (Samsung Tizen 5.0 = Chromium 63; LG webOS 4.x =
+Chromium 53). Probado con **Chromium 63 y 59 reales** descargados de los
+snapshots de Chromium y conducidos por DevTools (Playwright ya no habla con
+ellos). Antes: sin JS (`?.`, `globalThis`) y sin CSS (`@layer`). Ahora:
+
+- `browserslist: chrome >= 53` → SWC reescribe la sintaxis.
+- `@csstools/postcss-cascade-layers` aplana las capas (Lightning CSS no sabe).
+- `scripts/postcss-respaldo-tv.cjs`: valores fijos para `clamp/min/max`
+  (Chromium 79) dentro de `@supports not (clamp)`.
+- `compat-tv.ts`: `globalThis` y poco más en `<head>`, con una red de
+  seguridad: un guion en línea **espera a las hojas de estilo**, uno `async`
+  no, así que el primer archivo de Turbopack podía ejecutarse antes y fallar.
+  Si `globalThis` faltaba, se reinsertan los archivos ya descargados (el
+  runtime ignora módulos repetidos). Se probó `inlineCss` y funcionaba, pero
+  el HTML de Inicio pasaba de 21 a 124 KB gzip para todos.
+- Respaldo de `aspect-ratio` para las carátulas.
+- Costo en Inicio: JS +11 KB gzip, CSS +7 KB, HTML +0,8 KB. En navegadores
+  modernos las capturas salen idénticas píxel a píxel al build anterior.
+
+**Rendimiento** (medido antes de tocar):
+
+| Qué | Antes | Después |
+|---|---|---|
+| Lista de canales al reabrir la app | ~200 KB gzip cada vez | 304 sin cuerpo (ETag) |
+| Fondo del héroe/ficha en el teléfono | `w1280` (~170 KB) | `w780` (~45 KB) |
+| Cine y series en iPhone, imágenes | 366 KB | 265 KB |
+| Arranque en tele (CPU 6×, tareas largas) | ~2.000 ms | ~1.940 ms, con JS para teles viejas incluido |
+| Bajar por Cine y series en tele (CPU 6×) | ~37 fps, 10 tirones | ~45 fps, la mitad |
+
+- Las carátulas YA estaban bien (`w342`; en el iPhone miden 173 px = 519
+  reales). No se tocaron.
+- Lo más pesado de verdad son los **logos de canales**: 2-2,7 MB por
+  pantalla, PNG de imgur a 512 px pintados a 88. Ver «Lo siguiente».
+- `normalizeChannelName` creaba un `RegExp` por letra; con `\p{…}`
+  compilado para Chromium < 64 eso colgaba la tele minutos. Ahora una vez
+  por módulo y con atajo ASCII (mismo resultado, probado con los 4.816
+  nombres reales).
+- En la tele, el fondo ambiental de Cine y series se apaga y el cristal se
+  vuelve opaco: el `blur()` era lo caro. Sin el blur, el fondo ampliado se
+  reconocía (un astronauta fantasma), así que no tenía sentido dejarlo.
+- La guía EPG de la lista por defecto cubre 2 canales: costo ~0.
+
+**Revisión por dispositivos** (Playwright, iPhone 390, PC 1920, TV 1920×1080
+con UA Tizen, 9 pantallas, con comprobaciones automáticas de nombres,
+objetivos táctiles, texto cortado, contraste, desbordamiento y recorrido con
+flechas). Arreglado: la barra de abajo del teléfono salía **cortada** en Cine
+y series (el fondo ambiental ampliado sobresalía 10 px y el navegador
+agrandaba el viewport); seis objetivos táctiles bajo 44 px; en la tele, al
+entrar a Canales el título de la sección quedaba bajo la barra. Sin trampas
+de foco. Ajustes y Mi enlace pasan al margen común (iban centrados, con su
+propio borde izquierdo) y su título mide como el de Canales; el aviso de
+«Mis canales» vacío lleva la estrella dorada.
+
+**Cine y series.** Hasta cinco destacados con puntos, **solo a mano**. Los
+puntos van al final de la fila de «Ver ahora» y no debajo: debajo, ↓ desde
+el héroe se saltaba el buscador y caía en la primera fila. Al entrar al
+grupo con el mando el foco va al punto elegido (`data-nav-grupo`, nuevo en
+`use-spatial-nav.ts`). Logo del título de TMDB en español o sin idioma (en
+inglés no: se leería como error junto a una sinopsis en español). Fila
+«Explorar por plataforma» con las que TMDB tiene en Guatemala, que filtra
+con `?plataforma=` (suscripción o gratis).
+
+**Trampas encontradas.**
+
+- Lightning CSS fusiona dos reglas seguidas con las mismas declaraciones y
+  se come la copia «de respaldo» (igual que con `-webkit-backdrop-filter`).
+  Todo respaldo va en `@supports`. Y ya separa solo las listas con
+  `:focus-visible` para los navegadores objetivo: hacerlo a mano lo rompía.
+- `pkill`/`grep` con `next start` en la misma orden mata la propia terminal:
+  identificar el `next-server` por `/proc/<pid>/cwd`.
+- En un iPhone, cualquier cosa que sobresalga por la derecha agranda el
+  viewport aunque `html` tenga `overflow-x: clip`, y las barras fijas se
+  van fuera.
+
 ### 2026-10-07 (tercera pasada) — Cine de noche: neutros y sala de cine
 
 **Qué pidió el dueño.** El azul de la paleta nueva no le gustó; la funcionalidad
@@ -268,44 +366,45 @@ Nazco con la app ya funcionando.
 
 ## Lo siguiente
 
-Estado al cerrar la rama `agente-diseno` (2026-10-07). Lo hecho está en el
-diario de arriba; esto es lo que queda, ordenado por impacto.
+Estado al cerrar la rama `mejoras-rendimiento` (2026-10-08). Ordenado por
+impacto.
 
 ### Decisiones del dueño (no se tocan sin su sí)
 
-- **Televisores viejos.** Chromium < 94 no ejecuta el JS (`class static`, `?.`)
-  y < 99 descarta TODO el CSS en `@layer`. Arreglo propuesto: `browserslist`
-  con el Chromium del Tizen/WebOS más viejo que se quiera soportar +
-  `postcss-cascade-layers` para aplanar capas. Cuesta peso de bundle; hay que
-  decidir el suelo de versión.
-- **Renumerar canales** y **claves estables de favoritos** (hoy dependen del
-  número): cambiarlo migra los favoritos guardados en cada aparato.
-- **Teclas numéricas en Samsung:** hay que registrarlas con
-  `tizen.tvinputdevice.registerKey` en el cascarón; sin eso el mando no manda
-  los dígitos a la web.
+- **Renumerar canales**: propuesta en `numeracion-propuesta.md` (fijos para
+  los de casa + bloques por región). Hoy hay 885 números repetidos.
+- **Logos de canales**: son lo más pesado de la app (2-2,7 MB por pantalla,
+  PNG de imgur a 512 px pintados a 88). imgur da miniaturas pero en JPEG
+  sin transparencia (un logo transparente saldría con cuadro negro). La vía
+  que conserva la transparencia es un redimensionador externo (p. ej.
+  wsrv.nl, gratuito) con vuelta al original si falla: añade una dependencia
+  de terceros, por eso se pregunta antes.
+- **LG de 2019 (Chromium 53)**: se probó con Chromium 59 como aproximación
+  (el 53 no arranca en el contenedor). Ojo: Chromium 53 **no tiene CSS
+  Grid** (57), y los rieles y rejillas son grid. Si la tele de casa es una
+  LG de 2019, hay que probar en ella y probablemente subir el suelo a 2020.
+- **Reempaquetar el `.wgt` de Samsung** para que lleguen los números.
 
-### Rendimiento (pendiente, sin medir en aparato real)
+### Teles viejas, menores
 
-- Pasar la auditoría en un televisor de verdad: el desenfoque de
-  `.cine-ambiente` (caja 8× menor ampliada) y el cristal de la barra se
-  midieron solo en Chromium de escritorio.
-- `media-card.tsx` usa `<img>` plano (aviso de ESLint): valorar un cargador
-  de `next/image` para TMDB, que ya da tamaños (`w185`, `w342`…) y ahorraría
-  ancho de banda en el teléfono.
-- La revisión adversarial + QA por dispositivos (agente `dispositivos`) no
-  llegó a correr: se cortó por el límite de sesión. Hacerla antes del
-  siguiente gran cambio visual.
+- En Chromium 63 el texto del héroe de Cine y series va pegado al borde
+  izquierdo (algún margen que usa una función no respaldada).
+- Los huecos de flex (`gap`, Chromium 84) siguen en cero salvo donde ya hay
+  `data-sin-gap`.
 
-### Ideas de diseño propuestas al dueño (a la espera)
+### Rendimiento
 
-1. Logo del título (imagen de TMDB `/images`) en vez del título en texto.
-2. Fila «Explorar por plataforma» con los logos de Netflix, Prime, Disney+…
-   (TMDB *watch providers*).
-3. Varios destacados en el héroe con puntos, solo con cambio manual (nunca
-   automático: mueve el fondo mientras se lee y obliga a perseguir el foco).
+- `/api/canales` sigue siendo ~200 KB gzip la primera vez. Si hiciera falta
+  más: mandar las URL de stream aparte (son la mitad del peso) y pedir la
+  del canal al sintonizar.
+- Si se configura una guía EPG grande, empaquetar la guía en tuplas: hoy va
+  como objeto con claves repetidas por canal.
 
-### Menores
+### Diseño
 
-- Repasar Ajustes y Favoritos, que aún no han tenido pasada de diseño.
-- Buscar clases pintadas sin ninguna regla: preguntar al navegador qué renderiza
-  y compararlo con el CSS servido. Así aparecieron cuatro.
+- Ajustes en 1920 ocupa la mitad izquierda; si se quiere aprovechar el ancho,
+  dos columnas solo en PC (en la tele una sola, por el mando).
+- El número marcado tapa los botones de arriba a la derecha durante 1,5 s en
+  pantalla completa; valorar bajarlo un poco allí.
+- Probar en un televisor de verdad el héroe con varios destacados y el logo
+  con TMDB real (aquí se probó con un simulador de TMDB).

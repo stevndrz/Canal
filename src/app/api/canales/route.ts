@@ -24,7 +24,24 @@ export async function GET(request: Request) {
   if (excedeLimite(identificarCliente(request))) return respuestaLimite();
 
   try {
-    const { json } = await paqueteDeCanales();
+    const { json, etag } = await paqueteDeCanales();
+
+    /**
+     * La tele abre la app varias veces al día y la lista casi nunca cambia:
+     * cada apertura bajaba ~200 KB (comprimidos) para obtener lo mismo. Con la
+     * huella, el navegador pregunta «¿sigue siendo esta?» y, si sí, la
+     * respuesta es un 304 sin cuerpo.
+     */
+    const cabeceras = {
+      "Content-Type": "application/json; charset=utf-8",
+      ETag: etag,
+      // El navegador siempre pregunta (`max-age=0`); el borde guarda cinco
+      // minutos, y hasta una hora sirviendo la copia vieja mientras refresca.
+      "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=3600",
+    };
+    if (request.headers.get("if-none-match") === etag) {
+      return new Response(null, { status: 304, headers: cabeceras });
+    }
 
     /**
      * Sale sin comprimir a propósito. Medido: `next start` no comprime las
@@ -33,14 +50,7 @@ export async function GET(request: Request) {
      * recibía el JSON en crudo con una cabecera que ya no estaba. En Vercel lo
      * comprime el borde: 1,01 MB pasan a unos 276 KB.
      */
-    return new Response(json, {
-      headers: {
-        "Content-Type": "application/json; charset=utf-8",
-        // Cinco minutos compartidos, y hasta una hora sirviendo la copia vieja
-        // mientras se refresca por detrás.
-        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=3600",
-      },
-    });
+    return new Response(json, { headers: cabeceras });
   } catch {
     /**
      * Que esto falle no apaga la app: el HTML ya trajo los canales que se están

@@ -179,6 +179,11 @@ Aparece en la fila de aplicaciones del televisor con su icono.
 - **Atrás en la pantalla de inicio cierra la app** y vuelve al menú del
   televisor (esto es `salirDeLaApp()`, y Samsung lo exige para publicar).
 - El botón ⏯ del mando pausa (esto es `registerKey` en `index.html`).
+- **Los números del mando cambian de canal**: al pulsar 1-0-2 sale «102» en
+  grande arriba a la derecha y a 1,5 s salta. Samsung no entrega los dígitos
+  ni Info hasta que el cascarón los registra; se añadieron en octubre de
+  2026, así que un `.wgt` instalado antes **no** los tiene: hay que volver a
+  empaquetar e instalar (pasos 5 y 6). Info enseña el rótulo del canal.
 - Un canal arranca en menos de 5 segundos.
 
 ---

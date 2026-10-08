@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import type { Ref } from "react";
+import type { CSSProperties, Ref } from "react";
 import { ArrowLeft, Bookmark, BookmarkCheck, Film, ListVideo, Play, Star } from "lucide-react";
 import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { formatearNota } from "@/lib/catalog/formato";
+import { enTamano } from "@/lib/catalog/imagen-tmdb";
 import { claveCatalogo } from "@/lib/media-item";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
@@ -78,7 +79,16 @@ export function FichaPortada({
   return (
     <div
       className="ficha-portada"
-      style={item.backdrop ? { backgroundImage: `url(${item.backdrop})` } : undefined}
+      // Dos tamaños del fondo; la hoja elige con una media query (`w780` en el
+      // teléfono). Ver `imagen-tmdb.ts`.
+      style={
+        item.backdrop
+          ? ({
+              "--fondo-ficha": `url(${item.backdrop})`,
+              "--fondo-ficha-movil": `url(${enTamano(item.backdrop, "w780")})`,
+            } as CSSProperties)
+          : undefined
+      }
     >
       <div className="ficha-cabecera">
         <Link href="/peliculas" data-nav="button" className="ficha-volver" aria-label="Volver al catálogo">

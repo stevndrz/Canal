@@ -1,4 +1,5 @@
 import { fetchList, fetchPagina, fetchRecommendations, searchTitles, type TmdbListEntry } from "./tmdb";
+import { consultaDePlataforma } from "./plataformas";
 import { GENEROS_FUERA_DE_FILAS_DE_SERIES } from "./generos";
 import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
@@ -228,7 +229,9 @@ export async function fetchFiltered(
    */
   pagina = 1,
   /** Criterio de orden; por defecto el de siempre, popularidad. */
-  orden: OrdenCatalogo = "populares"
+  orden: OrdenCatalogo = "populares",
+  /** Id de TMDB de una plataforma (Netflix = 8…), o `null`. Ver `plataformas.ts`. */
+  plataforma: number | null = null
 ): Promise<PaginaCatalogo> {
   /**
    * El género solo se manda al tipo donde existe. Sin esto, pedir "Terror" en
@@ -248,7 +251,10 @@ export async function fetchFiltered(
   const pedir = async (mediaType: MediaType, base: string) => {
     const genero = generoPara(mediaType);
     if (genero === null) return { entradas: [], totalPaginas: 0, fallo: false };
-    return fetchPagina(`/discover/${mediaType}?${base}${genero}&page=${pagina}`, mediaType);
+    return fetchPagina(
+      `/discover/${mediaType}?${base}${genero}${consultaDePlataforma(plataforma)}&page=${pagina}`,
+      mediaType,
+    );
   };
 
   if (tipo === "movie") {

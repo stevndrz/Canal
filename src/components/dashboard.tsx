@@ -17,6 +17,7 @@ import {
   tramoDeCanal,
   type SeccionZapeo,
   type TramoZapeo,
+  type UltimoCanal,
 } from "@/lib/channels";
 import { indexarCanales, normalizarCasa, unirMisCanales } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
@@ -36,11 +37,9 @@ import {
 import { useRemoteInput, useSpatialNav } from "@/hooks/use-spatial-nav";
 import { useMarcado } from "@/hooks/use-marcado";
 import { salirDeLaApp } from "@/lib/salir-de-la-app";
-import {
-  usePersistedJson,
-  usePersistedRecents,
-  usePersistedSet,
-} from "@/hooks/use-persisted-set";
+import { usePersistedJson } from "@/hooks/use-persisted-set";
+import { useFavoritosDeCanal, useRecientesDeCanal } from "@/hooks/use-canales-guardados";
+import { claveDeCanalEstable } from "@/lib/claves-canal";
 import { TopNav } from "@/components/shell/top-nav";
 import { VistaActiva } from "@/components/vista-activa";
 import { LiveCardSkeleton } from "@/components/live-card-skeleton";
@@ -188,7 +187,7 @@ export function Dashboard({
    * corrige en cuanto llega. Se guarda el nombre además del id porque el id es
    * posicional: ver `UltimoCanal`.
    */
-  const [ultimo, guardarUltimo] = usePersistedJson("canalcasa:ultimo", { id: 0, nombre: "" });
+  const [ultimo, guardarUltimo] = usePersistedJson<UltimoCanal>("canalcasa:ultimo", { id: 0, nombre: "" });
   const [tunedId, setTunedId] = useState<number | null>(canalDeArranque(channels));
   /** Para no pisar al canal que la persona haya elegido mientras esto llegaba. */
   const arranqueAplicado = useRef(false);
@@ -213,14 +212,15 @@ export function Dashboard({
     { mapa: {} },
   );
 
-  const favorites = usePersistedSet("canalcasa:favorites");
-  const recents = usePersistedRecents("canalcasa:recents");
-
   /**
    * ¿Ya está aquí la lista entera? Sin recorte, el HTML la traía toda. Con
    * él, hasta que llega `/api/canales`.
    */
   const listaCompleta = !paquete.recorte || completo !== null;
+
+  /** Por clave estable, no por posición: ver `claves-canal.ts`. */
+  const favorites = useFavoritosDeCanal(channels, listaCompleta);
+  const recents = useRecientesDeCanal(channels, listaCompleta);
 
   /**
    * Abrir en el último canal visto, en cuanto se sepa cuál es y esté en la
@@ -404,7 +404,7 @@ export function Dashboard({
       anotarReciente(channel.id);
       // Marcado como aplicado para que lo guardado no pise esta elección.
       arranqueAplicado.current = true;
-      guardarUltimo({ id: channel.id, nombre: channel.name });
+      guardarUltimo({ id: channel.id, nombre: channel.name, clave: claveDeCanalEstable(channel) });
     },
     [anotarReciente, guardarUltimo],
   );
@@ -525,7 +525,7 @@ export function Dashboard({
    * que «3» llevaba al 301 y no había forma de llegar al 307. Cada fila lleva
    * su número escrito al lado; ahora teclearlo lleva ahí. Ver `lib/marcado.ts`.
    */
-  const { marcado, noExiste, pulsarDigito } = useMarcado(channels, tune);
+  const { marcado, noExiste, previsto, pulsarDigito } = useMarcado(channels, tune);
 
   // El vídeo se despega del borde superior si la página scrollea por debajo.
   // Esta marca en <html> es la que globals.css consulta para bloquearlo.
@@ -607,11 +607,23 @@ export function Dashboard({
           Cristal SIN desenfoque: a pantalla completa va encima del vídeo. */}
       {(marcado || noExiste) && (
         <div
-          className="pointer-events-none fixed right-6 top-6 z-[var(--capa-dialogo)] rounded-[var(--radio-md)] bg-[var(--cristal-fuerte)] px-5 py-3 font-mono text-3xl tabular-nums tracking-widest text-tinta-1 shadow-[var(--sombra-2)] ring-1 ring-[var(--borde-fuerte)]"
+          className="pointer-events-none fixed right-[var(--margen)] top-[var(--margen)] z-[var(--capa-dialogo)] flex min-w-[5ch] flex-col items-end rounded-[var(--radio-md)] bg-[var(--cristal-fuerte)] px-6 py-4 text-right shadow-[var(--sombra-2)] ring-1 ring-[var(--borde-fuerte)]"
           role="status"
           aria-live="polite"
         >
-          {noExiste ? <span className="text-xl tracking-normal">Sin canal</span> : marcado}
+          {noExiste ? (
+            <span className="text-2xl font-semibold text-tinta-1">Sin canal</span>
+          ) : (
+            <>
+              {/* El número, lo más grande de la pantalla: se lee a tres metros. */}
+              <span className="text-[calc(var(--texto-3xl)*1.8)] font-bold leading-none tabular-nums tracking-wide text-tinta-1">
+                {marcado}
+              </span>
+              <span className="mt-2 max-w-[18ch] truncate text-lg text-tinta-2">
+                {previsto ? previsto.name : "…"}
+              </span>
+            </>
+          )}
         </div>
       )}
 
