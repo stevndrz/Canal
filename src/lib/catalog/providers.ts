@@ -61,6 +61,8 @@ export interface EmbedProvider {
    * servidor (reto de Cloudflare).
    */
   toleraSandbox?: boolean;
+  // Hoy ninguno lo lleva: el dueño comprobó el 2026-10-08 que con sandbox no
+  // le reproducía ninguno en casa, aunque en la prueba automática Vidzee sí.
   /**
    * El proveedor **dice** con un estado HTTP cuándo no tiene un título — la
    * única pregunta honesta que admite un embed desde fuera.
@@ -141,8 +143,7 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
   {
     // La recaída: segundo con Vimeus y primero cuando Vimeus no tiene el
     // título (y en todas las series). El dueño confirmó el 2026-10-08 que es
-    // el que de verdad le reproduce en el teléfono. Además aguanta el
-    // `sandbox` sin pop-ups (ver `toleraSandbox`).
+    // el que de verdad le reproduce en el teléfono.
     //
     // Manda `frame-ancestors *`, así que se deja meter en
     // el iframe aunque también envíe `X-Frame-Options: SAMEORIGIN` (los
@@ -152,7 +153,6 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     movie: "https://player.vidzee.wtf/embed/movie/{tmdbId}",
     tv: "https://player.vidzee.wtf/embed/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: false,
-    toleraSandbox: true,
   },
   {
     // Detrás de una comprobación de Cloudflare (verificado: 403 con reto
