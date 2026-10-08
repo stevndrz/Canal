@@ -102,12 +102,13 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
  * funcionar Vimeus (doblaje latino) y «el último» (Multiembed):
  *
  * 1. **Vimeus**: el principal, por el doblaje latino. Solo películas.
- * 2. **Multiembed**: la recaída, normalmente en inglés con subtítulos. Es el
- *    que el dueño confirma que funciona en sus aparatos.
- * 3. **Vidzee** y 4. **Vidrock**: nuevos. Comprobado con un navegador de
- *    verdad que llegan al vídeo (descargan la lista HLS y los segmentos, y
- *    saben la duración exacta: Inception 2:28:07, Dune 2 2:45:48), sin puerta
- *    antirrobot, sin ventanas emergentes en la prueba, y con series.
+ * 2. **Vidzee**: la recaída, en inglés. Comprobado con un navegador de verdad
+ *    que llega al vídeo (descarga la lista HLS y los segmentos, y sabe la
+ *    duración exacta: Inception 2:28:07, Dune 2 2:45:48), y el dueño confirmó
+ *    el mismo día que es el que le reproduce en el teléfono. Cubre series, así
+ *    que en ellas —y en las películas que Vimeus no tiene— es el primero.
+ * 3. **Multiembed**: detrás de una puerta de Cloudflare. Era el segundo.
+ * 4. **Vidrock**: como Vidzee, pero no aguanta el `sandbox` contra pop-ups.
  *
  * Retirados ese mismo día, comprobado:
  * - `vidsrc.pm` responde «Not found» incluso con Inception o Dune: dominio
@@ -138,17 +139,12 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     compruebaPorEstado: true,
   },
   {
-    // La recaída. Detrás de una comprobación de Cloudflare (verificado: 403
-    // con reto desde un servidor), que en un teléfono o un PC se pasa sola:
-    // es el que el dueño confirma que le funciona.
-    id: "multiembed",
-    movie: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1",
-    tv: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1&season={season}&episode={episode}",
-    spanishSubtitles: false,
-    puertaAntirrobot: true,
-  },
-  {
-    // Nuevo (2026-10-08). Manda `frame-ancestors *`, así que se deja meter en
+    // La recaída: segundo con Vimeus y primero cuando Vimeus no tiene el
+    // título (y en todas las series). El dueño confirmó el 2026-10-08 que es
+    // el que de verdad le reproduce en el teléfono. Además aguanta el
+    // `sandbox` sin pop-ups (ver `toleraSandbox`).
+    //
+    // Manda `frame-ancestors *`, así que se deja meter en
     // el iframe aunque también envíe `X-Frame-Options: SAMEORIGIN` (los
     // navegadores dan prioridad al primero). Responde 200 siempre: no se puede
     // preguntar si tiene el título.
@@ -157,6 +153,16 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     tv: "https://player.vidzee.wtf/embed/tv/{tmdbId}/{season}/{episode}",
     spanishSubtitles: false,
     toleraSandbox: true,
+  },
+  {
+    // Detrás de una comprobación de Cloudflare (verificado: 403 con reto
+    // desde un servidor), que en un teléfono o un PC se pasa sola. Era la
+    // recaída hasta que el dueño confirmó que el que le funciona es Vidzee.
+    id: "multiembed",
+    movie: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1",
+    tv: "https://multiembed.mov/?video_id={tmdbId}&tmdb=1&season={season}&episode={episode}",
+    spanishSubtitles: false,
+    puertaAntirrobot: true,
   },
   {
     // Nuevo (2026-10-08). Subtítulos solo en inglés en su caché.
@@ -217,9 +223,9 @@ export function getProviders(): EmbedProvider[] {
  * Reordena dejando al final los proveedores con puerta antirrobot.
  *
  * SOLO para televisores. En un teléfono o un ordenador esas puertas se pasan
- * solas y Multiembed va segundo, como debe. En un televisor la
- * puerta no pasa y el marco se recarga sin fin: ahí sus subtítulos no existen
- * de verdad, porque no llega a haber vídeo.
+ * solas y Multiembed conserva su sitio. En un televisor la puerta no pasa
+ * y el marco se recarga sin fin: ahí sus subtítulos no existen de verdad,
+ * porque no llega a haber vídeo.
  *
  * Se ordenan, no se quitan, y la ficha etiqueta cuál trae subtítulos para que
  * la elección se vea. Quitarlos en silencio fue el error de la vez anterior.

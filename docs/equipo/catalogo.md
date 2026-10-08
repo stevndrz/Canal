@@ -39,6 +39,17 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Vidzee pasa a segundo, detrás de Vimeus
+
+El dueño confirmó que el que de verdad le reproduce en el teléfono es Vidzee.
+Orden nuevo: Vimeus, Vidzee, Multiembed, Vidrock. Así Vidzee es el primero en
+series y en las películas que Vimeus no tiene, en todos los aparatos (en la
+tele ya lo era, porque Multiembed va al final allí).
+
+Corrección a la entrada de abajo: el proxy de Vimeus está **desconectado**
+(ver el comentario en `providers.ts`), así que sus anuncios no se bloquean en
+la web. Probar si aguanta `sandbox` no fue concluyente aquí: con y sin él,
+JWPlayer da el error 102630 por el códec del Chromium del contenedor.
 ### 2026-10-08 — Películas, Series y Anime: tres secciones en vez de «Cine y series»
 
 - Rutas `/peliculas` (solo películas), `/series` y `/anime`. Las tres son el
@@ -72,7 +83,7 @@ después: qué cambió, por qué, y qué me sorprendió.
   **Vidzee** reproduce igual con sandbox, pantalla completa incluida, y
   `window.open` devuelve `null`; **Vidrock** dice «Sandbox Not Allowed» y sin
   él abrió una pestaña al primer clic; **Multiembed** no se puede probar desde
-  un servidor (reto de Cloudflare). Vimeus ya iba cubierto por su proxy.
+  un servidor (reto de Cloudflare).
 - App Android: una WebView sin ventanas múltiples carga el `window.open` EN
   LA MISMA VISTA, tapando la película. Ahora `onCreateWindow` lo descarta y
   `shouldOverrideUrlLoading` no deja que la ventana principal salga del
