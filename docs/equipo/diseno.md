@@ -46,6 +46,15 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Inter, título por largo y barra simple
+
+- **Inter** en toda la app (la del Figma del dueño), por `next/font`: se
+  sirve desde el propio dominio.
+- El título de la ficha elige talla por largo (`largo-titulo.ts`): por
+  caracteres, sin medir en el cliente, para que el primer fotograma ya sea
+  el bueno. Cuatro tallas, en teléfono y en PC/tele.
+- Barra: hover = solo se aclara. Las capas escalonadas se quitaron.
+
 ### 2026-10-08 — Ficha Apple TV, barra sin cápsula y Buscar del Figma
 
 - **Ficha (≥ 900 px):** arte casi a pantalla completa con velo lateral,

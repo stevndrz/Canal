@@ -43,6 +43,24 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Secciones por tema en «Todo», de cualquier país
+
+- Pedido del dueño: al bajar, ver por categoría los canales más importantes,
+  no por región. En «Todo», tras Mis canales y Vistos hace poco, van
+  `TEMAS_DESTACADOS` (Películas y series, Deportes, Noticias, Infantil,
+  Documentales, Música, Variedades) con `porSeccion` canales cada uno; las
+  regiones siguen debajo, nada se esconde. Con un tema elegido no salen.
+- El orden es el de siempre (`ordenarFichas`): casa, luego
+  `CHANNEL_PRIORITY`. Se añadieron marcas gratuitas que la lista pública sí
+  trae (Pluto TV, Runtime, Rakuten, FilmRise, Discovery, MTV, Vevo…); sin
+  ellas «Películas y series» salía en orden alfabético.
+- `indice.porTema` se calcula una vez por lista, no al pintar.
+- **Ojo con el recorte**: `posicionesIniciales` manda también la cabeza de
+  cada tema; si se añade un tema destacado, el recorte lo cubre solo, pero la
+  prueba «Canales abre con las mismas cabezas» es la que avisa si no.
+- No hay datos de audiencia: «más vistos» es la lista curada + lo de este
+  aparato (Vistos hace poco). Medir de verdad pediría telemetría agregada.
+
 ### 2026-10-08 — Revisión semanal de la lista entera del gist
 
 - `scripts/revisar-lista.mjs` pide cada URL de la lista (48 a la vez, 12 s de
