@@ -1,7 +1,10 @@
-# Propuesta de numeración de canales
+# Numeración de canales
 
-> **Estado: propuesta, NO aplicada.** Espera el visto bueno del dueño. Cambiar
-> los números cambia lo que ven todos en todos los aparatos.
+> **Estado: APLICADA** (2026-10-08, opción A, aprobada por el dueño). Código
+> en `src/lib/numeracion.ts`. Con la lista por defecto: 0 números repetidos
+> (antes 885) y todas las regiones dentro de su bloque. Un detalle respecto a
+> la tabla de abajo: el orden por nombre es «natural» (Canal 13 antes que
+> Canal 100), así que algunos números de Guatemala cambian de sitio entre sí.
 
 ## Por qué cambiarla
 

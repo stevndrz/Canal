@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useViewportVisible } from "@/hooks/use-viewport-visible";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
 import { useReloj } from "@/hooks/use-reloj";
 import type { ViewId } from "@/lib/types";
@@ -89,6 +90,8 @@ export function TopNav({
   const pathname = usePathname();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  // Safari de iOS 26 deja las barras fijas corridas tras cerrar el teclado.
+  useViewportVisible();
   const [masAbierto, setMasAbierto] = useState(false);
 
   // El reloj lo lleva la barra y no quien la usa: es parte del chrome, y así
