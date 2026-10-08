@@ -43,6 +43,31 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Canal 3, 7 y TN23: la fuente no estaba bloqueada, había cambiado
+
+Corrige la entrada de abajo. La hipótesis buena era la (c): **cambió de URL**.
+
+- La página de chapintv.com trae en su HTML un `"streamUrl"` con dos URLs
+  separadas por `#`: la principal nueva
+  (`ddycmnicl95kp.cloudfront.net/live/<id>/master.m3u8`) y la vieja de
+  respaldo. La de Canal 3 de la lista (`d3jocgwjuhw91y`) ni siquiera aparece.
+- La nueva responde **200 `#EXTM3U` desde fuera de Guatemala**, con
+  `Access-Control-Allow-Origin: *`, sin firma ni token. Segmentos H.264
+  720x480 + AAC. Usa *content steering* (dos rutas de CDN), que hls.js 1.7 sabe.
+- El bloqueo por país de su web es **del lado del navegador**: pregunta el país
+  a `pro.ip-api.com` y esconde el reproductor. El CDN nuevo no bloquea.
+- Arreglo: `lib/fuentes-oficiales.ts`, un alias por `tvg-id` que se aplica al
+  final de `parseM3uChannels` y pisa `streamUrl` y `streamUrlBackup`. Sin
+  campos nuevos en `Channel`.
+- Efecto colateral bueno: `canales-caidos` indexa por URL, así que un aparato
+  que tuviera apartado el canal viejo lo ve sano con la URL nueva.
+- `scripts/revisar-fuentes.mjs` + `.github/workflows/revisar-fuentes.yml`:
+  cada lunes revisa estas fuentes (y que chapintv siga anunciando el mismo id)
+  y los dominios de cine; si algo cae abre un issue.
+- Las fuentes `http://…:8000` de iptv-org siguen descartadas: además del
+  contenido mixto en la web, el paquete Android declara
+  `usesCleartextTraffic="false"`.
+
 ### 2026-10-08 — Canal 7: la fuente no está muerta, está bloqueada por país
 
 El dueño pidió otra fuente para Canal 7. Lo encontrado:
