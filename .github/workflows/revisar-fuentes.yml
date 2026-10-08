@@ -72,13 +72,13 @@ jobs:
       - name: Revisar la lista
         run: node scripts/revisar-lista.mjs
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: historial-lista
           path: revision-lista/historial.json
           retention-days: 90
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: lista-limpia
           path: |
