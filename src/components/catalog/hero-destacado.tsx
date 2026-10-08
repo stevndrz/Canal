@@ -60,11 +60,12 @@ export function HeroDestacado({
           la luz de la pantalla en una sala a oscuras. Es decoración pura:
           `aria-hidden` y sin foco. Ver `.cine-ambiente` en `catalogo.css`. */}
       {arte && (
-        <div
-          className="cine-ambiente"
-          aria-hidden="true"
-          style={{ backgroundImage: `url(${arteAmbiental(arte)})` }}
-        />
+        // El marco recorta lo que sobresale: ampliado ×8, el fondo pasaba unos
+        // píxeles del borde derecho, y en el teléfono eso agrandaba la página
+        // y dejaba la barra de abajo cortada. Ver `.cine-ambiente-marco`.
+        <div className="cine-ambiente-marco" aria-hidden="true">
+          <div className="cine-ambiente" style={{ backgroundImage: `url(${arteAmbiental(arte)})` }} />
+        </div>
       )}
       <section className="hero" aria-labelledby="hero-titulo">
         {arte && (

@@ -197,6 +197,22 @@ html[data-input="dpad"] .hero-icono:focus {
    según la superficie, así que esto cuesta 1/64 de un `blur(90px)` a
    pantalla completa, y la ampliación la hace la GPU gratis. Medio ancho de
    más a cada lado tapa el borde que el desenfoque deja transparente. */
+/* El marco recorta lo que la ampliación saca por los lados. Sin él, en el
+   teléfono la página medía ~10 px más que la pantalla: el navegador se
+   alejaba para enseñarla entera y la barra de abajo quedaba cortada (medido:
+   viewport de 866 px en un iPhone de 844). Mismo tamaño que ocupa el fondo
+   ya ampliado, así que lo que se ve no cambia. */
+.cine-ambiente-marco {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 190vh;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .cine-ambiente {
   position: absolute;
   top: 0;
@@ -220,6 +236,7 @@ html[data-input="dpad"] .hero-icono:focus {
 }
 
 @media (prefers-reduced-transparency: reduce) {
+  .cine-ambiente-marco,
   .cine-ambiente {
     display: none;
   }
@@ -294,6 +311,10 @@ html[data-input="dpad"] .rail-ver-todo:focus {
 
   .cine-ambiente {
     height: calc(140vh / 8);
+  }
+
+  .cine-ambiente-marco {
+    height: 140vh;
   }
 }
 
