@@ -1,4 +1,4 @@
-import { Clapperboard, House, Link2, Search, Settings, Tv, type LucideIcon } from "lucide-react";
+import { Clapperboard, House, Link2, MonitorPlay, Search, Settings, Sparkles, Tv, type LucideIcon } from "lucide-react";
 import type { ViewId } from "@/lib/types";
 
 /**
@@ -32,11 +32,11 @@ export type NavItem = ViewNavItem | LinkNavItem;
 export const NAV_ITEMS: NavItem[] = [
   { kind: "view", key: "home", label: "Inicio", Icon: House },
   { kind: "view", key: "canales", label: "Canales", Icon: Tv },
-  /* «Cine y series» y no «Películas»: la sección trae las dos cosas, y el
-     nombre viejo hacía pensar que las series estaban en otro sitio. La ruta
-     sigue siendo /peliculas para no romper enlaces ni el `?vista=` de vuelta
-     al shell. */
-  { kind: "link", key: "peliculas", href: "/peliculas", label: "Cine y series", Icon: Clapperboard },
+  /* Tres secciones de catálogo y no una «Cine y series»: se busca distinto
+     una película, una serie y un anime. Ver `lib/catalog/secciones.ts`. */
+  { kind: "link", key: "peliculas", href: "/peliculas", label: "Películas", Icon: Clapperboard },
+  { kind: "link", key: "series", href: "/series", label: "Series", Icon: MonitorPlay },
+  { kind: "link", key: "anime", href: "/anime", label: "Anime", Icon: Sparkles },
   { kind: "view", key: "fuente", label: "Mi enlace", Icon: Link2 },
   { kind: "view", key: "buscar", label: "Buscar", Icon: Search },
   { kind: "view", key: "ajustes", label: "Ajustes", Icon: Settings },
@@ -50,10 +50,11 @@ export const NAV_ITEMS: NavItem[] = [
  * «Categoría…» y todo apelmazado. Y las etiquetas no son opcionales aquí —
  * esta aplicación la usa gente que reconoce la palabra antes que el icono.
  *
- * Así que cuatro a la vista y el resto detrás de «Más», que es el patrón que
- * cualquiera ya conoce de su teléfono. Los cuatro elegidos son los que se usan
- * mientras se ve algo; los otros se visitan de vez en cuando. Favoritos ya no
- * es uno de los siete: vive como riel en Inicio («Tus favoritos»), no como
+ * Así que cinco a la vista y el resto detrás de «Más», que es el patrón que
+ * cualquiera ya conoce de su teléfono. Los cinco elegidos son los que se usan
+ * para elegir qué ver; los otros se visitan de vez en cuando. Buscar pasó a
+ * «Más» al separarse Películas, Series y Anime: cada una trae su buscador.
+ * Favoritos ya no es uno de los siete: vive como riel en Inicio («Tus favoritos»), no como
  * pantalla propia — ver `home-view.tsx`.
  *
  * Ninguna sección queda inalcanzable, que fue el motivo de meterlas todas en
@@ -64,7 +65,8 @@ export const MOBILE_PRIMARY_KEYS: NavItem["key"][] = [
   "home",
   "canales",
   "peliculas",
-  "buscar",
+  "series",
+  "anime",
 ];
 
 export const MOBILE_OVERFLOW_KEYS: NavItem["key"][] = NAV_ITEMS.map((item) => item.key).filter(

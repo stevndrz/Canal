@@ -7,6 +7,7 @@ import { useViewportVisible } from "@/hooks/use-viewport-visible";
 import { Ellipsis, Settings, Tv, X } from "lucide-react";
 import { useReloj } from "@/hooks/use-reloj";
 import type { ViewId } from "@/lib/types";
+import { seccionDeRuta } from "@/lib/catalog/secciones";
 import {
   NAV_ITEMS,
   MOBILE_OVERFLOW_KEYS,
@@ -28,7 +29,8 @@ import {
  */
 
 function isActive(item: NavItem, view: ViewId | undefined, pathname: string): boolean {
-  if (item.kind === "link") return pathname.startsWith(item.href);
+  // Las fichas cuelgan todas de /peliculas/…: una serie enciende Series.
+  if (item.kind === "link") return seccionDeRuta(pathname) === item.key;
   // En una ruta de fuera del shell ninguna vista está activa: manda el enlace.
   if (view === undefined) return false;
   return view === item.key || (item.key === "canales" && view === "player");
