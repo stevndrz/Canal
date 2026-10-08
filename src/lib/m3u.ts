@@ -7,6 +7,7 @@ import { findLogoUrl } from "./logos";
 import type { Channel } from "./types";
 import { serverConfig } from "@/lib/config.server";
 import { paraRegistro } from "./url-segura";
+import { fuenteOficial } from "./fuentes-oficiales";
 
 /**
  * Lo que produce el parseo de la lista M3U: todavía sin `id` (lo asigna
@@ -350,6 +351,15 @@ export function parseM3uChannels(m3uText: string): ParsedChannel[] {
       existente.streamUrlBackup = streamUrl;
       if (!existente.logoUrl && logoUrl) existente.logoUrl = logoUrl;
     }
+  }
+
+  // La fuente oficial pisa a la de la lista, y su respaldo al de la fusión:
+  // las URLs viejas de esos canales dan 403 fuera de Guatemala.
+  for (const canal of enOrden) {
+    const oficial = fuenteOficial(canal.tvgId);
+    if (!oficial) continue;
+    canal.streamUrl = oficial.principal;
+    canal.streamUrlBackup = oficial.respaldo;
   }
 
   return sortChannels(enOrden);
