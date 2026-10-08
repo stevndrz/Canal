@@ -174,15 +174,31 @@ export interface IndiceSecciones {
 export function indexarCanales(canales: readonly Channel[], casa: readonly string[]): IndiceSecciones {
   const porRegion = new Map<Region, Channel[]>(REGIONES.map((region) => [region, []]));
   const textoDe = new Map<Channel, string>();
+  /**
+   * País, región y tema son unas pocas decenas de textos repetidos 4.816
+   * veces, y casi todos llevan tilde («México», «Religión»), lo que manda la
+   * cadena entera por el camino lento de `normalizeText`. Se normalizan una
+   * vez cada uno y el nombre —casi siempre ASCII— aparte. Mismo resultado:
+   * la normalización va letra a letra y el espacio separa los trozos.
+   */
+  const repetidos = new Map<string, string>();
+  const normalizarRepetido = (texto: string) => {
+    let hecho = repetidos.get(texto);
+    if (hecho === undefined) {
+      hecho = normalizeText(texto);
+      repetidos.set(texto, hecho);
+    }
+    return hecho;
+  };
   for (const canal of canales) {
     const pais = paisDe(canal);
     const region = regionDePais(pais);
     porRegion.get(region)!.push(canal);
     textoDe.set(
       canal,
-      normalizeText(
-        `${canal.name} ${nombreDePais(pais)} ${NOMBRE_DE_REGION[region]} ${canal.category}`,
-      ),
+      `${normalizeText(canal.name)} ${normalizarRepetido(
+        `${nombreDePais(pais)} ${NOMBRE_DE_REGION[region]} ${canal.category}`,
+      )}`,
     );
   }
   for (const region of REGIONES) {

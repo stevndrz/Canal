@@ -40,3 +40,32 @@ describe("channelNameVariants", () => {
     expect(channelNameVariants("Canal 3")).toEqual(["Canal 3"]);
   });
 });
+
+describe("camino rápido de normalización (teles viejas)", () => {
+  // Las versiones directas de antes, para comparar: mismo resultado exacto.
+  const textoDirecto = (v: string) => v.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  const nombreDirecto = (v: string) =>
+    Array.from(textoDirecto(v).replace(/\b(hd|fhd|uhd|4k|sd)\b/g, " "))
+      .filter((c) => /\p{L}|\p{N}/u.test(c))
+      .join("");
+
+  const casos = [
+    "Canal 7", "Guatevisión HD", "TN23 (FHD)", "ESPN 2 UHD", "Ñandú TV", "Télé Québec",
+    "餘姚姚江文化", "Канал 1", "قناة الجزيرة", "a^b`c", "MTV 4K", "  Sky-Sports_News  ",
+    "Ελληνικά", "Ｆｕｌｌ ｗｉｄｔｈ", "naïve café", "",
+  ];
+
+  it("da lo mismo que la versión directa, con y sin acentos y en otros alfabetos", () => {
+    for (const caso of casos) {
+      expect(normalizeText(caso)).toBe(textoDirecto(caso));
+      expect(normalizeChannelName(caso)).toBe(nombreDirecto(caso));
+    }
+  });
+
+  it("da lo mismo para todo el ASCII imprimible", () => {
+    let todo = "";
+    for (let i = 32; i < 127; i++) todo += String.fromCharCode(i);
+    expect(normalizeText(todo)).toBe(textoDirecto(todo));
+    expect(normalizeChannelName(todo)).toBe(nombreDirecto(todo));
+  });
+});
