@@ -2,6 +2,7 @@ import catalogData from "@/data/catalog.json";
 import { fetchCatalogRows, tmdbIdFromCatalogId } from "./discover";
 import { fetchSeason, fetchTitle, isTmdbConfigured } from "./tmdb";
 import { estadoDelCatalogo, type EstadoCatalogo } from "./estado";
+import { SECCIONES, type SeccionCatalogo } from "./secciones";
 import type {
   CatalogItem,
   CatalogSection,
@@ -143,9 +144,13 @@ export interface Catalogo {
  * Las filas y el estado del catálogo. Ver `estado.ts` para qué significa cada
  * estado y por qué una lista vacía no bastaba para decirlo.
  */
-export async function getCatalogo(): Promise<Catalogo> {
+export async function getCatalogo(seccion?: SeccionCatalogo): Promise<Catalogo> {
   const configurado = isTmdbConfigured();
-  const [own, rows] = await Promise.all([resolveCatalog(), fetchCatalogRows()]);
+  const [todas, rows] = await Promise.all([resolveCatalog(), fetchCatalogRows(seccion)]);
+  // Lo escrito a mano va a la sección de su tipo; Anime no tiene marca propia
+  // en `catalog.json`, así que ahí solo sale lo de TMDB.
+  const tipo = seccion ? SECCIONES[seccion].tipoFijo : undefined;
+  const own = tipo === undefined ? todas : todas.filter((item) => item.mediaType === tipo);
   const estado = estadoDelCatalogo({
     configurado,
     filasConTitulos: rows.length,

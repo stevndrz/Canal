@@ -1,6 +1,7 @@
 import { fetchList, fetchPagina, fetchRecommendations, searchTitles, type TmdbListEntry } from "./tmdb";
 import { consultaDePlataforma } from "./plataformas";
 import { GENEROS_FUERA_DE_FILAS_DE_SERIES } from "./generos";
+import { ANIMACION, IDIOMA_ANIME, SECCIONES, rutaDeTipo, type SeccionCatalogo } from "./secciones";
 import type { CatalogSection, MediaType, ResolvedCatalogItem } from "./types";
 
 /**
@@ -19,7 +20,13 @@ const GENRE = {
   accion: 28,
   comedia: 35,
   terror: 27,
-  animacion: 16,
+  animacion: ANIMACION,
+  // Los de series tienen ids propios: TMDB no comparte la lista con películas.
+  drama: 18,
+  crimen: 80,
+  accionAventuraTv: 10759,
+  cienciaFiccionFantasiaTv: 10765,
+  infantilTv: 10762,
 } as const;
 
 /** Criterio de orden del catálogo, elegible desde la interfaz. */
@@ -39,6 +46,8 @@ interface RowSpec {
    * ya trae cada título.
    */
   sinGeneros?: readonly number[];
+  /** De qué sección es la fila: decide a dónde lleva su título. */
+  seccion?: SeccionCatalogo;
 }
 
 /**
@@ -74,6 +83,10 @@ const ORDEN_BASES: Record<OrdenCatalogo, { movie: string; tv: string }> = {
   },
 };
 
+/**
+ * Las filas de Inicio: las dos cosas mezcladas, como siempre. Cada sección
+ * tiene las suyas más abajo.
+ */
 const CATALOG_ROWS: RowSpec[] = [
   // Lo primero que se ve: lo más taquillero y comentado del mundo esta semana.
   {
@@ -127,6 +140,120 @@ const CATALOG_ROWS: RowSpec[] = [
     mediaType: "tv",
   },
 ];
+
+/** Mejor valoradas: el mismo criterio que la píldora «Mejor valoradas». */
+const TOP = ORDEN_BASES.top;
+
+const FILAS_PELICULAS: RowSpec[] = [
+  { title: "Tendencias de la semana", path: "/trending/movie/week", mediaType: "movie" },
+  { title: "Populares", path: `/discover/movie?${MOVIE_BASE}`, mediaType: "movie" },
+  { title: "Mejor valoradas", path: `/discover/movie?${TOP.movie}`, mediaType: "movie" },
+  ...CATALOG_ROWS.filter((fila) => fila.generoId && fila.mediaType === "movie"),
+  {
+    title: "En español",
+    path: `/discover/movie?with_original_language=es&${ES_MOVIE_BASE}`,
+    mediaType: "movie",
+  },
+];
+
+/** Una fila de series por género, sin noticias ni late shows. */
+function filaDeSeries(title: string, generoId: number): RowSpec {
+  return {
+    title,
+    path: `/discover/tv?with_genres=${generoId}&${TV_BASE}&${SIN_ENTREVISTAS}`,
+    mediaType: "tv",
+    generoId,
+  };
+}
+
+const FILAS_SERIES: RowSpec[] = [
+  {
+    title: "Tendencias de la semana",
+    path: "/trending/tv/week",
+    mediaType: "tv",
+    sinGeneros: GENEROS_FUERA_DE_FILAS_DE_SERIES,
+  },
+  { title: "Populares", path: `/discover/tv?${TV_BASE}&${SIN_ENTREVISTAS}`, mediaType: "tv" },
+  { title: "Mejor valoradas", path: `/discover/tv?${TOP.tv}&${SIN_ENTREVISTAS}`, mediaType: "tv" },
+  filaDeSeries("Drama", GENRE.drama),
+  filaDeSeries("Comedia", GENRE.comedia),
+  filaDeSeries("Crimen", GENRE.crimen),
+  filaDeSeries("Ciencia ficción y fantasía", GENRE.cienciaFiccionFantasiaTv),
+  filaDeSeries("Infantiles", GENRE.infantilTv),
+  {
+    title: "En español",
+    path: `/discover/tv?with_original_language=es&${ES_TV_BASE}&${SIN_ENTREVISTAS}`,
+    mediaType: "tv",
+  },
+];
+
+/** Animación japonesa (ver `secciones.ts`), con géneros extra opcionales. */
+function soloAnime(...generos: number[]): string {
+  return `with_genres=${[ANIMACION, ...generos].join(",")}&with_original_language=${IDIOMA_ANIME}`;
+}
+
+/**
+ * Anime: sobre todo series. Pisos de votos más bajos que en Series: el anime
+ * tiene menos votos en TMDB que una serie de Netflix y con los de siempre
+ * salían filas cortas.
+ */
+const ANIME_TV = "sort_by=popularity.desc&vote_count.gte=30&include_adult=false";
+const FILAS_ANIME: RowSpec[] = ([
+  { title: "Anime popular", path: `/discover/tv?${soloAnime()}&${ANIME_TV}`, mediaType: "tv" },
+  {
+    title: "En emisión",
+    // `with_status=0`: «Returning Series», las que siguen sacando capítulos.
+    path: `/discover/tv?${soloAnime()}&with_status=0&${ANIME_TV}`,
+    mediaType: "tv",
+  },
+  {
+    title: "Mejor valorado",
+    path: `/discover/tv?${soloAnime()}&sort_by=vote_average.desc&vote_count.gte=300&include_adult=false`,
+    mediaType: "tv",
+  },
+  {
+    title: "Películas de anime",
+    path: `/discover/movie?${soloAnime()}&sort_by=popularity.desc&vote_count.gte=100&include_adult=false`,
+    mediaType: "movie",
+  },
+  {
+    title: "Acción y aventura",
+    path: `/discover/tv?${soloAnime(GENRE.accionAventuraTv)}&${ANIME_TV}`,
+    mediaType: "tv",
+    generoId: GENRE.accionAventuraTv,
+  },
+  {
+    title: "Comedia",
+    path: `/discover/tv?${soloAnime(GENRE.comedia)}&${ANIME_TV}`,
+    mediaType: "tv",
+    generoId: GENRE.comedia,
+  },
+  {
+    title: "Fantasía y ciencia ficción",
+    path: `/discover/tv?${soloAnime(GENRE.cienciaFiccionFantasiaTv)}&${ANIME_TV}`,
+    mediaType: "tv",
+    generoId: GENRE.cienciaFiccionFantasiaTv,
+  },
+] satisfies RowSpec[]).map((fila) => ({ ...fila, seccion: "anime" as const }));
+
+const FILAS_POR_SECCION: Record<SeccionCatalogo, RowSpec[]> = {
+  peliculas: FILAS_PELICULAS,
+  series: FILAS_SERIES,
+  anime: FILAS_ANIME,
+};
+
+/**
+ * A dónde lleva el título de una fila: la cuadrilla de su género en su
+ * sección. En Anime se conserva el tipo, porque ahí hay series y películas.
+ */
+export function enlaceDeFila(fila: Pick<RowSpec, "mediaType" | "generoId" | "seccion">): string {
+  const params = new URLSearchParams();
+  const ruta = fila.seccion === "anime" ? SECCIONES.anime.ruta : rutaDeTipo(fila.mediaType);
+  if (fila.seccion === "anime") params.set("tipo", fila.mediaType);
+  if (fila.generoId) params.set("genero", String(fila.generoId));
+  const cadena = params.toString();
+  return cadena ? `${ruta}?${cadena}` : ruta;
+}
 
 /**
  * Prefijo de los ids que salen de TMDB, para que no puedan chocar con los
@@ -183,13 +310,14 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
  * día. Las que vengan vacías (sin clave, o TMDB caído) se descartan en vez de
  * dejar un hueco con título y nada debajo.
  */
-export async function fetchCatalogRows(): Promise<CatalogSection[]> {
+export async function fetchCatalogRows(seccion?: SeccionCatalogo): Promise<CatalogSection[]> {
+  const filas = seccion ? FILAS_POR_SECCION[seccion] : CATALOG_ROWS;
   const rows = await Promise.all(
-    CATALOG_ROWS.map(async (row) => ({
+    filas.map(async (row) => ({
       title: row.title,
       // Enlace a la cuadrilla completa del género/tipo de la fila: los títulos
       // de las filas son clicables y llevan a «todas las de Acción», etc.
-      href: `/peliculas?tipo=${row.mediaType}${row.generoId ? `&genero=${row.generoId}` : ""}`,
+      href: enlaceDeFila(row),
       items: sinGeneros(await fetchList(row.path, row.mediaType), row.sinGeneros).map(toCatalogItem),
     }))
   );
@@ -231,7 +359,9 @@ export async function fetchFiltered(
   /** Criterio de orden; por defecto el de siempre, popularidad. */
   orden: OrdenCatalogo = "populares",
   /** Id de TMDB de una plataforma (Netflix = 8…), o `null`. Ver `plataformas.ts`. */
-  plataforma: number | null = null
+  plataforma: number | null = null,
+  /** Solo animación japonesa: la sección Anime. Ver `secciones.ts`. */
+  anime = false
 ): Promise<PaginaCatalogo> {
   /**
    * El género solo se manda al tipo donde existe. Sin esto, pedir "Terror" en
@@ -243,8 +373,11 @@ export async function fetchFiltered(
     // Sin género elegido, las series no se llenan de noticias ni de late
     // shows (ver `SIN_ENTREVISTAS`). Con un género elegido se respeta lo
     // pedido, también si es «Noticias».
+    if (generoId && generosValidos && !generosValidos[mediaType].has(generoId)) return null;
+    // En Anime el género se suma a Animación (coma = «y» en TMDB), nunca la
+    // sustituye: «Comedia» ahí es comedia de anime, no cualquier comedia.
+    if (anime) return `&${generoId ? soloAnime(generoId) : soloAnime()}`;
     if (!generoId) return mediaType === "tv" ? `&${SIN_ENTREVISTAS}` : "";
-    if (generosValidos && !generosValidos[mediaType].has(generoId)) return null;
     return `&with_genres=${generoId}`;
   };
 

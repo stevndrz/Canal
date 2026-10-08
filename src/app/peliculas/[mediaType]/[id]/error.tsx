@@ -43,7 +43,7 @@ export default function ErrorDeFicha({
             Volver a intentar
           </button>
           <Link href="/peliculas" data-nav="button" className="secondary">
-            Volver a Cine y series
+            Volver al catálogo
           </Link>
         </div>
       </div>

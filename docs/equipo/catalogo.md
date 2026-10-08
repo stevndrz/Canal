@@ -50,6 +50,30 @@ Corrección a la entrada de abajo: el proxy de Vimeus está **desconectado**
 (ver el comentario en `providers.ts`), así que sus anuncios no se bloquean en
 la web. Probar si aguanta `sandbox` no fue concluyente aquí: con y sin él,
 JWPlayer da el error 102630 por el códec del Chromium del contenedor.
+### 2026-10-08 — Películas, Series y Anime: tres secciones en vez de «Cine y series»
+
+- Rutas `/peliculas` (solo películas), `/series` y `/anime`. Las tres son el
+  mismo componente (`seccion-catalogo.tsx`) con otra sección; el modelo vive
+  en `lib/catalog/secciones.ts`. Las fichas siguen en
+  `/peliculas/[mediaType]/[id]`: así no se rompen «Seguir viendo», «Mi
+  lista» ni enlaces guardados.
+- Cada sección trae sus filas (`FILAS_PELICULAS`, `FILAS_SERIES`,
+  `FILAS_ANIME` en `discover.ts`). Inicio sigue con las de siempre, mezcladas.
+- **Anime = Animación (16) + idioma original japonés.** TMDB no tiene género
+  «Anime». Los pisos de votos son más bajos que en Series porque el anime
+  tiene menos votos en TMDB. En Anime el género elegido se SUMA a Animación
+  (`with_genres=16,35`): «Comedia» es comedia de anime.
+- Las píldoras Todo/Películas/Series solo salen en Anime; en las otras dos el
+  tipo lo da la sección y no va en la URL.
+- `/peliculas?tipo=tv` (enlaces viejos) redirige a `/series` con el resto de
+  filtros.
+- La barra marca la sección también dentro de una ficha: una serie enciende
+  Series aunque la ruta sea `/peliculas/tv/…` (`seccionDeRuta`).
+- Teléfono: Inicio, Canales, Películas, Series, Anime + «Más». Buscar pasó a
+  «Más»; cada sección tiene su buscador. Medido a 393 px: 62 px por casilla,
+  sin etiquetas cortadas.
+- Sin `TMDB_API_KEY` en el contenedor: las filas de anime se verificaron en la
+  vista previa de Vercel, no aquí.
 
 ### 2026-10-08 — Pop-ups: sandbox solo donde lo aguantan, y la app Android
 

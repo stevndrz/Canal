@@ -13,9 +13,9 @@ import { NavegacionCatalogo } from "./navegacion-catalogo";
  * Antes la ficha se abría igual, con «Sin título» de cabecera y un
  * reproductor buscando algo que no hay: cualquier `tmdb-N` de la URL se
  * aceptaba sin preguntar. Ahora se dice lo que pasa, con las mismas piezas
- * que la portada de bienvenida, y se ofrece volver a Cine y series.
+ * que la portada de bienvenida, y se ofrece volver al catálogo.
  *
- * Con un mando el foco empieza en «Volver a Cine y series», por lo mismo que
+ * Con un mando el foco empieza en «Volver al catálogo», por lo mismo que
  * en la portada: es lo único que hay que hacer aquí.
  */
 export function FichaNoEncontrada() {
@@ -45,7 +45,7 @@ export function FichaNoEncontrada() {
           <div className="portada-cine-acciones">
             <Link ref={primario} href="/peliculas" className="primary portada-cine-boton" data-nav="button">
               <Clapperboard aria-hidden="true" />
-              Volver a Cine y series
+              Volver al catálogo
             </Link>
             <Link href="/?vista=canales" className="secondary portada-cine-boton" data-nav="button">
               <Tv aria-hidden="true" />
