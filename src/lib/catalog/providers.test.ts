@@ -72,8 +72,9 @@ describe("orden de los proveedores", () => {
 });
 
 describe("sandbox contra pop-ups", () => {
-  it("solo en los servidores comprobados: los demás lo detectan y no reproducen", () => {
-    expect(aguantaSandbox("vidzee")).toBe(true);
+  it("ninguno lleva sandbox: en casa no reproducían con él", () => {
+    // Ninguno: con sandbox no reproducían en casa del dueño (2026-10-08).
+    expect(aguantaSandbox("vidzee")).toBe(false);
     expect(aguantaSandbox("vidrock")).toBe(false);
     expect(aguantaSandbox("multiembed")).toBe(false);
     expect(aguantaSandbox("propio")).toBe(false);
