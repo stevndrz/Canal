@@ -7,6 +7,7 @@ import {
   normalizarCasa,
   ordenarFichas,
   rielesDeInicio,
+  TEMAS_DESTACADOS,
   type Ficha,
 } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
@@ -475,6 +476,18 @@ export function posicionesIniciales(
   for (const region of REGIONES_ABIERTAS) {
     const deLaRegion = fichas.filter((item) => regionDePais(item.ficha.pais) === region);
     const cabeza = ordenarFichas(deLaRegion, fichaDe, casa).slice(
+      0,
+      porSeccion + casa.length + HOLGURA_POR_SECCION,
+    );
+    for (const { posicion } of cabeza) posiciones.add(posicion);
+  }
+
+  // Las secciones por tema de Canales (`TEMAS_DESTACADOS`), con el mismo
+  // orden y la misma holgura: de cualquier país, así que no las cubre lo de
+  // arriba.
+  for (const tema of TEMAS_DESTACADOS) {
+    const delTema = fichas.filter((item) => item.ficha.tema === tema);
+    const cabeza = ordenarFichas(delTema, fichaDe, casa).slice(
       0,
       porSeccion + casa.length + HOLGURA_POR_SECCION,
     );

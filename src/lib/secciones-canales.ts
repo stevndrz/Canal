@@ -157,6 +157,25 @@ function recuentoCompleto(
   return temas.reduce((suma, tema) => suma + (recuentos.get(claveDeRecuento(region, tema)) ?? 0), 0);
 }
 
+/**
+ * Los temas que salen como sección propia en el resumen de «Todo», en este
+ * orden. Por tema y no por región: lo que se busca al bajar es «qué hay de
+ * deportes», venga de donde venga. Generalista no está: es casi todo
+ * televisión local y ya tiene sus regiones debajo.
+ */
+export const TEMAS_DESTACADOS: readonly Tema[] = [
+  "Películas y series",
+  "Deportes",
+  "Noticias",
+  "Infantil",
+  "Documentales",
+  "Música",
+  "Variedades",
+];
+
+/** Un tema con menos que esto no merece sección: sería un hueco con título. */
+const MIN_POR_TEMA = 3;
+
 /* ── Índice ─────────────────────────────────────────────────────────────── */
 
 /**
@@ -166,6 +185,12 @@ function recuentoCompleto(
  */
 export interface IndiceSecciones {
   porRegion: Map<Region, Channel[]>;
+  /**
+   * Los de cada tema destacado, de cualquier país y ya en orden de
+   * importancia (`ordenarFichas`). Se hace aquí, una vez por lista, y no al
+   * pintar: son 4.816 canales y el resumen se recalcula en cada filtro.
+   */
+  porTema: Map<Tema, Channel[]>;
   /** Todas, en el orden de las regiones: lo que se recorre al buscar. */
   enOrden: Channel[];
   textoDe: Map<Channel, string>;
@@ -204,7 +229,15 @@ export function indexarCanales(canales: readonly Channel[], casa: readonly strin
   for (const region of REGIONES) {
     porRegion.set(region, ordenarFichas(porRegion.get(region)!, fichaDe, casa));
   }
-  return { porRegion, enOrden: REGIONES.flatMap((region) => porRegion.get(region)!), textoDe };
+  const destacados = new Set<string>(TEMAS_DESTACADOS);
+  const porTema = new Map<Tema, Channel[]>(TEMAS_DESTACADOS.map((tema) => [tema, []]));
+  for (const canal of canales) {
+    if (destacados.has(canal.category)) porTema.get(canal.category as Tema)!.push(canal);
+  }
+  for (const tema of TEMAS_DESTACADOS) {
+    porTema.set(tema, ordenarFichas(porTema.get(tema)!, fichaDe, casa));
+  }
+  return { porRegion, porTema, enOrden: REGIONES.flatMap((region) => porRegion.get(region)!), textoDe };
 }
 
 /**
@@ -327,7 +360,20 @@ export function filasDeCanales(opciones: OpcionesFilas): Fila[] {
 
   if (filtro === "mios") return filas;
 
-  // 3. Lo de aquí y lo que se entiende: abiertas, con sus primeros canales.
+  // 3. Lo más destacado de cada tema, de cualquier país. Solo en «Todo»: con
+  // un tema elegido, las regiones de abajo ya son ese tema.
+  if (filtro === "todo") {
+    for (const tema of TEMAS_DESTACADOS) {
+      const cabeza = apartarCaidos(indice.porTema.get(tema) ?? [], caidos)
+        .filter((canal) => !idsMios.has(canal.id))
+        .slice(0, opciones.porSeccion);
+      if (cabeza.length < MIN_POR_TEMA) continue;
+      filas.push({ tipo: "cabecera", clave: `cab:tema:${tema}`, titulo: tema, detalle: "Destacados" });
+      for (const canal of cabeza) filas.push({ tipo: "canal", clave: `tema:${tema}:${canal.id}`, canal });
+    }
+  }
+
+  // 4. Lo de aquí y lo que se entiende: abiertas, con sus primeros canales.
   for (const region of REGIONES_ABIERTAS) {
     const todos = apartarCaidos(indice.porRegion.get(region)!.filter(pasa), caidos);
     const total = Math.max(todos.length, recuentoCompleto(opciones.recuentos, region, filtro));
@@ -350,7 +396,7 @@ export function filasDeCanales(opciones: OpcionesFilas): Fila[] {
     }
   }
 
-  // 4. El resto, plegado y con su número: nada escondido, nada en medio.
+  // 5. El resto, plegado y con su número: nada escondido, nada en medio.
   const plegadas = REGIONES_PLEGADAS.map((region) => ({
     region,
     total: Math.max(
