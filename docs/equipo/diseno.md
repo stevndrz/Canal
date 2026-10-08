@@ -46,6 +46,24 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-10-08 — Ficha Apple TV, barra sin cápsula y Buscar del Figma
+
+- **Ficha (≥ 900 px):** arte casi a pantalla completa con velo lateral,
+  texto abajo a la izquierda, título grande, resumen de 3 líneas, sello
+  fino de tipo, acciones en círculos de cristal sin etiqueta y reproductor
+  centrado. «Volver» tiene hueco fijo arriba: con títulos largos se montaba.
+- **Barra:** sin cápsula ni línea inferior. El activo lleva un cristal fino;
+  al pasar, dos capas translúcidas asoman escalonadas (el «LAYERS» que pidió
+  el dueño, en gris). Se probó antes un cristal deslizante con JS y se quitó:
+  se descuadraba. Anime usa una Pokébola propia (`icono-pokebola.tsx`).
+- **Buscar** sigue el Figma Make del dueño (`Static-Search-Page`): portada
+  centrada, buscador de cristal con botón blanco, pestañas
+  Todo/Canales/Películas/Series, recientes en `localStorage`
+  (`canalcasa:busquedas`) y «Explorar» con enlaces a secciones. No se copió
+  lo que la app no sabe hacer: buscar por actor o por descripción, filtros de
+  año/plataforma y «Sorpréndeme». El teclado en pantalla solo sale abierto en
+  la tele; en PC, con «Teclado en pantalla»; en el teléfono no se ofrece.
+
 ### 2026-10-08 (segunda pasada) — Numeración nueva y la barra del iPhone
 
 - **La barra de «Canal Casa» a media pantalla en el iPhone** (captura del
