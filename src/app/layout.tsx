@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { SoporteHuecos } from "@/components/soporte-huecos";
@@ -8,28 +8,26 @@ import { GUION_COMPATIBILIDAD } from "@/lib/compat-tv";
 import "./globals.css";
 
 /**
- * Figtree es la tipografía del lenguaje visual de CanalCasa.
+ * Inter es la tipografía de CanalCasa.
  *
- * Sustituye a Inter, que es correcta pero genérica. Se eligió probando cinco
- * candidatas sobre la app real (Inter, Plus Jakarta Sans, Onest, Manrope,
- * Figtree): Figtree es cálida y redondeada sin ser infantil, tiene la x alta,
- * la «a» y la «g» abiertas y el «1» con asta (no se confunde con la «l»), y
- * cifras tabulares para relojes y números de canal. Plus Jakarta Sans quedó
- * fuera por los espacios: con el interletrado negativo de la app se leía
- * «Canal7» y «Cineyseries» a tamaño pequeño.
+ * Volvió en octubre de 2026 por decisión del dueño: es la del diseño de Figma
+ * que eligió para toda la app («Static Search Page»). Antes fue Figtree, que
+ * se había preferido a Inter por ser menos genérica; con el lenguaje sobrio
+ * del Figma, Inter encaja mejor y su interletrado negativo no junta palabras.
  *
  * Detalle que hay que cuidar: declararla en `font-family` no basta — sin
- * `@font-face` solo se ve en equipos que ya la tengan instalada. Aquí se
- * carga de verdad y se autoaloja, que además evita la petición a un tercero.
+ * `@font-face` solo se ve en equipos que ya la tengan instalada. `next/font`
+ * la descarga al compilar y la sirve desde el propio dominio: sin petición a
+ * Google en cada visita (más rápido, y la CSP no tiene que abrirle la puerta).
  *
  * Se expone como variable CSS para que `--font-sans` pueda encadenarla con
  * los respaldos del sistema: si la fuente tarda o falla, el texto sigue
  * leyéndose con la del dispositivo.
  */
-const figtree = Figtree({
+const inter = Inter({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-figtree",
+  variable: "--font-inter",
 });
 
 /**
@@ -96,7 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="es"
       data-input="pointer"
-      className={`${figtree.variable} ${jetbrainsMono.variable}`}
+      className={`${inter.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

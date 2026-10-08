@@ -9,6 +9,7 @@ import { formatearNota } from "@/lib/catalog/formato";
 import { enTamano } from "@/lib/catalog/imagen-tmdb";
 import { claveCatalogo } from "@/lib/media-item";
 import { rutaDeTipo } from "@/lib/catalog/secciones";
+import { largoDeTitulo } from "@/lib/catalog/largo-titulo";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
 /**
@@ -42,6 +43,7 @@ import { useWatchlist } from "@/hooks/use-watchlist";
  * el PC y el teléfono baja hasta el reproductor. Y es adonde vuelve el foco al
  * salir del modo cine (ver `TitleDetail`).
  */
+
 export function FichaPortada({
   item,
   isSeries,
@@ -109,7 +111,7 @@ export function FichaPortada({
           )}
 
           <div className="ficha-datos">
-            <h1>{item.title}</h1>
+            <h1 data-largo={largoDeTitulo(item.title)}>{item.title}</h1>
             {item.tagline && <p className="ficha-tagline">{item.tagline}</p>}
 
             <div className="ficha-meta">
