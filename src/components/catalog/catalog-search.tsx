@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Clock, Search, SearchX, WifiOff, X } from "lucide-react";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import type { OrdenCatalogo } from "@/lib/catalog/discover";
@@ -66,6 +66,8 @@ export function CatalogSearch({
   children?: ReactNode;
 }) {
   const router = useRouter();
+  /** La sección donde se está (`/peliculas`, `/series`, `/anime`): buscar no saca de ella. */
+  const ruta = usePathname();
   const [valor, setValor] = useState(initialQuery);
   const { resultados, pendiente, buscable, estado } = useBuscarTitulos(valor);
   const campo = useRef<HTMLInputElement | null>(null);
@@ -107,7 +109,7 @@ export function CatalogSearch({
     if (!params.has("q")) return;
     params.delete("q");
     const cadena = params.toString();
-    router.replace(cadena ? `/peliculas?${cadena}` : "/peliculas", { scroll: false });
+    router.replace(cadena ? `${ruta}?${cadena}` : ruta, { scroll: false });
   };
 
   /**
@@ -148,7 +150,7 @@ export function CatalogSearch({
     const params = new URLSearchParams(window.location.search);
     params.set("q", limpia);
     params.delete("pagina");
-    router.replace(`/peliculas?${params.toString()}`, { scroll: false });
+    router.replace(`${ruta}?${params.toString()}`, { scroll: false });
     campo.current?.blur();
   };
 
@@ -177,7 +179,7 @@ export function CatalogSearch({
     else params.set("orden", siguiente);
     params.delete("pagina");
     const cadena = params.toString();
-    router.push(cadena ? `/peliculas?${cadena}` : "/peliculas");
+    router.push(cadena ? `${ruta}?${cadena}` : ruta);
   };
 
   return (
@@ -189,7 +191,7 @@ export function CatalogSearch({
           {!buscando && titulo}
 
           <div className="catalogo-controles">
-            <form action="/peliculas" method="get" role="search" className="catalogo-buscador-form" onSubmit={enviar}>
+            <form action={ruta} method="get" role="search" className="catalogo-buscador-form" onSubmit={enviar}>
               <label className="catalogo-buscador-campo">
                 <span className="sr-only">Buscar películas y series</span>
                 <Search aria-hidden="true" />
