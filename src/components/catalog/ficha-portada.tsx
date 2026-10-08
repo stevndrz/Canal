@@ -9,6 +9,7 @@ import { formatearNota } from "@/lib/catalog/formato";
 import { enTamano } from "@/lib/catalog/imagen-tmdb";
 import { claveCatalogo } from "@/lib/media-item";
 import { rutaDeTipo } from "@/lib/catalog/secciones";
+import { largoDeTitulo } from "@/lib/catalog/largo-titulo";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
 /**
@@ -42,6 +43,7 @@ import { useWatchlist } from "@/hooks/use-watchlist";
  * el PC y el teléfono baja hasta el reproductor. Y es adonde vuelve el foco al
  * salir del modo cine (ver `TitleDetail`).
  */
+
 export function FichaPortada({
   item,
   isSeries,
@@ -79,7 +81,7 @@ export function FichaPortada({
 
   return (
     <div
-      className="ficha-portada"
+      className={`ficha-portada ${item.backdrop ? "con-fondo" : ""}`}
       // Dos tamaños del fondo; la hoja elige con una media query (`w780` en el
       // teléfono). Ver `imagen-tmdb.ts`.
       style={
@@ -109,7 +111,7 @@ export function FichaPortada({
           )}
 
           <div className="ficha-datos">
-            <h1>{item.title}</h1>
+            <h1 data-largo={largoDeTitulo(item.title)}>{item.title}</h1>
             {item.tagline && <p className="ficha-tagline">{item.tagline}</p>}
 
             <div className="ficha-meta">
@@ -131,6 +133,11 @@ export function FichaPortada({
             {item.generos.length > 0 && (
               <p className="ficha-generos">{item.generos.join(" · ")}</p>
             )}
+
+            {/* El resumen en la portada, como Apple TV: es lo que decide si se
+                ve o no, y abajo del todo nadie lo leía. Tres líneas como mucho;
+                entero sigue en «Sinopsis». */}
+            {item.overview && <p className="ficha-resumen">{item.overview}</p>}
           </div>
         </div>
 
@@ -158,9 +165,11 @@ export function FichaPortada({
               <span className="ficha-accion-icono">
                 <ListVideo aria-hidden="true" />
               </span>
-              {episodioActual
-                ? `T${episodioActual.temporada} E${episodioActual.episodio}`
-                : "Capítulos"}
+              <span className="ficha-accion-texto">
+                {episodioActual
+                  ? `T${episodioActual.temporada} E${episodioActual.episodio}`
+                  : "Capítulos"}
+              </span>
             </a>
           )}
 
@@ -178,7 +187,7 @@ export function FichaPortada({
                 <Bookmark aria-hidden="true" />
               )}
             </span>
-            {enLista ? "En mi lista" : "Mi lista"}
+            <span className="ficha-accion-texto">{enLista ? "En mi lista" : "Mi lista"}</span>
           </button>
 
           {item.trailerUrl && !enTelevisor && (
@@ -192,7 +201,7 @@ export function FichaPortada({
               <span className="ficha-accion-icono">
                 <Film aria-hidden="true" />
               </span>
-              Tráiler
+              <span className="ficha-accion-texto">Tráiler</span>
             </a>
           )}
         </div>

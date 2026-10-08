@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff, Search } from "lucide-react";
+import { Keyboard, Mic, MicOff, Search, X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { TvKeyboard } from "@/components/tv-keyboard";
 import { channelToCard, type CardItem } from "@/lib/media-item";
@@ -12,6 +13,14 @@ import { esTelevisorUA } from "@/lib/dispositivo";
 import { MediaCard } from "@/components/media/media-card";
 import { useBuscarTitulos } from "@/hooks/use-buscar-titulos";
 import { useDictado } from "@/hooks/use-dictado";
+import {
+  agregarBusqueda,
+  guardarBusquedas,
+  interpretarBusquedas,
+  leerBusquedasCrudas,
+  quitarBusqueda,
+  suscribirBusquedas,
+} from "@/lib/busquedas-recientes";
 
 /**
  * Cuántas fichas de canal se pintan como mucho. «a» casa con miles, y cada
@@ -36,6 +45,30 @@ function useEsTele(): boolean {
     () => false,
   );
 }
+
+/** Qué se enseña de los resultados. Las pestañas del diseño de Figma. */
+type TipoBusqueda = "todo" | "canales" | "movie" | "tv";
+
+const TIPOS: { id: TipoBusqueda; label: string }[] = [
+  { id: "todo", label: "Todo" },
+  { id: "canales", label: "Canales" },
+  { id: "movie", label: "Películas" },
+  { id: "tv", label: "Series" },
+];
+
+/**
+ * «Explorar», con el campo vacío. Son enlaces a secciones y géneros, no
+ * búsquedas: el buscador encuentra por nombre, así que «comedia para ver en
+ * familia» —lo que traía el diseño— no encontraría nada. Esto sí lleva a algo.
+ */
+const EXPLORAR: { texto: string; href: string }[] = [
+  { texto: "Películas en tendencia", href: "/peliculas" },
+  { texto: "Series populares", href: "/series" },
+  { texto: "Anime en emisión", href: "/anime" },
+  { texto: "Comedias", href: "/peliculas?genero=35" },
+  { texto: "Para toda la familia", href: "/peliculas?genero=10751" },
+  { texto: "Dramas", href: "/series?genero=18" },
+];
 
 /**
  * Buscar canales y catálogo a la vez.
@@ -78,7 +111,26 @@ export function BuscarView({
   const router = useRouter();
   const esTele = useEsTele();
   const campo = useRef<HTMLInputElement | null>(null);
-  const { resultados: titulos, cargando } = useBuscarTitulos(search);
+  const { resultados: todosLosTitulos, cargando } = useBuscarTitulos(search);
+  const [tipo, setTipo] = useState<TipoBusqueda>("todo");
+  /** El teclado en pantalla: abierto de entrada en la tele; en el resto, a petición. */
+  const [tecladoPedido, setTecladoPedido] = useState(false);
+  const conTeclado = esTele || tecladoPedido;
+
+  const crudas = useSyncExternalStore(suscribirBusquedas, leerBusquedasCrudas, () => null);
+  const recientes = useMemo(() => interpretarBusquedas(crudas), [crudas]);
+  const recordar = useCallback(() => {
+    const siguiente = agregarBusqueda(recientes, search);
+    if (siguiente !== recientes) guardarBusquedas(siguiente);
+  }, [recientes, search]);
+
+  const titulos = useMemo(
+    () =>
+      tipo === "movie" || tipo === "tv"
+        ? todosLosTitulos.filter((item) => item.key.startsWith(`${tipo}-`))
+        : todosLosTitulos,
+    [tipo, todosLosTitulos],
+  );
 
   // Dictar **sustituye** lo escrito: quien dicta empieza una búsqueda, no
   // continúa la anterior. Concatenar dejaría «batmanguardianes de la galaxia».
@@ -129,139 +181,252 @@ export function BuscarView({
       const canal = canalPorClave.get(tarjeta.key);
       if (!canal) return;
       const titulo = buscando ? `«${search.trim()}»` : "Sugeridos";
+      if (buscando) recordar();
       onTune(canal, lista, titulo);
     },
-    [canalPorClave, onTune, lista, buscando, search],
+    [canalPorClave, onTune, lista, buscando, search, recordar],
   );
 
   // La clave de una tarjeta de catálogo es `tipo-id`; la ruta, las dos partes.
   const abrirTitulo = useCallback(
     (tarjeta: CardItem) => {
-      const [tipo, ...resto] = tarjeta.key.split("-");
-      router.push(`/peliculas/${tipo}/${resto.join("-")}`);
+      const [tipoFicha, ...resto] = tarjeta.key.split("-");
+      recordar();
+      router.push(`/peliculas/${tipoFicha}/${resto.join("-")}`);
     },
-    [router],
+    [router, recordar],
   );
+
+  /** Enter o «Buscar»: los resultados ya están; se apunta y se suelta el campo
+      para que el teclado del teléfono deje verlos. */
+  const enviar = (evento: FormEvent<HTMLFormElement>) => {
+    evento.preventDefault();
+    recordar();
+    campo.current?.blur();
+  };
 
   const totalCanales = encontrados.length;
   const totalTitulos = titulos.length;
   const sinCanales = buscando && totalCanales === 0;
+  const verCanales = tipo === "todo" || tipo === "canales";
+  const verTitulos = tipo !== "canales";
 
   return (
-    <div className="screen has-search-hero">
-      <section className="search-hero">
-        {/* Icono y campo dentro de la MISMA píldora, como en Canales y en el
-            catálogo. Sueltos como hermanos del grid, el campo se quedaba sin
-            una sola regla propia y cada navegador lo pintaba con su aspecto
-            nativo: en cuanto `color-scheme: dark` no se soporta —los
-            navegadores de televisor viejos, y los de escritorio que no lo
-            aplican— eso es un rectángulo BLANCO de borde a borde, con su
-            cursor de escritura y su aspa, encajado en una pantalla negra. Es
-            el «cuadro blanco» que se veía en televisor y en PC. */}
-        <label className="buscar-campo">
-          <span className="search-icon-shell">
-            <Search size={22} aria-hidden="true" />
-          </span>
-          <input
-            ref={campo}
-            type="search"
-            data-nav="input"
-            data-nav-entrada={esTele ? undefined : ""}
-            readOnly={esTele}
-            value={search}
-            onChange={(evento) => onSearchChange(evento.target.value)}
-            placeholder={esTele ? "Escribe con el teclado de abajo" : "Buscar canales, películas y series"}
-            aria-label="Buscar canales, películas y series"
-          />
+    <div className="screen has-search-hero buscar-pagina">
+      <section className="search-hero buscar-portada">
+        <p className="buscar-antetitulo">Todo tu contenido en un lugar</p>
+        <h1 className="buscar-titulo">¿Qué quieres ver?</h1>
+        <p className="buscar-subtitulo">Busca canales, películas y series por su nombre.</p>
 
-          {/* Dentro de la píldora y no fuera: en un mando, un destino de foco
-              suelto al lado del campo es una parada más que estorba al bajar a
-              los resultados. */}
-          {hayVoz && (
+        <form className="buscar-form" role="search" onSubmit={enviar}>
+          {/* Icono, campo y botones dentro de la MISMA pieza. Sueltos, cada
+              navegador pintaba el campo con su aspecto nativo: en los que
+              ignoran `color-scheme: dark` eso era un rectángulo BLANCO en una
+              pantalla negra (el «cuadro blanco» de televisor y PC). */}
+          <label className="buscar-campo">
+            <span className="search-icon-shell">
+              <Search size={22} aria-hidden="true" />
+            </span>
+            <input
+              ref={campo}
+              type="search"
+              data-nav="input"
+              data-nav-entrada={esTele ? undefined : ""}
+              readOnly={esTele}
+              value={search}
+              onChange={(evento) => onSearchChange(evento.target.value)}
+              placeholder={esTele ? "Escribe con el teclado de abajo" : "Buscar canal, película o serie…"}
+              aria-label="Buscar canales, películas y series"
+            />
+
+            {buscando && (
+              <button
+                type="button"
+                data-nav="button"
+                className="buscar-icono-boton"
+                onClick={() => {
+                  onSearchChange("");
+                  campo.current?.focus();
+                }}
+                aria-label="Borrar la búsqueda"
+              >
+                <X size={18} aria-hidden="true" />
+              </button>
+            )}
+
+            {hayVoz && (
+              <button
+                type="button"
+                data-nav="button"
+                onClick={escuchar}
+                className={`buscar-icono-boton ${escuchando ? "is-activo" : ""}`}
+                aria-pressed={escuchando}
+                aria-label={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
+                title={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
+              >
+                {escuchando ? <MicOff size={20} aria-hidden="true" /> : <Mic size={20} aria-hidden="true" />}
+              </button>
+            )}
+
+            <button type="submit" data-nav="button" className="buscar-enviar">
+              Buscar
+            </button>
+          </label>
+        </form>
+
+        <div className="buscar-opciones">
+          <div className="buscar-tipos" role="group" aria-label="Qué buscar">
+            {TIPOS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                data-nav="button"
+                aria-pressed={tipo === id}
+                className={`buscar-tipo ${tipo === id ? "is-activo" : ""}`}
+                onClick={() => setTipo(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* En la tele el teclado ya está abierto y no hay nada que pedir. */}
+          {!esTele && (
             <button
               type="button"
               data-nav="button"
-              onClick={escuchar}
-              /* Utilidades en línea y no una clase de `shell.css`: ese archivo
-                 lo lleva el agente de diseño. Esto es lo justo para que el
-                 botón se vea correcto y esté al alcance del mando; la pasada
-                 de diseño de verdad es suya. */
-              className={`grid min-h-11 min-w-11 shrink-0 place-items-center rounded-full transition-colors ${
-                escuchando ? "bg-acento text-acento-tinta" : "text-muted hover:text-tinta-1"
-              }`}
-              aria-pressed={escuchando}
-              aria-label={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
-              title={escuchando ? "Dejar de escuchar" : "Buscar hablando"}
+              className={`buscar-util ${tecladoPedido ? "is-activo" : ""}`}
+              aria-expanded={tecladoPedido}
+              onClick={() => setTecladoPedido((abierto) => !abierto)}
             >
-              {escuchando ? <MicOff size={20} aria-hidden="true" /> : <Mic size={20} aria-hidden="true" />}
+              <Keyboard size={16} aria-hidden="true" />
+              Teclado en pantalla
             </button>
           )}
-        </label>
+        </div>
 
         {/* `role="status"` y no un aviso pasajero: en un televisor nadie ve un
             mensaje que se va solo a los tres segundos. */}
         {escuchando && (
-          <p className="mt-2 text-sm text-muted" role="status">
+          <p className="buscar-aviso" role="status">
             Escuchando… di el nombre de un canal, una película o una serie.
           </p>
         )}
         {!escuchando && errorVoz && (
-          <p className="mt-2 text-sm text-muted" role="status">
+          <p className="buscar-aviso" role="status">
             {errorVoz}
           </p>
         )}
       </section>
 
+      {!buscando && (
+        <section className="buscar-atajos" aria-label="Atajos">
+          <div>
+            <div className="buscar-atajos-cabecera">
+              <h2>Búsquedas recientes</h2>
+              {recientes.length > 0 && (
+                <button type="button" data-nav="button" className="buscar-borrar" onClick={() => guardarBusquedas([])}>
+                  Borrar todo
+                </button>
+              )}
+            </div>
+            {recientes.length > 0 ? (
+              <ul className="buscar-fichas">
+                {recientes.map((item) => (
+                  <li key={item} className="buscar-ficha">
+                    <button type="button" data-nav="button" onClick={() => onSearchChange(item)}>
+                      {item}
+                    </button>
+                    <button
+                      type="button"
+                      data-nav="button"
+                      className="buscar-ficha-quitar"
+                      aria-label={`Quitar «${item}»`}
+                      onClick={() => guardarBusquedas(quitarBusqueda(recientes, item))}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="buscar-atajos-vacio">Lo que busques aparecerá aquí.</p>
+            )}
+          </div>
+
+          <div>
+            <div className="buscar-atajos-cabecera">
+              <h2>Explorar</h2>
+            </div>
+            <ul className="buscar-fichas">
+              {EXPLORAR.map(({ texto, href }, i) => (
+                <li key={href}>
+                  <Link href={href} data-nav="button" className="buscar-ficha buscar-ficha-enlace">
+                    <span className="buscar-ficha-numero">{String(i + 1).padStart(2, "0")}</span>
+                    {texto}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
       {/* Teclado a un lado y resultados al otro. Puestos uno debajo del otro,
           el teclado de televisor mide más de 500px de alto y empuja los
           resultados fuera de la pantalla: escribes a ciegas. */}
-      <div className="buscar-cuerpo">
-        <div className="buscar-teclado">
-          <TvKeyboard
-            entrada={esTele}
-            onKey={(char) => onSearchChange(search + char)}
-            onBackspace={() => onSearchChange(search.slice(0, -1))}
-            onClear={() => onSearchChange("")}
-          />
-        </div>
+      <div className={`buscar-cuerpo ${conTeclado ? "con-teclado" : ""}`}>
+        {conTeclado && (
+          <div className="buscar-teclado">
+            <TvKeyboard
+              entrada={esTele}
+              onKey={(char) => onSearchChange(search + char)}
+              onBackspace={() => onSearchChange(search.slice(0, -1))}
+              onClear={() => onSearchChange("")}
+            />
+          </div>
+        )}
 
         <div className="buscar-resultados">
           {/* Los canales primero: son la prioridad del producto, y además
               los únicos que responden al instante. */}
-          <section className="buscar-grupo">
-            {sinCanales ? (
-              <p className="buscar-vacio" role="status">
-                {textoSinResultados(search)}
-              </p>
-            ) : (
-              <>
-                <p className="buscar-recuento" role="status">
-                  {!buscando
-                    ? "Canales sugeridos"
-                    : totalCanales > MAX_FICHAS
-                      ? `Canales · ${cifra(totalCanales)} · los ${MAX_FICHAS} más parecidos`
-                      : `Canales · ${cifra(totalCanales)}`}
+          {verCanales && (
+            <section className="buscar-grupo">
+              {sinCanales ? (
+                <p className="buscar-vacio" role="status">
+                  {textoSinResultados(search)}
                 </p>
-                {/* Fichas de canal (el logo entero, apaisado) y no carteles
-                    2:3: el logo recortado se leía «anal 3», «evisi». */}
-                <div className="grid-results is-embedded">
-                  {tarjetasCanal.map((item, i) => (
-                    <MediaCard
-                      key={item.key}
-                      item={item}
-                      onOpen={abrirCanal}
-                      active={mostrados[i].id === tunedId}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </section>
+              ) : (
+                <>
+                  <p className="buscar-recuento" role="status">
+                    {!buscando
+                      ? "Canales sugeridos"
+                      : totalCanales > MAX_FICHAS
+                        ? `Canales · ${cifra(totalCanales)} · los ${MAX_FICHAS} más parecidos`
+                        : `Canales · ${cifra(totalCanales)}`}
+                  </p>
+                  {/* Fichas de canal (el logo entero, apaisado) y no carteles
+                      2:3: el logo recortado se leía «anal 3», «evisi». */}
+                  <div className="grid-results is-embedded">
+                    {tarjetasCanal.map((item, i) => (
+                      <MediaCard
+                        key={item.key}
+                        item={item}
+                        onOpen={abrirCanal}
+                        active={mostrados[i].id === tunedId}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
-          {buscando && (totalTitulos > 0 || cargando) && (
+          {verTitulos && buscando && (totalTitulos > 0 || cargando) && (
             <section className="buscar-grupo">
               <p className="buscar-recuento">
-                Películas y series {cargando ? "· buscando…" : `· ${totalTitulos}`}
+                {tipo === "movie" ? "Películas" : tipo === "tv" ? "Series" : "Películas y series"}{" "}
+                {cargando ? "· buscando…" : `· ${totalTitulos}`}
               </p>
               <div className="grid-results is-embedded">
                 {titulos.map((item) => (
@@ -269,6 +434,12 @@ export function BuscarView({
                 ))}
               </div>
             </section>
+          )}
+
+          {verTitulos && !verCanales && buscando && !cargando && totalTitulos === 0 && (
+            <p className="buscar-vacio" role="status">
+              Nada con «{search.trim()}» en {tipo === "movie" ? "películas" : "series"}.
+            </p>
           )}
         </div>
       </div>

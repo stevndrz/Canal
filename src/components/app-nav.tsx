@@ -1,4 +1,6 @@
-import { Clapperboard, House, Link2, MonitorPlay, Search, Settings, Sparkles, Tv, type LucideIcon } from "lucide-react";
+import type { ComponentType, SVGProps } from "react";
+import { Clapperboard, House, Link2, MonitorPlay, Search, Settings, Tv } from "lucide-react";
+import { IconoPokebola } from "@/components/icono-pokebola";
 import type { ViewId } from "@/lib/types";
 
 /**
@@ -14,18 +16,21 @@ import type { ViewId } from "@/lib/types";
  * como una `view` más: reescribir ese subsistema dentro del modelo de vistas
  * del diseño era trabajo grande sin beneficio real.
  */
+/** Un icono de Lucide o uno propio con su mismo trazo (la Pokébola de Anime). */
+type IconoNav = ComponentType<SVGProps<SVGSVGElement>>;
+
 interface ViewNavItem {
   kind: "view";
   key: ViewId;
   label: string;
-  Icon: LucideIcon;
+  Icon: IconoNav;
 }
 interface LinkNavItem {
   kind: "link";
   key: string;
   href: string;
   label: string;
-  Icon: LucideIcon;
+  Icon: IconoNav;
 }
 export type NavItem = ViewNavItem | LinkNavItem;
 
@@ -36,7 +41,7 @@ export const NAV_ITEMS: NavItem[] = [
      una película, una serie y un anime. Ver `lib/catalog/secciones.ts`. */
   { kind: "link", key: "peliculas", href: "/peliculas", label: "Películas", Icon: Clapperboard },
   { kind: "link", key: "series", href: "/series", label: "Series", Icon: MonitorPlay },
-  { kind: "link", key: "anime", href: "/anime", label: "Anime", Icon: Sparkles },
+  { kind: "link", key: "anime", href: "/anime", label: "Anime", Icon: IconoPokebola },
   { kind: "view", key: "fuente", label: "Mi enlace", Icon: Link2 },
   { kind: "view", key: "buscar", label: "Buscar", Icon: Search },
   { kind: "view", key: "ajustes", label: "Ajustes", Icon: Settings },

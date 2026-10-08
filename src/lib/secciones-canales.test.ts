@@ -121,6 +121,8 @@ describe("filasDeCanales: el resumen", () => {
   it("va de lo mío a lo de aquí y deja lo lejano plegado", () => {
     expect(titulos(filas)).toEqual([
       "Mis canales",
+      "Deportes",
+      "Noticias",
       "Guatemala",
       "Centroamérica",
       "México",
@@ -182,6 +184,26 @@ describe("filasDeCanales: el resumen", () => {
     const desde = conRecientes.findIndex((f) => f.tipo === "cabecera" && f.titulo === "Vistos hace poco");
     expect(conRecientes[desde + 1]).toMatchObject({ tipo: "canal", canal: tudn });
     expect(conRecientes[desde + 2].tipo).toBe("cabecera");
+  });
+});
+
+describe("filasDeCanales: destacados por tema", () => {
+  const filas = filasDeCanales(opciones());
+  const seccion = (titulo: string) => {
+    const desde = filas.findIndex((f) => f.tipo === "cabecera" && f.titulo === titulo);
+    const hasta = filas.findIndex((f, i) => i > desde && f.tipo === "cabecera");
+    return filas.slice(desde + 1, hasta).flatMap((f) => (f.tipo === "canal" ? [f.canal.name] : []));
+  };
+
+  it("mezcla países y pone delante lo importante", () => {
+    const deportes = seccion("Deportes");
+    expect(deportes.slice(0, 2)).toEqual(["ESPN", "TUDN"]);
+  });
+
+  it("no repite los de «Mis canales» ni sale con un tema elegido", () => {
+    expect(seccion("Noticias")).not.toContain("Guatevision");
+    const conTema = filasDeCanales(opciones({ filtro: "Noticias" }));
+    expect(conTema.some((f) => f.clave.startsWith("cab:tema:"))).toBe(false);
   });
 });
 

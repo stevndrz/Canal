@@ -100,7 +100,7 @@
   --radius-tile: 14px;
   --radius-card: 20px;
 
-  --font-sans: var(--font-figtree), -apple-system, BlinkMacSystemFont, "SF Pro Text",
+  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, ui-sans-serif, Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /**
@@ -294,10 +294,16 @@ html[data-player="on"] body {
   align-items: start;
 }
 
+/* Solo con el teclado abierto (en la tele, o pedido con «Teclado en
+   pantalla»): sin él, los resultados ocupan todo el ancho. */
 @media (min-width: 1024px) {
-  .buscar-cuerpo {
+  .buscar-cuerpo.con-teclado {
     grid-template-columns: minmax(0, clamp(380px, 30vw, 520px)) minmax(0, 1fr);
   }
+}
+
+.buscar-cuerpo {
+  margin-top: clamp(20px, 3vh, 36px);
 }
 
 .buscar-resultados { min-width: 0; }
@@ -2020,7 +2026,13 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   font-weight: 750;
   letter-spacing: -0.02em;
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
+
+/* La talla del título según su largo (`largoDeTitulo`): en el teléfono. */
+.ficha-datos h1[data-largo="xs"] { font-size: clamp(34px, 10vw, 52px); }
+.ficha-datos h1[data-largo="corto"] { font-size: clamp(30px, 8vw, 42px); }
+.ficha-datos h1[data-largo="largo"] { font-size: clamp(22px, 6vw, 30px); }
 
 .ficha-tagline {
   margin: 10px 0 0;
@@ -2074,6 +2086,220 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   margin: 10px 0 0;
   font-size: var(--texto-xs);
   color: var(--soft, rgba(245, 245, 247, 0.56));
+}
+
+/* El resumen en la portada: tres líneas y un ancho de lectura cómodo. En el
+   teléfono no sale —ahí la portada ya va justa—; entero sigue en «Sinopsis». */
+.ficha-resumen {
+  margin: 16px 0 0;
+  max-width: 58ch;
+  font-size: var(--texto-base);
+  line-height: 1.5;
+  color: var(--tinta-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+@media (max-width: 899px) {
+  .ficha-resumen {
+    display: none;
+  }
+}
+
+/**
+ * Ficha a lo Apple TV, de 900 px para arriba (PC y tele).
+ *
+ * Lo que había era una carátula pequeña sobre un fondo que ya ES la carátula
+ * en grande, un título de 40 px y una fila de iconos con etiqueta debajo:
+ * se leía como una plantilla. Aquí el arte manda: ocupa casi toda la pantalla,
+ * se apaga hacia la izquierda y hacia abajo para que el texto se lea, y todo
+ * lo demás se apoya abajo a la izquierda, como en Apple TV.
+ */
+@media (min-width: 900px) {
+  /* El relleno de arriba deja sitio fijo a «Volver»: con un título de tres
+     líneas el bloque crece hacia arriba y, sin él, se le montaba encima. */
+  .ficha-portada.con-fondo {
+    --ficha-hero-h: clamp(460px, 74vh, 860px);
+    display: flex;
+    align-items: flex-end;
+    padding-top: calc(var(--topbar-h) + var(--control-sm) + clamp(36px, 5vh, 56px));
+    background-position: center 20%;
+  }
+
+  /* Dos velos: uno lateral que oscurece el lado del texto y otro de abajo
+     que funde el arte con la página. */
+  .ficha-portada.con-fondo::before {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(var(--fondo-rgb), 0.92) 0%,
+        rgba(var(--fondo-rgb), 0.7) 28%,
+        rgba(var(--fondo-rgb), 0.15) 58%,
+        rgba(var(--fondo-rgb), 0) 75%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(var(--fondo-rgb), 0.35) 0%,
+        rgba(var(--fondo-rgb), 0) 22%,
+        rgba(var(--fondo-rgb), 0) 55%,
+        rgba(var(--fondo-rgb), 0.75) 82%,
+        var(--fondo) 100%
+      );
+  }
+
+  /* Con arte de fondo, la carátula sobra: repetía la misma imagen en
+     pequeño y empujaba el título hacia la derecha. */
+  .con-fondo .ficha-poster {
+    display: none;
+  }
+
+  .con-fondo .ficha-cabecera {
+    padding-bottom: clamp(8px, 2vh, 28px);
+  }
+
+  /* La cabecera baja al pie del arte; «Volver» se queda arriba, colgado de
+     la portada y no de ella. Lo que queda en la cabecera necesita su propio
+     `position` para pintarse por encima del velo. */
+  .con-fondo .ficha-cabecera {
+    position: static;
+  }
+
+  .con-fondo .ficha-titular,
+  .con-fondo .ficha-acciones {
+    position: relative;
+  }
+
+  /* Más discreto: un círculo de cristal de 40 px alineado con el margen,
+     no un botón que compita con «Reproducir». */
+  .con-fondo .ficha-volver {
+    top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
+    width: var(--control-sm);
+    height: var(--control-sm);
+    border-color: var(--borde);
+    backdrop-filter: saturate(160%) blur(20px);
+  }
+
+  .con-fondo .ficha-volver svg {
+    width: 19px;
+    height: 19px;
+  }
+
+  .con-fondo .ficha-titular {
+    padding-top: 0;
+  }
+
+  .con-fondo .ficha-datos {
+    max-width: min(880px, 56vw);
+  }
+
+  /* Más contenido que antes: con títulos largos («La noche del demonio:
+     Están entre nosotros») a 96 px salían tres líneas que se comían el arte. */
+  .con-fondo .ficha-datos h1 {
+    font-size: clamp(44px, 4.4vw, 88px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  /* En PC y tele, por talla: el corto llena la portada, el largo se
+     contiene para no pasar de dos líneas. */
+  .con-fondo .ficha-datos h1[data-largo="xs"] { font-size: clamp(64px, 7.2vw, 140px); }
+  .con-fondo .ficha-datos h1[data-largo="corto"] { font-size: clamp(54px, 5.6vw, 112px); }
+  .con-fondo .ficha-datos h1[data-largo="largo"] { font-size: clamp(36px, 3.4vw, 68px); }
+
+  .ficha-meta {
+    gap: 10px;
+    margin-top: 18px;
+    font-size: var(--texto-sm);
+    font-weight: 600;
+    color: var(--tinta-2);
+  }
+
+  /* Puntos entre los datos, sin cajas: «2026 · ★ 8,7 · SERIE». */
+  .ficha-meta > * + *::before {
+    content: "·";
+    margin-right: 10px;
+    color: var(--tinta-4);
+  }
+
+  /* El tipo como en Apple TV: un sello fino con borde, no una píldora gris. */
+  .ficha-tipo {
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: transparent;
+    border: 1px solid var(--borde-fuerte);
+    font-size: 0.72em;
+    letter-spacing: 0.1em;
+    color: var(--tinta-2);
+  }
+
+  .ficha-tipo::before {
+    display: none;
+  }
+
+  .ficha-meta > * + .ficha-tipo {
+    margin-left: 10px;
+  }
+
+  .ficha-generos {
+    margin-top: 8px;
+    font-size: var(--texto-sm);
+    color: var(--tinta-3);
+  }
+
+  /* Acciones en una sola línea a la altura del botón principal: círculos de
+     cristal sin etiqueta debajo. El nombre sigue ahí para lectores de
+     pantalla y como globo al pasar el ratón. */
+  .ficha-acciones {
+    align-items: center;
+    gap: 14px;
+    margin-top: clamp(22px, 3vh, 34px);
+  }
+
+  .ficha-reproducir {
+    min-height: 54px;
+    padding: 0 30px;
+    font-size: var(--texto-base);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    box-shadow: var(--sombra-1);
+  }
+
+  .ficha-accion {
+    width: auto;
+    padding: 0;
+    gap: 0;
+  }
+
+  .ficha-accion-icono {
+    width: 54px;
+    background: var(--cristal);
+    border-color: var(--borde-fuerte);
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+
+  .ficha-accion-texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* El reproductor, centrado y tan grande como quepa entero en la pantalla
+     al bajar a él con «Ver»: así se siente una sala, no un recuadro a un
+     lado con media pantalla vacía. */
+  /* Con el contenedor delante para ganarle a la regla general de más abajo;
+     el modo cine (`.ficha-cine .ficha-reproductor`) sigue ganando a esta. */
+  .ficha-reproductor-slot .ficha-reproductor {
+    width: min(100%, max(calc((100vh - var(--topbar-h) - 150px) * 16 / 9), 640px));
+    margin-inline: auto;
+  }
 }
 
 /**

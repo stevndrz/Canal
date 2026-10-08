@@ -157,6 +157,16 @@ const CHANNEL_PRIORITY: Record<string, RegExp[]> = {
     /studio ?universal/,
     /^sony$|sony ?channel/,
     /^axn$/,
+    // Detrás de los de pago, las marcas gratuitas que la lista pública sí
+    // trae: sin ellas, la sección «Películas y series» de Canales salía en
+    // orden alfabético («30A TV Classic Movies», «ABN Bible Movies»…).
+    /^pluto ?tv ?(cine|peliculas|series)/,
+    /^pluto ?tv/,
+    /rakuten/,
+    /^runtime/,
+    /^canela/,
+    /filmrise/,
+    /\bcine\b/,
   ],
   Noticias: [
     /cnn ?(en )?espanol/,
@@ -165,6 +175,10 @@ const CHANNEL_PRIORITY: Record<string, RegExp[]> = {
     /^dw$|deutsche ?welle/,
     /telesur/,
     /france ?24/,
+    /euronews/,
+    /^nbc ?news|^cbs ?news|^abc ?news/,
+    /al ?jazeera/,
+    /bloomberg/,
   ],
   Infantil: [
     /cartoon ?network/,
@@ -172,6 +186,22 @@ const CHANNEL_PRIORITY: Record<string, RegExp[]> = {
     /nickelodeon|^nick$/,
     /discovery ?kids/,
     /boomerang/,
+    /^pluto ?tv ?(kids|ninos|junior)/,
+    /baby ?(first|tv)/,
+  ],
+  Documentales: [
+    /discovery/,
+    /nat(ional)? ?geo/,
+    /history/,
+    /^nasa/,
+    /^pluto ?tv/,
+  ],
+  Música: [
+    /^mtv/,
+    /vevo/,
+    /telehit/,
+    /^htv/,
+    /^pluto ?tv/,
   ],
 };
 

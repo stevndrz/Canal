@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aguantaSandbox, buildEmbedUrl, getProviders, ordenarParaTelevisor } from "./providers";
+import { buildEmbedUrl, getProviders, ordenarParaTelevisor } from "./providers";
 
 /** Los proveedores que de verdad cubren un tipo, en el orden en que se usan. */
 function paraTipo(tipo: "movie" | "tv") {
@@ -68,15 +68,5 @@ describe("orden de los proveedores", () => {
       "Servidor 4",
     ]);
     expect(paraTipo("tv")[0].label).toBe("Servidor 2");
-  });
-});
-
-describe("sandbox contra pop-ups", () => {
-  it("ninguno lleva sandbox: en casa no reproducían con él", () => {
-    // Ninguno: con sandbox no reproducían en casa del dueño (2026-10-08).
-    expect(aguantaSandbox("vidzee")).toBe(false);
-    expect(aguantaSandbox("vidrock")).toBe(false);
-    expect(aguantaSandbox("multiembed")).toBe(false);
-    expect(aguantaSandbox("propio")).toBe(false);
   });
 });
