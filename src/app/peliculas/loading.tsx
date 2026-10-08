@@ -2,7 +2,7 @@ import { EsqueletoSuperior } from "@/components/esqueleto-superior";
 import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
 
 /**
- * Lo que se ve al entrar en Cine y series.
+ * Lo que se ve al entrar en Películas, Series o Anime.
  *
  * Next prefetchea este fallback, así que la respuesta al clic es inmediata:
  * cubre el hueco hasta que llega el armazón de la página. A partir de ahí toma
@@ -12,7 +12,7 @@ import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
  */
 export default function CargandoCatalogo() {
   return (
-    <div className="app-shell bg-black" aria-busy="true" aria-label="Cargando Cine y series">
+    <div className="app-shell bg-black" aria-busy="true" aria-label="Cargando el catálogo">
       <EsqueletoSuperior />
       <EsqueletoCatalogo />
     </div>

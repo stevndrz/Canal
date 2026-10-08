@@ -8,10 +8,10 @@ import type { OrdenCatalogo } from "@/lib/catalog/discover";
 /**
  * Filtros del catálogo: tipo y género.
  *
- * Cuatro paradas de foco en total: tres píldoras de tipo y una que abre el
- * panel de géneros. Los veintiún géneros estaban aquí sueltos, partidos en dos
- * líneas centradas, y con la cabecera entera eso pedía ~26 pulsaciones de
- * mando antes de llegar al contenido. Ver `genero-panel.tsx`.
+ * Cuatro paradas de foco como mucho: tres píldoras de tipo (solo en Anime)
+ * y una que abre el panel de géneros. Los veintiún géneros estaban aquí
+ * sueltos, partidos en dos líneas centradas, y con la cabecera entera eso
+ * pedía ~26 pulsaciones de mando antes de llegar al contenido. Ver `genero-panel.tsx`.
  *
  * Todo sigue siendo navegación por enlaces (`?tipo=…&genero=…`), no estado de
  * cliente: se puede compartir, el botón atrás deshace y funciona sin
@@ -51,6 +51,9 @@ export interface GenerosValidos {
  * la rejilla vacía sin explicar por qué.
  */
 function href(
+  base: string,
+  /** Si el tipo va en la URL: solo en Anime. En las otras lo fija la ruta. */
+  conTipos: boolean,
   tipo: MediaFilter,
   genero: number | null,
   validos: GenerosValidos | undefined,
@@ -58,7 +61,7 @@ function href(
   plataforma: number | null = null
 ): string {
   const params = new URLSearchParams();
-  if (tipo !== "todo") params.set("tipo", tipo);
+  if (conTipos && tipo !== "todo") params.set("tipo", tipo);
 
   const aplica =
     genero === null ||
@@ -69,10 +72,12 @@ function href(
   if (plataforma) params.set("plataforma", String(plataforma));
 
   const cadena = params.toString();
-  return cadena ? `/peliculas?${cadena}` : "/peliculas";
+  return cadena ? `${base}?${cadena}` : base;
 }
 
 export function CatalogFilters({
+  base,
+  conTipos,
   tipo,
   genero,
   generos,
@@ -80,6 +85,13 @@ export function CatalogFilters({
   orden = "populares",
   plataforma = null,
 }: {
+  /** La ruta de la sección: `/peliculas`, `/series` o `/anime`. */
+  base: string;
+  /**
+   * Las píldoras Todo/Películas/Series. Solo en Anime, que trae las dos
+   * cosas: en Películas y en Series el tipo ya lo dice la sección.
+   */
+  conTipos: boolean;
   tipo: MediaFilter;
   genero: number | null;
   generos: TmdbGenre[];
@@ -94,11 +106,11 @@ export function CatalogFilters({
      bajar desde el héroe caía donde quisiera la geometría. */
   return (
     <div className="catalogo-pildoras" role="group" aria-label="Filtros del catálogo">
-      {TIPOS.map(({ id, label }) => (
+      {conTipos && TIPOS.map(({ id, label }) => (
         <Link
           key={id}
           data-nav="button"
-          href={href(id, genero, generosValidos, orden, plataforma)}
+          href={href(base, conTipos, id, genero, generosValidos, orden, plataforma)}
           aria-current={tipo === id ? "true" : undefined}
           className={chip(tipo === id)}
         >
@@ -110,7 +122,7 @@ export function CatalogFilters({
         <GeneroPanel
           generos={generos}
           activo={genero}
-          hrefDe={(id) => href(tipo, id, generosValidos, orden, plataforma)}
+          hrefDe={(id) => href(base, conTipos, tipo, id, generosValidos, orden, plataforma)}
         />
       )}
     </div>

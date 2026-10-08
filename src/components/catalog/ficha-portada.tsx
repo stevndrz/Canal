@@ -8,6 +8,7 @@ import type { ResolvedCatalogItem } from "@/lib/catalog/types";
 import { formatearNota } from "@/lib/catalog/formato";
 import { enTamano } from "@/lib/catalog/imagen-tmdb";
 import { claveCatalogo } from "@/lib/media-item";
+import { rutaDeTipo } from "@/lib/catalog/secciones";
 import { useWatchlist } from "@/hooks/use-watchlist";
 
 /**
@@ -91,7 +92,7 @@ export function FichaPortada({
       }
     >
       <div className="ficha-cabecera">
-        <Link href="/peliculas" data-nav="button" className="ficha-volver" aria-label="Volver al catálogo">
+        <Link href={rutaDeTipo(item.mediaType)} data-nav="button" className="ficha-volver" aria-label="Volver al catálogo">
           <ArrowLeft aria-hidden="true" />
         </Link>
 
