@@ -42,7 +42,17 @@ con `get_design_context`, nodeId `0:1`).
    (héroe, rieles, tarjetas con realce al pasar) y a Canales. Hay un
    mini-reproductor flotante que en PC se monta sobre la barra superior al
    hacer scroll en Canales: corregirlo.
-5. **Mantenimiento**: cerrar o actualizar los PR de dependabot (el de
+5. **Anime con datos de verdad (solo metadatos, legal)**: integrar
+   **Jikan** (`api.jikan.moe/v4`, API no oficial de MyAnimeList, sin clave,
+   ~3 peticiones/s y 60/min: cachear en el servidor con `cacheLife`) o
+   **AniList** (GraphQL oficial y gratis) para la sección Anime: «En emisión
+   esta temporada», «Horario de estrenos de la semana», ranking, y «Dónde
+   verlo» con los enlaces oficiales que trae cada ficha (Crunchyroll,
+   Netflix…). Comparar las dos y elegir una; pedirlas siempre desde el
+   servidor, nunca desde la tele. NO integrar fuentes de vídeo de proyectos
+   como ErickLimaS/anime-website (usan Consumet/Aniwatch, que sacan los
+   episodios de sitios sin licencia).
+6. **Mantenimiento**: cerrar o actualizar los PR de dependabot (el de
    `produccion-menores` quedó viejo: sube Next a 16.3.6 y ya estamos en 16.4);
    quitar `NEXT_PUBLIC_SITIO_URL` de Vercel si existe (ya no se usa); borrar
    ramas viejas ya fusionadas.
@@ -68,9 +78,11 @@ con `get_design_context`, nodeId `0:1`).
 ---
 
 ## Notas para quien lo retome
-- La vista previa de Vercel está protegida: la conexión de Vercel de Claude
-  no tiene permiso sobre el equipo del proyecto. Autorizarla ahorra pedir
-  capturas al dueño.
+- La vista previa de Vercel está protegida. Si `list_teams` de Vercel sale
+  vacío, la conexión de Claude no tiene el equipo
+  «michael-steven-duarte-gonzalezs-projects»: pedir al dueño que la reconecte
+  desde claude.ai → Configuración → Conectores → Vercel y que elija ese
+  equipo al autorizar. Sin eso, pedirle capturas.
 - «Más vistos» en Canales es lista curada (`CHANNEL_PRIORITY` en
   `lib/categories.ts`) + lo visto en el aparato. Para audiencia real haría
   falta telemetría agregada (y decidir si vale la pena).
