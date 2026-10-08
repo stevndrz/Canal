@@ -333,19 +333,6 @@
   transition: background 240ms var(--ease);
 }
 
-/* El filo bajo la barra, de margen a margen, como en el Figma: separa la
-   barra del contenido sin pintar un bloque. */
-.sidebar::after {
-  content: "";
-  position: absolute;
-  left: var(--margen);
-  right: var(--margen);
-  bottom: 0;
-  height: 1px;
-  background: var(--borde-sutil);
-  pointer-events: none;
-}
-
 /* Al bajar, la barra se vuelve sólida: sobre una carátula clara el degradado
    solo no basta para que se lean los destinos. */
 .sidebar.is-scrolled {
@@ -1259,31 +1246,87 @@
   padding-top: 0;
 }
 
-/* La píldora de Buscar: el mismo campo que Canales y que el catálogo, para
-   que las tres búsquedas de la app se vean iguales. Que exista es además lo
-   que impide que el navegador pinte su campo nativo — un rectángulo claro con
-   el cursor de escritura — en los que ignoran `color-scheme: dark`. */
+/* ── Buscar, según el diseño de Figma del dueño ─────────────────────────
+   Portada centrada: antetítulo, «¿Qué quieres ver?», el buscador grande de
+   cristal con su botón blanco, y debajo las pestañas de tipo. Un halo claro
+   cae desde arriba, como la luz del diseño. */
+.buscar-pagina {
+  background: radial-gradient(ellipse 70% 55% at 50% -12%, var(--relleno-activo), transparent 70%);
+}
+
+.buscar-portada {
+  /* Columna que puede encoger: sin `minmax(0, …)` la rejilla medía el
+     subtítulo de una sola línea y en el teléfono todo se salía por la
+     derecha. */
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  max-width: calc(920px + 2 * var(--margen));
+  margin-inline: auto;
+  padding-top: calc(var(--topbar-h) + clamp(36px, 9vh, 110px));
+  gap: 0;
+  text-align: center;
+}
+
+.buscar-antetitulo {
+  margin: 0 0 14px;
+  font-size: var(--texto-2xs);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tinta-4);
+}
+
+.buscar-titulo {
+  margin: 0;
+  font-size: clamp(38px, 5vw, 76px);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--tinta-1);
+}
+
+.buscar-subtitulo {
+  margin: 16px 0 clamp(26px, 4vh, 42px);
+  max-width: 34rem;
+  font-size: var(--texto-base);
+  line-height: 1.55;
+  color: var(--tinta-3);
+}
+
+.buscar-form {
+  width: 100%;
+}
+
+/* El buscador: cristal claro, esquinas de 22 px y el botón dentro. Que el
+   campo viva dentro de esta pieza es además lo que impide que el navegador
+   pinte su campo nativo —un rectángulo claro— en los que ignoran
+   `color-scheme: dark`. */
 .buscar-campo {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   width: 100%;
-  max-width: 720px;
-  min-height: clamp(48px, 4.4vh, 62px);
-  padding: 0 clamp(16px, 1.4vw, 24px);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: var(--chip);
+  min-height: clamp(62px, 6.4vh, 78px);
+  padding: 9px 9px 9px clamp(18px, 1.6vw, 24px);
+  border: 1px solid var(--borde);
+  border-radius: 22px;
+  background: var(--relleno);
+  box-shadow: var(--sombra-2);
+  backdrop-filter: saturate(160%) blur(24px);
   cursor: text;
+  transition: border-color var(--dur-media) var(--ease), background-color var(--dur-media) var(--ease);
 }
 
 .buscar-campo:focus-within {
-  border-color: var(--line-bright);
+  border-color: var(--borde-fuerte);
+  background: var(--relleno-hover);
 }
 
 .buscar-campo input {
   flex: 1;
   min-width: 0;
+  padding: 0 6px;
+  background: transparent;
   color: var(--text);
   font-size: var(--texto-lg);
 }
@@ -1294,6 +1337,10 @@
   color: var(--soft);
 }
 
+.buscar-campo input::-webkit-search-cancel-button {
+  display: none;
+}
+
 .search-icon-shell {
   display: grid;
   place-items: center;
@@ -1301,6 +1348,245 @@
   height: 22px;
   color: var(--soft);
   flex: none;
+}
+
+/* Borrar y dictar: iconos sin caja, que se encienden al pasar. */
+.buscar-icono-boton {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  color: var(--tinta-3);
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease);
+}
+
+.buscar-icono-boton:hover {
+  background: var(--relleno);
+  color: var(--tinta-1);
+}
+
+.buscar-icono-boton.is-activo {
+  background: var(--acento);
+  color: var(--acento-tinta);
+}
+
+/* El botón blanco del diseño, dentro del buscador. */
+.buscar-enviar {
+  flex: none;
+  min-height: clamp(44px, 4.8vh, 56px);
+  padding: 0 clamp(20px, 2vw, 30px);
+  border: 0;
+  border-radius: 15px;
+  background: var(--acento);
+  color: var(--acento-tinta);
+  font-size: var(--texto-sm);
+  font-weight: 650;
+  transition: transform var(--dur-rapida) var(--ease), background-color var(--dur-media) var(--ease);
+}
+
+.buscar-enviar:hover {
+  background: var(--acento-hover);
+}
+
+.buscar-enviar:active {
+  transform: scale(0.98);
+}
+
+.buscar-opciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+}
+
+/* Las pestañas: un carril de cristal con la elegida en blanco. */
+.buscar-tipos {
+  display: flex;
+  padding: 4px;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-md);
+  background: var(--relleno-sutil);
+}
+
+.buscar-tipo {
+  padding: 8px clamp(12px, 1.1vw, 18px);
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  font-weight: 500;
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease);
+}
+
+.buscar-tipo:hover {
+  color: var(--tinta-1);
+}
+
+.buscar-tipo.is-activo {
+  background: var(--acento);
+  color: var(--acento-tinta);
+  box-shadow: var(--sombra-1);
+}
+
+.buscar-util {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-md);
+  background: transparent;
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  transition: background-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease);
+}
+
+.buscar-util:hover,
+.buscar-util.is-activo {
+  background: var(--relleno);
+  color: var(--tinta-1);
+}
+
+/* En el teléfono hay teclado de verdad: el de pantalla no se ofrece. */
+@media (max-width: 699px) {
+  .buscar-util {
+    display: none;
+  }
+
+  .buscar-enviar {
+    padding: 0 16px;
+  }
+}
+
+.buscar-aviso {
+  margin: 14px 0 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+/* Recientes y Explorar: dos columnas bajo una línea fina, como el Figma. */
+.buscar-atajos {
+  display: grid;
+  gap: clamp(28px, 4vh, 48px);
+  max-width: 920px;
+  margin: clamp(28px, 5vh, 52px) auto 0;
+  padding: clamp(22px, 3vh, 30px) 0 clamp(20px, 3vh, 36px);
+  border-top: 1px solid var(--borde-sutil);
+  width: calc(100% - 2 * var(--margen));
+}
+
+@media (min-width: 768px) {
+  .buscar-atajos {
+    grid-template-columns: 1fr 1fr;
+    column-gap: clamp(32px, 5vw, 56px);
+  }
+}
+
+.buscar-atajos-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.buscar-atajos-cabecera h2 {
+  margin: 0;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  color: var(--tinta-2);
+}
+
+.buscar-borrar {
+  border: 0;
+  background: transparent;
+  color: var(--tinta-4);
+  font-size: var(--texto-xs);
+  transition: color var(--dur-media) var(--ease);
+}
+
+.buscar-borrar:hover {
+  color: var(--tinta-2);
+}
+
+.buscar-atajos-vacio {
+  margin: 0;
+  font-size: var(--texto-xs);
+  color: var(--tinta-4);
+}
+
+.buscar-fichas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* La ficha: píldora de cristal finito. Las recientes llevan su aspa dentro. */
+.buscar-ficha {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid var(--borde-sutil);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+  color: var(--tinta-3);
+  font-size: var(--texto-xs);
+  transition: background-color var(--dur-media) var(--ease), border-color var(--dur-media) var(--ease), color var(--dur-media) var(--ease);
+}
+
+.buscar-ficha:hover,
+.buscar-ficha:focus-within {
+  border-color: var(--borde);
+  background: var(--relleno);
+  color: var(--tinta-1);
+}
+
+.buscar-ficha button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.buscar-ficha .buscar-ficha-quitar {
+  display: grid;
+  place-items: center;
+  color: var(--tinta-4);
+}
+
+.buscar-ficha .buscar-ficha-quitar:hover {
+  color: var(--tinta-1);
+}
+
+.buscar-ficha-numero {
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-4);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .buscar-campo {
+    animation: buscar-entra 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes buscar-entra {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.99);
+    }
+  }
 }
 
 /* ═══ Canales ═══════════════════════════════════════════════════════════ */
@@ -1840,12 +2126,6 @@
   min-width: 0;
 }
 
-@media (max-width: 1023px) {
-  /* Con puntero o dedo hay teclado de verdad: el de pantalla estorba. */
-  .buscar-teclado {
-    display: none;
-  }
-}
 
 /* ═══ Teléfono ══════════════════════════════════════════════════════════
    Por encima de 680px la barra superior lleva todo. Por debajo se parte en
