@@ -2076,6 +2076,198 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
+/* El resumen en la portada: tres líneas y un ancho de lectura cómodo. En el
+   teléfono no sale —ahí la portada ya va justa—; entero sigue en «Sinopsis». */
+.ficha-resumen {
+  margin: 16px 0 0;
+  max-width: 58ch;
+  font-size: var(--texto-base);
+  line-height: 1.5;
+  color: var(--tinta-2);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+@media (max-width: 899px) {
+  .ficha-resumen {
+    display: none;
+  }
+}
+
+/**
+ * Ficha a lo Apple TV, de 900 px para arriba (PC y tele).
+ *
+ * Lo que había era una carátula pequeña sobre un fondo que ya ES la carátula
+ * en grande, un título de 40 px y una fila de iconos con etiqueta debajo:
+ * se leía como una plantilla. Aquí el arte manda: ocupa casi toda la pantalla,
+ * se apaga hacia la izquierda y hacia abajo para que el texto se lea, y todo
+ * lo demás se apoya abajo a la izquierda, como en Apple TV.
+ */
+@media (min-width: 900px) {
+  .ficha-portada.con-fondo {
+    --ficha-hero-h: clamp(460px, 74vh, 860px);
+    display: flex;
+    align-items: flex-end;
+    background-position: center 20%;
+  }
+
+  /* Dos velos: uno lateral que oscurece el lado del texto y otro de abajo
+     que funde el arte con la página. */
+  .ficha-portada.con-fondo::before {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(var(--fondo-rgb), 0.92) 0%,
+        rgba(var(--fondo-rgb), 0.7) 28%,
+        rgba(var(--fondo-rgb), 0.15) 58%,
+        rgba(var(--fondo-rgb), 0) 75%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(var(--fondo-rgb), 0.35) 0%,
+        rgba(var(--fondo-rgb), 0) 22%,
+        rgba(var(--fondo-rgb), 0) 55%,
+        rgba(var(--fondo-rgb), 0.75) 82%,
+        var(--fondo) 100%
+      );
+  }
+
+  /* Con arte de fondo, la carátula sobra: repetía la misma imagen en
+     pequeño y empujaba el título hacia la derecha. */
+  .con-fondo .ficha-poster {
+    display: none;
+  }
+
+  .con-fondo .ficha-cabecera {
+    padding-bottom: clamp(8px, 2vh, 28px);
+  }
+
+  /* La cabecera baja al pie del arte; «Volver» se queda arriba, colgado de
+     la portada y no de ella. Lo que queda en la cabecera necesita su propio
+     `position` para pintarse por encima del velo. */
+  .con-fondo .ficha-cabecera {
+    position: static;
+  }
+
+  .con-fondo .ficha-titular,
+  .con-fondo .ficha-acciones {
+    position: relative;
+  }
+
+  .con-fondo .ficha-volver {
+    top: calc(var(--topbar-h) + clamp(14px, 2vh, 28px));
+  }
+
+  .con-fondo .ficha-titular {
+    padding-top: 0;
+  }
+
+  .con-fondo .ficha-datos {
+    max-width: min(760px, 52vw);
+  }
+
+  .con-fondo .ficha-datos h1 {
+    font-size: clamp(44px, 4.6vw, 96px);
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    text-wrap: balance;
+  }
+
+  .ficha-meta {
+    gap: 10px;
+    margin-top: 18px;
+    font-size: var(--texto-sm);
+    font-weight: 600;
+    color: var(--tinta-2);
+  }
+
+  /* Puntos entre los datos, sin cajas: «2026 · ★ 8,7 · SERIE». */
+  .ficha-meta > * + *::before {
+    content: "·";
+    margin-right: 10px;
+    color: var(--tinta-4);
+  }
+
+  /* El tipo como en Apple TV: un sello fino con borde, no una píldora gris. */
+  .ficha-tipo {
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: transparent;
+    border: 1px solid var(--borde-fuerte);
+    font-size: 0.72em;
+    letter-spacing: 0.1em;
+    color: var(--tinta-2);
+  }
+
+  .ficha-tipo::before {
+    display: none;
+  }
+
+  .ficha-meta > * + .ficha-tipo {
+    margin-left: 10px;
+  }
+
+  .ficha-generos {
+    margin-top: 8px;
+    font-size: var(--texto-sm);
+    color: var(--tinta-3);
+  }
+
+  /* Acciones en una sola línea a la altura del botón principal: círculos de
+     cristal sin etiqueta debajo. El nombre sigue ahí para lectores de
+     pantalla y como globo al pasar el ratón. */
+  .ficha-acciones {
+    align-items: center;
+    gap: 14px;
+    margin-top: clamp(22px, 3vh, 34px);
+  }
+
+  .ficha-reproducir {
+    min-height: 54px;
+    padding: 0 30px;
+    font-size: var(--texto-base);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    box-shadow: var(--sombra-1);
+  }
+
+  .ficha-accion {
+    width: auto;
+    padding: 0;
+    gap: 0;
+  }
+
+  .ficha-accion-icono {
+    width: 54px;
+    background: var(--cristal);
+    border-color: var(--borde-fuerte);
+    backdrop-filter: blur(18px) saturate(1.4);
+  }
+
+  .ficha-accion-texto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* El reproductor, centrado y tan grande como quepa entero en la pantalla
+     al bajar a él con «Ver»: así se siente una sala, no un recuadro a un
+     lado con media pantalla vacía. */
+  /* Con el contenedor delante para ganarle a la regla general de más abajo;
+     el modo cine (`.ficha-cine .ficha-reproductor`) sigue ganando a esta. */
+  .ficha-reproductor-slot .ficha-reproductor {
+    width: min(100%, max(calc((100vh - var(--topbar-h) - 150px) * 16 / 9), 640px));
+    margin-inline: auto;
+  }
+}
+
 /**
  * `.ficha-reproductor-slot` y `.ficha-cuerpo` reparten lo que antes era un
  * único contenedor: el reproductor por un lado, sinopsis/reparto/episodios

@@ -79,7 +79,7 @@ export function FichaPortada({
 
   return (
     <div
-      className="ficha-portada"
+      className={`ficha-portada ${item.backdrop ? "con-fondo" : ""}`}
       // Dos tamaños del fondo; la hoja elige con una media query (`w780` en el
       // teléfono). Ver `imagen-tmdb.ts`.
       style={
@@ -131,6 +131,11 @@ export function FichaPortada({
             {item.generos.length > 0 && (
               <p className="ficha-generos">{item.generos.join(" · ")}</p>
             )}
+
+            {/* El resumen en la portada, como Apple TV: es lo que decide si se
+                ve o no, y abajo del todo nadie lo leía. Tres líneas como mucho;
+                entero sigue en «Sinopsis». */}
+            {item.overview && <p className="ficha-resumen">{item.overview}</p>}
           </div>
         </div>
 
@@ -158,9 +163,11 @@ export function FichaPortada({
               <span className="ficha-accion-icono">
                 <ListVideo aria-hidden="true" />
               </span>
-              {episodioActual
-                ? `T${episodioActual.temporada} E${episodioActual.episodio}`
-                : "Capítulos"}
+              <span className="ficha-accion-texto">
+                {episodioActual
+                  ? `T${episodioActual.temporada} E${episodioActual.episodio}`
+                  : "Capítulos"}
+              </span>
             </a>
           )}
 
@@ -178,7 +185,7 @@ export function FichaPortada({
                 <Bookmark aria-hidden="true" />
               )}
             </span>
-            {enLista ? "En mi lista" : "Mi lista"}
+            <span className="ficha-accion-texto">{enLista ? "En mi lista" : "Mi lista"}</span>
           </button>
 
           {item.trailerUrl && !enTelevisor && (
@@ -192,7 +199,7 @@ export function FichaPortada({
               <span className="ficha-accion-icono">
                 <Film aria-hidden="true" />
               </span>
-              Tráiler
+              <span className="ficha-accion-texto">Tráiler</span>
             </a>
           )}
         </div>
