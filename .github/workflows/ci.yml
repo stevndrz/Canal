@@ -15,6 +15,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Solo lectura: verificar no escribe nada. Sin esto el token hereda los
+# permisos por defecto del repo, que pueden ser de escritura, y cualquier
+# dependencia que se ejecute en `npm ci` o en las pruebas los tendría.
+permissions:
+  contents: read
+
 jobs:
   verificar:
     runs-on: ubuntu-latest
