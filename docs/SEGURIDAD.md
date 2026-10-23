@@ -33,6 +33,9 @@ Quien busque cómo está montada la app, eso está en `ARQUITECTURA.md`.
 | Comprobación de esquema en toda URL que viene de fuera | `m3u.ts`, `stremio.ts`, `providers.ts`, `fuente-propia/url.ts` |
 | Guía EPG de la lista: solo `https` y nunca a la red interna | `src/lib/epg.ts` |
 | Topes de tamaño y de tiempo en toda descarga remota | `m3u.ts`, `epg.ts`, `tmdb.ts`, `disponibilidad.ts` |
+| La sonda solo sale a URLs que están en la lista de canales | `src/app/api/salud/route.ts` |
+| `next` con piso en la versión sin los avisos críticos (16.4.3) | `package.json` |
+| Token de GitHub Actions en solo lectura; entradas a mano por `env`, validadas | `.github/workflows/` |
 
 ---
 
@@ -90,8 +93,9 @@ la optimización que más se nota desde el sofá, y poner `'unsafe-inline'` para
 salir del paso sería escribir la palabra CSP sin obtener su protección.
 
 **Qué se hace en su lugar.** Mantener la superficie en cero: no hay
-`dangerouslySetInnerHTML`, ni `innerHTML`, ni `eval`, ni HTML de fuera en ningún
-punto de la app, y toda URL que llega de fuera pasa por una comprobación de
+`innerHTML`, ni `eval`, ni HTML de fuera en ningún punto de la app —los dos
+`dangerouslySetInnerHTML` de `layout.tsx` llevan constantes escritas en el
+código, nunca datos—, y toda URL que llega de fuera pasa por una comprobación de
 esquema. Donde la CSP sí se puede cerrar sin pagar nada —las rutas de API— está
 cerrada. **Si alguna vez se añade HTML de terceros a la interfaz, esta decisión
 hay que rehacerla.**
@@ -123,9 +127,37 @@ que no sea público.** Si algún día hace falta un proveedor con credencial de
 verdad, su URL tiene que construirse en el servidor y salir por `/api/stream`,
 que es justo para lo que existe esa ruta.
 
+### 6. `frame-src` sin lista blanca
+
+**El riesgo.** Si entrara un fallo que dejara meter un `<iframe>`, podría
+apuntar a cualquier sitio.
+
+**Por qué se acepta.** Los servidores de cine son cuatro y están escritos en
+`providers.ts`, así que la lista parecía fácil de sacar de ahí. Pero `frame-src`
+se comprueba **también en cada redirección**, y los proveedores redirigen:
+comprobado el 23-oct-2026, `multiembed.mov` manda a `streamingnow.mov`, un
+dominio que no aparece en ningún sitio del código. Con la lista sacada de
+`providers.ts` ese servidor habría quedado en blanco sin mensaje de error, y la
+próxima rotación haría lo mismo con otro. La protección que da sin `script-src`
+es pequeña; lo que rompe se ve desde el sofá.
+
+**Qué se hace en su lugar.** Lo mismo que en el riesgo 3: no hay ningún punto
+donde datos de fuera acaben siendo HTML. **Si se reabre, la lista tiene que
+salir de seguir las redirecciones de cada proveedor, no de sus plantillas.**
+
 ---
 
 ## Lo que hay que hacer y no es código
+
+- **Activar el escaneo de secretos y la protección al empujar** (Settings →
+  Code security → *Secret scanning* y *Push protection*; gratis en
+  repositorios públicos). Con eso GitHub **rechaza el `git push`** que lleve
+  un token, que es lo que habría evitado lo del token de TMDB. Y de paso las
+  **alertas de Dependabot**, que siguen apagadas (ver
+  `docs/equipo/config-seguridad.md`).
+- **Bots y abuso: el firewall de Vercel**, no código. Una regla de límite por
+  IP en `/api/*` (Firewall → Rate limiting) cuenta en el borde y entre todas
+  las instancias, que es justo lo que el freno en memoria no puede (riesgo 4).
 
 - ✅ **Token de TMDB rotado** (31-ago-2026). Hubo uno escrito en el código
   como reserva que quedó en el historial de Git, público: quitarlo del código
