@@ -217,16 +217,38 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
     })();
 
     return () => {
+      /**
+       * Quien se va, pausa a los dos.
+       *
+       * Esto corre también al salir de Mi enlace sin salir de la sala —pulsar
+       * Atrás en el mando—, porque la vista se oculta y sus efectos se
+       * limpian. El `<video>` local ya se pausa solo al ocultarse (ver
+       * `NativePlayer`), pero esa pausa llega cuando el canal ya se cerró: el
+       * otro seguía viendo la película solo, y al volver iban desfasados.
+       * Al regresar, la sala se reconecta sola y el estado vuelve a cuadrar.
+       */
+      const v = elementoRef.current;
+      let despedida = false;
+      if (suscritoRef.current && v && (anfitrionRef.current || sincronizadoRef.current)) {
+        enviar({ tipo: "estado", tiempo: v.currentTime, pausado: true });
+        despedida = true;
+      }
       cancelado = true;
       suscritoRef.current = false;
       canalRef.current = null;
       setAcompanado(false);
-      try {
-        cliente?.unsubscribe(nombreCanal);
-        cliente?.disconnect();
-      } catch {
-        // Cerrar una conexión ya cerrada no es un problema.
-      }
+      const colgar = () => {
+        try {
+          cliente?.unsubscribe(nombreCanal);
+          cliente?.disconnect();
+        } catch {
+          // Cerrar una conexión ya cerrada no es un problema.
+        }
+      };
+      // Colgar en el mismo instante perdía la despedida (medido: el mensaje
+      // no llegaba al otro). Medio segundo le da tiempo a salir.
+      if (despedida) window.setTimeout(colgar, 500);
+      else colgar();
     };
   }, [codigo, configurada, enviar, estadoActual, aplicar]);
 
