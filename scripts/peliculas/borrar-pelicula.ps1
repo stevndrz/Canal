@@ -1,6 +1,6 @@
 ﻿# ── Borrar una película de R2 y de «Nuestras películas» ─────────────────────
 #
-#   borrar-pelicula.cmd                → lista las que hay subidas
+#   borrar-pelicula.cmd                → lista las que hay y pregunta cuál borrar
 #   borrar-pelicula.cmd mi-pelicula    → la borra (pide confirmación)
 #
 # Los 10 GB gratis de R2 dan para dos o tres películas a la vez: al terminar de
@@ -26,8 +26,10 @@ if (-not $Id) {
     foreach ($p in $lista) { Write-Host ("   {0,-30} {1}" -f $p.id, $p.titulo) }
     $tamano = & rclone size "$($config.Remoto):$($config.Cubo)/peliculas" --s3-no-check-bucket 2>$null | Out-String
     Write-Host "`n$tamano"
-    Write-Host "Para borrar una:  borrar-pelicula.cmd <nombre de la primera columna>"
-    exit 0
+    if ($lista.Count -eq 0) { exit 0 }
+    # Con doble clic no hay a quién pasarle un nombre: se pregunta aquí.
+    $Id = (Read-Host "Escribe el nombre (primera columna) de la que quieres borrar, o Enter para no borrar nada").Trim()
+    if (-not $Id) { Write-Host "No se borró nada."; exit 0 }
 }
 
 $pelicula = @($lista | Where-Object { $_.id -eq $Id })[0]
