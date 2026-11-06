@@ -32,8 +32,9 @@ import type { NextConfig } from "next";
  *   con el prerenderizado.)
  *
  *   La superficie que esto dejaría sin cubrir es hoy casi nula: no hay
- *   `dangerouslySetInnerHTML`, ni `innerHTML`, ni `eval`, ni HTML de nadie de
- *   fuera en ninguna parte de la app. Donde sí se puede poner CSP estricta y
+ *   `innerHTML`, ni `eval`, ni HTML de nadie de fuera en ninguna parte de la
+ *   app. Los dos `dangerouslySetInnerHTML` de `layout.tsx` llevan constantes
+ *   del propio código (`compat-tv.ts`, `tamano-texto.ts`), nunca datos. Donde sí se puede poner CSP estricta y
  *   gratis es en `/api`, y ahí está puesta (ver `CABECERAS_API`).
  *
  * - **CSP sin listas blancas de `media-src`, `connect-src`, `img-src` ni

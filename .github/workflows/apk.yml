@@ -17,6 +17,11 @@ on:
       - "empaque/android/**"
       - ".github/workflows/apk.yml"
 
+# Solo lectura: compilar no necesita escribir en el repositorio. Sin esto el
+# token hereda los permisos por defecto del repo, que pueden ser de escritura.
+permissions:
+  contents: read
+
 jobs:
   compilar:
     runs-on: ubuntu-latest
@@ -33,10 +38,21 @@ jobs:
 
       # Sustituye la URL sin tener que tocar el repositorio: útil para sacar un
       # APK apuntando a una vista previa antes de cambiar la de producción.
+      #
+      # La dirección entra por `env` y no escrita con `${{ }}` dentro del guion:
+      # así GitHub la pega como texto y no como código de shell. Con `${{ }}`,
+      # un valor como `x"; curl …; echo "` se ejecutaba en el runner. Además se
+      # exige una URL https sin caracteres que rompan el XML o el `sed`.
       - name: Poner la dirección de la aplicación
         if: inputs.url_app != ''
+        env:
+          URL_APP: ${{ inputs.url_app }}
         run: |
-          sed -i "s|<string name=\"url_app\" translatable=\"false\">[^<]*</string>|<string name=\"url_app\" translatable=\"false\">${{ inputs.url_app }}</string>|" \
+          if ! printf '%s' "$URL_APP" | grep -Eq '^https://[A-Za-z0-9._~:/?#@!$()*+,;=%-]+$'; then
+            echo "::error::La dirección tiene que ser https:// y sin espacios, comillas, <, >, & ni |"
+            exit 1
+          fi
+          sed -i "s|<string name=\"url_app\" translatable=\"false\">[^<]*</string>|<string name=\"url_app\" translatable=\"false\">${URL_APP}</string>|" \
             empaque/android/app/src/main/res/values/strings.xml
           grep url_app empaque/android/app/src/main/res/values/strings.xml
 

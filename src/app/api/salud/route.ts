@@ -1,4 +1,5 @@
 import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
+import { loadM3uPlaylist, type ParsedChannel } from "@/lib/m3u";
 import { clasificarSonda, puntuarSonda } from "@/lib/sonda-salud";
 import { paraRegistro } from "@/lib/url-segura";
 
@@ -32,6 +33,40 @@ interface EntradaSonda {
 
 const memoria = new Map<string, EntradaSonda>();
 
+/**
+ * Las URLs que esta ruta acepta sondear: las de la lista de canales, y nada más.
+ *
+ * Antes aceptaba cualquier `http(s)://`, y eso convertía el servidor en un
+ * recadero de peticiones para quien quisiera: `?url=http://169.254.169.254/…`
+ * (los metadatos de la nube), `?url=http://192.168.1.1/` (el router de la
+ * casa, con `next start` en la red local) o cualquier web de fuera **saliendo
+ * desde nuestra IP**. El límite de peticiones solo lo frenaba, no lo cerraba.
+ *
+ * Con la lista por frontera no hace falta adivinar qué host es interno —cosa
+ * que sin resolver DNS no se puede hacer bien, ver `hostInterno` en `epg.ts`—:
+ * quien elige a dónde se sale es quien despliega, vía `M3U_URL`, igual que al
+ * reproducir. Las fuentes oficiales ya vienen dentro (`m3u.ts` las aplica al
+ * leer la lista).
+ *
+ * El conjunto se construye una vez por lista: `loadM3uPlaylist` devuelve el
+ * mismo array mientras su caché dura, así que el `WeakMap` lo reaprovecha.
+ */
+const urlsPorLista = new WeakMap<ParsedChannel[], Set<string>>();
+
+async function urlDeLaLista(url: string): Promise<boolean> {
+  const { channels } = await loadM3uPlaylist();
+  let urls = urlsPorLista.get(channels);
+  if (!urls) {
+    urls = new Set<string>();
+    for (const canal of channels) {
+      urls.add(canal.streamUrl);
+      if (canal.streamUrlBackup) urls.add(canal.streamUrlBackup);
+    }
+    urlsPorLista.set(channels, urls);
+  }
+  return urls.has(url);
+}
+
 function leerCache(url: string): EntradaSonda["respuesta"] | null {
   const entrada = memoria.get(url);
   if (!entrada) return null;
@@ -56,6 +91,11 @@ export async function GET(request: Request) {
   const url = new URL(request.url).searchParams.get("url")?.trim() ?? "";
   if (!url || !/^https?:\/\//i.test(url)) {
     return Response.json({ error: "url-no-valida" }, { status: 400 });
+  }
+  // Antes de mirar la caché de sondas: una URL que salió de la lista deja de
+  // sondearse aunque su resultado siga en memoria.
+  if (!(await urlDeLaLista(url).catch(() => false))) {
+    return Response.json({ error: "url-fuera-de-la-lista" }, { status: 403 });
   }
 
   const cacheada = leerCache(url);

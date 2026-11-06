@@ -86,6 +86,7 @@ export const NativePlayer = memo(function NativePlayer({
   streams,
   title,
   claveProgreso,
+  alVideo,
 }: {
   streams: ManualStream[];
   title: string;
@@ -96,6 +97,11 @@ export const NativePlayer = memo(function NativePlayer({
    * llame decide. Ver `lib/progreso.ts` para las claves.
    */
   claveProgreso?: string;
+  /**
+   * Quien necesite el `<video>` de verdad —hoy, la sala de «Ver juntos»— lo
+   * recibe aquí al montarse y `null` al desmontarse. Ver `use-ver-juntos.ts`.
+   */
+  alVideo?: (video: HTMLVideoElement | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -123,6 +129,12 @@ export const NativePlayer = memo(function NativePlayer({
       video?.pause();
     };
   }, []);
+
+  useEffect(() => {
+    if (!alVideo) return;
+    alVideo(videoRef.current);
+    return () => alVideo(null);
+  }, [alVideo]);
 
   const [streamIndex, setStreamIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
