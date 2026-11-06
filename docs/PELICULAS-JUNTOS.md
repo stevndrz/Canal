@@ -123,6 +123,39 @@ Opciones, añadidas detrás del archivo:
 | `-Aceleracion cpu` | No usar la tarjeta gráfica (si da problemas) |
 | `-SoloConvertir` | Convertir sin subir, para revisar antes |
 
+## Añadir subtítulos a una película ya subida
+
+Sin reconvertir ni volver a subir el vídeo; tarda segundos.
+
+1. Baja el `.srt` (por ejemplo de opensubtitles.com) y déjalo en
+   `Descargas\Peliculas` o en `subidas\`. Con `es`, `en` o `forced` en el
+   nombre se detecta el idioma (`catching.fire.es.srt`); si no dice nada, se
+   toma como español.
+2. **Doble clic en `Agregar subtitulos.cmd`** (o arrastra el `.srt` encima).
+   Pregunta a qué película va y, si hay varios `.srt`, cuál.
+3. Ábrela en la app y elige el subtítulo en el botón de subtítulos.
+
+Arregla solo los acentos si el `.srt` viene en codificación de Windows. Si la
+película ya tenía un subtítulo con el mismo nombre (otro «Español»), pregunta
+si reemplazarlo (por defecto) o añadir otro.
+
+**Si va desfasado** (salen antes o después que las voces):
+
+- **Automático, con alass**: descarga el zip de Windows de
+  [github.com/kaegi/alass/releases](https://github.com/kaegi/alass/releases) y
+  pon `alass-cli.exe` en `%LOCALAPPDATA%\Microsoft\WinGet\Links` (la carpeta
+  donde winget dejó ffmpeg, que ya está en el PATH). A partir de ahí, cada
+  subtítulo se alinea solo con el audio de la película que esté en `subidas\`.
+- **A mano**: vuelve a lanzarlo desde una terminal con un desfase en segundos y
+  elige el mismo `.srt` (reemplaza al anterior):
+
+  ```powershell
+  & "$env:USERPROFILE\Downloads\Peliculas\Agregar subtitulos.cmd" -Desfase 1.5
+  ```
+
+  Positivo **retrasa** los subtítulos (úsalo si salen *antes* que la voz);
+  negativo los **adelanta** (si salen *después*).
+
 ## Borrar una película
 
 ```
