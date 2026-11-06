@@ -306,6 +306,11 @@ for ($i = 0; $i -lt $audios.Count; $i++) {
 EscribirSinBom $rutaMaestra $maestra
 
 # ── Subtítulos ──────────────────────────────────────────────────────────────
+# Ojo: la lista se llama $pistasVtt y no $subtitulos. En PowerShell los nombres
+# de variable no distinguen mayúsculas: $subtitulos ERA el parámetro
+# -Subtitulos, de tipo texto, y vaciarla con @() la dejaba en "" — que cuenta
+# como un elemento. Así salió «Subtítulos: 1 de 0» y una pista fantasma en el
+# catálogo con la primera película.
 # Solo los idiomas pedidos (por defecto español e inglés, forzados incluidos):
 # un MKV puede traer 40 pistas, y el selector con 40 entradas no sirve de nada.
 $DE_TEXTO = @("subrip", "ass", "ssa", "webvtt", "mov_text", "text")
@@ -328,7 +333,7 @@ foreach ($s in $subs) {
 }
 if ($imagenes -gt 0) { Aviso "$imagenes subtítulo(s) de esos idiomas son imágenes (PGS/VobSub): no se pueden pasar a texto y se omiten." }
 
-$subtitulos = @()
+$pistasVtt = @()
 $salidasSub = @()
 for ($n = 0; $n -lt $elegidos.Count; $n++) {
     $s = $elegidos[$n]
@@ -339,11 +344,11 @@ for ($n = 0; $n -lt $elegidos.Count; $n++) {
     $srclang = Normalizado $idioma
     $corto = @{ spa = "es"; eng = "en"; por = "pt"; fra = "fr"; ita = "it"; jpn = "ja"; deu = "de" }
     if ($corto.ContainsKey($srclang)) { $srclang = $corto[$srclang] }
-    $subtitulos += [pscustomobject]@{ label = $etiqueta; srclang = $srclang; archivo = $archivoVtt }
+    $pistasVtt += [pscustomobject]@{ label = $etiqueta; srclang = $srclang; archivo = $archivoVtt }
     $salidasSub += @("-map", "0:$($s.index)", "-c:s", "webvtt", (Join-Path $salida $archivoVtt))
 }
 
-if ($subtitulos.Count -gt 0) {
+if ($pistasVtt.Count -gt 0) {
     # Todas de una pasada: antes era una lectura del archivo entero por pista,
     # y con 41 pistas eso eran 41 lecturas de varios GB.
     & ffmpeg -hide_banner -loglevel error -y -i $Archivo @salidasSub
@@ -352,15 +357,45 @@ if ($subtitulos.Count -gt 0) {
         # se quedan las que salgan.
         Aviso "Falló la conversión conjunta de subtítulos; se reintenta pista por pista."
         $buenos = @()
-        for ($n = 0; $n -lt $subtitulos.Count; $n++) {
-            & ffmpeg -hide_banner -loglevel error -y -i $Archivo -map "0:$($elegidos[$n].index)" -c:s webvtt (Join-Path $salida $subtitulos[$n].archivo)
-            if ($LASTEXITCODE -eq 0) { $buenos += $subtitulos[$n] } else { Aviso "Se omite «$($subtitulos[$n].label)»." }
+        for ($n = 0; $n -lt $pistasVtt.Count; $n++) {
+            & ffmpeg -hide_banner -loglevel error -y -i $Archivo -map "0:$($elegidos[$n].index)" -c:s webvtt (Join-Path $salida $pistasVtt[$n].archivo)
+            if ($LASTEXITCODE -eq 0) { $buenos += $pistasVtt[$n] } else { Aviso "Se omite «$($pistasVtt[$n].label)»." }
         }
-        $subtitulos = $buenos
+        $pistasVtt = $buenos
     }
 }
-Write-Host "   Subtítulos: $($subtitulos.Count) de $($subs.Count)$(if (-not $todosLosSubs) { " (idiomas: $Subtitulos)" })"
-foreach ($t in $subtitulos) { Write-Host "     · $($t.label) [$($t.srclang)]" }
+# Subtítulos sueltos junto a la película: pelicula.srt, pelicula.es.srt,
+# pelicula.en.forced.srt… Para cuando el archivo no trae los que se quieren.
+# Se toman todos, sin filtrar por idioma: si alguien los dejó ahí, los quiere.
+$carpetaPeli = Split-Path -Parent $Archivo
+$basePeli = [System.IO.Path]::GetFileNameWithoutExtension($Archivo)
+$sueltos = @(Get-ChildItem -LiteralPath $carpetaPeli -File | Where-Object {
+    @(".srt", ".vtt", ".ass", ".ssa") -contains $_.Extension.ToLower() -and $_.Name.StartsWith($basePeli, [StringComparison]::OrdinalIgnoreCase)
+})
+$estricto = New-Object System.Text.UTF8Encoding($false, $true)
+foreach ($f in $sueltos) {
+    $marcas = @(($f.Name.Substring($basePeli.Length) -replace "\.[^.]+$", "").ToLower().Split(".") | Where-Object { $_ })
+    $idioma = "spa"
+    foreach ($m in $marcas) { $normal = Normalizado $m; if ($IDIOMAS.ContainsKey($normal)) { $idioma = $normal } }
+    $forzados = @($marcas | Where-Object { $_ -match "^(forced|forzados?)$" }).Count -gt 0
+    # Un .srt descargado suele venir en Windows-1252, no en UTF-8, y ffmpeg
+    # lo leería como UTF-8: «Ã±» en vez de «ñ». Si no es UTF-8 válido, se le dice.
+    $codificacion = @()
+    try { [void]$estricto.GetString([System.IO.File]::ReadAllBytes($f.FullName)) } catch { $codificacion = @("-sub_charenc", "CP1252") }
+    $n = $pistasVtt.Count
+    $archivoVtt = "sub$n-$idioma.vtt"
+    & ffmpeg -hide_banner -loglevel error -y @codificacion -i $f.FullName -c:s webvtt (Join-Path $salida $archivoVtt)
+    if ($LASTEXITCODE -ne 0) { Aviso "No se pudo convertir $($f.Name); se omite."; continue }
+    $etiqueta = $IDIOMAS[$idioma]; if ($forzados) { $etiqueta = "$etiqueta (forzados)" }
+    $srclang = $idioma
+    $corto = @{ spa = "es"; eng = "en"; por = "pt"; fra = "fr"; ita = "it"; jpn = "ja"; deu = "de" }
+    if ($corto.ContainsKey($srclang)) { $srclang = $corto[$srclang] }
+    $pistasVtt += [pscustomobject]@{ label = $etiqueta; srclang = $srclang; archivo = $archivoVtt }
+    Write-Host "   + Subtítulo suelto: $($f.Name) → $etiqueta"
+}
+
+Write-Host "   Subtítulos: $($pistasVtt.Count) (de $($subs.Count) en el archivo$(if (-not $todosLosSubs) { ", idiomas $Subtitulos" })$(if ($sueltos.Count -gt 0) { " + $($sueltos.Count) sueltos" }))"
+foreach ($t in $pistasVtt) { Write-Host "     · $($t.label) [$($t.srclang)]" }
 
 $tamano = (Get-ChildItem -Recurse $salida | Measure-Object -Property Length -Sum).Sum
 Write-Host ("   Listo en disco: {0:N1} GB en {1}" -f ($tamano / 1GB), $salida)
@@ -400,7 +435,7 @@ $entrada = [pscustomobject]@{
     id         = $id
     titulo     = $Titulo
     url        = "$base/master.m3u8"
-    subtitulos = @($subtitulos | ForEach-Object { [pscustomobject]@{ label = $_.label; srclang = $_.srclang; url = "$base/$($_.archivo)" } })
+    subtitulos = @($pistasVtt | ForEach-Object { [pscustomobject]@{ label = $_.label; srclang = $_.srclang; url = "$base/$($_.archivo)" } })
     duracion   = [math]::Round([double]$sonda.format.duration)
     subida     = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
@@ -422,6 +457,10 @@ if ($deLaBandeja) {
     if (Test-Path -LiteralPath $nuevo) { $nuevo = Join-Path $subidas ("$id-" + (Get-Date -Format "yyyyMMdd-HHmmss") + [System.IO.Path]::GetExtension($Archivo)) }
     Move-Item -LiteralPath $Archivo -Destination $nuevo
     Write-Host "   El archivo se movió a: $nuevo"
+    foreach ($f in $sueltos) {
+        $resto = $f.Name.Substring($basePeli.Length)   # «.es.srt»
+        Move-Item -LiteralPath $f.FullName -Destination (Join-Path $subidas "$id$resto") -ErrorAction SilentlyContinue
+    }
 }
 Write-Host "`n✔ «$Titulo» lista." -ForegroundColor Green
 Write-Host "   Enlace (para Mi enlace):  $base/master.m3u8"

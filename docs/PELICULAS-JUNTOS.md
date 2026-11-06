@@ -102,6 +102,11 @@ la URL pública, y lo guarda. Luego:
   traer 40 pistas y el selector se volvería inmanejable. Los **de texto** (SRT,
   ASS) se convierten; los de **imagen** (PGS de Blu-ray) no se pueden pasar a
   texto y se omiten avisando.
+- ¿El archivo no trae los subtítulos que quieres? Deja el `.srt` **al lado,
+  con el mismo nombre**: `pelicula.es.srt`, `pelicula.en.srt`,
+  `pelicula.es.forced.srt` (sin idioma en el nombre se toma como español). Se
+  incluyen siempre, se arreglan los acentos si vienen en codificación de
+  Windows, y se mueven a `subidas\` con la película.
 - Tamaño: con `-Calidad 24` (por defecto), una película de 1080p y 2 h queda
   en unos 1,5–2,5 GB, con techo de 6 Mb/s. Solo aplica si se recodifica; si
   el vídeo se copia, pesa lo que pesaba.

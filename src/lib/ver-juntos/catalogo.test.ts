@@ -61,6 +61,24 @@ describe("catálogo de Nuestras películas", () => {
     expect(peliculas[0].subtitulos).toEqual([{ label: "Español", srclang: "es", url: "https://x/s.vtt" }]);
   });
 
+  it("ignora la pista fantasma de la primera subida real", () => {
+    // Tal cual quedó en R2 (06-nov-2026), por el choque $subtitulos/-Subtitulos.
+    const [pelicula] = leerCatalogo({
+      version: 1,
+      peliculas: [
+        {
+          id: "the-hunger-games-catching-fire",
+          titulo: "The Hunger Games: Catching Fire",
+          url: "https://pub-x.r2.dev/peliculas/the-hunger-games-catching-fire/master.m3u8",
+          subtitulos: [{ label: null, srclang: null, url: "https://pub-x.r2.dev/peliculas/the-hunger-games-catching-fire/" }],
+          duracion: 8775,
+        },
+      ],
+    });
+    expect(pelicula.subtitulos).toEqual([]);
+    expect(pelicula.titulo).toBe("The Hunger Games: Catching Fire");
+  });
+
   it("aguanta un archivo que no es un catálogo", () => {
     expect(leerCatalogo(null)).toEqual([]);
     expect(leerCatalogo("hola")).toEqual([]);

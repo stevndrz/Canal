@@ -45,7 +45,10 @@ export function leerSubtitulos(crudo: unknown): SubtitleTrack[] {
   for (const s of comoLista(crudo).slice(0, 20)) {
     if (!s || typeof s !== "object") continue;
     const pista = s as Record<string, unknown>;
-    if (!esHttp(pista.url)) continue;
+    // Además de http(s), que sea un .vtt: la primera subida real dejó una pista
+    // con `label: null` que apuntaba a la carpeta de la película (un fallo del
+    // script ya corregido). Ese 404 salía en el selector como «Subtítulos».
+    if (!esHttp(pista.url) || !/\.vtt(?:[?#]|$)/i.test(pista.url)) continue;
     pistas.push({
       url: pista.url,
       label: texto(pista.label, 60) || "Subtítulos",
