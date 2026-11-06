@@ -258,14 +258,23 @@ export const NativePlayer = memo(function NativePlayer({
           }
           hlsRef.current = hls;
 
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          /**
+           * Las pistas de audio solo son accesibles de forma fiable por hls.js:
+           * Chrome no expone video.audioTracks.
+           *
+           * Se leen en `AUDIO_TRACKS_UPDATED` y no en `MANIFEST_PARSED`: en
+           * hls.js 1.7 la lista todavía está vacía en `MANIFEST_PARSED` (medido
+           * con un HLS de dos audios: `[]` ahí, «Latino» e «Inglés» un instante
+           * después). Leyendo solo allí, el selector de idioma no salía nunca.
+           */
+          const leerAudios = () => {
             if (cancelled) return;
-            // Las pistas de audio solo son accesibles de forma fiable por hls.js:
-            // Chrome no expone video.audioTracks.
             const tracks = hls.audioTracks ?? [];
             setAudioTracks(tracks.map((track, index) => ({ id: index, label: track.name || track.lang || `Pista ${index + 1}` })));
             setActiveAudio(tracks.length > 0 ? hls.audioTrack : null);
-          });
+          };
+          hls.on(Hls.Events.MANIFEST_PARSED, leerAudios);
+          hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, leerAudios);
 
           /**
            * Recuperación acotada según la política común del motor

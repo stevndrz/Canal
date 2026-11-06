@@ -1,15 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useMemo, useState } from "react";
-import { Link2, Play, Plus, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Clapperboard, Link2, Play, Plus, Trash2 } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
+import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
 import { crearCodigoSala, type VideoDeSala } from "@/lib/ver-juntos/sala";
+import { leerSalaRecordada, recordarSala } from "@/lib/ver-juntos/recordar";
 import { SalaJuntos } from "./sala-juntos";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
-import type { FuentePropia } from "@/lib/fuente-propia/types";
+import type { SubtitleTrack } from "@/lib/catalog/types";
 import {
   Aviso,
   Boton,
@@ -42,30 +44,75 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
  * El contrato completo y lo que queda por crecer está en
  * `docs/FUENTE-PROPIA.md`.
  */
+/**
+ * Lo que puede sonar aquí: un enlace guardado, una de «Nuestras películas» o
+ * lo que manda la sala. Las tres cosas tienen esta forma.
+ */
+interface Reproducible {
+  id: string;
+  titulo: string;
+  url: string;
+  subtitulos?: SubtitleTrack[];
+}
+
+function duracionCorta(segundos?: number): string {
+  if (!segundos) return "";
+  const minutos = Math.round(segundos / 60);
+  return minutos >= 60 ? `${Math.floor(minutos / 60)} h ${minutos % 60} min` : `${minutos} min`;
+}
+
 export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const { fuentes, cargado, anadir, quitar } = useFuentes();
   const [url, setUrl] = useState("");
   const [titulo, setTitulo] = useState("");
   const [error, setError] = useState("");
-  const [activa, setActiva] = useState<FuentePropia | null>(null);
+  // Si se salió de Mi enlace estando en una sala, al volver se entra sola.
+  // Ver `recordar.ts`. Esta vista solo se monta en el navegador, al abrirla.
+  const [recordada] = useState(() => (typeof window === "undefined" ? null : leerSalaRecordada()));
+  const [activa, setActiva] = useState<Reproducible | null>(
+    recordada?.anfitrion && recordada.video ? recordada.video : null,
+  );
+  const nuestras = useNuestrasPeliculas();
 
   /**
    * Ver juntos. El anfitrión reproduce lo suyo (`activa`) y se lo manda a la
    * sala; el invitado reproduce lo que le llega (`deLaSala`), sin tener que
    * haber guardado el enlace.
    */
-  const [sala, setSala] = useState<{ codigo: string; anfitrion: boolean } | null>(null);
+  const [sala, setSala] = useState<{ codigo: string; anfitrion: boolean } | null>(
+    recordada ? { codigo: recordada.codigo, anfitrion: recordada.anfitrion } : null,
+  );
+  useEffect(() => {
+    recordarSala(
+      sala
+        ? {
+            ...sala,
+            video:
+              sala.anfitrion && activa
+                ? { id: activa.id, url: activa.url, titulo: activa.titulo, subtitulos: activa.subtitulos }
+                : null,
+          }
+        : null,
+    );
+  }, [sala, activa]);
   const [deLaSala, setDeLaSala] = useState<VideoDeSala | null>(null);
   const invitado = Boolean(sala && !sala.anfitrion);
   const videoAnfitrion = useMemo(
-    () => (activa ? { url: activa.url, titulo: activa.titulo } : null),
+    () => (activa ? { url: activa.url, titulo: activa.titulo, subtitulos: activa.subtitulos } : null),
     [activa],
   );
   const juntos = useVerJuntos({
     codigo: sala?.codigo ?? "",
     anfitrion: sala?.anfitrion ?? false,
     video: videoAnfitrion,
-    alRecibirVideo: setDeLaSala,
+    // El anfitrión reenvía el vídeo a cada `hola`: si es el mismo, no se
+    // toca el estado, o los subtítulos cambiarían de identidad y el
+    // reproductor rearrancaría la película.
+    alRecibirVideo: useCallback(
+      (video: VideoDeSala) =>
+        setDeLaSala((antes) => (antes && JSON.stringify(antes) === JSON.stringify(video) ? antes : video)),
+      [],
+    ),
   });
   const salirDeLaSala = useCallback(() => {
     setSala(null);
@@ -73,8 +120,13 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   }, []);
 
   /** Lo que suena: lo de la sala si eres invitado, lo tuyo si no. */
-  const enPantalla: { id: string; titulo: string; url: string } | null = invitado
-    ? deLaSala && { id: `sala-${deLaSala.url}`, titulo: deLaSala.titulo || "Ver juntos", url: deLaSala.url }
+  const enPantalla: Reproducible | null = invitado
+    ? deLaSala && {
+        id: `sala-${deLaSala.url}`,
+        titulo: deLaSala.titulo || "Ver juntos",
+        url: deLaSala.url,
+        subtitulos: deLaSala.subtitulos,
+      }
     : activa;
 
   // Se resuelve mientras se escribe para poder avisar antes de guardar: con un
@@ -96,9 +148,22 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    */
   const urlEnPantalla = enPantalla?.url ?? "";
   const tituloEnPantalla = enPantalla?.titulo ?? "";
+  // Por valor y no por identidad, por lo mismo: el objeto del invitado se
+  // reconstruye en cada render.
+  const subtitulosEnPantalla = JSON.stringify(enPantalla?.subtitulos ?? []);
   const streamsActivos = useMemo(
-    () => (urlEnPantalla ? [{ label: tituloEnPantalla, url: urlEnPantalla, type: "auto" as const }] : []),
-    [urlEnPantalla, tituloEnPantalla],
+    () =>
+      urlEnPantalla
+        ? [
+            {
+              label: tituloEnPantalla,
+              url: urlEnPantalla,
+              type: "auto" as const,
+              subtitles: JSON.parse(subtitulosEnPantalla) as SubtitleTrack[],
+            },
+          ]
+        : [],
+    [urlEnPantalla, tituloEnPantalla, subtitulosEnPantalla],
   );
 
   const enviar = (evento: React.FormEvent) => {
@@ -122,6 +187,66 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
        título, el campo y «Añadir» tocaban los dos bordes de la pantalla. */
     <ContenedorVista ancho="medio" className={`screen tv-safe fuente ${sinHueco ? "sin-hueco" : ""}`}>
       <EncabezadoSeccion talla="pagina" sobretitulo="Pega el enlace de un vídeo y míralo aquí" titulo="Mi enlace" />
+
+      {/* «Nuestras películas»: lo que sube `scripts/peliculas/subir-pelicula.ps1`
+          a R2. Va lo primero porque es el camino de Ver juntos: un clic y ya
+          tiene sus audios y subtítulos, sin pegar nada. */}
+      {nuestras.configurado && (
+        <section className="fuente-guardados" aria-labelledby="nuestras-titulo">
+          <EncabezadoSeccion
+            talla="seccion"
+            nivel={3}
+            idTitulo="nuestras-titulo"
+            sobretitulo="Para ver juntos, con sus audios y subtítulos"
+            titulo="Nuestras películas"
+          />
+          {!nuestras.listo ? null : nuestras.fallo ? (
+            <Aviso tono="aviso" className="fuente-aviso">
+              No se pudo leer la lista de películas. Si acabas de crear el bucket, revisa su CORS (ver
+              docs/PELICULAS-JUNTOS.md).
+            </Aviso>
+          ) : nuestras.peliculas.length === 0 ? (
+            <EstadoVacio
+              icono={<Clapperboard />}
+              titulo="Todavía no hay películas"
+              texto="Arrastra una sobre subir-pelicula.cmd en tu PC y aparecerá aquí, en todos los aparatos."
+            />
+          ) : (
+            <ul className="fuente-lista">
+              {nuestras.peliculas.map((pelicula) => {
+                const id = `nuestra-${pelicula.id}`;
+                const detalle = [
+                  duracionCorta(pelicula.duracion),
+                  pelicula.subtitulos.length > 0 ? `${pelicula.subtitulos.length} subtítulos` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ");
+                return (
+                  <li key={pelicula.id} className={`fuente-fila ${activa?.id === id ? "is-active" : ""}`}>
+                    <button
+                      type="button"
+                      data-nav="row"
+                      className="fuente-fila-abrir"
+                      aria-current={activa?.id === id ? "true" : undefined}
+                      onClick={() =>
+                        setActiva({ id, titulo: pelicula.titulo, url: pelicula.url, subtitulos: pelicula.subtitulos })
+                      }
+                    >
+                      <span className="fuente-fila-icono">
+                        <Play aria-hidden="true" />
+                      </span>
+                      <span className="fuente-fila-texto">
+                        <strong>{pelicula.titulo}</strong>
+                        {detalle && <span>{detalle}</span>}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+      )}
 
       <form className="fuente-alta" onSubmit={enviar} noValidate>
         {/* `type="text"` y no `type="url"`: la validación nativa de `url`

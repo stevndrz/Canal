@@ -6,6 +6,9 @@
  * cliente importaba el módulo que traía `createHmac`.
  */
 
+import type { SubtitleTrack } from "@/lib/catalog/types";
+import { leerSubtitulos } from "./catalogo";
+
 /**
  * Sin letras que se confundan al dictarlas o al leerlas en una tele lejos del
  * sofá: ni `0/o`, ni `1/l/i`. 31 símbolos.
@@ -68,6 +71,8 @@ export const CANAL_DE_SALA = new RegExp(`^private-juntos-[${ALFABETO}]{${LARGO_C
 export interface VideoDeSala {
   url: string;
   titulo: string;
+  /** Los de «Nuestras películas»; los de Mi enlace no traen. */
+  subtitulos?: SubtitleTrack[];
 }
 
 /**
@@ -104,7 +109,11 @@ export function leerMensaje(dato: unknown): MensajeSala | null {
     // Solo http(s): esta URL acaba en el `src` de un `<video>` de otro aparato.
     if (!v || typeof v.url !== "string" || !/^https?:\/\//i.test(v.url)) return null;
     const titulo = typeof v.titulo === "string" ? v.titulo.slice(0, 200) : "";
-    return { tipo: "video", video: { url: v.url, titulo } };
+    const subtitulos = leerSubtitulos(v.subtitulos);
+    return {
+      tipo: "video",
+      video: subtitulos.length > 0 ? { url: v.url, titulo, subtitulos } : { url: v.url, titulo },
+    };
   }
   return null;
 }
