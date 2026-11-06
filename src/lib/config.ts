@@ -36,4 +36,12 @@ export const publicConfig = {
   embedPropioPelicula: process.env.NEXT_PUBLIC_EMBED_PROVIDER_MOVIE?.trim() || "",
   embedPropioSerie: process.env.NEXT_PUBLIC_EMBED_PROVIDER_TV?.trim() || "",
 
+  /**
+   * Ver juntos (Pusher). La clave y el clúster son públicos por diseño —así los
+   * reparte el propio Pusher—; el secreto va en `config.server.ts`. Sin la
+   * clave, «Ver juntos» se esconde solo.
+   */
+  pusherKey: process.env.NEXT_PUBLIC_PUSHER_KEY?.trim() || "",
+  pusherCluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER?.trim() || "mt1",
+
 } as const;

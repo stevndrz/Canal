@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link2, Play, Plus, Trash2 } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
+import { useVerJuntos } from "@/hooks/use-ver-juntos";
+import { crearCodigoSala, type VideoDeSala } from "@/lib/ver-juntos/sala";
+import { SalaJuntos } from "./sala-juntos";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { FuentePropia } from "@/lib/fuente-propia/types";
@@ -46,6 +49,34 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [error, setError] = useState("");
   const [activa, setActiva] = useState<FuentePropia | null>(null);
 
+  /**
+   * Ver juntos. El anfitrión reproduce lo suyo (`activa`) y se lo manda a la
+   * sala; el invitado reproduce lo que le llega (`deLaSala`), sin tener que
+   * haber guardado el enlace.
+   */
+  const [sala, setSala] = useState<{ codigo: string; anfitrion: boolean } | null>(null);
+  const [deLaSala, setDeLaSala] = useState<VideoDeSala | null>(null);
+  const invitado = Boolean(sala && !sala.anfitrion);
+  const videoAnfitrion = useMemo(
+    () => (activa ? { url: activa.url, titulo: activa.titulo } : null),
+    [activa],
+  );
+  const juntos = useVerJuntos({
+    codigo: sala?.codigo ?? "",
+    anfitrion: sala?.anfitrion ?? false,
+    video: videoAnfitrion,
+    alRecibirVideo: setDeLaSala,
+  });
+  const salirDeLaSala = useCallback(() => {
+    setSala(null);
+    setDeLaSala(null);
+  }, []);
+
+  /** Lo que suena: lo de la sala si eres invitado, lo tuyo si no. */
+  const enPantalla: { id: string; titulo: string; url: string } | null = invitado
+    ? deLaSala && { id: `sala-${deLaSala.url}`, titulo: deLaSala.titulo || "Ver juntos", url: deLaSala.url }
+    : activa;
+
   // Se resuelve mientras se escribe para poder avisar antes de guardar: con un
   // magnet sin réplica HTTP el motivo se lee ya, no después de dar a Añadir.
   const limpiaAhora = url.trim();
@@ -63,9 +94,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * emisión cuando cambia el objeto `stream`, así que recrear el array en
    * cada render reiniciaría el vídeo con cada tecla del formulario de arriba.
    */
+  const urlEnPantalla = enPantalla?.url ?? "";
+  const tituloEnPantalla = enPantalla?.titulo ?? "";
   const streamsActivos = useMemo(
-    () => (activa ? [{ label: activa.titulo, url: activa.url, type: "auto" as const }] : []),
-    [activa],
+    () => (urlEnPantalla ? [{ label: tituloEnPantalla, url: urlEnPantalla, type: "auto" as const }] : []),
+    [urlEnPantalla, tituloEnPantalla],
   );
 
   const enviar = (evento: React.FormEvent) => {
@@ -149,15 +182,30 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </Aviso>
       ) : null}
 
-      {activa && (
-        <section className="fuente-reproductor" aria-label={`Reproduciendo ${activa.titulo}`}>
-          <EncabezadoSeccion talla="seccion" sobretitulo="Reproduciendo" titulo={activa.titulo} nivel={3} />
+      <SalaJuntos
+        codigo={sala?.codigo ?? ""}
+        anfitrion={sala?.anfitrion ?? false}
+        estado={juntos.estado}
+        acompanado={juntos.acompanado}
+        necesitaToque={juntos.necesitaToque}
+        esperandoVideo={invitado && !deLaSala}
+        alCrear={() => setSala({ codigo: crearCodigoSala(), anfitrion: true })}
+        alEntrar={(codigo) => setSala({ codigo, anfitrion: false })}
+        alSalir={salirDeLaSala}
+      />
+
+      {enPantalla && (
+        <section className="fuente-reproductor" aria-label={`Reproduciendo ${enPantalla.titulo}`}>
+          <EncabezadoSeccion talla="seccion" sobretitulo="Reproduciendo" titulo={enPantalla.titulo} nivel={3} />
 
           <NativePlayer
-            key={activa.id}
+            key={enPantalla.id}
             streams={streamsActivos}
-            title={activa.titulo}
-            claveProgreso={claveDeFuente(activa.id)}
+            title={enPantalla.titulo}
+            // El invitado no retoma lo suyo: manda el anfitrión, y su
+            // posición guardada solo provocaría un salto de ida y vuelta.
+            claveProgreso={invitado ? undefined : claveDeFuente(enPantalla.id)}
+            alVideo={sala ? juntos.alVideo : undefined}
           />
         </section>
       )}

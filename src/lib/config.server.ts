@@ -49,6 +49,9 @@ export function serverConfig() {
     /** Credencial de TMDB. La lee `catalog/tmdb.ts`. */
     tmdbCredencial: process.env.TMDB_API_KEY?.trim() || "",
 
+    /** Secreto de Pusher: solo firma las salas de Ver juntos. Ver `/api/pusher/auth`. */
+    pusherSecreto: process.env.PUSHER_SECRET?.trim() || "",
+
     /** Addons de Stremio con enlaces directos, separados por comas. */
     stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
 

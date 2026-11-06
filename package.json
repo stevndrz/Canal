@@ -21,6 +21,7 @@
     "lucide-react": "^1.45.0",
     "mpegts.js": "^1.8.2",
     "next": "^16.4.3",
+    "pusher-js": "^8.6.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "server-only": "^0.0.1"
