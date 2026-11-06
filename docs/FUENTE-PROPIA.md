@@ -8,8 +8,13 @@ archivo alojado).
 `src/components/views/fuente-view.tsx` y se llega a ella por «Mi enlace» en la
 barra. Este documento sigue siendo el contrato y la lista de lo que falta.
 
-> Nota: el Watch Party (salas sincronizadas vía Pusher) se eliminó del
-> proyecto. Este documento lo menciona solo donde conviene no reintentarlo.
+> **Ver juntos** (noviembre de 2026): el Watch Party de agosto, recuperado y
+> rehecho. Dos aparatos con el mismo vídeo de Mi enlace al mismo segundo, por
+> Pusher. Quien crea la sala comparte un código de seis letras; quien entra no
+> necesita el enlace, se lo manda el anfitrión. El porqué de cada decisión está
+> en `src/hooks/use-ver-juntos.ts`. Solo funciona aquí: en Películas el vídeo
+> vive en el iframe del proveedor y no se puede ni leer ni mover (comprobado con
+> los cuatro servidores).
 
 ---
 

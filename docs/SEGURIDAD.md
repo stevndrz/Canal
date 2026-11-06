@@ -36,6 +36,7 @@ Quien busque cómo está montada la app, eso está en `ARQUITECTURA.md`.
 | La sonda solo sale a URLs que están en la lista de canales | `src/app/api/salud/route.ts` |
 | `next` con piso en la versión sin los avisos críticos (16.4.3) | `package.json` |
 | Token de GitHub Actions en solo lectura; entradas a mano por `env`, validadas | `.github/workflows/` |
+| Ver juntos: solo se firman canales con forma de código de sala; los mensajes de la sala se validan antes de tocar el `<video>` | `src/app/api/pusher/auth/route.ts`, `src/lib/ver-juntos/sala.ts` |
 
 ---
 

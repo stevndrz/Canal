@@ -51,6 +51,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `TMDB_API_KEY`       | Credencial de TMDB. **No hay ninguna de reserva**: sin ella, Cine y series lo dice en pantalla y los canales siguen igual |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
+| `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` / `PUSHER_SECRET` | «Ver juntos» en Mi enlace (plan gratis de [Pusher](https://pusher.com), con **Enable client events** activado). Sin la clave, el panel no aparece. El secreto **no** lleva `NEXT_PUBLIC_` |
 | `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 
