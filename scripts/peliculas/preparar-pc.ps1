@@ -86,10 +86,13 @@ $scripts = Join-Path $repo "scripts\peliculas"
 $subir = "@echo off`r`nrem Sube pelicula.mkv (o .mp4) de esta carpeta. Tambien puedes arrastrar un archivo encima.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\subir-pelicula.ps1`" %*`r`n"
 $borrar = "@echo off`r`nrem Lista lo subido a R2 y pregunta cual borrar.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\borrar-pelicula.ps1`" %*`r`npause`r`n"
 [System.IO.File]::WriteAllText((Join-Path $peliculas "Subir pelicula.cmd"), $subir, [System.Text.Encoding]::ASCII)
+$agregar = "@echo off`r`nrem Anade un .srt a una pelicula ya subida. Tambien puedes arrastrar el .srt encima.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\agregar-subtitulos.ps1`" %*`r`n"
 [System.IO.File]::WriteAllText((Join-Path $peliculas "Borrar pelicula.cmd"), $borrar, [System.Text.Encoding]::ASCII)
+[System.IO.File]::WriteAllText((Join-Path $peliculas "Agregar subtitulos.cmd"), $agregar, [System.Text.Encoding]::ASCII)
 Bien "Listo: $peliculas"
 Write-Host "     · Subir pelicula.cmd   → doble clic sube pelicula.mkv de esa carpeta"
 Write-Host "     · Borrar pelicula.cmd  → doble clic: lista lo que hay en R2, el espacio usado, y pregunta cuál borrar"
+Write-Host "     · Agregar subtitulos.cmd → añade un .srt a una película ya subida, sin reconvertirla"
 Write-Host "     · subidas\             → ahí van las que ya se subieron"
 
 # ── 5. Herramientas y R2 ────────────────────────────────────────────────────
