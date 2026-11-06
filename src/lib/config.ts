@@ -44,4 +44,11 @@ export const publicConfig = {
   pusherKey: process.env.NEXT_PUBLIC_PUSHER_KEY?.trim() || "",
   pusherCluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER?.trim() || "mt1",
 
+  /**
+   * Dirección pública del bucket de R2 con «Nuestras películas»
+   * (`https://pub-….r2.dev`). Ahí vive `peliculas/catalogo.json`, que escribe
+   * `scripts/peliculas/subir-pelicula.ps1`. Sin ella, el estante no aparece.
+   */
+  peliculasUrl: (process.env.NEXT_PUBLIC_PELICULAS_URL?.trim() || "").replace(/\/+$/, ""),
+
 } as const;
