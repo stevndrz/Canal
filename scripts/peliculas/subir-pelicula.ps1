@@ -1,6 +1,9 @@
 ﻿# ── Subir una película para «Ver juntos» ────────────────────────────────────
 #
-#   Arrastra el archivo sobre subir-pelicula.cmd, o:
+#   Doble clic en subir-pelicula.cmd → sube Descargas\Peliculas\pelicula.mkv
+#   (o .mp4). Al terminar, el archivo se mueve a Descargas\Peliculas\subidas\
+#   para no volver a subirlo por error.
+#   También se puede arrastrar cualquier archivo sobre el .cmd, o:
 #   powershell -ExecutionPolicy Bypass -File subir-pelicula.ps1 "C:\Pelis\Mi peli.mkv"
 #
 # Qué hace, en orden:
@@ -24,10 +27,12 @@
 # ni `-AsHashtable`.
 
 param(
-    [Parameter(Mandatory = $true, Position = 0)]
+    # Sin él: Descargas\Peliculas\pelicula.mkv, o .mp4.
+    [Parameter(Position = 0)]
     [string]$Archivo,
 
-    # Lo que se ve en la app. Por defecto, el nombre del archivo.
+    # Lo que se ve en la app. Si no se da, se pregunta (sugiriendo el título
+    # que traiga el MKV en sus metadatos).
     [string]$Titulo,
 
     # El audio que suena al empezar (código ISO de 3 letras: spa, eng, jpn…).
@@ -39,6 +44,15 @@ param(
     # Con qué se recodifica. «auto» prueba la tarjeta gráfica y, si no hay, la CPU.
     [ValidateSet("auto", "cpu", "nvidia", "intel", "amd")]
     [string]$Aceleracion = "auto",
+
+    # Al recodificar: más alto = archivo más pequeño y algo menos nítido.
+    # 24 deja una película de 1080p y 2 h en ~1,5–2,5 GB. Entre 16 y 32;
+    # cada +2 ahorra a ojo un 20–25 %.
+    [ValidateRange(16, 32)]
+    [int]$Calidad = 24,
+
+    # Qué subtítulos se quedan, por idioma. «todos» para no filtrar.
+    [string]$Subtitulos = "spa,eng",
 
     # Convierte y deja la carpeta en disco, sin subir nada.
     [switch]$SoloConvertir
@@ -69,8 +83,19 @@ foreach ($herramienta in @("ffmpeg", "ffprobe", "rclone")) {
         Fallo "No encuentro '$herramienta'. Instálalo con:  winget install $(if ($herramienta -eq 'rclone') { 'Rclone.Rclone' } else { 'Gyan.FFmpeg' })  y abre una terminal nueva."
     }
 }
+# Sin archivo (doble clic en el .cmd): la «bandeja» de siempre.
+$carpetaBandeja = Join-Path $env:USERPROFILE "Downloads\Peliculas"
+$deLaBandeja = $false
+if (-not $Archivo) {
+    foreach ($extension in @("mkv", "mp4")) {
+        $candidato = Join-Path $carpetaBandeja "pelicula.$extension"
+        if (Test-Path -LiteralPath $candidato) { $Archivo = $candidato; $deLaBandeja = $true; break }
+    }
+    if (-not $Archivo) { Fallo "No hay ninguna película que subir. Deja el archivo como $carpetaBandeja\pelicula.mkv (o .mp4) y vuelve a dar doble clic." }
+}
 if (-not (Test-Path -LiteralPath $Archivo)) { Fallo "No existe el archivo: $Archivo" }
 $Archivo = (Resolve-Path -LiteralPath $Archivo).Path
+Write-Host "   Archivo: $Archivo"
 
 # ── Configuración (se pregunta una vez y se guarda) ─────────────────────────
 $carpetaConfig = Join-Path $env:APPDATA "CanalCasa"
@@ -125,11 +150,46 @@ for ($i = 0; $i -lt $audios.Count; $i++) {
     Write-Host ("   Audio {0}: {1} ({2}, {3} canales){4}" -f ($i + 1), (Nombre $audios[$i] "Audio $($i + 1)"), $audios[$i].codec_name, $audios[$i].channels, $(if ($i -eq 0) { "  ← principal" } else { "" }))
 }
 
-if (-not $Titulo) { $Titulo = [System.IO.Path]::GetFileNameWithoutExtension($Archivo) -replace "[._]+", " " }
+# Título: el que se dé, o se pregunta. El archivo de la bandeja se llama
+# siempre «pelicula», así que su nombre no sirve de sugerencia; el título que
+# traiga el MKV en sus metadatos, sí.
+if (-not $Titulo) {
+    $sugerencia = ""
+    if ($sonda.format.tags -and $sonda.format.tags.title) { $sugerencia = $sonda.format.tags.title.Trim() }
+    if (-not $sugerencia) {
+        $delNombre = [System.IO.Path]::GetFileNameWithoutExtension($Archivo) -replace "[._]+", " "
+        if ($delNombre.Trim() -ne "pelicula") { $sugerencia = $delNombre.Trim() }
+    }
+    while (-not $Titulo) {
+        if ($sugerencia) { $Titulo = Read-Host "`n   Título de la película [Enter = $sugerencia]" }
+        else { $Titulo = Read-Host "`n   Título de la película" }
+        if (-not $Titulo) { $Titulo = $sugerencia }
+        $Titulo = "$Titulo".Trim()
+    }
+}
 # Identificador para carpetas y URLs: sin acentos, sin espacios.
-$id = $Titulo.Normalize([Text.NormalizationForm]::FormD) -replace "\p{Mn}", ""
-$id = ($id.ToLower() -replace "[^a-z0-9]+", "-").Trim("-")
-if (-not $id) { $id = "pelicula" }
+function Slug($texto) {
+    $limpio = $texto.Normalize([Text.NormalizationForm]::FormD) -replace "\p{Mn}", ""
+    $limpio = ($limpio.ToLower() -replace "[^a-z0-9]+", "-").Trim("-")
+    if (-not $limpio) { $limpio = "pelicula" }
+    return $limpio
+}
+$id = Slug $Titulo
+
+# Que una subida no pise otra: se mira ANTES de convertir, para no gastar
+# minutos en una película que luego no se va a subir.
+$sobrescribir = $false
+if (-not $SoloConvertir) {
+    $existentes = @(& rclone lsf "$($config.Remoto):$($config.Cubo)/peliculas" --dirs-only --s3-no-check-bucket 2>$null | ForEach-Object { $_.TrimEnd("/") })
+    if ($existentes -contains $id) {
+        $libre = 2
+        while ($existentes -contains "$id-$libre") { $libre++ }
+        Aviso "Ya hay una película en la carpeta '$id'."
+        $respuesta = Read-Host "   [N] subirla como '$id-$libre' (por defecto) · [S] sobrescribir la que hay · [C] cancelar"
+        if ($respuesta -match "^[cC]") { Write-Host "No se subió nada."; Read-Host "`nPulsa Enter para cerrar"; exit 0 }
+        if ($respuesta -match "^[sS]") { $sobrescribir = $true } else { $id = "$id-$libre" }
+    }
+}
 Write-Host "   Título: $Titulo   (carpeta: $id)"
 
 # ── Vídeo: copiar o recodificar ─────────────────────────────────────────────
@@ -152,12 +212,20 @@ function ArgumentosVideo($modo) {
     # Un fotograma clave cada 6 s: cada segmento HLS empieza limpio y saltar
     # en la película es instantáneo.
     $claves = @("-force_key_frames", "expr:gte(t,n_forced*6)")
-    $tope = @("-maxrate", "8M", "-bufsize", "16M")
+    # Techo de bitrate: que una escena difícil no dispare el tamaño ni atasque
+    # el wifi de la tele. 6 Mb/s sobra para 1080p en H.264.
+    $tope = @("-maxrate", "6M", "-bufsize", "12M")
+    $q = "$Calidad"
+    $nvenc = @("-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", $q, "-b:v", "0", "-profile:v", "high", "-level:v", "4.1", "-pix_fmt", "yuv420p", "-forced-idr", "1")
     switch ($modo) {
-        "nvidia" { return $f + @("-c:v", "h264_nvenc", "-preset", "p5", "-rc", "vbr", "-cq", "21", "-b:v", "0", "-profile:v", "high", "-level:v", "4.1", "-pix_fmt", "yuv420p", "-forced-idr", "1") + $tope + $claves }
-        "intel"  { return $f + @("-c:v", "h264_qsv", "-preset", "medium", "-global_quality", "21", "-profile:v", "high", "-level", "41", "-pix_fmt", "nv12") + $tope + $claves }
-        "amd"    { return $f + @("-c:v", "h264_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "20", "-qp_p", "22", "-profile:v", "high", "-level", "4.1", "-pix_fmt", "nv12") + $claves }
-        default  { return $f + @("-c:v", "libx264", "-preset", "medium", "-crf", "21", "-profile:v", "high", "-level:v", "4.1", "-pix_fmt", "yuv420p") + $tope + $claves }
+        # AQ espacial y lookahead: mismo tamaño, mejor reparto de la calidad
+        # (menos bloques en cielos y sombras). Si la tarjeta no los admite,
+        # «nvidia-basico» lo reintenta sin ellos antes de caer a la CPU.
+        "nvidia"        { return $f + $nvenc + @("-spatial-aq", "1", "-rc-lookahead", "20") + $tope + $claves }
+        "nvidia-basico" { return $f + $nvenc + $tope + $claves }
+        "intel"  { return $f + @("-c:v", "h264_qsv", "-preset", "medium", "-global_quality", $q, "-profile:v", "high", "-level", "41", "-pix_fmt", "nv12") + $tope + $claves }
+        "amd"    { return $f + @("-c:v", "h264_amf", "-quality", "balanced", "-rc", "cqp", "-qp_i", "$($Calidad - 1)", "-qp_p", "$($Calidad + 1)", "-profile:v", "high", "-level", "4.1", "-pix_fmt", "nv12") + $claves }
+        default  { return $f + @("-c:v", "libx264", "-preset", "medium", "-crf", $q, "-profile:v", "high", "-level:v", "4.1", "-pix_fmt", "yuv420p") + $tope + $claves }
     }
 }
 function FuncionaCodificador($nombre) {
@@ -176,11 +244,13 @@ if ($copiable -and -not $Recodificar) {
     if ($esHdr) { $motivo += "HDR" }
     if ($motivo.Count -gt 0) { Write-Host "   Hay que recodificar ($($motivo -join ', ')) para que lo reproduzca cualquier tele." }
     if ($Aceleracion -eq "auto") {
-        if (FuncionaCodificador "h264_nvenc") { $modos += "nvidia" }
+        if (FuncionaCodificador "h264_nvenc") { $modos += @("nvidia", "nvidia-basico") }
         elseif (FuncionaCodificador "h264_qsv") { $modos += "intel" }
         elseif (FuncionaCodificador "h264_amf") { $modos += "amd" }
-    } elseif ($Aceleracion -ne "cpu") { $modos += $Aceleracion }
+    } elseif ($Aceleracion -eq "nvidia") { $modos += @("nvidia", "nvidia-basico") }
+    elseif ($Aceleracion -ne "cpu") { $modos += $Aceleracion }
     $modos += "cpu"   # Siempre de respaldo: si la tarjeta falla a mitad, se reintenta.
+    Write-Host "   Calidad: $Calidad (más alto = más pequeño; -Calidad 26 si quieres menos espacio)"
     Write-Host "   Con: $($modos[0])$(if ($modos[0] -eq 'cpu') { '  (sin tarjeta gráfica: puede tardar casi lo que dura la película)' })"
 }
 
@@ -236,28 +306,61 @@ for ($i = 0; $i -lt $audios.Count; $i++) {
 EscribirSinBom $rutaMaestra $maestra
 
 # ── Subtítulos ──────────────────────────────────────────────────────────────
+# Solo los idiomas pedidos (por defecto español e inglés, forzados incluidos):
+# un MKV puede traer 40 pistas, y el selector con 40 entradas no sirve de nada.
 $DE_TEXTO = @("subrip", "ass", "ssa", "webvtt", "mov_text", "text")
-$subtitulos = @()
-$n = 0
+$EQUIVALENTE = @{ es = "spa"; en = "eng"; pt = "por"; fr = "fra"; fre = "fra"; it = "ita"; ja = "jpn"; de = "deu"; ger = "deu" }
+function Normalizado($codigo) {
+    $base = ($codigo -split "[-_]")[0].ToLower()
+    if ($EQUIVALENTE.ContainsKey($base)) { return $EQUIVALENTE[$base] }
+    return $base
+}
+$todosLosSubs = $Subtitulos.Trim().ToLower() -eq "todos"
+$quiero = @($Subtitulos -split "," | ForEach-Object { Normalizado $_.Trim() } | Where-Object { $_ })
+
+$elegidos = @()
+$imagenes = 0
 foreach ($s in $subs) {
-    if ($DE_TEXTO -notcontains $s.codec_name) {
-        Aviso "Subtítulo '$(Nombre $s $s.codec_name)' es una imagen ($($s.codec_name)): no se puede pasar a texto, se omite."
-        continue
-    }
+    $idioma = Idioma $s
+    if (-not $todosLosSubs -and ($quiero -notcontains (Normalizado $idioma))) { continue }
+    if ($DE_TEXTO -notcontains $s.codec_name) { $imagenes++; continue }
+    $elegidos += $s
+}
+if ($imagenes -gt 0) { Aviso "$imagenes subtítulo(s) de esos idiomas son imágenes (PGS/VobSub): no se pueden pasar a texto y se omiten." }
+
+$subtitulos = @()
+$salidasSub = @()
+for ($n = 0; $n -lt $elegidos.Count; $n++) {
+    $s = $elegidos[$n]
     $idioma = Idioma $s; if (-not $idioma) { $idioma = "und" }
     $archivoVtt = "sub$n-$idioma.vtt"
-    & ffmpeg -hide_banner -loglevel error -y -i $Archivo -map "0:$($s.index)" -c:s webvtt (Join-Path $salida $archivoVtt)
-    if ($LASTEXITCODE -ne 0) { Aviso "No se pudo convertir un subtítulo; se omite."; continue }
     $etiqueta = Nombre $s "Subtítulos"
-    if ($s.disposition.forced -eq 1) { $etiqueta = "$etiqueta (forzados)" }
-    $srclang = $idioma
-    if ($srclang.Length -eq 3 -and @("spa", "eng", "por", "fra", "ita", "jpn") -contains $srclang) {
-        $srclang = @{ spa = "es"; eng = "en"; por = "pt"; fra = "fr"; ita = "it"; jpn = "ja" }[$srclang]
-    }
+    if ($s.disposition.forced -eq 1 -and $etiqueta -notmatch "(?i)forz|forced") { $etiqueta = "$etiqueta (forzados)" }
+    $srclang = Normalizado $idioma
+    $corto = @{ spa = "es"; eng = "en"; por = "pt"; fra = "fr"; ita = "it"; jpn = "ja"; deu = "de" }
+    if ($corto.ContainsKey($srclang)) { $srclang = $corto[$srclang] }
     $subtitulos += [pscustomobject]@{ label = $etiqueta; srclang = $srclang; archivo = $archivoVtt }
-    $n++
+    $salidasSub += @("-map", "0:$($s.index)", "-c:s", "webvtt", (Join-Path $salida $archivoVtt))
 }
-Write-Host "   Subtítulos: $($subtitulos.Count)"
+
+if ($subtitulos.Count -gt 0) {
+    # Todas de una pasada: antes era una lectura del archivo entero por pista,
+    # y con 41 pistas eso eran 41 lecturas de varios GB.
+    & ffmpeg -hide_banner -loglevel error -y -i $Archivo @salidasSub
+    if ($LASTEXITCODE -ne 0) {
+        # Una pista rota tumba la pasada entera: se reintenta de una en una y
+        # se quedan las que salgan.
+        Aviso "Falló la conversión conjunta de subtítulos; se reintenta pista por pista."
+        $buenos = @()
+        for ($n = 0; $n -lt $subtitulos.Count; $n++) {
+            & ffmpeg -hide_banner -loglevel error -y -i $Archivo -map "0:$($elegidos[$n].index)" -c:s webvtt (Join-Path $salida $subtitulos[$n].archivo)
+            if ($LASTEXITCODE -eq 0) { $buenos += $subtitulos[$n] } else { Aviso "Se omite «$($subtitulos[$n].label)»." }
+        }
+        $subtitulos = $buenos
+    }
+}
+Write-Host "   Subtítulos: $($subtitulos.Count) de $($subs.Count)$(if (-not $todosLosSubs) { " (idiomas: $Subtitulos)" })"
+foreach ($t in $subtitulos) { Write-Host "     · $($t.label) [$($t.srclang)]" }
 
 $tamano = (Get-ChildItem -Recurse $salida | Measure-Object -Property Length -Sum).Sum
 Write-Host ("   Listo en disco: {0:N1} GB en {1}" -f ($tamano / 1GB), $salida)
@@ -265,6 +368,12 @@ if ($SoloConvertir) { Write-Host "`n✔ Convertida. No se subió nada (-SoloConv
 
 # ── Subida a R2 ─────────────────────────────────────────────────────────────
 $destino = "$($config.Remoto):$($config.Cubo)/peliculas/$id"
+if ($sobrescribir) {
+    # Sin esto, los trozos de la versión vieja que la nueva no tenga se
+    # quedarían en R2 ocupando espacio del plan gratis.
+    Paso "Borrando la versión anterior de '$id'"
+    & rclone purge $destino --s3-no-check-bucket
+}
 Paso "Subiendo a R2 ($destino)"
 # El tipo de cada archivo se fija a mano: por extensión, Windows dice que un
 # .ts es TypeScript, y algunas teles se niegan a reproducir un segmento con
@@ -301,7 +410,19 @@ EscribirSinBom $temporal (ConvertTo-Json -Depth 6 -InputObject ([pscustomobject]
 & rclone copyto $temporal $rutaCatalogo --s3-no-check-bucket --header-upload "Content-Type: application/json; charset=utf-8" --header-upload "Cache-Control: no-cache"
 if ($LASTEXITCODE -ne 0) { Fallo "Se subió la película pero no se pudo actualizar el catálogo. Vuelve a lanzar el script." }
 
+# Ya está en R2: la copia de trabajo sobra (pueden ser varios GB en Temp).
 Remove-Item -Recurse -Force $salida
+
+# El de la bandeja se aparta, para que el próximo doble clic no la suba otra
+# vez. Un archivo arrastrado desde otro sitio no se toca: es de la persona.
+if ($deLaBandeja) {
+    $subidas = Join-Path $carpetaBandeja "subidas"
+    New-Item -ItemType Directory -Force -Path $subidas | Out-Null
+    $nuevo = Join-Path $subidas ("$id" + [System.IO.Path]::GetExtension($Archivo))
+    if (Test-Path -LiteralPath $nuevo) { $nuevo = Join-Path $subidas ("$id-" + (Get-Date -Format "yyyyMMdd-HHmmss") + [System.IO.Path]::GetExtension($Archivo)) }
+    Move-Item -LiteralPath $Archivo -Destination $nuevo
+    Write-Host "   El archivo se movió a: $nuevo"
+}
 Write-Host "`n✔ «$Titulo» lista." -ForegroundColor Green
 Write-Host "   Enlace (para Mi enlace):  $base/master.m3u8"
 Write-Host "   Para borrarla después:    borrar-pelicula.cmd $id"

@@ -79,7 +79,15 @@ Y redespliega. Sin esta variable, «Nuestras películas» no aparece.
 
 ## Subir una película
 
-**Arrastra el archivo sobre `scripts\peliculas\subir-pelicula.cmd`.**
+1. Deja la película como **`Descargas\Peliculas\pelicula.mkv`** (o `.mp4`).
+2. **Doble clic en `scripts\peliculas\subir-pelicula.cmd`.**
+3. Escribe el título (si el MKV trae uno en sus metadatos, lo sugiere: Enter
+   para aceptarlo). Con él se nombra la carpeta en R2; si ya existe una igual,
+   avisa y ofrece subirla con otro nombre (`coco-2`), sobrescribirla o cancelar.
+4. Al terminar, el archivo se mueve a `Descargas\Peliculas\subidas\` para no
+   volver a subirlo por error, y se borra la copia de trabajo de `Temp`.
+
+También se puede arrastrar cualquier archivo sobre el `.cmd`; ese no se mueve.
 
 La primera vez pregunta el remoto (`r2`), el bucket (`canalcasa-peliculas`) y
 la URL pública, y lo guarda. Luego:
@@ -90,14 +98,21 @@ la URL pública, y lo guarda. Luego:
   sola; sin ella, la CPU puede tardar casi lo que dura la película.
 - Todos los audios quedan elegibles en el reproductor (botón de audio). El
   primero es el español; para otro: `subir-pelicula.cmd "peli.mkv" -AudioPrincipal eng`.
-- Los subtítulos **de texto** (SRT, ASS) se convierten. Los de **imagen**
-  (PGS de Blu-ray) no se pueden pasar a texto y se omiten avisando.
+- Subtítulos: solo **español e inglés** (forzados incluidos); un MKV puede
+  traer 40 pistas y el selector se volvería inmanejable. Los **de texto** (SRT,
+  ASS) se convierten; los de **imagen** (PGS de Blu-ray) no se pueden pasar a
+  texto y se omiten avisando.
+- Tamaño: con `-Calidad 24` (por defecto), una película de 1080p y 2 h queda
+  en unos 1,5–2,5 GB, con techo de 6 Mb/s. Solo aplica si se recodifica; si
+  el vídeo se copia, pesa lo que pesaba.
 
 Opciones, añadidas detrás del archivo:
 
 | Opción | Para qué |
 |---|---|
-| `-Titulo "Coco"` | El nombre que se ve en la app (por defecto, el del archivo) |
+| `-Titulo "Coco"` | El nombre que se ve en la app, sin preguntar |
+| `-Calidad 26` | Archivo más pequeño (16–32; más alto = más pequeño y algo menos nítido) |
+| `-Subtitulos "spa,eng,jpn"` | Qué idiomas de subtítulos se quedan (`todos` para no filtrar) |
 | `-AudioPrincipal eng` | Con qué audio arranca |
 | `-Recodificar` | Recodificar aunque se pudiera copiar |
 | `-Aceleracion cpu` | No usar la tarjeta gráfica (si da problemas) |
