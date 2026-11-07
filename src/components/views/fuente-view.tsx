@@ -6,9 +6,9 @@ import { Clapperboard, Link2, Play, Plus, Trash2, VolumeX } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
-import { crearCodigoSala, type VideoDeSala } from "@/lib/ver-juntos/sala";
-import { leerSalaRecordada, recordarSala } from "@/lib/ver-juntos/recordar";
-import { SalaJuntos } from "./sala-juntos";
+import { estabaDentro, guardarAparato, leerAparato, recordarDentro, type Aparato } from "@/lib/ver-juntos/recordar";
+import { CuentaAtras, SalaJuntos } from "./sala-juntos";
+import { VincularAparato } from "./vincular-aparato";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { SubtitleTrack } from "@/lib/catalog/types";
@@ -66,68 +66,60 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [url, setUrl] = useState("");
   const [titulo, setTitulo] = useState("");
   const [error, setError] = useState("");
-  // Si se salió de Mi enlace estando en una sala, al volver se entra sola.
-  // Ver `recordar.ts`. Esta vista solo se monta en el navegador, al abrirla.
-  const [recordada] = useState(() => (typeof window === "undefined" ? null : leerSalaRecordada()));
-  const [activa, setActiva] = useState<Reproducible | null>(
-    recordada?.anfitrion && recordada.video ? recordada.video : null,
-  );
+  const [activa, setActiva] = useState<Reproducible | null>(null);
   const nuestras = useNuestrasPeliculas();
 
   /**
-   * Ver juntos. El anfitrión reproduce lo suyo (`activa`) y se lo manda a la
-   * sala; el invitado reproduce lo que le llega (`deLaSala`), sin tener que
-   * haber guardado el enlace.
+   * Ver juntos: una sola sala para la casa. Este aparato se vincula una vez
+   * (PIN + nombre) y desde ahí solo hay que «Entrar». Dentro, lo que suena es
+   * la película de la sala —la última que eligió cualquiera— y no lo local.
    */
-  const [sala, setSala] = useState<{ codigo: string; anfitrion: boolean } | null>(
-    recordada ? { codigo: recordada.codigo, anfitrion: recordada.anfitrion } : null,
-  );
+  const [aparato, setAparato] = useState<Aparato | null>(null);
+  const [dentro, setDentro] = useState(false);
+  /** Hasta leer el almacenamiento no se sabe si pedir el PIN o «Entrar». */
+  const [memoriaLeida, setMemoriaLeida] = useState(false);
   useEffect(() => {
-    recordarSala(
-      sala
-        ? {
-            ...sala,
-            video:
-              sala.anfitrion && activa
-                ? { id: activa.id, url: activa.url, titulo: activa.titulo, subtitulos: activa.subtitulos }
-                : null,
-          }
-        : null,
-    );
-  }, [sala, activa]);
-  const [deLaSala, setDeLaSala] = useState<VideoDeSala | null>(null);
-  const invitado = Boolean(sala && !sala.anfitrion);
-  const videoAnfitrion = useMemo(
-    () => (activa ? { url: activa.url, titulo: activa.titulo, subtitulos: activa.subtitulos } : null),
-    [activa],
-  );
-  const juntos = useVerJuntos({
-    codigo: sala?.codigo ?? "",
-    anfitrion: sala?.anfitrion ?? false,
-    video: videoAnfitrion,
-    // El anfitrión reenvía el vídeo a cada `hola`: si es el mismo, no se
-    // toca el estado, o los subtítulos cambiarían de identidad y el
-    // reproductor rearrancaría la película.
-    alRecibirVideo: useCallback(
-      (video: VideoDeSala) =>
-        setDeLaSala((antes) => (antes && JSON.stringify(antes) === JSON.stringify(video) ? antes : video)),
-      [],
-    ),
-  });
-  const salirDeLaSala = useCallback(() => {
-    setSala(null);
-    setDeLaSala(null);
+    // `localStorage` no existe en el render de servidor: leerlo en el primer
+    // render rompía la hidratación. Mismo patrón que `use-fuentes.ts`.
+    const guardado = leerAparato();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAparato(guardado);
+    // Si se salió de Mi enlace estando dentro, al volver se entra sola.
+    setDentro(Boolean(guardado) && estabaDentro());
+    setMemoriaLeida(true);
   }, []);
+  useEffect(() => {
+    if (memoriaLeida) recordarDentro(dentro);
+  }, [dentro, memoriaLeida]);
+  const juntos = useVerJuntos({
+    aparato,
+    dentro,
+    alPerderVinculo: useCallback(() => {
+      guardarAparato(null);
+      setAparato(null);
+      setDentro(false);
+    }, []),
+  });
+  const enSala = dentro && juntos.estado !== "fuera";
+  const elegirEnSala = juntos.elegir;
 
-  /** Lo que suena: lo de la sala si eres invitado, lo tuyo si no. */
-  const enPantalla: Reproducible | null = invitado
-    ? deLaSala && {
-        id: `sala-${deLaSala.url}`,
-        titulo: deLaSala.titulo || "Ver juntos",
-        url: deLaSala.url,
-        subtitulos: deLaSala.subtitulos,
-      }
+  /** Elegir algo: dentro de la sala, es la película de todos. */
+  const elegir = useCallback(
+    (item: Reproducible) => {
+      if (enSala) elegirEnSala({ url: item.url, titulo: item.titulo, subtitulos: item.subtitulos });
+      else setActiva(item);
+    },
+    [enSala, elegirEnSala],
+  );
+
+  /** Lo que suena: la película de la sala si estás dentro; lo tuyo si no. */
+  const deLaSala = juntos.pelicula?.video;
+  const enPantalla: Reproducible | null = enSala
+    ? deLaSala
+      ? { id: `sala-${deLaSala.url}`, titulo: deLaSala.titulo || "Ver juntos", url: deLaSala.url, subtitulos: deLaSala.subtitulos }
+      : null
     : activa;
+  const idElegida = enPantalla?.url;
 
   // Se resuelve mientras se escribe para poder avisar antes de guardar: con un
   // magnet sin réplica HTTP el motivo se lee ya, no después de dar a Añadir.
@@ -176,7 +168,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       return;
     }
     setError("");
-    setActiva(anadir(decision.url, titulo, decision.magnet));
+    elegir(anadir(decision.url, titulo, decision.magnet));
     setUrl("");
     setTitulo("");
   };
@@ -215,6 +207,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             <ul className="fuente-lista">
               {nuestras.peliculas.map((pelicula) => {
                 const id = `nuestra-${pelicula.id}`;
+                const elegida = idElegida === pelicula.url;
                 const detalle = [
                   duracionCorta(pelicula.duracion),
                   pelicula.subtitulos.length > 0 ? `${pelicula.subtitulos.length} subtítulos` : "",
@@ -222,15 +215,13 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                   .filter(Boolean)
                   .join(" · ");
                 return (
-                  <li key={pelicula.id} className={`fuente-fila ${activa?.id === id ? "is-active" : ""}`}>
+                  <li key={pelicula.id} className={`fuente-fila ${elegida ? "is-active" : ""}`}>
                     <button
                       type="button"
                       data-nav="row"
                       className="fuente-fila-abrir"
-                      aria-current={activa?.id === id ? "true" : undefined}
-                      onClick={() =>
-                        setActiva({ id, titulo: pelicula.titulo, url: pelicula.url, subtitulos: pelicula.subtitulos })
-                      }
+                      aria-current={elegida ? "true" : undefined}
+                      onClick={() => elegir({ id, titulo: pelicula.titulo, url: pelicula.url, subtitulos: pelicula.subtitulos })}
                     >
                       <span className="fuente-fila-icono">
                         <Play aria-hidden="true" />
@@ -307,16 +298,29 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </Aviso>
       ) : null}
 
-      <SalaJuntos
-        codigo={sala?.codigo ?? ""}
-        anfitrion={sala?.anfitrion ?? false}
-        estado={juntos.estado}
-        acompanado={juntos.acompanado}
-        esperandoVideo={invitado && !deLaSala}
-        alCrear={() => setSala({ codigo: crearCodigoSala(), anfitrion: true })}
-        alEntrar={(codigo) => setSala({ codigo, anfitrion: false })}
-        alSalir={salirDeLaSala}
-      />
+      {memoriaLeida &&
+        juntos.estado !== "sin-configurar" &&
+        (aparato ? (
+          <SalaJuntos
+            yo={{ id: aparato.id, nombre: aparato.nombre }}
+            estado={juntos.estado}
+            miembros={juntos.miembros}
+            conocidos={juntos.conocidos}
+            pelicula={juntos.pelicula}
+            alEntrar={() => setDentro(true)}
+            alEmpezar={juntos.empezar}
+            alSalir={() => setDentro(false)}
+          />
+        ) : (
+          <VincularAparato
+            alVincular={(nuevo) => {
+              guardarAparato(nuevo);
+              setAparato(nuevo);
+              setDentro(true);
+            }}
+          />
+        ))}
+      <CuentaAtras cuenta={juntos.cuenta} />
 
       {enPantalla && (
         <section className="fuente-reproductor" aria-label={`Reproduciendo ${enPantalla.titulo}`}>
@@ -326,10 +330,10 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             key={enPantalla.id}
             streams={streamsActivos}
             title={enPantalla.titulo}
-            // El invitado no retoma lo suyo: manda el anfitrión, y su
-            // posición guardada solo provocaría un salto de ida y vuelta.
-            claveProgreso={invitado ? undefined : claveDeFuente(enPantalla.id)}
-            alVideo={sala ? juntos.alVideo : undefined}
+            // En la sala solo retoma quien dirige: en los demás, su posición
+            // guardada provocaría un salto de ida y vuelta.
+            claveProgreso={enSala && !juntos.dirijo ? undefined : claveDeFuente(enPantalla.id)}
+            alVideo={enSala ? juntos.alVideo : undefined}
             superpuesto={
               juntos.necesitaToque ? (
                 <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.unirse}>
@@ -364,14 +368,14 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             {fuentes.map((fuente) => (
               <li
                 key={fuente.id}
-                className={`fuente-fila ${activa?.id === fuente.id ? "is-active" : ""}`}
+                className={`fuente-fila ${idElegida === fuente.url ? "is-active" : ""}`}
               >
                 <button
                   type="button"
                   data-nav="row"
                   className="fuente-fila-abrir"
-                  aria-current={activa?.id === fuente.id ? "true" : undefined}
-                  onClick={() => setActiva(fuente)}
+                  aria-current={idElegida === fuente.url ? "true" : undefined}
+                  onClick={() => elegir(fuente)}
                 >
                   <span className="fuente-fila-icono">
                     <Play aria-hidden="true" />
