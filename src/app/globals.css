@@ -1179,6 +1179,63 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   color: rgba(255, 255, 255, 0.35);
 }
 
+/* Aviso para activar el sonido (autoplay silenciado): píldora de cristal
+   centrada bajo `.atv-top`. Sin regla en `.atv-oculto`: no se esconde. */
+.atv-sala-aviso {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  z-index: 25;
+  display: inline-flex;
+  min-height: 40px;
+  max-width: calc(100% - 24px);
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  animation: atv-sala-aviso-entra 320ms ease both;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.atv-sala-aviso svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.atv-sala-aviso:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.atv-sala-aviso:focus-visible,
+[data-input="dpad"] .atv-sala-aviso:focus {
+  outline: none;
+  background: #fff;
+  color: #000;
+}
+
+@keyframes atv-sala-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atv-sala-aviso {
+    animation: none;
+  }
+}
+
 .atv-riel {
   position: relative;
   flex: 1;
@@ -1463,6 +1520,38 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   .atv-play-central {
     width: 68px;
     height: 68px;
+  }
+
+  /* La fila entera cabe en el ancho del teléfono: objetivos de 36px y
+     Pantalla completa siempre visible a la derecha. */
+  .atv-fila {
+    gap: 4px;
+  }
+
+  .atv-grupo {
+    gap: 0;
+  }
+
+  .atv-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .atv-btn.is-play {
+    width: 44px;
+    height: 44px;
+    margin-inline: 2px;
+  }
+
+  .atv-tiempo {
+    padding: 0 4px;
+  }
+}
+
+@media (max-width: 380px) {
+  .atv-btn.is-velocidad,
+  .atv-tiempo-dur {
+    display: none;
   }
 }
 
