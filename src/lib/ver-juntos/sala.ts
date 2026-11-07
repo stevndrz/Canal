@@ -9,11 +9,55 @@
 import type { SubtitleTrack } from "@/lib/catalog/types";
 import { leerSubtitulos } from "./catalogo";
 
-/** Cabecera con la que el navegador le enseña su llave a `/api/pusher/auth`. */
-export const CABECERA_LLAVE = "x-sala-llave";
+/**
+ * El código de la sala: cuatro cifras.
+ *
+ * Quien crea la sala lo ve en grande y se lo dice al otro, que lo escribe con
+ * los números del mando o del teclado de la pantalla. 10.000 salas: no es
+ * secreto, y no hace falta que lo sea — quien entrara por casualidad solo
+ * podría pausar la película, y se vería en la presencia con su alias. Lo que
+ * importa es que se escriba en un segundo en cualquier aparato.
+ */
+export const LARGO_CODIGO = 4;
 
-/** Forma del canal de la sala (`canalDeLaSala` en `vinculo.ts`). */
-export const CANAL_SALA = /^presence-sala-[0-9a-f]{32}$/;
+export function crearCodigoSala(aleatorio: (n: number) => Uint8Array = bytesAleatorios): string {
+  // Rechazo de los bytes que sesgarían el reparto: 256 no es múltiplo de 10.
+  let codigo = "";
+  while (codigo.length < LARGO_CODIGO) {
+    for (const byte of aleatorio(LARGO_CODIGO * 2)) {
+      if (byte < 250 && codigo.length < LARGO_CODIGO) codigo += String(byte % 10);
+    }
+  }
+  return codigo;
+}
+
+function bytesAleatorios(n: number): Uint8Array {
+  return crypto.getRandomValues(new Uint8Array(n));
+}
+
+/** Lo que alguien escribe → un código válido, o vacío. Tolera espacios y guiones. */
+export function normalizarCodigo(crudo: string): string {
+  const limpio = crudo.replace(/[\s-]/g, "");
+  return new RegExp(`^\\d{${LARGO_CODIGO}}$`).test(limpio) ? limpio : "";
+}
+
+/** El canal de presencia de Pusher que corresponde a un código. */
+export function canalDeSala(codigo: string): string {
+  return `presence-juntos-${codigo}`;
+}
+
+/** Lo único que la ruta de firma acepta firmar. */
+export const CANAL_DE_SALA = new RegExp(`^presence-juntos-\\d{${LARGO_CODIGO}}$`);
+
+/** Identificador de un aparato en la presencia: lo crea él mismo, al azar. */
+export const ID_APARATO = /^[A-Za-z0-9_-]{8,32}$/;
+
+/** El alias que alguien escribe → algo presentable, o vacío. */
+export function limpiarNombre(crudo: unknown): string {
+  if (typeof crudo !== "string") return "";
+  // Sin controles ni saltos; 24 caracteres caben bajo un círculo de presencia.
+  return crudo.replace(/[\u0000-\u001f\u007f]/g, " ").replace(/\s+/g, " ").trim().slice(0, 24);
+}
 
 /**
  * Qué película tiene puesta la sala. Quien entra la recibe de quien ya está.
@@ -40,6 +84,14 @@ export interface PeliculaDeSala {
   version: number;
   /** El `id` del aparato que la eligió. Mientras esté en la sala, dirige él. */
   por: string;
+}
+
+/** ¿Es `a` estrictamente más nueva que `b`? Igual versión y autor = la misma. */
+export function esMasNueva(a: PeliculaDeSala | null, b: PeliculaDeSala | null): boolean {
+  if (!a) return false;
+  if (!b) return true;
+  if (a.version !== b.version) return a.version > b.version;
+  return a.por > b.por;
 }
 
 export function masNueva(a: PeliculaDeSala | null, b: PeliculaDeSala | null): PeliculaDeSala | null {

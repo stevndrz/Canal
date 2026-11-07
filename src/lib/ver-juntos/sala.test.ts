@@ -1,6 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { leerMensaje, masNueva, quienDirige } from "./sala";
+import {
+  CANAL_DE_SALA,
+  canalDeSala,
+  crearCodigoSala,
+  leerMensaje,
+  limpiarNombre,
+  esMasNueva,
+  masNueva,
+  normalizarCodigo,
+  quienDirige,
+} from "./sala";
 import { firmarCanal } from "./firma";
+
+describe("códigos de sala", () => {
+  it("son cuatro cifras, sin sesgo", () => {
+    for (let i = 0; i < 50; i++) expect(crearCodigoSala()).toMatch(/^\d{4}$/);
+    // 250-255 se descartan: sesgarían hacia 0-5.
+    expect(crearCodigoSala(() => new Uint8Array([255, 250, 1, 2, 3, 4, 0, 0]))).toBe("1234");
+  });
+  it("toleran espacios y guiones, y rechazan lo demás", () => {
+    expect(normalizarCodigo(" 48-21 ")).toBe("4821");
+    expect(normalizarCodigo("482")).toBe("");
+    expect(normalizarCodigo("48a1")).toBe("");
+  });
+  it("la firma solo acepta canales de sala", () => {
+    expect(CANAL_DE_SALA.test(canalDeSala("4821"))).toBe(true);
+    expect(CANAL_DE_SALA.test("presence-juntos-482")).toBe(false);
+  });
+  it("limpia el alias", () => {
+    expect(limpiarNombre("  Tele\n  sala  ")).toBe("Tele sala");
+    expect(limpiarNombre("x".repeat(40))).toHaveLength(24);
+    expect(limpiarNombre(42)).toBe("");
+  });
+});
 
 describe("la última película elegida manda", () => {
   const video = { url: "https://cubo.example/a.m3u8", titulo: "A" };
@@ -14,6 +46,19 @@ describe("la última película elegida manda", () => {
     expect(masNueva(empate, vieja)).toBe(empate);
     expect(masNueva(null, vieja)).toBe(vieja);
     expect(masNueva(null, null)).toBeNull();
+  });
+});
+
+describe("esMasNueva", () => {
+  const video = { url: "https://x/a.m3u8", titulo: "A" };
+  it("la misma película en otro objeto no es más nueva (si no, los aparatos se contestan sin fin)", () => {
+    expect(esMasNueva({ video, version: 2, por: "pc" }, { video: { ...video }, version: 2, por: "pc" })).toBe(false);
+  });
+  it("por versión y, a igualdad, por autor", () => {
+    expect(esMasNueva({ video, version: 3, por: "a" }, { video, version: 2, por: "z" })).toBe(true);
+    expect(esMasNueva({ video, version: 2, por: "z" }, { video, version: 2, por: "a" })).toBe(true);
+    expect(esMasNueva(null, { video, version: 1, por: "a" })).toBe(false);
+    expect(esMasNueva({ video, version: 1, por: "a" }, null)).toBe(true);
   });
 });
 

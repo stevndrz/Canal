@@ -1,31 +1,27 @@
 import { leerSubtitulos } from "./catalogo";
-import { CANAL_SALA, type PeliculaDeSala } from "./sala";
+import { ID_APARATO, limpiarNombre, normalizarCodigo, type PeliculaDeSala } from "./sala";
 
 /**
- * Lo que cada aparato recuerda de la sala.
+ * Lo que cada aparato recuerda de «Ver juntos».
  *
- * - **El vínculo** (`localStorage`): la llave de `/api/sala/vincular`, el
- *   canal y el nombre. Se guarda una vez y dura hasta que se cambie el PIN o
- *   el secreto en Vercel, o se desvincule a mano.
- * - **La película de la sala** (`localStorage`): la última elegida que este
- *   aparato conoce. Al encontrarse con otro, gana la más nueva (`masNueva`).
- * - **Los conocidos** (`localStorage`): nombres de los aparatos que se han
- *   visto en la sala, para que el círculo de «esperando» diga quién falta.
- * - **Si estaba dentro** (`sessionStorage`): salir de Mi enlace —Atrás en el
- *   mando— no saca de la sala; al volver se entra sola. Dura lo que la
- *   pestaña: mañana se vuelve a pulsar «Entrar».
+ * - **Su perfil** (`localStorage`): el alias que eligió la persona y un id al
+ *   azar para la presencia. Se elige una vez; se puede cambiar.
+ * - **La sala en la que está** (`sessionStorage`): el código y su película.
+ *   Salir de Mi enlace —Atrás en el mando— no saca de la sala; al volver se
+ *   entra sola. Dura lo que la pestaña: mañana se crea otra sala.
  */
 
-const CLAVE_APARATO = "canalcasa:sala-aparato";
-const CLAVE_PELICULA = "canalcasa:sala-pelicula";
-const CLAVE_CONOCIDOS = "canalcasa:sala-conocidos";
-const CLAVE_DENTRO = "canalcasa:ver-juntos";
+const CLAVE_PERFIL = "canalcasa:juntos-perfil";
+const CLAVE_SALA = "canalcasa:ver-juntos";
 
-export interface Aparato {
-  llave: string;
-  canal: string;
+export interface Perfil {
   id: string;
   nombre: string;
+}
+
+export interface SalaRecordada {
+  codigo: string;
+  pelicula: PeliculaDeSala | null;
 }
 
 function leer(almacen: "local" | "session", clave: string): unknown {
@@ -44,57 +40,47 @@ function escribir(almacen: "local" | "session", clave: string, valor: unknown): 
     if (valor === null) a.removeItem(clave);
     else a.setItem(clave, JSON.stringify(valor));
   } catch {
-    // Es una comodidad: sin ella se vuelve a vincular o a elegir.
+    // Es una comodidad: sin ella se vuelve a escribir el alias o el código.
   }
 }
 
-export function leerAparato(): Aparato | null {
-  const a = leer("local", CLAVE_APARATO) as Record<string, unknown> | null;
-  if (!a || typeof a !== "object") return null;
-  const { llave, canal, id, nombre } = a;
-  if (typeof llave !== "string" || typeof id !== "string" || typeof nombre !== "string") return null;
-  if (typeof canal !== "string" || !CANAL_SALA.test(canal)) return null;
-  return { llave, canal, id, nombre };
+export function crearIdAparato(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes, (b) => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
 }
 
-export function guardarAparato(aparato: Aparato | null): void {
-  escribir("local", CLAVE_APARATO, aparato);
+export function leerPerfil(): Perfil | null {
+  const p = leer("local", CLAVE_PERFIL) as Record<string, unknown> | null;
+  if (!p || typeof p !== "object" || typeof p.id !== "string" || !ID_APARATO.test(p.id)) return null;
+  const nombre = limpiarNombre(p.nombre);
+  return nombre ? { id: p.id, nombre } : null;
 }
 
-export function leerPeliculaRecordada(): PeliculaDeSala | null {
-  const p = leer("local", CLAVE_PELICULA) as Record<string, unknown> | null;
+export function guardarPerfil(perfil: Perfil): void {
+  escribir("local", CLAVE_PERFIL, perfil);
+}
+
+function leerPelicula(p: unknown): PeliculaDeSala | null {
   if (!p || typeof p !== "object") return null;
-  const v = p.video as Record<string, unknown> | null;
+  const r = p as Record<string, unknown>;
+  const v = r.video as Record<string, unknown> | null;
   if (!v || typeof v.url !== "string" || !/^https?:\/\//i.test(v.url)) return null;
-  if (typeof p.version !== "number" || typeof p.por !== "string") return null;
+  if (typeof r.version !== "number" || typeof r.por !== "string") return null;
   const subtitulos = leerSubtitulos(v.subtitulos);
   return {
     video: { url: v.url, titulo: typeof v.titulo === "string" ? v.titulo : "", ...(subtitulos.length ? { subtitulos } : {}) },
-    version: p.version,
-    por: p.por,
+    version: r.version,
+    por: r.por,
   };
 }
 
-export function recordarPelicula(pelicula: PeliculaDeSala | null): void {
-  escribir("local", CLAVE_PELICULA, pelicula);
+export function leerSalaRecordada(): SalaRecordada | null {
+  const s = leer("session", CLAVE_SALA) as Record<string, unknown> | null;
+  if (!s || typeof s !== "object") return null;
+  const codigo = normalizarCodigo(String(s.codigo ?? ""));
+  return codigo ? { codigo, pelicula: leerPelicula(s.pelicula) } : null;
 }
 
-export function leerConocidos(): Record<string, string> {
-  const c = leer("local", CLAVE_CONOCIDOS);
-  if (!c || typeof c !== "object") return {};
-  return Object.fromEntries(
-    Object.entries(c as Record<string, unknown>).filter((par): par is [string, string] => typeof par[1] === "string"),
-  );
-}
-
-export function recordarConocidos(conocidos: Record<string, string>): void {
-  escribir("local", CLAVE_CONOCIDOS, conocidos);
-}
-
-export function estabaDentro(): boolean {
-  return leer("session", CLAVE_DENTRO) === true;
-}
-
-export function recordarDentro(dentro: boolean): void {
-  escribir("session", CLAVE_DENTRO, dentro ? true : null);
+export function recordarSala(sala: SalaRecordada | null): void {
+  escribir("session", CLAVE_SALA, sala);
 }
