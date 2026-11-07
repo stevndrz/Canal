@@ -52,6 +52,15 @@ export function serverConfig() {
     /** Secreto de Pusher: solo firma las salas de Ver juntos. Ver `/api/pusher/auth`. */
     pusherSecreto: process.env.PUSHER_SECRET?.trim() || "",
 
+    /**
+     * La sala de Ver juntos: el PIN de cuatro cifras con el que se vincula
+     * cada aparato y el secreto con el que se firman sus llaves y se deriva el
+     * nombre del canal. Cambiar cualquiera de los dos desvincula a todos. Ver
+     * `lib/ver-juntos/vinculo.ts`.
+     */
+    salaPin: process.env.SALA_PIN?.trim() || "",
+    salaSecreto: process.env.SALA_SECRETO?.trim() || "",
+
     /** Addons de Stremio con enlaces directos, separados por comas. */
     stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
 

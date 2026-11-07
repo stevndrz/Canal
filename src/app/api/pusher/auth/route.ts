@@ -2,30 +2,34 @@ import { publicConfig } from "@/lib/config";
 import { serverConfig } from "@/lib/config.server";
 import { excedeLimite, identificarCliente, respuestaLimite } from "@/lib/limite-peticiones";
 import { SOCKET_ID, firmarCanal } from "@/lib/ver-juntos/firma";
-import { CANAL_DE_SALA } from "@/lib/ver-juntos/sala";
+import { CABECERA_LLAVE } from "@/lib/ver-juntos/sala";
+import { canalDeLaSala, leerLlave, salaConfigurada } from "@/lib/ver-juntos/vinculo";
 
 /**
- * Firma de las salas de «Ver juntos».
+ * Firma de la sala de «Ver juntos».
  *
- * Pusher exige que el servidor firme la entrada a un canal `private-*`, y es
+ * Pusher exige que el servidor firme la entrada a un canal `presence-*`, y es
  * justo lo que habilita los *client events*: el play y la pausa viajan de
  * aparato a aparato por Pusher **sin pasar por aquí**. Esta ruta se llama una
- * vez por persona al entrar en la sala, nada más.
+ * vez por aparato al entrar en la sala, nada más.
  *
- * Recuperada del Watch Party que se retiró en agosto, con dos cambios: el
- * freno de peticiones que tienen las demás rutas, y que solo firma canales con
- * la forma exacta de un código de sala (`CANAL_DE_SALA`), no cualquier nombre.
+ * Solo firma **un** canal —el de la sala, derivado del secreto— y solo a quien
+ * trae una llave de `/api/sala/vincular`. El nombre que verá el otro en la
+ * presencia sale de esa llave firmada, no de lo que mande el navegador.
  */
 export async function POST(request: Request) {
   if (excedeLimite(identificarCliente(request))) return respuestaLimite();
 
   const clave = publicConfig.pusherKey;
   const secreto = serverConfig().pusherSecreto;
-  if (!clave || !secreto) {
-    return Response.json(
-      { error: "Ver juntos no está configurado: faltan las credenciales de Pusher." },
-      { status: 503 },
-    );
+  const sala = salaConfigurada(serverConfig());
+  if (!clave || !secreto || !sala) {
+    return Response.json({ error: "Ver juntos no está configurado." }, { status: 503 });
+  }
+
+  const vinculo = leerLlave(sala, request.headers.get(CABECERA_LLAVE));
+  if (!vinculo) {
+    return Response.json({ error: "Este aparato no está vinculado a la sala." }, { status: 403 });
   }
 
   // Pusher manda form-urlencoded; se admite JSON por si algún día se cambia.
@@ -48,14 +52,13 @@ export async function POST(request: Request) {
   if (!SOCKET_ID.test(socketId)) {
     return Response.json({ error: "socket_id inválido." }, { status: 400 });
   }
-  // Sin esto, cualquiera podría pedirnos la firma de un canal privado
-  // arbitrario de la misma cuenta de Pusher.
-  if (!CANAL_DE_SALA.test(canal)) {
+  if (canal !== canalDeLaSala(sala)) {
     return Response.json({ error: "Canal no permitido." }, { status: 403 });
   }
 
+  const datosCanal = JSON.stringify({ user_id: vinculo.id, user_info: { nombre: vinculo.nombre } });
   return Response.json(
-    { auth: `${clave}:${firmarCanal(secreto, socketId, canal)}` },
+    { auth: `${clave}:${firmarCanal(secreto, socketId, canal, datosCanal)}`, channel_data: datosCanal },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
