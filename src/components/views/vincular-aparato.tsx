@@ -110,12 +110,10 @@ export function VincularAparato({ alVincular }: { alVincular: (aparato: Aparato)
     "grid min-h-14 place-items-center rounded-[var(--radio-md)] border border-[var(--borde-sutil)] bg-relleno text-xl font-semibold text-tinta-1 hover:bg-[var(--relleno-hover)] focus:bg-[var(--foco)] focus:text-fondo disabled:opacity-40";
 
   return (
-    <section className="fuente-sala" aria-labelledby="vincular-titulo">
-      <p className="text-[length:var(--texto-sm)] text-tinta-3">Una sola vez en cada aparato</p>
-      <h3 id="vincular-titulo" className="mb-4 text-[length:var(--texto-2xl)] font-semibold text-tinta-1">
-        Vincular a la sala
-      </h3>
-
+    <section className="cine-vincular" aria-label="Vincular a la sala">
+      <p className="text-[length:var(--texto-sm)] text-tinta-3">
+        Una sola vez en cada aparato. Después, aquí solo saldrá «Entrar a la sala».
+      </p>
       <div className="mx-auto flex max-w-md flex-col gap-5">
         <div className="flex flex-col gap-2">
           <Campo
