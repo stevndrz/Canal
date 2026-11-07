@@ -167,14 +167,22 @@ scripts\peliculas\borrar-pelicula.cmd coco         (borra «coco»)
 
 ## Ver juntos
 
-1. Mi enlace → **Nuestras películas** → la película.
-2. **Crear sala** → pásale el código de 6 letras.
-3. En su aparato: Mi enlace → código → **Entrar**. Le llega la película sola,
-   con sus audios y subtítulos.
+1. Cada persona elige su **alias** la primera vez («Steven», «Tele sala»…).
+   Sale en su círculo y en «Juntos · Steven ✓».
+2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
+3. El otro pulsa **Entrar con código** y lo escribe (con los números del mando
+   o con el teclado de la pantalla). Le llega la película sola, con sus audios
+   y subtítulos.
+4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
 
-Cada uno elige su audio y sus subtítulos; lo que se sincroniza es play, pausa y
-la posición. Si uno sale de Mi enlace (Atrás en el mando), se pausa para los
-dos, y al volver se entra sola en la misma sala.
+**La última película elegida manda**, la elija quien la elija. Dirige quien la
+eligió (su pulso corrige al otro); si se va, quien lleve más tiempo dentro.
+Play, pausa y saltos de cualquiera pasan en los dos. Si uno sale de Mi enlace
+(Atrás en el mando), se pausa para los dos, y al volver se entra sola en la
+misma sala.
+
+El código no es secreto (10.000 salas): quien entrara por casualidad solo
+podría pausar, y se le vería en la presencia con su alias.
 
 ---
 

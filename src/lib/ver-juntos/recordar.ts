@@ -1,55 +1,86 @@
 import { leerSubtitulos } from "./catalogo";
-import { normalizarCodigo, type VideoDeSala } from "./sala";
+import { ID_APARATO, limpiarNombre, normalizarCodigo, type PeliculaDeSala } from "./sala";
 
 /**
- * La sala sobrevive a salir de Mi enlace.
+ * Lo que cada aparato recuerda de «Ver juntos».
  *
- * Mi enlace se desmonta al cambiar de sección —pulsar Atrás en el mando basta—,
- * y con ella se perdía la sala: el anfitrión volvía a una pantalla vacía y el
- * otro se quedaba esperando a alguien que ya no estaba. Guardada aquí, al volver
- * se entra sola en la misma sala y con la misma película.
- *
- * `sessionStorage` y no `localStorage`: dura lo que dure la pestaña o la app
- * abierta. Mañana no tiene sentido volver a una sala de ayer.
+ * - **Su perfil** (`localStorage`): el alias que eligió la persona y un id al
+ *   azar para la presencia. Se elige una vez; se puede cambiar.
+ * - **La sala en la que está** (`sessionStorage`): el código y su película.
+ *   Salir de Mi enlace —Atrás en el mando— no saca de la sala; al volver se
+ *   entra sola. Dura lo que la pestaña: mañana se crea otra sala.
  */
 
-const CLAVE = "canalcasa:ver-juntos";
+const CLAVE_PERFIL = "canalcasa:juntos-perfil";
+const CLAVE_SALA = "canalcasa:ver-juntos";
+
+export interface Perfil {
+  id: string;
+  nombre: string;
+}
 
 export interface SalaRecordada {
   codigo: string;
-  anfitrion: boolean;
-  /** Lo que el anfitrión tenía puesto. */
-  video: (VideoDeSala & { id: string }) | null;
+  pelicula: PeliculaDeSala | null;
 }
 
-export function leerSalaRecordada(): SalaRecordada | null {
+function leer(almacen: "local" | "session", clave: string): unknown {
   try {
-    const crudo = JSON.parse(window.sessionStorage.getItem(CLAVE) ?? "null") as Record<string, unknown> | null;
-    if (!crudo || typeof crudo !== "object") return null;
-    const codigo = normalizarCodigo(String(crudo.codigo ?? ""));
-    if (!codigo) return null;
-    const v = crudo.video as Record<string, unknown> | null;
-    const video =
-      v && typeof v.id === "string" && typeof v.url === "string" && /^https?:\/\//i.test(v.url)
-        ? {
-            id: v.id,
-            url: v.url,
-            titulo: typeof v.titulo === "string" ? v.titulo : "",
-            subtitulos: leerSubtitulos(v.subtitulos),
-          }
-        : null;
-    return { codigo, anfitrion: crudo.anfitrion === true, video };
+    const a = almacen === "local" ? window.localStorage : window.sessionStorage;
+    return JSON.parse(a.getItem(clave) ?? "null");
   } catch {
     // Sin almacenamiento (modo privado, tele que no lo da): no se recuerda.
     return null;
   }
 }
 
-export function recordarSala(sala: SalaRecordada | null): void {
+function escribir(almacen: "local" | "session", clave: string, valor: unknown): void {
   try {
-    if (sala) window.sessionStorage.setItem(CLAVE, JSON.stringify(sala));
-    else window.sessionStorage.removeItem(CLAVE);
+    const a = almacen === "local" ? window.localStorage : window.sessionStorage;
+    if (valor === null) a.removeItem(clave);
+    else a.setItem(clave, JSON.stringify(valor));
   } catch {
-    // Igual que arriba: es una comodidad, no algo de lo que dependa nada.
+    // Es una comodidad: sin ella se vuelve a escribir el alias o el código.
   }
+}
+
+export function crearIdAparato(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  return Array.from(bytes, (b) => "abcdefghijklmnopqrstuvwxyz0123456789"[b % 36]).join("");
+}
+
+export function leerPerfil(): Perfil | null {
+  const p = leer("local", CLAVE_PERFIL) as Record<string, unknown> | null;
+  if (!p || typeof p !== "object" || typeof p.id !== "string" || !ID_APARATO.test(p.id)) return null;
+  const nombre = limpiarNombre(p.nombre);
+  return nombre ? { id: p.id, nombre } : null;
+}
+
+export function guardarPerfil(perfil: Perfil): void {
+  escribir("local", CLAVE_PERFIL, perfil);
+}
+
+function leerPelicula(p: unknown): PeliculaDeSala | null {
+  if (!p || typeof p !== "object") return null;
+  const r = p as Record<string, unknown>;
+  const v = r.video as Record<string, unknown> | null;
+  if (!v || typeof v.url !== "string" || !/^https?:\/\//i.test(v.url)) return null;
+  if (typeof r.version !== "number" || typeof r.por !== "string") return null;
+  const subtitulos = leerSubtitulos(v.subtitulos);
+  return {
+    video: { url: v.url, titulo: typeof v.titulo === "string" ? v.titulo : "", ...(subtitulos.length ? { subtitulos } : {}) },
+    version: r.version,
+    por: r.por,
+  };
+}
+
+export function leerSalaRecordada(): SalaRecordada | null {
+  const s = leer("session", CLAVE_SALA) as Record<string, unknown> | null;
+  if (!s || typeof s !== "object") return null;
+  const codigo = normalizarCodigo(String(s.codigo ?? ""));
+  return codigo ? { codigo, pelicula: leerPelicula(s.pelicula) } : null;
+}
+
+export function recordarSala(sala: SalaRecordada | null): void {
+  escribir("session", CLAVE_SALA, sala);
 }

@@ -20,6 +20,41 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Ver juntos en iPhone: por qué no arrancaba ni se sincronizaba
+
+Sin WebKit en el contenedor: se simuló el iPhone en Chromium inyectando lo que
+Safari hace distinto (`play()` sin gesto rechazado salvo en silencio, salto
+descartado con `readyState` 0, `seeked` 2,5 s tarde como el HLS nativo,
+`visibilitychange`). Con el código de `main` el invitado se quedaba en pausa
+para siempre y el único aviso estaba encima de la sala, lejos del vídeo.
+
+Causas y arreglos (`use-ver-juntos.ts`, `eco.ts`, `native-player.tsx`):
+
+1. **Autoplay**: el `play()` remoto se rechaza sin gesto. Ahora se reintenta en
+   silencio (iOS lo permite con `playsinline`) y sale «Toca para activar el
+   sonido» DENTRO del reproductor (`superpuesto`). Si ni así (modo de bajo
+   consumo), «Toca para unirte a la sala».
+2. **Salto antes de metadatos**: WebKit lo descarta. Se aparca y se aplica en
+   `loadedmetadata`; hasta entonces el invitado no cuenta como sincronizado
+   (si no, su `play` del segundo 0 mandaba al anfitrión al principio).
+3. **Eco con saltos lentos**: la ventana fija de 1 s dejaba pasar el `seeked`
+   tardío del iPhone y el anfitrión retrocedía en cada pulso. Ahora se compara
+   con lo pedido (`esEco`): play/pausa por estado, salto por tiempo, tope 10 s.
+4. **Segundo plano**: al volver tras >5 s oculta se rehace la conexión de
+   Pusher (el socket muere en silencio en iOS); el anfitrión cuenta su estado
+   al resuscribirse.
+5. **Toque en el vídeo**: con el dedo, enseña/esconde la barra y ya no pausa
+   (antes, mirar los controles pausaba a los dos).
+6. **Rueda vs. botón de play**: la rueda solo si se intenta reproducir; en
+   pausa sin cargar (iPhone no descarga hasta el primer play) se ve el play.
+7. **Audios en HLS nativo**: `video.audioTracks` (solo Safari) alimenta el
+   selector de idioma.
+8. **Controles** (CSS por el agente diseno): la fila se salía del reproductor
+   en todos los iPhone (se cortaba Pantalla completa). A ≤640 px botones de
+   36 px; a ≤380 px fuera velocidad y duración.
+
+**Sin probar en un iPhone de verdad.** Lista de qué mirar en el PR.
+
 ### 2026-09-04 — Velocidad II: vistas bajo demanda
 
 `vista-activa.tsx` traía las 5 vistas por `import` estático y el bundle

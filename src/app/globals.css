@@ -1179,6 +1179,63 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   color: rgba(255, 255, 255, 0.35);
 }
 
+/* Aviso para activar el sonido (autoplay silenciado): píldora de cristal
+   centrada bajo `.atv-top`. Sin regla en `.atv-oculto`: no se esconde. */
+.atv-sala-aviso {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  z-index: 25;
+  display: inline-flex;
+  min-height: 40px;
+  max-width: calc(100% - 24px);
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  backdrop-filter: blur(16px);
+  transform: translateX(-50%);
+  animation: atv-sala-aviso-entra 320ms ease both;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.atv-sala-aviso svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.atv-sala-aviso:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.atv-sala-aviso:focus-visible,
+[data-input="dpad"] .atv-sala-aviso:focus {
+  outline: none;
+  background: #fff;
+  color: #000;
+}
+
+@keyframes atv-sala-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atv-sala-aviso {
+    animation: none;
+  }
+}
+
 .atv-riel {
   position: relative;
   flex: 1;
@@ -1463,6 +1520,38 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   .atv-play-central {
     width: 68px;
     height: 68px;
+  }
+
+  /* La fila entera cabe en el ancho del teléfono: objetivos de 36px y
+     Pantalla completa siempre visible a la derecha. */
+  .atv-fila {
+    gap: 4px;
+  }
+
+  .atv-grupo {
+    gap: 0;
+  }
+
+  .atv-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .atv-btn.is-play {
+    width: 44px;
+    height: 44px;
+    margin-inline: 2px;
+  }
+
+  .atv-tiempo {
+    padding: 0 4px;
+  }
+}
+
+@media (max-width: 380px) {
+  .atv-btn.is-velocidad,
+  .atv-tiempo-dur {
+    display: none;
   }
 }
 
@@ -5102,5 +5191,836 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
     min-width: 51px;
     min-height: 44px;
     align-items: center;
+  }
+}
+
+/* ═══ Mi enlace: sala de cine para dos ═════════════════════════════════
+   Portada a pantalla completa, presencia de los dos, un botón blanco y un
+   estante de pósters. Sueltas, sin capa: ganan a los restablecimientos de
+   `base` y a `.screen`/`.tv-safe` de `components`. */
+.cine {
+  padding-top: 0;
+  padding-bottom: clamp(40px, 6vh, 80px);
+  /* Sin contexto de apilado propio: la hoja, la cuenta y el escenario son
+     `fixed` y deben competir con la barra (z 60) en la raíz, no dentro de
+     `.screen` (z 1). */
+  z-index: auto;
+  --cine-aro: 0 0 0 3px var(--fondo), 0 0 0 6px var(--foco);
+}
+
+/* ── Portada ───────────────────────────────────────────────────────── */
+.cine-portada {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: flex-end;
+  min-height: 520px;
+  height: calc(100svh - var(--topbar-h) / 2);
+  overflow: clip;
+  background: var(--fondo);
+}
+
+.cine-portada.is-sin-arte {
+  background: radial-gradient(ellipse 80% 60% at 30% 0%, var(--relleno), transparent 70%), var(--fondo);
+}
+
+.cine-portada-fondo {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+}
+
+.cine-portada-velo {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(90deg, rgba(var(--fondo-rgb), 0.78) 0%, rgba(var(--fondo-rgb), 0.35) 45%, transparent 75%),
+    linear-gradient(
+      180deg,
+      rgba(var(--fondo-rgb), 0.45) 0%,
+      transparent 22%,
+      rgba(var(--fondo-rgb), 0.3) 50%,
+      rgba(var(--fondo-rgb), 0.82) 82%,
+      var(--fondo) 100%
+    );
+}
+
+.cine-portada-contenido {
+  display: flex;
+  width: 100%;
+  max-width: 62rem;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(12px, 1.8vh, 20px);
+  padding: 0 var(--margen) clamp(28px, 5vh, 64px);
+}
+
+.cine-sobretitulo {
+  margin: 0;
+  font-size: var(--texto-2xs);
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tinta-3);
+}
+
+.cine-titulo {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-width: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: clamp(34px, 5.4vw, 84px);
+  font-weight: 650;
+  line-height: 1.04;
+  letter-spacing: -0.045em;
+  color: var(--tinta-1);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+.cine-pildoras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cine-pildora {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--cristal);
+  font-size: var(--texto-2xs);
+  font-weight: 600;
+  color: var(--tinta-2);
+  backdrop-filter: blur(14px);
+}
+
+/* ── Presencia ─────────────────────────────────────────────────────── */
+.cine-presencia {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(14px, 2vw, 28px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cine-persona {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  max-width: 96px;
+  font-size: var(--texto-2xs);
+  font-weight: 600;
+  color: var(--tinta-3);
+  transition: color 500ms var(--ease);
+}
+
+.cine-persona-nombre {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cine-persona-circulo {
+  display: grid;
+  width: 56px;
+  height: 56px;
+  place-items: center;
+  border: 1px solid var(--borde-fuerte);
+  border-radius: 50%;
+  background: var(--cristal);
+  font-size: var(--texto-sm);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--tinta-1);
+  opacity: 0.45;
+  backdrop-filter: blur(14px);
+  transition:
+    opacity 500ms var(--ease),
+    background-color 500ms var(--ease),
+    color 500ms var(--ease),
+    box-shadow 500ms var(--ease),
+    transform 500ms var(--ease);
+}
+
+.cine-persona.is-aqui {
+  color: var(--tinta-1);
+}
+
+.cine-persona.is-aqui .cine-persona-circulo {
+  border-color: transparent;
+  background: var(--tinta-1);
+  color: var(--fondo);
+  opacity: 1;
+  box-shadow: 0 0 0 6px var(--relleno), 0 0 28px var(--borde-fuerte);
+  animation: cine-llega 600ms var(--ease) both;
+}
+
+@keyframes cine-llega {
+  from {
+    transform: scale(0.88);
+    box-shadow: 0 0 0 0 transparent, 0 0 0 transparent;
+  }
+  55% {
+    transform: scale(1.1);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* ── Acciones ──────────────────────────────────────────────────────── */
+.cine-acciones,
+.cine-secundarias {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.cine-secundarias {
+  gap: 4px 8px;
+}
+
+.cine-boton-principal,
+.cine-boton-cristal {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radio-pill);
+  font-family: var(--font-sans);
+  font-size: var(--texto-base);
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    transform var(--dur-media) var(--ease),
+    background-color var(--dur-media) var(--ease),
+    color var(--dur-media) var(--ease),
+    box-shadow var(--dur-media) var(--ease);
+}
+
+.cine-boton-principal svg,
+.cine-boton-cristal svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.cine-boton-principal {
+  background: var(--acento);
+  color: var(--acento-tinta);
+  box-shadow: var(--sombra-1);
+}
+
+.cine-boton-cristal {
+  border-color: var(--borde-fuerte);
+  background: var(--cristal);
+  color: var(--tinta-1);
+  backdrop-filter: blur(16px);
+}
+
+.cine-boton-principal:hover {
+  background: var(--acento-hover);
+}
+
+.cine-boton-cristal:hover {
+  background: var(--cristal-fuerte);
+}
+
+.cine-boton-principal:active,
+.cine-boton-cristal:active {
+  transform: scale(0.97);
+}
+
+.cine-boton-principal:disabled,
+.cine-boton-cristal:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.cine-estado {
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+.cine-boton-texto,
+.cine-boton-pequeno {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radio-pill);
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  color: var(--tinta-3);
+  cursor: pointer;
+  transition:
+    color var(--dur-media) var(--ease),
+    background-color var(--dur-media) var(--ease),
+    transform var(--dur-media) var(--ease),
+    box-shadow var(--dur-media) var(--ease);
+}
+
+.cine-boton-pequeno {
+  font-size: var(--texto-xs);
+}
+
+.cine-boton-pequeno svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.cine-boton-texto:hover,
+.cine-boton-pequeno:hover {
+  color: var(--tinta-1);
+  background: var(--relleno-sutil);
+}
+
+/* Cuerpo de la vista: los márgenes laterales los da `--margen`. */
+.cine-acciones,
+.cine-secundarias,
+.cine-presencia,
+.cine-estado {
+  position: relative;
+}
+
+.cine-pie {
+  display: flex;
+  justify-content: center;
+  padding: clamp(8px, 2vh, 20px) var(--margen) 0;
+}
+
+/* ── Estante ───────────────────────────────────────────────────────── */
+.cine-estante {
+  min-width: 0;
+  padding-top: clamp(20px, 3.5vh, 44px);
+}
+
+.cine-estante-titulo {
+  margin: 0 0 4px;
+  padding: 0 var(--margen);
+  font-size: var(--texto-lg);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--tinta-1);
+}
+
+.cine-estante-fila {
+  display: flex;
+  gap: clamp(12px, 1.2vw, 20px);
+  margin: 0;
+  padding: 14px var(--margen) 18px;
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--margen);
+  scrollbar-width: none;
+}
+
+.cine-estante-fila::-webkit-scrollbar {
+  display: none;
+}
+
+.cine-estante-fila > li {
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.cine-poster {
+  position: relative;
+  display: flex;
+  width: 140px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: var(--tinta-2);
+  cursor: pointer;
+}
+
+.cine-poster img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radio-tarjeta);
+  background: var(--relleno-sutil);
+  box-shadow: var(--sombra-1);
+  transition:
+    transform var(--dur-media) var(--ease),
+    box-shadow var(--dur-media) var(--ease);
+}
+
+.cine-poster-vacio {
+  display: grid;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  place-items: center;
+  border-radius: var(--radio-tarjeta);
+  background: var(--relleno);
+  color: var(--tinta-4);
+  transition:
+    transform var(--dur-media) var(--ease),
+    box-shadow var(--dur-media) var(--ease);
+}
+
+.cine-poster-vacio svg {
+  width: 32px;
+  height: 32px;
+}
+
+.cine-poster-titulo {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-xs);
+  font-weight: 600;
+}
+
+.cine-poster.is-elegida {
+  color: var(--tinta-1);
+}
+
+.cine-poster.is-elegida img,
+.cine-poster.is-elegida .cine-poster-vacio {
+  box-shadow: 0 0 0 2px var(--tinta-1), var(--sombra-1);
+}
+
+.cine-poster:focus-visible img,
+.cine-poster:focus-visible .cine-poster-vacio,
+[data-input="dpad"] .cine-poster:focus img,
+[data-input="dpad"] .cine-poster:focus .cine-poster-vacio {
+  transform: scale(1.04);
+  box-shadow: var(--foco-borde), var(--sombra-2);
+}
+
+.cine-poster:focus-visible,
+[data-input="dpad"] .cine-poster:focus {
+  outline: none;
+  color: var(--tinta-1);
+}
+
+/* ── Foco de mando: grande y visible en todos ──────────────────────── */
+.cine-boton-principal:focus-visible,
+[data-input="dpad"] .cine-boton-principal:focus {
+  outline: none;
+  transform: scale(1.06);
+  box-shadow: var(--cine-aro), var(--foco-sombra);
+}
+
+.cine-boton-cristal:focus-visible,
+[data-input="dpad"] .cine-boton-cristal:focus {
+  outline: none;
+  transform: scale(1.06);
+  border-color: transparent;
+  background: var(--tinta-1);
+  color: var(--fondo);
+  box-shadow: var(--foco-borde), var(--foco-sombra);
+}
+
+.cine-boton-texto:focus-visible,
+.cine-boton-pequeno:focus-visible,
+[data-input="dpad"] .cine-boton-texto:focus,
+[data-input="dpad"] .cine-boton-pequeno:focus {
+  outline: none;
+  transform: scale(1.06);
+  background: var(--tinta-1);
+  color: var(--fondo);
+  box-shadow: var(--foco-borde);
+}
+
+.cine-boton-redondo:focus-visible,
+[data-input="dpad"] .cine-boton-redondo:focus {
+  outline: none;
+  transform: scale(1.1);
+  background: var(--tinta-1);
+  color: var(--fondo);
+  box-shadow: var(--foco-borde);
+}
+
+/* Sin el recuadro cuadrado de la regla general de `[data-nav]`: cada pieza
+   `.cine-*` lleva su propio realce (escala + aro redondeado). Especificidad
+   por encima de `[data-nav]:not(…):not(…):not(input):focus`. */
+.cine button[data-nav][class*="cine-"][class*="cine-"]:focus-visible,
+[data-input="dpad"] .cine button[data-nav][class*="cine-"][class*="cine-"]:focus {
+  outline: none;
+}
+
+/* ── Hoja deslizante ───────────────────────────────────────────────── */
+.cine-hoja-fondo {
+  position: fixed;
+  inset: 0;
+  z-index: var(--capa-dialogo);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(var(--fondo-rgb), 0.7);
+  animation: cine-fondo-entra 260ms ease both;
+}
+
+.cine-hoja {
+  width: 100%;
+  max-width: 640px;
+  max-height: 85svh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(18px, 3vh, 28px) clamp(18px, 3vw, 28px) calc(clamp(20px, 3vh, 32px) + env(safe-area-inset-bottom, 0px));
+  border: 1px solid var(--borde);
+  border-bottom: 0;
+  border-radius: var(--radio-panel) var(--radio-panel) 0 0;
+  background: var(--cristal-fuerte);
+  box-shadow: var(--sombra-3);
+  backdrop-filter: saturate(160%) blur(28px);
+  animation: cine-hoja-sube 320ms var(--ease) both;
+}
+
+.cine-hoja-cabeza {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: clamp(14px, 2vh, 22px);
+}
+
+.cine-hoja-titulo {
+  margin: 0;
+  font-size: var(--texto-lg);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--tinta-1);
+}
+
+.cine-boton-redondo {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--borde);
+  border-radius: 50%;
+  background: var(--cristal);
+  color: var(--tinta-1);
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  transition:
+    transform var(--dur-media) var(--ease),
+    background-color var(--dur-media) var(--ease),
+    color var(--dur-media) var(--ease),
+    box-shadow var(--dur-media) var(--ease);
+}
+
+.cine-boton-redondo svg {
+  width: 18px;
+  height: 18px;
+}
+
+.cine-boton-redondo:hover {
+  background: var(--cristal-fuerte);
+}
+
+.cine-vincular {
+  padding-top: 4px;
+}
+
+@keyframes cine-fondo-entra {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes cine-hoja-sube {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+}
+
+/* ── Cuenta atrás ──────────────────────────────────────────────────── */
+.cine-cuenta {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background: rgba(var(--fondo-rgb), 0.8);
+  backdrop-filter: blur(18px);
+}
+
+.cine-cuenta-numero {
+  font-family: var(--font-sans);
+  font-size: clamp(140px, 30vmin, 360px);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-1);
+  animation: cine-numero-entra 700ms var(--ease) both;
+}
+
+@keyframes cine-numero-entra {
+  from {
+    opacity: 0;
+    transform: scale(1.3);
+  }
+  35% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ── Escenario inmersivo ───────────────────────────────────────────── */
+/* Siempre montado (el vídeo carga): oculto con visibility, nunca display. */
+.cine-escenario {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--capa-barra) + 5);
+  background: #000;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.cine-escenario.is-visible {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.atv-inmersivo {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+}
+
+.atv-inmersivo .atv-top {
+  padding-top: calc(clamp(12px, 2.5vh, 24px) + env(safe-area-inset-top, 0px));
+  padding-left: calc(clamp(14px, 3vw, 32px) + env(safe-area-inset-left, 0px));
+  padding-right: calc(clamp(14px, 3vw, 32px) + env(safe-area-inset-right, 0px));
+}
+
+.atv-inmersivo .atv-barra {
+  padding-bottom: calc(clamp(12px, 2vh, 20px) + env(safe-area-inset-bottom, 0px));
+  padding-left: calc(clamp(14px, 3vw, 32px) + env(safe-area-inset-left, 0px));
+  padding-right: calc(clamp(14px, 3vw, 32px) + env(safe-area-inset-right, 0px));
+}
+
+.cine-cabecera {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+}
+
+.cine-cabecera > * {
+  pointer-events: auto;
+}
+
+.cine-cabecera-pildora {
+  display: inline-flex;
+  min-height: 40px;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radio-pill);
+  background: rgba(0, 0, 0, 0.5);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  backdrop-filter: blur(16px);
+}
+
+.cine-cabecera-pildora svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* «Steven pausó»: dura 2,5 s (la quita el JS) y se ve con los controles
+   ocultos. Solo opacidad: sin transform no hay bloque contenedor nuevo. */
+.cine-aviso-otro {
+  position: absolute;
+  top: calc(64px + env(safe-area-inset-top, 0px));
+  inset-inline: 0;
+  z-index: 25;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  margin-inline: auto;
+  padding: 10px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: var(--radio-pill);
+  background: rgba(0, 0, 0, 0.55);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  color: #fff;
+  pointer-events: none;
+  backdrop-filter: blur(16px);
+  animation: cine-aviso 2500ms ease both;
+}
+
+@keyframes cine-aviso {
+  0% {
+    opacity: 0;
+  }
+  10%,
+  86% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ── Escalas ───────────────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .cine-portada {
+    min-height: 440px;
+    height: 78svh;
+  }
+
+  .cine-portada-velo {
+    background: linear-gradient(
+      180deg,
+      rgba(var(--fondo-rgb), 0.5) 0%,
+      rgba(var(--fondo-rgb), 0.2) 25%,
+      rgba(var(--fondo-rgb), 0.6) 55%,
+      rgba(var(--fondo-rgb), 0.92) 82%,
+      var(--fondo) 100%
+    );
+  }
+
+  .cine-acciones {
+    width: 100%;
+  }
+
+  .cine-boton-principal {
+    flex: 1 1 100%;
+  }
+
+  .cine-boton-cristal {
+    flex: 1 1 100%;
+  }
+}
+
+@media (min-width: 1100px) {
+  .cine-poster {
+    width: 180px;
+  }
+}
+
+:root[data-pantalla="tv"] .cine-poster {
+  width: 220px;
+}
+
+:root[data-pantalla="tv"] .cine-persona {
+  max-width: 120px;
+}
+
+:root[data-pantalla="tv"] .cine-persona-circulo {
+  width: 72px;
+  height: 72px;
+}
+
+:root[data-pantalla="tv"] .cine-boton-principal,
+:root[data-pantalla="tv"] .cine-boton-cristal {
+  min-height: 64px;
+  padding: 0 36px;
+}
+
+:root[data-pantalla="tv"] .cine-boton-redondo {
+  width: 52px;
+  height: 52px;
+}
+
+:root[data-pantalla="tv"] .cine-boton-redondo svg {
+  width: 22px;
+  height: 22px;
+}
+
+:root[data-pantalla="tv"] .cine-cabecera-pildora {
+  min-height: 52px;
+}
+
+:root[data-pantalla="tv"] .cine-hoja-fondo,
+:root[data-pantalla="tv"] .cine-cuenta,
+:root[data-pantalla="tv"] .cine-hoja,
+:root[data-pantalla="tv"] .cine-cabecera-pildora,
+:root[data-pantalla="tv"] .cine-boton-cristal,
+:root[data-pantalla="tv"] .cine-boton-redondo,
+:root[data-pantalla="tv"] .cine-pildora {
+  backdrop-filter: none;
+}
+
+:root[data-pantalla="tv"] .cine-hoja {
+  max-width: 760px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cine-persona.is-aqui .cine-persona-circulo,
+  .cine-hoja,
+  .cine-hoja-fondo,
+  .cine-cuenta-numero {
+    animation: none;
+  }
+
+  .cine-persona-circulo,
+  .cine-boton-principal,
+  .cine-boton-cristal,
+  .cine-boton-redondo,
+  .cine-poster img {
+    transition: none;
+  }
+
+  .cine-aviso-otro {
+    animation-duration: 2500ms;
+    animation-name: cine-aviso-quieto;
+  }
+}
+
+@keyframes cine-aviso-quieto {
+  0%,
+  100% {
+    opacity: 1;
   }
 }

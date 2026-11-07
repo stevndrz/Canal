@@ -39,6 +39,59 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Ver juntos: sala con código de 4 cifras (sin PIN de Vercel)
+
+El dueño pidió algo más sencillo que la vinculación con `SALA_PIN` y llaves
+firmadas: un código de cuatro cifras por sala, comprobable a ojo, y que cada
+uno elija su alias. Fuera `/api/sala/vincular`, `vinculo.ts`,
+`intentos-pin.ts`, `SALA_PIN` y `SALA_SECRETO`. `/api/pusher/auth` firma
+`presence-juntos-\d{4}` con el id y el alias que manda el aparato (los
+`params` de `channelAuthorization`). La película se recuerda por sala en
+`sessionStorage`. Se conservan presencia, quién dirige, «la última manda» y
+la cuenta atrás.
+
+### 2026-11-07 — Mi enlace: «sala de cine para dos»
+
+- La vista es la portada de la película de la sala (fondo de TMDB por
+  `/api/buscar`, recordado una semana en `localStorage`), con presencia,
+  un botón principal que dice lo siguiente (Vincular → Entrar → Empezar →
+  Volver a la película) y «Cambiar película» que lleva al estante.
+- Píldoras: duración (catálogo), audios (leídos del `master.m3u8`,
+  `audiosDelMaster`) y subtítulos.
+- «Usar un enlace» y «Vincular» van en hojas (`Hoja`), fuera de la vista.
+- El escenario inmersivo se monta en cuanto hay película en la sala, invisible:
+  así «Empezar» desbloquea el `<video>` dentro del toque (Safari) y carga
+  durante la cuenta atrás. Atrás vuelve a la portada sin pausar al otro.
+- Fuera de la sala, la portada enseña la última película que tuvo la sala;
+  «Ver aquí solo» la pone sin sala.
+
+### 2026-11-07 — Ver juntos: sala única con aparatos vinculados (sustituida, ver arriba)
+
+Fuera los códigos de seis letras. Cada aparato se vincula una vez con
+`SALA_PIN` (4 cifras) y un nombre; `/api/sala/vincular` devuelve una llave
+HMAC (`SALA_SECRETO`, con el PIN dentro de la clave) que se guarda en
+`localStorage`. `/api/pusher/auth` solo firma el canal `presence-sala-<hmac>`
+y solo con llave; el nombre de la presencia sale de la llave firmada.
+
+Decisiones:
+- **Sin película elegida**: la sala dice «Elijan una película» y no hay
+  «Empezar».
+- **No hay anfitrión fijo.** Dirige quien eligió la película (su pulso de
+  5 s corrige); si no está, quien llegó antes (`quienDirige`). Play, pausa y
+  saltos de cualquiera pasan en todos.
+- **La última elegida manda**: versión entera (no hora: las teles van con el
+  reloj desviado), desempate por id (`masNueva`). Se recuerda por aparato; al
+  encontrarse gana la más nueva.
+- Tope de PIN: 5 fallos/IP y 40 en total por 15 min, por instancia.
+- Teclado del PIN en captura: si no, `useMarcado` tomaba las cifras por un
+  número de canal.
+
+Probado con Playwright (PC + tele por teclado) y un Pusher simulado que
+**comprueba la firma** con el secreto. Sin probar con Pusher real: la firma
+de presencia sigue `socket:canal:channel_data` (el ejemplo hexadecimal de la
+documentación de Pusher no sale de su propia cadena; `openssl` coincide con
+lo nuestro).
+
 ### 2026-10-08 — Vidzee pasa a segundo, detrás de Vimeus
 
 El dueño confirmó que el que de verdad le reproduce en el teléfono es Vidzee.
