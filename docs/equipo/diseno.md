@@ -46,6 +46,23 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Mi enlace: la familia `.cine-*` (sala de cine para dos)
+
+- Todo al final de `globals.css`, **sin capa**: portada a pantalla completa
+  (`.cine-portada*`), presencia (`.cine-persona*`, `.is-aqui` = encendido),
+  acciones (`.cine-boton-principal` blanco, `-cristal`, `-texto`, `-pequeno`,
+  `-redondo`), estante de pósters, hoja, cuenta atrás, escenario inmersivo
+  (`.cine-escenario`, `visibility` y no `display:none` para que el vídeo
+  cargue) y cabecera/aviso dentro del reproductor.
+- **`.cine { z-index: auto }`**: `.screen` tiene `z-index: 1` y crea contexto
+  de apilado; la hoja, la cuenta y el escenario (`fixed`) quedaban por debajo
+  de la barra inferior del móvil (z 60) aunque llevaran z 70-80.
+- **Foco de mando**: la regla global `[data-nav]:not(…):focus` pinta un
+  `outline` cuadrado alrededor del botón entero. Cada pieza `.cine-*` lleva su
+  propio realce (escala + aro), así que se anula con una regla de mayor
+  especificidad (`.cine button[data-nav][class*="cine-"]…`).
+- Aviso «X pausó»: solo opacidad (sin `transform`), 2,5 s.
+
 ### 2026-10-08 — Inter, título por largo y barra simple
 
 - **Inter** en toda la app (la del Figma del dueño), por `next/font`: se
