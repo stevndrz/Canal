@@ -61,6 +61,16 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [hoja, setHoja] = useState<null | "enlace" | "vincular">(null);
   const nuestras = useNuestrasPeliculas();
   const estanteRef = useRef<HTMLButtonElement | null>(null);
+  const principalRef = useRef<HTMLButtonElement | null>(null);
+  /**
+   * Tras elegir en el estante se vuelve a la portada, con el foco en el botón
+   * principal: lo siguiente es «Empezar», y con el mando no se veía que la
+   * película había cambiado allá arriba.
+   */
+  const volverALaPortada = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.setTimeout(() => principalRef.current?.focus({ preventScroll: true }), 50);
+  }, []);
   /** «Cambiar película» y «Elegir película» llevan el foco al estante. */
   const irAlEstante = useCallback(() => {
     estanteRef.current?.focus();
@@ -289,7 +299,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             : !portada
               ? "Elijan una película del estante."
               : acompanado
-                ? "Ya están los dos."
+                ? juntos.miembros.length > 2
+                  ? "Ya están todos."
+                  : "Ya están los dos."
                 : `Esperando a ${otroNombre ?? "la otra persona"}…`;
 
   const sobretitulo = enSala ? "En la sala" : salaDisponible ? "Ver juntos" : "Nuestras películas";
@@ -305,12 +317,17 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         {aparato && salaDisponible && <Presencia personas={personas} />}
         <div className="cine-acciones">
           {principal && (
-            <button type="button" data-nav="button" data-nav-entrada="" className="cine-boton-principal" onClick={() => dar(principal.paso)}>
+            <button
+              ref={principalRef}
+              type="button"
+              data-nav="button"
+              data-nav-entrada=""
+              className="cine-boton-principal" onClick={() => dar(principal.paso)}>
               {principal.icono}
               {principal.texto}
             </button>
           )}
-          {nuestras.peliculas.length > 1 && (
+          {portada && nuestras.peliculas.length > 1 && (
             <button type="button" data-nav="button" className="cine-boton-cristal" onClick={irAlEstante}>
               Cambiar película
             </button>
@@ -355,7 +372,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             primeroRef={estanteRef}
             alElegir={(elegida) => {
               const p = nuestras.peliculas.find((x) => x.url === elegida);
-              if (p) elegir({ id: `nuestra-${p.id}`, titulo: p.titulo, url: p.url, subtitulos: p.subtitulos });
+              if (!p) return;
+              elegir({ id: `nuestra-${p.id}`, titulo: p.titulo, url: p.url, subtitulos: p.subtitulos });
+              volverALaPortada();
             }}
           />
         ))}

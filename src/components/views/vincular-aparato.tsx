@@ -111,7 +111,7 @@ export function VincularAparato({ alVincular }: { alVincular: (aparato: Aparato)
 
   return (
     <section className="cine-vincular" aria-label="Vincular a la sala">
-      <p className="text-[length:var(--texto-sm)] text-tinta-3">
+      <p className="mb-4 text-[length:var(--texto-sm)] text-tinta-3">
         Una sola vez en cada aparato. Después, aquí solo saldrá «Entrar a la sala».
       </p>
       <div className="mx-auto flex max-w-md flex-col gap-5">

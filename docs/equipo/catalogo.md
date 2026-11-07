@@ -39,6 +39,21 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Mi enlace: «sala de cine para dos»
+
+- La vista es la portada de la película de la sala (fondo de TMDB por
+  `/api/buscar`, recordado una semana en `localStorage`), con presencia,
+  un botón principal que dice lo siguiente (Vincular → Entrar → Empezar →
+  Volver a la película) y «Cambiar película» que lleva al estante.
+- Píldoras: duración (catálogo), audios (leídos del `master.m3u8`,
+  `audiosDelMaster`) y subtítulos.
+- «Usar un enlace» y «Vincular» van en hojas (`Hoja`), fuera de la vista.
+- El escenario inmersivo se monta en cuanto hay película en la sala, invisible:
+  así «Empezar» desbloquea el `<video>` dentro del toque (Safari) y carga
+  durante la cuenta atrás. Atrás vuelve a la portada sin pausar al otro.
+- Fuera de la sala, la portada enseña la última película que tuvo la sala;
+  «Ver aquí solo» la pone sin sala.
+
 ### 2026-11-07 — Ver juntos: sala única con aparatos vinculados
 
 Fuera los códigos de seis letras. Cada aparato se vincula una vez con
