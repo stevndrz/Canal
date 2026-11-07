@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { publicConfig } from "@/lib/config";
 import { canalDeSala, leerMensaje, type MensajeSala, type VideoDeSala } from "@/lib/ver-juntos/sala";
+import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
 
 /**
  * «Ver juntos»: dos aparatos con el mismo vídeo, al mismo segundo.
@@ -32,11 +33,13 @@ import { canalDeSala, leerMensaje, type MensajeSala, type VideoDeSala } from "@/
 /** Por debajo de esto no se corrige: cada salto pequeño es un tirón visible. */
 const TOLERANCIA_S = 1.5;
 /**
- * Lo que tarda el `<video>` en contar lo que le acabamos de hacer. Mientras,
- * sus eventos son eco y no se reenvían. Holgado por los televisores: un salto
- * en HLS puede tardar en asentarse.
+ * Tras volver de segundo plano más de esto, la conexión se rehace a la fuerza.
+ * Safari en iPhone congela la página al cambiar de app (p. ej. a WhatsApp para
+ * mandar el código) y el socket muere sin avisar: `pusher-js` no lo nota hasta
+ * su propio ping, hasta dos minutos y medio después, y mientras tanto lo que se
+ * manda se pierde en silencio.
  */
-const VENTANA_ECO_MS = 1000;
+const REHACER_TRAS_MS = 5000;
 /** Cada cuánto manda cada uno su estado. Es el pulso y, de paso, la presencia. */
 const PULSO_MS = 5000;
 /** Sin noticias del otro en este tiempo, se da por ido. */
@@ -53,8 +56,11 @@ interface CanalPusher {
 interface ClientePusher {
   subscribe(canal: string): CanalPusher;
   unsubscribe(canal: string): void;
+  connect(): void;
   disconnect(): void;
-  connection: { bind(evento: string, fn: () => void): void };
+  connection: {
+    bind(evento: string, fn: (cambio?: { current?: string }) => void): void;
+  };
 }
 
 export interface OpcionesSala {
@@ -79,11 +85,19 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
   const [acompanado, setAcompanado] = useState(false);
   /** El navegador no dejó arrancar el vídeo sin un toque de la persona. */
   const [necesitaToque, setNecesitaToque] = useState(false);
+  /**
+   * Arrancó, pero sin sonido: el navegador solo dejaba eso sin un toque
+   * (iPhone). Mejor ir sincronizado y mudo que parado: un toque lo arregla.
+   */
+  const [silenciadoPorSala, setSilenciadoPorSala] = useState(false);
 
   const canalRef = useRef<CanalPusher | null>(null);
   const suscritoRef = useRef(false);
   const elementoRef = useRef<HTMLVideoElement | null>(null);
-  const silencioHastaRef = useRef(0);
+  /** Lo último que la sala le pidió al vídeo local: sus eventos son eco. */
+  const esperadoRef = useRef<Esperado | null>(null);
+  /** Un estado que llegó antes de que el vídeo supiera su duración. */
+  const pendienteRef = useRef<{ tiempo: number; pausado: boolean } | null>(null);
   const sincronizadoRef = useRef(false);
   const ultimoContactoRef = useRef(0);
   const necesitaToqueRef = useRef(false);
@@ -125,31 +139,84 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
     return { tipo: "estado", tiempo: v.currentTime, pausado: v.paused, pulso };
   }, []);
 
+  /**
+   * `play()` pedido por la sala, sin gesto de la persona en este aparato.
+   *
+   * Los navegadores móviles no dejan sonar un vídeo así. Primero se insiste
+   * en silencio —eso sí lo permiten, con `playsinline`— y se avisa con «Toca
+   * para activar el sonido»; solo si ni así, se pide el toque para unirse.
+   */
+  const arrancar = useCallback((v: HTMLVideoElement, tiempo: number) => {
+    v.play().catch((error: unknown) => {
+      if ((error as { name?: string })?.name !== "NotAllowedError") return;
+      if (v.muted) {
+        necesitaToqueRef.current = true;
+        setNecesitaToque(true);
+        return;
+      }
+      v.muted = true;
+      esperadoRef.current = { tiempo, pausado: false, desde: Date.now() };
+      v.play()
+        .then(() => setSilenciadoPorSala(true))
+        .catch(() => {
+          // Ni en silencio (modo de bajo consumo del iPhone, por ejemplo).
+          v.muted = false;
+          necesitaToqueRef.current = true;
+          setNecesitaToque(true);
+        });
+    });
+  }, []);
+
   /** Lleva el `<video>` local al estado que manda el otro. */
   const aplicar = useCallback((tiempo: number, pausado: boolean) => {
     const v = elementoRef.current;
     if (!v) return;
+
+    /*
+     * Sin metadatos todavía, un salto se pierde: Safari (y por tanto el
+     * iPhone, que lleva el HLS en nativo) descarta `currentTime` mientras
+     * `readyState` es 0, en vez de guardarlo para cuando cargue como hace
+     * Chrome. Se aparca y se aplica en `loadedmetadata` (ver más abajo). Si hay que
+     * reproducir, se intenta ya: en iPhone es lo que hace que empiece a
+     * cargar. Hasta entonces no cuenta como sincronizado: su `play` sería
+     * el del segundo 0 y mandaría al anfitrión al principio.
+     */
+    if (v.readyState < 1) {
+      pendienteRef.current = { tiempo, pausado };
+      if (!pausado && v.paused) arrancar(v, tiempo);
+      return;
+    }
+    pendienteRef.current = null;
     sincronizadoRef.current = true;
 
     const saltar = Math.abs(v.currentTime - tiempo) > TOLERANCIA_S;
     const pausar = pausado && !v.paused;
-    const arrancar = !pausado && v.paused;
-    // La ventana de eco se abre solo si de verdad se toca el vídeo. Abrirla en
-    // cada pulso —aunque no cambiara nada— se tragaba la pausa que la persona
-    // hiciera justo después, tomándola por eco: el otro no se enteraba y el
-    // siguiente pulso volvía a arrancarle el vídeo.
-    if (!saltar && !pausar && !arrancar) return;
-    silencioHastaRef.current = Date.now() + VENTANA_ECO_MS;
+    const reproducir = !pausado && v.paused;
+    // Solo si de verdad se toca el vídeo se espera eco. Esperarlo en cada
+    // pulso —aunque no cambiara nada— se tragaba la pausa que la persona
+    // hiciera justo después: el otro no se enteraba y el siguiente pulso
+    // volvía a arrancarle el vídeo.
+    if (!saltar && !pausar && !reproducir) return;
+    esperadoRef.current = { tiempo: saltar ? tiempo : v.currentTime, pausado, desde: Date.now() };
 
     if (saltar) v.currentTime = tiempo;
     if (pausar) v.pause();
-    if (arrancar) {
-      v.play().catch(() => {
-        // Sin un gesto en este aparato, el navegador no deja sonar un vídeo.
-        necesitaToqueRef.current = true;
-        setNecesitaToque(true);
-      });
-    }
+    if (reproducir) arrancar(v, tiempo);
+  }, [arrancar]);
+
+  /** El toque que pide `necesitaToque`: dentro del gesto, el navegador deja. */
+  const unirse = useCallback(() => {
+    const v = elementoRef.current;
+    if (!v) return;
+    v.muted = false;
+    // El evento `play` que sigue lo recoge `contar`: pide el estado de nuevo.
+    v.play().catch(() => {});
+  }, []);
+
+  const activarSonido = useCallback(() => {
+    const v = elementoRef.current;
+    if (v) v.muted = false;
+    setSilenciadoPorSala(false);
   }, []);
 
   // --- La conexión ----------------------------------------------------------
@@ -201,7 +268,13 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
           suscritoRef.current = true;
           setConexion({ codigo, estado: "conectada" });
           // Quien llega pide el estado; si el anfitrión ya está, contesta.
+          // Esto corre también al reconectar: el anfitrión, entonces, cuenta
+          // dónde va sin esperar al pulso.
           if (!anfitrionRef.current) enviar({ tipo: "hola" });
+          else {
+            const actual = estadoActual();
+            if (actual) enviar(actual);
+          }
         });
         canal.bind("pusher:subscription_error", () => {
           if (!cancelado) setConexion({ codigo, estado: "error" });
@@ -210,13 +283,34 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
         cliente.connection.bind("error", () => {
           if (!cancelado) setConexion({ codigo, estado: "error" });
         });
+        // Sin conexión no hay suscripción: lo que se mande ahí se pierde, y
+        // al volver `subscription_succeeded` lo pone otra vez en marcha.
+        cliente.connection.bind("state_change", (cambio) => {
+          if (cambio?.current !== "connected") suscritoRef.current = false;
+        });
       } catch (error) {
         console.error("❌ Ver juntos: no se pudo conectar", error);
         if (!cancelado) setConexion({ codigo, estado: "error" });
       }
     })();
 
+    let ocultaDesde = 0;
+    const alCambiarVisibilidad = () => {
+      if (document.visibilityState === "hidden") {
+        ocultaDesde = Date.now();
+        return;
+      }
+      if (!ocultaDesde || Date.now() - ocultaDesde < REHACER_TRAS_MS || !cliente) return;
+      ocultaDesde = 0;
+      suscritoRef.current = false;
+      // `pusher-js` vuelve a suscribir sus canales solo al reconectar.
+      cliente.disconnect();
+      cliente.connect();
+    };
+    document.addEventListener("visibilitychange", alCambiarVisibilidad);
+
     return () => {
+      document.removeEventListener("visibilitychange", alCambiarVisibilidad);
       /**
        * Quien se va, pausa a los dos.
        *
@@ -255,10 +349,14 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
   // --- Lo que hace el vídeo local, se cuenta --------------------------------
   useEffect(() => {
     if (!elemento || !codigo) return;
-    const contar = () => {
+    const contar = (evento: Event) => {
       // Lo que acabamos de aplicar desde fuera es eco: no se devuelve.
-      if (Date.now() < silencioHastaRef.current) return;
+      const ahora = { tiempo: elemento.currentTime, pausado: elemento.paused };
+      if (esEco(esperadoRef.current, ahora, Date.now(), TOLERANCIA_S, evento.type as "play" | "pause" | "seeked")) {
+        return;
+      }
 
+      if (pendienteRef.current) return;
       if (!anfitrionRef.current && !sincronizadoRef.current) return;
       if (necesitaToqueRef.current) {
         // El primer play tras el bloqueo del navegador no es una orden: es la
@@ -272,15 +370,29 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
       const actual = estadoActual();
       if (actual) enviar(actual);
     };
+    // Si la persona quita el silencio con el botón del reproductor, el aviso
+    // de «Toca para activar el sonido» sobra.
+    const alVolumen = () => {
+      if (!elemento.muted) setSilenciadoPorSala(false);
+    };
+    // Lo aparcado por llegar antes que los metadatos (ver `aplicar`).
+    const alMetadatos = () => {
+      const pendiente = pendienteRef.current;
+      if (pendiente) aplicar(pendiente.tiempo, pendiente.pausado);
+    };
+    elemento.addEventListener("loadedmetadata", alMetadatos);
+    elemento.addEventListener("volumechange", alVolumen);
     elemento.addEventListener("play", contar);
     elemento.addEventListener("pause", contar);
     elemento.addEventListener("seeked", contar);
     return () => {
+      elemento.removeEventListener("loadedmetadata", alMetadatos);
+      elemento.removeEventListener("volumechange", alVolumen);
       elemento.removeEventListener("play", contar);
       elemento.removeEventListener("pause", contar);
       elemento.removeEventListener("seeked", contar);
     };
-  }, [elemento, codigo, enviar, estadoActual]);
+  }, [elemento, codigo, enviar, estadoActual, aplicar]);
 
   // --- El anfitrión cambia de vídeo: se lo dice al invitado ------------------
   const urlVideo = video?.url ?? "";
@@ -311,6 +423,9 @@ export function useVerJuntos({ codigo, anfitrion, video, alRecibirVideo }: Opcio
     /** Hay alguien más en la sala (se ha oído de él hace poco). */
     acompanado: estado === "conectada" && acompanado,
     necesitaToque,
+    silenciadoPorSala,
+    unirse,
+    activarSonido,
     /** Para `NativePlayer`: le dice a la sala cuál es el `<video>`. */
     alVideo: setElemento,
   };
