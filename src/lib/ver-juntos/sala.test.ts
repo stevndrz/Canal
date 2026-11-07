@@ -1,59 +1,48 @@
 import { describe, expect, it } from "vitest";
-import {
-  CANAL_DE_SALA,
-  LARGO_CODIGO,
-  canalDeSala,
-  crearCodigoSala,
-  leerMensaje,
-  normalizarCodigo,
-} from "./sala";
+import { leerMensaje, masNueva, quienDirige } from "./sala";
 import { firmarCanal } from "./firma";
 
-describe("códigos de sala", () => {
-  it("salen del largo justo y sin letras confusas", () => {
-    for (let i = 0; i < 200; i++) {
-      const codigo = crearCodigoSala();
-      expect(codigo).toHaveLength(LARGO_CODIGO);
-      expect(codigo).not.toMatch(/[01ilo]/);
-      expect(normalizarCodigo(codigo)).toBe(codigo);
-      expect(CANAL_DE_SALA.test(canalDeSala(codigo))).toBe(true);
-    }
+describe("la última película elegida manda", () => {
+  const video = { url: "https://cubo.example/a.m3u8", titulo: "A" };
+  it("gana la versión mayor y, a igualdad, el aparato mayor", () => {
+    const vieja = { video, version: 3, por: "pc" };
+    const nueva = { video, version: 4, por: "aa" };
+    expect(masNueva(vieja, nueva)).toBe(nueva);
+    expect(masNueva(nueva, vieja)).toBe(nueva);
+    const empate = { video, version: 3, por: "tv" };
+    expect(masNueva(vieja, empate)).toBe(empate);
+    expect(masNueva(empate, vieja)).toBe(empate);
+    expect(masNueva(null, vieja)).toBe(vieja);
+    expect(masNueva(null, null)).toBeNull();
   });
+});
 
-  it("descarta los bytes que sesgarían el reparto", () => {
-    // 248 en adelante se rechaza (256 − 256 % 31); 0 es la primera letra.
-    const codigo = crearCodigoSala((n) => new Uint8Array(n).map((_, i) => (i % 2 ? 0 : 250)));
-    expect(codigo).toBe("222222");
+describe("quién dirige", () => {
+  const p = { video: { url: "https://x/a.m3u8", titulo: "A" }, version: 1, por: "tv" };
+  it("quien eligió la película, si está", () => {
+    expect(quienDirige(p, ["pc", "tv"])).toBe("tv");
   });
-
-  it("tolera lo que pasa al teclear, y rechaza lo que no es un código", () => {
-    expect(normalizarCodigo(" K7M-2QX ")).toBe("k7m2qx");
-    expect(normalizarCodigo("k7m 2qx")).toBe("k7m2qx");
-    expect(normalizarCodigo("k7m2q")).toBe("");
-    expect(normalizarCodigo("k7m2q0")).toBe("");
-    expect(normalizarCodigo("../../x")).toBe("");
-  });
-
-  it("la firma solo acepta canales de sala", () => {
-    expect(CANAL_DE_SALA.test("private-juntos-k7m2qx")).toBe(true);
-    expect(CANAL_DE_SALA.test("private-otra-cosa")).toBe(false);
-    expect(CANAL_DE_SALA.test("private-juntos-k7m2qx-extra")).toBe(false);
-    expect(CANAL_DE_SALA.test("presence-juntos-k7m2qx")).toBe(false);
+  it("si no, quien llegó antes; y nadie si no hay nadie", () => {
+    expect(quienDirige(p, ["pc", "movil"])).toBe("pc");
+    expect(quienDirige(null, ["movil", "pc"])).toBe("movil");
+    expect(quienDirige(null, [])).toBeNull();
   });
 });
 
 describe("mensajes de la sala", () => {
-  it("acepta los tres tipos bien formados", () => {
+  it("acepta los tipos bien formados", () => {
     expect(leerMensaje({ tipo: "hola" })).toEqual({ tipo: "hola" });
+    expect(leerMensaje({ tipo: "empezar" })).toEqual({ tipo: "empezar" });
     expect(leerMensaje({ tipo: "estado", tiempo: 12.5, pausado: true })).toEqual({
       tipo: "estado",
       tiempo: 12.5,
       pausado: true,
       pulso: false,
     });
-    expect(
-      leerMensaje({ tipo: "video", video: { url: "https://cubo.example/peli/master.m3u8", titulo: "Peli" } }),
-    ).toEqual({ tipo: "video", video: { url: "https://cubo.example/peli/master.m3u8", titulo: "Peli" } });
+    const pelicula = { video: { url: "https://cubo.example/peli/master.m3u8", titulo: "Peli" }, version: 2, por: "abc" };
+    expect(leerMensaje({ tipo: "video", pelicula })).toEqual({ tipo: "video", pelicula });
+    expect(leerMensaje({ tipo: "video", pelicula: { ...pelicula, version: 0 } })).toBeNull();
+    expect(leerMensaje({ tipo: "video", pelicula: { ...pelicula, por: "" } })).toBeNull();
   });
 
   it("ignora lo mal formado", () => {
@@ -66,8 +55,9 @@ describe("mensajes de la sala", () => {
   });
 
   it("no deja colar un vídeo que no sea http(s)", () => {
-    expect(leerMensaje({ tipo: "video", video: { url: "javascript:alert(1)", titulo: "x" } })).toBeNull();
-    expect(leerMensaje({ tipo: "video", video: { url: "file:///etc/passwd" } })).toBeNull();
+    const con = (url: string) => ({ tipo: "video", pelicula: { video: { url, titulo: "x" }, version: 1, por: "a" } });
+    expect(leerMensaje(con("javascript:alert(1)"))).toBeNull();
+    expect(leerMensaje(con("file:///etc/passwd"))).toBeNull();
   });
 });
 
@@ -76,6 +66,16 @@ describe("firma de Pusher", () => {
     // pusher.com/docs/channels/library_auth_reference/auth-signatures
     expect(firmarCanal("7ad3773142a6692b25b8", "1234.1234", "private-foobar")).toBe(
       "58df8b0c36d6982b82c3ecf6b4662e34fe8c25bba48f5369f135bf843651c3a4",
+    );
+  });
+
+  it("en presencia, firma también quién eres", () => {
+    // La cadena es la de la documentación («socket:canal:channel_data»); el
+    // valor, el que da `openssl dgst -sha256 -hmac` sobre ella. El hexadecimal
+    // que trae la página (afaed36…) no sale de su propia cadena: se comprobó.
+    const datos = '{"user_id":10,"user_info":{"name":"Mr. Channels"}}';
+    expect(firmarCanal("7ad3773142a6692b25b8", "1234.1234", "presence-foobar", datos)).toBe(
+      "31935e7d86dba64c2a90aed31fdc61869f9b22ba9d8863bba239c03ca481bc80",
     );
   });
 });

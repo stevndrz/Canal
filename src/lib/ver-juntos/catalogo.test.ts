@@ -90,23 +90,31 @@ describe("catálogo de Nuestras películas", () => {
   });
 });
 
-describe("la sala lleva los subtítulos al invitado", () => {
+describe("la sala lleva los subtítulos a quien entra", () => {
   it("pasan los http(s) y se cae el resto", () => {
     expect(
       leerMensaje({
         tipo: "video",
-        video: {
-          url: "https://x/m.m3u8",
-          titulo: "Coco",
-          subtitulos: [
-            { label: "Español", srclang: "es", url: "https://x/s.vtt" },
-            { label: "Malo", srclang: "es", url: "javascript:x" },
-          ],
+        pelicula: {
+          version: 1,
+          por: "pc",
+          video: {
+            url: "https://x/m.m3u8",
+            titulo: "Coco",
+            subtitulos: [
+              { label: "Español", srclang: "es", url: "https://x/s.vtt" },
+              { label: "Malo", srclang: "es", url: "javascript:x" },
+            ],
+          },
         },
       }),
     ).toEqual({
       tipo: "video",
-      video: { url: "https://x/m.m3u8", titulo: "Coco", subtitulos: [{ label: "Español", srclang: "es", url: "https://x/s.vtt" }] },
+      pelicula: {
+        version: 1,
+        por: "pc",
+        video: { url: "https://x/m.m3u8", titulo: "Coco", subtitulos: [{ label: "Español", srclang: "es", url: "https://x/s.vtt" }] },
+      },
     });
   });
 });
