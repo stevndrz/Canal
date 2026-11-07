@@ -39,6 +39,33 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Ver juntos: sala única con aparatos vinculados
+
+Fuera los códigos de seis letras. Cada aparato se vincula una vez con
+`SALA_PIN` (4 cifras) y un nombre; `/api/sala/vincular` devuelve una llave
+HMAC (`SALA_SECRETO`, con el PIN dentro de la clave) que se guarda en
+`localStorage`. `/api/pusher/auth` solo firma el canal `presence-sala-<hmac>`
+y solo con llave; el nombre de la presencia sale de la llave firmada.
+
+Decisiones:
+- **Sin película elegida**: la sala dice «Elijan una película» y no hay
+  «Empezar».
+- **No hay anfitrión fijo.** Dirige quien eligió la película (su pulso de
+  5 s corrige); si no está, quien llegó antes (`quienDirige`). Play, pausa y
+  saltos de cualquiera pasan en todos.
+- **La última elegida manda**: versión entera (no hora: las teles van con el
+  reloj desviado), desempate por id (`masNueva`). Se recuerda por aparato; al
+  encontrarse gana la más nueva.
+- Tope de PIN: 5 fallos/IP y 40 en total por 15 min, por instancia.
+- Teclado del PIN en captura: si no, `useMarcado` tomaba las cifras por un
+  número de canal.
+
+Probado con Playwright (PC + tele por teclado) y un Pusher simulado que
+**comprueba la firma** con el secreto. Sin probar con Pusher real: la firma
+de presencia sigue `socket:canal:channel_data` (el ejemplo hexadecimal de la
+documentación de Pusher no sale de su propia cadena; `openssl` coincide con
+lo nuestro).
+
 ### 2026-10-08 — Vidzee pasa a segundo, detrás de Vimeus
 
 El dueño confirmó que el que de verdad le reproduce en el teléfono es Vidzee.

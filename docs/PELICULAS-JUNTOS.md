@@ -167,14 +167,29 @@ scripts\peliculas\borrar-pelicula.cmd coco         (borra «coco»)
 
 ## Ver juntos
 
-1. Mi enlace → **Nuestras películas** → la película.
-2. **Crear sala** → pásale el código de 6 letras.
-3. En su aparato: Mi enlace → código → **Entrar**. Le llega la película sola,
-   con sus audios y subtítulos.
+Una sola sala para la casa. Cada aparato se vincula **una vez**:
 
-Cada uno elige su audio y sus subtítulos; lo que se sincroniza es play, pausa y
-la posición. Si uno sale de Mi enlace (Atrás en el mando), se pausa para los
-dos, y al volver se entra sola en la misma sala.
+1. Mi enlace → **Vincular a la sala** → elige un nombre («Tele sala», «Steven»…)
+   y escribe el PIN de la sala (`SALA_PIN` en Vercel) con los números del mando
+   o con el teclado de la pantalla.
+2. Desde ahí, en ese aparato solo sale **Entrar a la sala**. Sin códigos.
+
+Para ver algo:
+
+1. Los dos: **Entrar a la sala**. Se ven los dos círculos encendidos.
+2. Cualquiera elige una de **Nuestras películas**: le llega a los demás sola,
+   con sus audios y subtítulos. **La última elegida manda**, también de un día
+   para otro: cada aparato recuerda la última que conoce y, al encontrarse, gana
+   la más nueva.
+3. **Empezar**: cuenta atrás 3·2·1 en todos y arranca a la vez.
+
+Dirige quien eligió la película (su pulso corrige a los demás); si se va, lo
+hereda quien lleve más tiempo dentro. Play, pausa y saltos de cualquiera pasan
+en todos. Cada uno elige su audio y sus subtítulos. Si uno sale de Mi enlace
+(Atrás en el mando), se pausa para todos, y al volver se entra sola.
+
+**Desvincular a todos**: cambiar `SALA_PIN` o `SALA_SECRETO` en Vercel y volver
+a desplegar. Cada aparato lo nota al entrar y vuelve a pedir el PIN.
 
 ---
 
