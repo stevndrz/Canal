@@ -98,6 +98,8 @@ export const NativePlayer = memo(function NativePlayer({
   claveProgreso,
   alVideo,
   superpuesto,
+  inmersivo = false,
+  cabecera,
 }: {
   streams: ManualStream[];
   title: string;
@@ -119,6 +121,13 @@ export const NativePlayer = memo(function NativePlayer({
    * con el contenedor a pantalla completa, y justo donde se está mirando.
    */
   superpuesto?: React.ReactNode;
+  /** Ocupa todo su contenedor, sin esquinas: la sala a pantalla completa. */
+  inmersivo?: boolean;
+  /**
+   * Lo que va arriba a la izquierda en vez del título —la píldora de «Juntos»
+   * de la sala—. Se esconde con los controles.
+   */
+  cabecera?: React.ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -820,7 +829,9 @@ export const NativePlayer = memo(function NativePlayer({
       onMouseMove={wake}
       onTouchStart={wake}
       onKeyDown={alTecla}
-      className={`atv group relative aspect-video w-full overflow-hidden rounded-2xl bg-black select-none ${
+      className={`atv group relative w-full overflow-hidden bg-black select-none ${
+        inmersivo ? "atv-inmersivo h-full" : "aspect-video rounded-2xl"
+      } ${
         showControls ? "atv-activo" : "atv-oculto"
       }`}
     >
@@ -874,12 +885,14 @@ export const NativePlayer = memo(function NativePlayer({
 
       {/* Cabecera flotante: título + estado, como la ficha de tvOS. */}
       <div className="atv-top">
-        <div className="atv-top-titulo">
-          <span className="atv-top-nombre">{title}</span>
-          {streams.length > 1 && (
-            <span className="atv-top-version">{streams[streamIndex]?.label}</span>
-          )}
-        </div>
+        {cabecera ?? (
+          <div className="atv-top-titulo">
+            <span className="atv-top-nombre">{title}</span>
+            {streams.length > 1 && (
+              <span className="atv-top-version">{streams[streamIndex]?.label}</span>
+            )}
+          </div>
+        )}
         <div className="atv-top-marcas">
           {playbackRate !== 1 && (
             <span className="atv-marca">×{playbackRate}</span>
