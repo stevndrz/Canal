@@ -19,7 +19,6 @@ export function SalaJuntos({
   anfitrion,
   estado,
   acompanado,
-  necesitaToque,
   esperandoVideo,
   alCrear,
   alEntrar,
@@ -29,7 +28,6 @@ export function SalaJuntos({
   anfitrion: boolean;
   estado: EstadoSala;
   acompanado: boolean;
-  necesitaToque: boolean;
   /** Invitado dentro, sin vídeo del anfitrión todavía. */
   esperandoVideo: boolean;
   alCrear: () => void;
@@ -129,11 +127,6 @@ export function SalaJuntos({
             ? "En cuanto quien creó la sala tenga un vídeo puesto, aparecerá aquí solo."
             : "Lo que haga cualquiera de los dos pasa en los dos."}
       </Aviso>
-      {necesitaToque && (
-        <Aviso tono="aviso" className="fuente-aviso" titulo="Pulsa reproducir para unirte">
-          Este aparato no deja arrancar un vídeo sin que lo toques una vez.
-        </Aviso>
-      )}
     </section>
   );
 }

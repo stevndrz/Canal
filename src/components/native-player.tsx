@@ -59,6 +59,16 @@ interface AudioTrackOption {
   label: string;
 }
 
+/** `video.audioTracks`: solo en Safari, y TypeScript no lo trae en su DOM. */
+interface PistaAudioNativa {
+  label: string;
+  language: string;
+  enabled: boolean;
+}
+type VideoConAudios = HTMLVideoElement & {
+  audioTracks?: ArrayLike<PistaAudioNativa> & Partial<EventTarget>;
+};
+
 function detectKind(stream: ManualStream): "hls" | "native" {
   if (stream.type === "hls") return "hls";
   if (stream.type === "mp4") return "native";
@@ -87,6 +97,7 @@ export const NativePlayer = memo(function NativePlayer({
   title,
   claveProgreso,
   alVideo,
+  superpuesto,
 }: {
   streams: ManualStream[];
   title: string;
@@ -102,6 +113,12 @@ export const NativePlayer = memo(function NativePlayer({
    * recibe aquí al montarse y `null` al desmontarse. Ver `use-ver-juntos.ts`.
    */
   alVideo?: (video: HTMLVideoElement | null) => void;
+  /**
+   * Un aviso que va DENTRO del reproductor —hoy, el de la sala: «Toca para
+   * activar el sonido»—. Dentro y no encima de la página: así se ve también
+   * con el contenedor a pantalla completa, y justo donde se está mirando.
+   */
+  superpuesto?: React.ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -165,6 +182,13 @@ export const NativePlayer = memo(function NativePlayer({
   const [scrubPreview, setScrubPreview] = useState<number | null>(null);
   const [seeking, setSeeking] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Con qué se tocó el vídeo y si la barra se veía en ese momento. Con el
+   * dedo, tocar el vídeo enseña o esconde la barra —como en cualquier app de
+   * vídeo del teléfono— y no pausa: antes, el toque para ver los controles
+   * pausaba la película, y en «Ver juntos» se la pausaba también al otro.
+   */
+  const toqueRef = useRef<{ tactil: boolean; barraVisible: boolean }>({ tactil: false, barraVisible: true });
   const progressRef = useRef<HTMLDivElement | null>(null);
 
   const stream = streams[streamIndex] ?? streams[0];
@@ -322,10 +346,27 @@ export const NativePlayer = memo(function NativePlayer({
       video.src = stream.url;
     }
 
+    /**
+     * Audios del HLS nativo (Safari, iPhone). Allí no hay hls.js que los
+     * cuente: el propio `<video>` los expone en `audioTracks` —Chrome no—, y
+     * se cambia de uno a otro con `enabled`.
+     */
+    const pistasNativas = (video as VideoConAudios).audioTracks;
+    const leerAudiosNativos = () => {
+      if (cancelled || hlsRef.current || !pistasNativas) return;
+      const lista = Array.from({ length: pistasNativas.length }, (_, i) => pistasNativas[i]);
+      setAudioTracks(lista.map((pista, i) => ({ id: i, label: pista.label || pista.language || `Pista ${i + 1}` })));
+      const activa = lista.findIndex((pista) => pista.enabled);
+      setActiveAudio(lista.length > 0 ? Math.max(0, activa) : null);
+    };
+    pistasNativas?.addEventListener?.("addtrack", leerAudiosNativos);
+    pistasNativas?.addEventListener?.("change", leerAudiosNativos);
+
     const onLoadedMetadata = () => {
       if (cancelled) return;
       setDuration(video.duration);
       setIsLoading(false);
+      leerAudiosNativos();
 
       /**
        * Retomar donde se quedó, una sola vez y solo si queda algo por ver.
@@ -390,6 +431,8 @@ export const NativePlayer = memo(function NativePlayer({
 
     return () => {
       cancelled = true;
+      pistasNativas?.removeEventListener?.("addtrack", leerAudiosNativos);
+      pistasNativas?.removeEventListener?.("change", leerAudiosNativos);
       /**
        * Al desmontar se apunta a la fuerza: salir de la pantalla es el momento
        * más habitual de dejar algo a medias, y esperar al siguiente turno del
@@ -491,7 +534,12 @@ export const NativePlayer = memo(function NativePlayer({
     if (hlsRef.current) {
       hlsRef.current.audioTrack = id;
       setActiveAudio(id);
+      return;
     }
+    const pistas = (videoRef.current as VideoConAudios | null)?.audioTracks;
+    if (!pistas) return;
+    for (let i = 0; i < pistas.length; i++) pistas[i].enabled = i === id;
+    setActiveAudio(id);
   }, []);
 
   /* ── Lógica del chrome tipo Apple TV ─────────────────────────────────── */
@@ -781,7 +829,15 @@ export const NativePlayer = memo(function NativePlayer({
         className="h-full w-full object-contain"
         playsInline
         muted={isMuted}
+        onPointerDown={(evento) => {
+          toqueRef.current = { tactil: evento.pointerType === "touch", barraVisible: showControls };
+        }}
         onClick={() => {
+          if (toqueRef.current.tactil) {
+            if (toqueRef.current.barraVisible && isPlaying) setShowControls(false);
+            else wake();
+            return;
+          }
           togglePlay();
           wake();
         }}
@@ -813,6 +869,8 @@ export const NativePlayer = memo(function NativePlayer({
           <span className="atv-subtitulo">{subtitleText}</span>
         </div>
       )}
+
+      {superpuesto}
 
       {/* Cabecera flotante: título + estado, como la ficha de tvOS. */}
       <div className="atv-top">
@@ -848,7 +906,11 @@ export const NativePlayer = memo(function NativePlayer({
         </div>
       )}
 
-      {isLoading && !hasError && (
+      {/* La rueda solo mientras se intenta reproducir. En pausa y sin cargar
+          —un iPhone no descarga nada hasta el primer play— se ve el botón de
+          reproducir: con la rueda encima, en el iPhone no había por dónde
+          empezar. */}
+      {isLoading && isPlaying && !hasError && (
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center" role="status">
           <span className="atv-carga">
             <Loader2 aria-hidden="true" className="h-7 w-7 animate-spin" />
@@ -858,7 +920,7 @@ export const NativePlayer = memo(function NativePlayer({
       )}
 
       {/* Pausa: botón central grande sobre fondo atenuado, como tvOS. */}
-      {!isPlaying && !isLoading && !hasError && (
+      {!isPlaying && !hasError && (
         <button
           data-nav="button"
           type="button"
@@ -1015,8 +1077,10 @@ export const NativePlayer = memo(function NativePlayer({
             <div className="atv-grupo is-derecha">
               <span className="atv-tiempo">
                 {formatTime(scrubPreview ?? currentTime)}
-                <span className="atv-tiempo-sep">/</span>
-                {formatTime(duration)}
+                <span className="atv-tiempo-dur">
+                  <span className="atv-tiempo-sep">/</span>
+                  {formatTime(duration)}
+                </span>
               </span>
 
               {/* Versiones del mismo título (doblajes, calidades) */}
@@ -1068,7 +1132,7 @@ export const NativePlayer = memo(function NativePlayer({
                 onClick={() => setOpenMenu(openMenu === "speed" ? null : "speed")}
                 aria-label={`Velocidad: ${playbackRate}×`}
                 aria-expanded={openMenu === "speed"}
-                className={`atv-btn ${openMenu === "speed" || playbackRate !== 1 ? "is-activo" : ""}`}
+                className={`atv-btn is-velocidad ${openMenu === "speed" || playbackRate !== 1 ? "is-activo" : ""}`}
               >
                 <Gauge aria-hidden="true" className="h-5 w-5" />
               </button>

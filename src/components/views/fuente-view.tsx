@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clapperboard, Link2, Play, Plus, Trash2 } from "lucide-react";
+import { Clapperboard, Link2, Play, Plus, Trash2, VolumeX } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
@@ -312,7 +312,6 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         anfitrion={sala?.anfitrion ?? false}
         estado={juntos.estado}
         acompanado={juntos.acompanado}
-        necesitaToque={juntos.necesitaToque}
         esperandoVideo={invitado && !deLaSala}
         alCrear={() => setSala({ codigo: crearCodigoSala(), anfitrion: true })}
         alEntrar={(codigo) => setSala({ codigo, anfitrion: false })}
@@ -331,6 +330,19 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             // posición guardada solo provocaría un salto de ida y vuelta.
             claveProgreso={invitado ? undefined : claveDeFuente(enPantalla.id)}
             alVideo={sala ? juntos.alVideo : undefined}
+            superpuesto={
+              juntos.necesitaToque ? (
+                <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.unirse}>
+                  <Play aria-hidden="true" />
+                  Toca para unirte a la sala
+                </button>
+              ) : juntos.silenciadoPorSala ? (
+                <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.activarSonido}>
+                  <VolumeX aria-hidden="true" />
+                  Toca para activar el sonido
+                </button>
+              ) : null
+            }
           />
         </section>
       )}
