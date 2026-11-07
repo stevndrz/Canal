@@ -167,29 +167,22 @@ scripts\peliculas\borrar-pelicula.cmd coco         (borra «coco»)
 
 ## Ver juntos
 
-Una sola sala para la casa. Cada aparato se vincula **una vez**:
+1. Cada persona elige su **alias** la primera vez («Steven», «Tele sala»…).
+   Sale en su círculo y en «Juntos · Steven ✓».
+2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
+3. El otro pulsa **Entrar con código** y lo escribe (con los números del mando
+   o con el teclado de la pantalla). Le llega la película sola, con sus audios
+   y subtítulos.
+4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
 
-1. Mi enlace → **Vincular a la sala** → elige un nombre («Tele sala», «Steven»…)
-   y escribe el PIN de la sala (`SALA_PIN` en Vercel) con los números del mando
-   o con el teclado de la pantalla.
-2. Desde ahí, en ese aparato solo sale **Entrar a la sala**. Sin códigos.
+**La última película elegida manda**, la elija quien la elija. Dirige quien la
+eligió (su pulso corrige al otro); si se va, quien lleve más tiempo dentro.
+Play, pausa y saltos de cualquiera pasan en los dos. Si uno sale de Mi enlace
+(Atrás en el mando), se pausa para los dos, y al volver se entra sola en la
+misma sala.
 
-Para ver algo:
-
-1. Los dos: **Entrar a la sala**. Se ven los dos círculos encendidos.
-2. Cualquiera elige una de **Nuestras películas**: le llega a los demás sola,
-   con sus audios y subtítulos. **La última elegida manda**, también de un día
-   para otro: cada aparato recuerda la última que conoce y, al encontrarse, gana
-   la más nueva.
-3. **Empezar**: cuenta atrás 3·2·1 en todos y arranca a la vez.
-
-Dirige quien eligió la película (su pulso corrige a los demás); si se va, lo
-hereda quien lleve más tiempo dentro. Play, pausa y saltos de cualquiera pasan
-en todos. Cada uno elige su audio y sus subtítulos. Si uno sale de Mi enlace
-(Atrás en el mando), se pausa para todos, y al volver se entra sola.
-
-**Desvincular a todos**: cambiar `SALA_PIN` o `SALA_SECRETO` en Vercel y volver
-a desplegar. Cada aparato lo nota al entrar y vuelve a pedir el PIN.
+El código no es secreto (10.000 salas): quien entrara por casualidad solo
+podría pausar, y se le vería en la presencia con su alias.
 
 ---
 

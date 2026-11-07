@@ -39,6 +39,17 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-07 — Ver juntos: sala con código de 4 cifras (sin PIN de Vercel)
+
+El dueño pidió algo más sencillo que la vinculación con `SALA_PIN` y llaves
+firmadas: un código de cuatro cifras por sala, comprobable a ojo, y que cada
+uno elija su alias. Fuera `/api/sala/vincular`, `vinculo.ts`,
+`intentos-pin.ts`, `SALA_PIN` y `SALA_SECRETO`. `/api/pusher/auth` firma
+`presence-juntos-\d{4}` con el id y el alias que manda el aparato (los
+`params` de `channelAuthorization`). La película se recuerda por sala en
+`sessionStorage`. Se conservan presencia, quién dirige, «la última manda» y
+la cuenta atrás.
+
 ### 2026-11-07 — Mi enlace: «sala de cine para dos»
 
 - La vista es la portada de la película de la sala (fondo de TMDB por
@@ -54,7 +65,7 @@ después: qué cambió, por qué, y qué me sorprendió.
 - Fuera de la sala, la portada enseña la última película que tuvo la sala;
   «Ver aquí solo» la pone sin sala.
 
-### 2026-11-07 — Ver juntos: sala única con aparatos vinculados
+### 2026-11-07 — Ver juntos: sala única con aparatos vinculados (sustituida, ver arriba)
 
 Fuera los códigos de seis letras. Cada aparato se vincula una vez con
 `SALA_PIN` (4 cifras) y un nombre; `/api/sala/vincular` devuelve una llave
