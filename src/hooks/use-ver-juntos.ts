@@ -3,29 +3,23 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { publicConfig } from "@/lib/config";
 import {
-  CABECERA_LLAVE,
+  canalDeSala,
   leerMensaje,
-  masNueva,
+  esMasNueva,
   quienDirige,
   type MensajeSala,
   type PeliculaDeSala,
   type VideoDeSala,
 } from "@/lib/ver-juntos/sala";
 import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
-import {
-  leerConocidos,
-  leerPeliculaRecordada,
-  recordarConocidos,
-  recordarPelicula,
-  type Aparato,
-} from "@/lib/ver-juntos/recordar";
+import { leerSalaRecordada, recordarSala, type Perfil } from "@/lib/ver-juntos/recordar";
 
 /**
- * «Ver juntos»: la sala única de la casa, con los aparatos vinculados.
+ * «Ver juntos»: una sala con código de cuatro cifras, y cada uno con su alias.
  *
  * Pusher con *client events* sobre un canal de **presencia**: los mensajes van
  * de aparato a aparato sin pasar por nuestro servidor, y Pusher dice quién
- * está (con el nombre que firmó el servidor al vincular). Lo que se conserva
+ * está, con el alias que eligió cada uno. Lo que se conserva
  * de la versión de las salas con código:
  *
  * - **Escucha al `<video>`, no a los botones**: pausar con el mando, con la
@@ -37,9 +31,9 @@ import {
  * - **Quien llega no manda nada hasta haberse sincronizado una vez**: su
  *   primer play, en el segundo 0, mandaría a todos al principio.
  *
- * Lo nuevo: **la última película elegida manda** (`masNueva`), y se recuerda
- * en cada aparato para que la sala la herede de un día para otro; y la
- * **cuenta atrás**: «Empezar» la lanza en todos a la vez y al acabar arranca.
+ * Lo nuevo: **la última película elegida manda** (`masNueva`), sea quien sea
+ * quien la eligió; y la **cuenta atrás**: «Empezar» la lanza en todos a la vez
+ * y al acabar arranca.
  */
 
 /** Por debajo de esto no se corrige: cada salto pequeño es un tirón visible. */
@@ -98,12 +92,10 @@ interface ClientePusher {
 }
 
 export interface OpcionesSala {
-  /** El vínculo de este aparato; `null` = sin vincular. */
-  aparato: Aparato | null;
-  /** Si la persona pulsó «Entrar a la sala». Fuera, no se conecta nada. */
-  dentro: boolean;
-  /** El servidor dijo que la llave ya no vale (cambió el PIN o el secreto). */
-  alPerderVinculo?: () => void;
+  /** El alias y el id de este aparato; sin perfil no se entra. */
+  perfil: Perfil | null;
+  /** El código de la sala; vacío = fuera, no se conecta nada. */
+  codigo: string;
 }
 
 function nombreDe(miembro: MiembroPusher): string {
@@ -111,16 +103,15 @@ function nombreDe(miembro: MiembroPusher): string {
   return typeof nombre === "string" && nombre ? nombre : "Alguien";
 }
 
-export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala) {
+export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   const configurada = Boolean(publicConfig.pusherKey);
-  const yo = aparato?.id ?? "";
-  const canalSala = aparato && dentro ? aparato.canal : "";
+  const yo = perfil?.id ?? "";
+  const canalSala = perfil && codigo ? canalDeSala(codigo) : "";
 
   /** Lo escriben solo las devoluciones de Pusher; el estado visible se deriva. */
   const [conexion, setConexion] = useState<{ canal: string; estado: "conectada" | "error" } | null>(null);
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [pelicula, setPelicula] = useState<PeliculaDeSala | null>(null);
-  const [conocidos, setConocidos] = useState<Record<string, string>>({});
   const [elemento, setElemento] = useState<HTMLVideoElement | null>(null);
   /** El navegador no dejó arrancar el vídeo sin un toque de la persona. */
   const [necesitaToque, setNecesitaToque] = useState(false);
@@ -148,21 +139,25 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
   const ordenRef = useRef<string[]>([]);
   const peliculaRef = useRef(pelicula);
   const miembrosRef = useRef(miembros);
-  const alPerderVinculoRef = useRef(alPerderVinculo);
+  const codigoRef = useRef(codigo);
   const avisosRef = useRef(0);
 
   useEffect(() => {
-    // Tras montar: en el servidor no hay `localStorage` (ver `use-fuentes.ts`).
-    const recordada = leerPeliculaRecordada();
-    peliculaRef.current = masNueva(peliculaRef.current, recordada);
-    setPelicula(peliculaRef.current);
-    setConocidos(leerConocidos());
-  }, []);
+    // Cada sala tiene su película. Al volver a la misma (Atrás y otra vez a
+    // Mi enlace), la que tenía; en una sala nueva, ninguna hasta que alguien
+    // elija. Tras montar: en el servidor no hay `sessionStorage`.
+    const recordada = leerSalaRecordada();
+    const suya = codigo && recordada?.codigo === codigo ? recordada.pelicula : null;
+    peliculaRef.current = suya;
+    sincronizadoRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPelicula(suya);
+  }, [codigo]);
 
   useEffect(() => {
     peliculaRef.current = pelicula;
     miembrosRef.current = miembros;
-    alPerderVinculoRef.current = alPerderVinculo;
+    codigoRef.current = codigo;
     elementoRef.current = elemento;
   });
 
@@ -199,18 +194,15 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
     return { tipo: "estado", tiempo: v.currentTime, pausado: v.paused, pulso };
   }, []);
 
-  /** Adopta la película si es más nueva que la que había. Devuelve la que gana. */
+  /** Adopta la película si es más nueva que la que había. */
   const adoptar = useCallback((recibida: PeliculaDeSala) => {
-    const gana = masNueva(peliculaRef.current, recibida);
-    if (gana !== peliculaRef.current) {
-      peliculaRef.current = gana;
-      // Película nueva: hasta que quien dirige cuente por dónde va, este
-      // aparato no manda nada.
-      sincronizadoRef.current = false;
-      setPelicula(gana);
-      recordarPelicula(gana);
-    }
-    return gana;
+    if (!esMasNueva(recibida, peliculaRef.current)) return;
+    peliculaRef.current = recibida;
+    // Película nueva: hasta que quien dirige cuente por dónde va, este
+    // aparato no manda nada.
+    sincronizadoRef.current = false;
+    setPelicula(recibida);
+    recordarSala({ codigo: codigoRef.current, pelicula: recibida });
   }, []);
 
   /**
@@ -307,7 +299,7 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
       peliculaRef.current = nueva;
       sincronizadoRef.current = true;
       setPelicula(nueva);
-      recordarPelicula(nueva);
+      recordarSala({ codigo: codigoRef.current, pelicula: nueva });
       enviar({ tipo: "video", pelicula: nueva });
     },
     [yo, enviar],
@@ -354,7 +346,7 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
 
   // --- La conexión ----------------------------------------------------------
   useEffect(() => {
-    if (!canalSala || !configurada || !aparato) return;
+    if (!canalSala || !configurada || !perfil) return;
     let cancelado = false;
     let cliente: ClientePusher | null = null;
     sincronizadoRef.current = false;
@@ -363,13 +355,6 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
     const nombres = new Map<string, string>();
     const publicar = () => {
       setMiembros(ordenRef.current.map((id) => ({ id, nombre: nombres.get(id) ?? "Alguien" })));
-      setConocidos((antes) => {
-        const despues = { ...antes };
-        for (const [id, nombre] of nombres) if (id !== aparato.id) despues[id] = nombre;
-        if (JSON.stringify(despues) === JSON.stringify(antes)) return antes;
-        recordarConocidos(despues);
-        return despues;
-      });
     };
 
     const avisar = (de: string | undefined, que: AvisoSala["que"]) => {
@@ -393,10 +378,13 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
         return;
       }
       if (mensaje.tipo === "video") {
-        const gana = adoptar(mensaje.pelicula);
-        // Si la suya era más vieja, se le cuenta la nuestra. No hay bucle: al
-        // recibirla, la adopta y ya no contesta.
-        if (gana !== mensaje.pelicula && gana) enviar({ tipo: "video", pelicula: gana });
+        adoptar(mensaje.pelicula);
+        // Si la suya era más vieja, se le cuenta la nuestra. Se compara por
+        // versión y autor, no por objeto: antes, recibir la MISMA película (un
+        // objeto nuevo) se tomaba por distinta, se contestaba, y los aparatos
+        // se respondían en bucle sin fin.
+        const mia = peliculaRef.current;
+        if (esMasNueva(mia, mensaje.pelicula)) enviar({ tipo: "video", pelicula: mia! });
         return;
       }
       if (mensaje.tipo === "empezar") {
@@ -425,7 +413,9 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
           channelAuthorization: {
             endpoint: "/api/pusher/auth",
             transport: "ajax",
-            headers: { [CABECERA_LLAVE]: aparato.llave },
+            // Quién eres: la ruta lo pone en la presencia tal cual (el alias,
+            // limpio). No hay cuentas; se comprueba a ojo.
+            params: { id: perfil.id, nombre: perfil.nombre },
           },
         }) as unknown as ClientePusher;
 
@@ -440,17 +430,17 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
           nombres.clear();
           (dato as MiembrosPusher | undefined)?.each((m) => {
             nombres.set(m.id, nombreDe(m));
-            if (m.id !== aparato.id) otros.push(m.id);
+            if (m.id !== perfil.id) otros.push(m.id);
           });
-          nombres.set(aparato.id, aparato.nombre);
-          ordenRef.current = [...otros.sort(), aparato.id];
+          nombres.set(perfil.id, perfil.nombre);
+          ordenRef.current = [...otros.sort(), perfil.id];
           publicar();
           setConexion({ canal: canalSala, estado: "conectada" });
           // Quien llega pide el estado, y cuenta su película: la más nueva gana.
           // Esto corre también al reconectar.
           enviar({ tipo: "hola" });
           if (peliculaRef.current) enviar({ tipo: "video", pelicula: peliculaRef.current });
-          if (ordenRef.current[0] === aparato.id) sincronizadoRef.current = true;
+          if (ordenRef.current[0] === perfil.id) sincronizadoRef.current = true;
         });
         canal.bind("pusher:member_added", (dato) => {
           const m = dato as MiembroPusher;
@@ -465,12 +455,8 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
           ordenRef.current = ordenRef.current.filter((id) => id !== m.id);
           publicar();
         });
-        canal.bind("pusher:subscription_error", (dato) => {
-          if (cancelado) return;
-          setConexion({ canal: canalSala, estado: "error" });
-          // 403 es nuestra ruta diciendo «esta llave ya no vale». Cualquier
-          // otro fallo (red, 503) no desvincula: se reintenta otro día.
-          if ((dato as { status?: number } | undefined)?.status === 403) alPerderVinculoRef.current?.();
+        canal.bind("pusher:subscription_error", () => {
+          if (!cancelado) setConexion({ canal: canalSala, estado: "error" });
         });
         canal.bind(EVENTO, recibir);
         cliente.connection.bind("error", () => {
@@ -538,7 +524,7 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
       if (despedida) window.setTimeout(colgar, 500);
       else colgar();
     };
-  }, [canalSala, configurada, aparato, enviar, estadoActual, aplicar, adoptar, lanzarCuenta]);
+  }, [canalSala, configurada, perfil, enviar, estadoActual, aplicar, adoptar, lanzarCuenta]);
 
   // --- Lo que hace el vídeo local, se cuenta --------------------------------
   useEffect(() => {
@@ -613,8 +599,6 @@ export function useVerJuntos({ aparato, dentro, alPerderVinculo }: OpcionesSala)
     estado,
     /** Quién está en la sala, por orden de llegada, este aparato incluido. */
     miembros: conectada ? miembros : [],
-    /** Nombres de los aparatos que alguna vez se vieron aquí, por id. */
-    conocidos,
     yo,
     pelicula,
     elegir,

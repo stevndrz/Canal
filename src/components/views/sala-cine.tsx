@@ -28,22 +28,18 @@ export interface Persona {
 }
 
 /**
- * Quién hay que pintar: este aparato primero; luego los que están
- * (encendidos) y, de los que alguna vez estuvieron, los que faltan (tenues).
- * Si nunca vino nadie más, un hueco «Esperando» para que se lea que es de dos.
+ * Quién hay que pintar: este aparato primero y luego los que están
+ * (encendidos). Si no hay nadie más, un hueco «Esperando» para que se lea que
+ * es de dos.
  */
 export function presencia(
   yo: { id: string; nombre: string },
   miembros: Miembro[],
-  conocidos: Record<string, string>,
   dentro: boolean,
 ): Persona[] {
   const aqui = new Set(miembros.map((m) => m.id));
   const lista: Persona[] = [{ id: yo.id, nombre: yo.nombre, aqui: dentro && aqui.has(yo.id), soyYo: true }];
   for (const m of miembros) if (m.id !== yo.id) lista.push({ id: m.id, nombre: m.nombre, aqui: true, soyYo: false });
-  for (const [id, nombre] of Object.entries(conocidos)) {
-    if (!aqui.has(id) && id !== yo.id && lista.length < 3) lista.push({ id, nombre, aqui: false, soyYo: false });
-  }
   if (lista.length === 1) lista.push({ id: "?", nombre: "Esperando", aqui: false, soyYo: false });
   return lista;
 }
@@ -165,7 +161,7 @@ export function Estante({
 
 /**
  * Hoja que sube desde abajo, para lo que no va en la vista principal (usar un
- * enlace, vincular este aparato). Atrás o Escape la cierran; al cerrar, el
+ * enlace, el alias, el código de la sala). Atrás o Escape la cierran; al cerrar, el
  * foco vuelve a quien la abrió.
  */
 export function Hoja({

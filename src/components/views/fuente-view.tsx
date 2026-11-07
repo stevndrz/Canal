@@ -8,10 +8,18 @@ import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
 import { useArte, useAudios } from "@/hooks/use-portada";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
-import { estabaDentro, guardarAparato, leerAparato, recordarDentro, type Aparato } from "@/lib/ver-juntos/recordar";
+import {
+  crearIdAparato,
+  guardarPerfil,
+  leerPerfil,
+  leerSalaRecordada,
+  recordarSala,
+  type Perfil,
+} from "@/lib/ver-juntos/recordar";
+import { crearCodigoSala } from "@/lib/ver-juntos/sala";
 import { duracionCorta } from "@/lib/ver-juntos/portada";
 import { CabeceraJuntos, CuentaAtras, Estante, Hoja, Portada, Presencia, presencia } from "./sala-cine";
-import { VincularAparato } from "./vincular-aparato";
+import { ElegirAlias, TecladoCodigo } from "./entrar-sala";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { SubtitleTrack } from "@/lib/catalog/types";
@@ -27,8 +35,8 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
  * Mi enlace: «sala de cine para dos».
  *
  * La vista principal es la portada de la película de la sala, con quién está
- * y un solo botón que dice lo siguiente que toca (vincular, entrar, empezar,
- * volver a la película). Debajo, el estante de «Nuestras películas». Pegar un
+ * y un solo botón que dice lo siguiente que toca (crear la sala, elegir,
+ * empezar, volver a la película). Debajo, el estante de «Nuestras películas». Pegar un
  * enlace —la vía de siempre de Mi enlace— vive en una hoja aparte, a un botón.
  *
  * Por qué aquí sí hay controles completos, y no en Canales ni en Películas:
@@ -58,7 +66,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   /** Fuera de la sala, el reproductor solo se monta al pedir «Ver aquí». */
   const [verSolo, setVerSolo] = useState(false);
   const [inmersivo, setInmersivo] = useState(false);
-  const [hoja, setHoja] = useState<null | "enlace" | "vincular">(null);
+  const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo">(null);
+  /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
+  const [trasAlias, setTrasAlias] = useState<null | "crear" | "entrar">(null);
   const nuestras = useNuestrasPeliculas();
   const estanteRef = useRef<HTMLButtonElement | null>(null);
   const principalRef = useRef<HTMLButtonElement | null>(null);
@@ -78,36 +88,26 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   }, []);
 
   /**
-   * Ver juntos: una sola sala para la casa. Este aparato se vincula una vez
-   * (PIN + nombre) y desde ahí solo hay que «Entrar». Dentro, lo que suena es
-   * la película de la sala —la última que eligió cualquiera— y no lo local.
+   * Ver juntos: quien crea la sala recibe un código de cuatro cifras y el otro
+   * lo escribe. Cada uno con su alias, elegido una vez. Dentro, lo que suena
+   * es la película de la sala —la última que eligió cualquiera— y no lo local.
    */
-  const [aparato, setAparato] = useState<Aparato | null>(null);
-  const [dentro, setDentro] = useState(false);
-  /** Hasta leer el almacenamiento no se sabe si pedir el PIN o «Entrar». */
-  const [memoriaLeida, setMemoriaLeida] = useState(false);
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [codigo, setCodigoSala] = useState("");
   useEffect(() => {
     // `localStorage` no existe en el render de servidor: leerlo en el primer
     // render rompía la hidratación. Mismo patrón que `use-fuentes.ts`.
-    const guardado = leerAparato();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAparato(guardado);
-    // Si se salió de Mi enlace estando dentro, al volver se entra sola.
-    setDentro(Boolean(guardado) && estabaDentro());
-    setMemoriaLeida(true);
+    setPerfil(leerPerfil());
+    // Si se salió de Mi enlace estando en una sala, al volver se entra sola.
+    setCodigoSala(leerSalaRecordada()?.codigo ?? "");
   }, []);
-  useEffect(() => {
-    if (memoriaLeida) recordarDentro(dentro);
-  }, [dentro, memoriaLeida]);
-  const juntos = useVerJuntos({
-    aparato,
-    dentro,
-    alPerderVinculo: useCallback(() => {
-      guardarAparato(null);
-      setAparato(null);
-      setDentro(false);
-    }, []),
-  });
+  const ponerCodigo = useCallback((nuevo: string) => {
+    setCodigoSala(nuevo);
+    recordarSala(nuevo ? { codigo: nuevo, pelicula: null } : null);
+  }, []);
+  const juntos = useVerJuntos({ perfil, codigo });
+  const dentro = Boolean(codigo);
   const salaDisponible = juntos.estado !== "sin-configurar";
   const enSala = dentro && juntos.estado !== "fuera" && juntos.estado !== "sin-configurar";
   const elegirEnSala = juntos.elegir;
@@ -139,6 +139,19 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
           ? { id: `nuestra-${primera.id}`, titulo: primera.titulo, url: primera.url, subtitulos: primera.subtitulos }
           : null));
   const enPantalla = enSala || verSolo ? portada : null;
+
+  /**
+   * Quien crea la sala pone la película que tenía en la portada: así, al
+   * entrar el otro, ya le llega, sin tener que elegirla otra vez.
+   */
+  const ponerAlConectarRef = useRef<Reproducible | null>(null);
+  const conectada = juntos.estado === "conectada";
+  useEffect(() => {
+    const pendiente = ponerAlConectarRef.current;
+    if (!conectada || !pendiente) return;
+    ponerAlConectarRef.current = null;
+    if (!juntos.pelicula) elegirEnSala({ url: pendiente.url, titulo: pendiente.titulo, subtitulos: pendiente.subtitulos });
+  }, [conectada, juntos.pelicula, elegirEnSala]);
 
   const titulosEstante = useMemo(() => nuestras.peliculas.map((p) => p.titulo), [nuestras.peliculas]);
   const tituloPortada = portada?.titulo ?? "";
@@ -254,25 +267,36 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   };
 
   // --- El botón principal: lo siguiente que toca -------------------------------
-  const personas = aparato ? presencia(aparato, juntos.miembros, juntos.conocidos, enSala) : [];
+  const personas = perfil && dentro ? presencia(perfil, juntos.miembros, enSala) : [];
   const otros = personas.filter((p) => !p.soyYo && p.id !== "?");
   const otroAqui = otros.find((p) => p.aqui);
-  const otroNombre = otroAqui?.nombre ?? otros[0]?.nombre ?? null;
+  const otroNombre = otroAqui?.nombre ?? null;
   const acompanado = Boolean(otroAqui);
 
-  type Paso = "ver" | "vincular" | "entrar" | "elegir" | "volver" | "empezar";
+  const crearSala = () => {
+    ponerAlConectarRef.current = portada;
+    ponerCodigo(crearCodigoSala());
+  };
+  /** Sin alias no se entra: se pide primero y luego se sigue con lo que era. */
+  const conAlias = (siguiente: "crear" | "entrar") => {
+    if (!perfil) {
+      setTrasAlias(siguiente);
+      setHoja("alias");
+    } else if (siguiente === "crear") crearSala();
+    else setHoja("codigo");
+  };
+
+  type Paso = "ver" | "crear" | "elegir" | "volver" | "empezar";
   let principal: { texto: string; icono?: React.ReactNode; paso: Paso } | null = null;
   if (!salaDisponible) {
     if (portada) principal = { texto: "Ver ahora", icono: <Play />, paso: "ver" };
-  } else if (!aparato) {
-    principal = { texto: "Vincular este aparato", icono: <Users />, paso: "vincular" };
   } else if (!dentro) {
-    principal = { texto: "Entrar a la sala", icono: <Users />, paso: "entrar" };
+    principal = { texto: "Crear sala", icono: <Users />, paso: "crear" };
   } else if (!portada) {
     principal = { texto: "Elegir película", paso: "elegir" };
   } else if (reproduciendo) {
     principal = { texto: "Volver a la película", icono: <Play />, paso: "volver" };
-  } else if (juntos.estado === "conectada") {
+  } else if (conectada) {
     principal = { texto: acompanado ? "Empezar" : "Empezar sin esperar", icono: <Play />, paso: "empezar" };
   }
   const empezarSala = juntos.empezar;
@@ -280,31 +304,27 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     if (paso === "ver") {
       setVerSolo(true);
       setInmersivo(true);
-    } else if (paso === "vincular") setHoja("vincular");
-    else if (paso === "entrar") setDentro(true);
+    } else if (paso === "crear") conAlias("crear");
     else if (paso === "elegir") irAlEstante();
     else if (paso === "volver") setInmersivo(true);
     else empezarSala();
   };
 
-  const estadoSala =
-    !salaDisponible || !aparato
-      ? ""
-      : !dentro
-        ? ""
-        : juntos.estado === "conectando"
-          ? "Entrando…"
-          : juntos.estado === "error"
-            ? "No se pudo conectar con la sala. Revisa la conexión."
-            : !portada
-              ? "Elijan una película del estante."
-              : acompanado
-                ? juntos.miembros.length > 2
-                  ? "Ya están todos."
-                  : "Ya están los dos."
-                : `Esperando a ${otroNombre ?? "la otra persona"}…`;
+  const estadoSala = !dentro
+    ? ""
+    : juntos.estado === "conectando"
+      ? "Entrando…"
+      : juntos.estado === "error"
+        ? "No se pudo conectar con la sala. Revisa la conexión."
+        : !portada
+          ? "Elijan una película del estante."
+          : acompanado
+            ? juntos.miembros.length > 2
+              ? "Ya están todos."
+              : "Ya están los dos."
+            : `Pásale el código ${codigo} a la otra persona.`;
 
-  const sobretitulo = enSala ? "En la sala" : salaDisponible ? "Ver juntos" : "Nuestras películas";
+  const sobretitulo = enSala ? `Sala ${codigo}` : salaDisponible ? "Ver juntos" : "Nuestras películas";
 
   return (
     <div className={`screen tv-safe fuente cine ${sinHueco ? "sin-hueco" : ""}`}>
@@ -314,7 +334,12 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         titulo={portada?.titulo || "Elijan una película"}
         pildoras={pildoras}
       >
-        {aparato && salaDisponible && <Presencia personas={personas} />}
+        {dentro && (
+          <p className="cine-codigo mb-3 text-[length:var(--texto-3xl)] font-semibold tracking-[0.3em] text-tinta-1 tabular-nums" aria-label={`Código de la sala: ${codigo.split("").join(" ")}`}>
+            {codigo}
+          </p>
+        )}
+        {dentro && <Presencia personas={personas} />}
         <div className="cine-acciones">
           {principal && (
             <button
@@ -325,6 +350,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               className="cine-boton-principal" onClick={() => dar(principal.paso)}>
               {principal.icono}
               {principal.texto}
+            </button>
+          )}
+          {salaDisponible && !dentro && (
+            <button type="button" data-nav="button" className="cine-boton-cristal" onClick={() => conAlias("entrar")}>
+              Entrar con código
             </button>
           )}
           {portada && nuestras.peliculas.length > 1 && (
@@ -339,14 +369,19 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
           </p>
         )}
         <div className="cine-secundarias">
-          {salaDisponible && aparato && !dentro && portada && (
+          {salaDisponible && !dentro && portada && (
             <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { setVerSolo(true); setInmersivo(true); }}>
               Ver aquí solo
             </button>
           )}
           {enSala && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { setDentro(false); setInmersivo(false); }}>
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { ponerCodigo(""); setInmersivo(false); }}>
               Salir de la sala
+            </button>
+          )}
+          {salaDisponible && perfil && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => setHoja("alias")}>
+              Alias: {perfil.nombre}
             </button>
           )}
         </div>
@@ -386,12 +421,28 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </button>
       </div>
 
-      <Hoja abierta={hoja === "vincular"} titulo="Vincular este aparato" alCerrar={() => setHoja(null)}>
-        <VincularAparato
-          alVincular={(nuevo) => {
-            guardarAparato(nuevo);
-            setAparato(nuevo);
-            setDentro(true);
+      <Hoja abierta={hoja === "alias"} titulo="Tu alias" alCerrar={() => setHoja(null)}>
+        <ElegirAlias
+          inicial={perfil?.nombre ?? ""}
+          alGuardar={(nombre) => {
+            const nuevo = { id: perfil?.id ?? crearIdAparato(), nombre };
+            guardarPerfil(nuevo);
+            setPerfil(nuevo);
+            setHoja(null);
+            const siguiente = trasAlias;
+            setTrasAlias(null);
+            if (siguiente === "crear") {
+              ponerAlConectarRef.current = portada;
+              ponerCodigo(crearCodigoSala());
+            } else if (siguiente === "entrar") setHoja("codigo");
+          }}
+        />
+      </Hoja>
+
+      <Hoja abierta={hoja === "codigo"} titulo="Entrar con código" alCerrar={() => setHoja(null)}>
+        <TecladoCodigo
+          alCompletar={(escrito) => {
+            ponerCodigo(escrito);
             setHoja(null);
           }}
         />
