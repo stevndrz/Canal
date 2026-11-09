@@ -19,6 +19,7 @@ import {
   type TramoZapeo,
   type UltimoCanal,
 } from "@/lib/channels";
+import { esperaParaLaLista } from "@/lib/arranque-lista";
 import { indexarCanales, normalizarCasa, unirMisCanales } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
 import {
@@ -116,10 +117,12 @@ export function Dashboard({
    */
   const [completo, setCompleto] = useState<PaqueteCanales | null>(null);
   const datos = completo ?? paquete;
+  /** No nada más montar: cuando no estorbe al arranque. Ver `arranque-lista.ts`. */
+  const [pedirLista, setPedirLista] = useState(false);
 
   useEffect(() => {
     // Sin recorte, el HTML ya traía todo (`CANALES_EN_HTML=todos`).
-    if (!paquete.recorte) return undefined;
+    if (!paquete.recorte || !pedirLista) return undefined;
     // `fetch` es de Chromium 42 y el parque objetivo empieza en 53, pero si
     // alguna tele aún más vieja llega hasta aquí, se queda con sus 200 canales
     // en vez de reventar dentro de un efecto y tumbar el shell entero.
@@ -138,7 +141,7 @@ export function Dashboard({
     return () => {
       vivo = false;
     };
-  }, [paquete]);
+  }, [paquete, pedirLista]);
 
   /**
    * Una sola pasada: reconstruye los objetos Y numera al estilo IPTV. Antes
@@ -240,6 +243,19 @@ export function Dashboard({
       arranqueAplicado.current = true;
     }
   }, [ultimo, channels, listaCompleta]);
+
+  const ultimoFueraDelRecorte = Boolean(ultimo.nombre) && !completo && buscarUltimo(channels, ultimo) === null;
+  useEffect(() => {
+    if (pedirLista || !paquete.recorte) return undefined;
+    const espera = esperaParaLaLista({ vista: view, ultimoFueraDelRecorte, esTV });
+    if (espera === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- depende de `localStorage` (el último canal), que solo existe tras montar.
+      setPedirLista(true);
+      return undefined;
+    }
+    const id = window.setTimeout(() => setPedirLista(true), espera);
+    return () => window.clearTimeout(id);
+  }, [pedirLista, paquete.recorte, view, ultimoFueraDelRecorte, esTV]);
 
   useRemoteInput();
 
