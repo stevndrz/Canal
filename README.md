@@ -52,6 +52,8 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
 | `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER` / `PUSHER_SECRET` | «Ver juntos» en Mi enlace (plan gratis de [Pusher](https://pusher.com), con **Enable client events** activado). Sin la clave, el panel no aparece. El secreto **no** lleva `NEXT_PUBLIC_` |
+| `VIMEUS_API_KEY` | API key de Vimeus (**Sensitive**, solo servidor): el riel «Recién llegadas en latino» y la marca «Latino» por episodio. Sin ella, Vimeus funciona igual por iframe; solo faltan esos extras |
+| `NEXT_PUBLIC_VIMEUS_VIEW_KEY` | Opcional: la *view key* de Vimeus (pública, va en el iframe). Trae por defecto la de la cuenta de la casa |
 | `NEXT_PUBLIC_PELICULAS_URL` | URL pública del bucket de R2 con «Nuestras películas» (`https://pub-….r2.dev`). Ver [docs/PELICULAS-JUNTOS.md](docs/PELICULAS-JUNTOS.md) |
 | `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
