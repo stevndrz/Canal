@@ -39,6 +39,26 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — Sincronizar «Nuestras películas» desde una carpeta (Node)
+
+El dueño pedía algo más fácil y fiable que renombrar a `pelicula.mkv`, subir,
+añadir subtítulos aparte y borrar con otro script. Ahora `Descargas\Peliculas`
+es la biblioteca y `Sincronizar peliculas.cmd` deja la nube igual
+(`scripts/peliculas/sincronizar/`). En Node y no en PowerShell porque así se
+puede probar entero aquí (46 pruebas, una de punta a punta con ffmpeg real y
+una nube que es una carpeta) y se acaban los líos de PowerShell 5.1.
+
+- Plan puro (`plan.mjs`): huella del vídeo (tamaño + 4 MB del principio y del
+  final) para reconocer la misma película renombrada; por id las del script
+  viejo («adoptar»); subtítulos por su huella; huérfanas = se pregunta.
+- Subida a carpeta nueva `<id>-<huella6>` + `rclone check` antes de tocar el
+  catálogo; copia `catalogo.anterior.json`; nunca escribe si no pudo leer.
+- Los subtítulos del script viejo (sin huella) se emparejan por idioma para no
+  duplicarlos.
+- Probado además el programa entero con un `rclone` falso (los argumentos
+  exactos) contra un catálogo en el formato que escribía PowerShell.
+- Sin probar en Windows: rutas con `\`, la consola de cmd, winget.
+
 ### 2026-11-07 — Ver juntos: sala con código de 4 cifras (sin PIN de Vercel)
 
 El dueño pidió algo más sencillo que la vinculación con `SALA_PIN` y llaves
