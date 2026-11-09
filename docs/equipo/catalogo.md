@@ -39,6 +39,21 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — ¿Ver juntos con Vimeus? No hay mando: «sincronía suave»
+
+Leído el código que sirve Vimeus (sin ejecutarlo; el script de vimeos.net va
+empaquetado y se desempaquetó como texto). Detalle en `docs/VIMEUS-JUNTOS.md`.
+
+- Dos iframes: `vimeus.net/e/…` (envoltorio React) → `vimeos.net/embed-…`
+  (JWPlayer). **Ninguno escucha `message`.** vimeos.net solo *manda* su
+  configuración al padre si este es `tv.la.movie` (lista blanca).
+- `/cf/*` no es un mando: se salta el envoltorio y exige un token `cf` de
+  sesión por aparato y título («invalid_cf_format»). No se intentó forjarlo.
+- `logo_url`/`primary_color` no existen en su código; sí `theme`, `overlay`,
+  `playUI`, `autoplay`…
+- Propuesta: reloj compartido de la sala + «Listo» después de los anuncios +
+  «Pausa para todos» / «Voy por…». Sin construir: espera al dueño.
+
 ### 2026-11-09 — Vimeus con cuenta propia: series en latino y sin «Not Found»
 
 - `vimeus.com` murió (200 con redirección a una página de aparcamiento): la
