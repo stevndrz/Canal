@@ -62,25 +62,34 @@ export function Presencia({ personas }: { personas: Persona[] }) {
   );
 }
 
-/** La portada: el arte de la película elegida de fondo y todo lo demás encima. */
+/**
+ * La portada: el arte de la película de fondo, difuminado, y en primer plano
+ * el reproductor (`teatro`) entre el título y las acciones. Una sola película
+ * a la vez: lo que se va a ver es lo que manda en la pantalla.
+ */
 export function Portada({
   fondo,
   sobretitulo,
   titulo,
   pildoras,
+  teatro,
   children,
 }: {
   fondo: string | null;
   sobretitulo: string;
   titulo: string;
   pildoras: string[];
+  /** El reproductor, ya montado. Sin película, nada. */
+  teatro?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className={`cine-portada ${fondo ? "" : "is-sin-arte"}`} aria-labelledby="cine-titulo">
+    <section className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""}`} aria-labelledby="cine-titulo">
       {fondo && (
+        // `key` por imagen: al cambiar de película, la nueva entra fundiéndose
+        // en vez de saltar de golpe.
         // eslint-disable-next-line @next/next/no-img-element -- `<img>` llano: las teles viejas no entienden el `srcset` de next/image.
-        <img className="cine-portada-fondo" src={fondo} alt="" aria-hidden="true" decoding="async" />
+        <img key={fondo} className="cine-portada-fondo" src={fondo} alt="" aria-hidden="true" decoding="async" />
       )}
       <div className="cine-portada-velo" aria-hidden="true" />
       <div className="cine-portada-contenido">
@@ -97,10 +106,74 @@ export function Portada({
             ))}
           </ul>
         )}
+        {teatro}
         {children}
       </div>
     </section>
   );
+}
+
+/**
+ * Halo de luz detrás del reproductor con los colores de la película.
+ *
+ * Un `<canvas>` diminuto (32×18) en el que se pinta el fotograma cuatro
+ * veces por segundo y que el CSS agranda y difumina: cuesta casi nada. No se
+ * leen los píxeles, solo se muestran, así que da igual de qué dominio venga
+ * el vídeo. En pausa se queda con el último fotograma (o con el póster).
+ * En la tele no se pinta: la tele va a pantalla completa y su GPU no está
+ * para lujos; tampoco con «reducir movimiento».
+ */
+export function Halo({ video, poster }: { video: HTMLVideoElement | null; poster: string | null }) {
+  const lienzoRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const lienzo = lienzoRef.current;
+    const ctx = lienzo?.getContext("2d");
+    if (!lienzo || !ctx) return;
+    if (document.documentElement.dataset.pantalla === "tv") return;
+
+    if (poster) {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        if (!video || video.paused) ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+      };
+      img.src = poster;
+    }
+    if (!video) return;
+    const quieto = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    let id = 0;
+    const pintar = () => {
+      if (video.readyState >= 2) {
+        try {
+          ctx.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+        } catch {
+          // Algún motor no deja pintar el vídeo (HLS nativo en iPhone): sin halo.
+        }
+      }
+    };
+    const arrancar = () => {
+      window.clearInterval(id);
+      pintar();
+      if (!quieto) id = window.setInterval(pintar, 250);
+    };
+    const parar = () => {
+      window.clearInterval(id);
+      pintar();
+    };
+    video.addEventListener("play", arrancar);
+    video.addEventListener("pause", parar);
+    video.addEventListener("seeked", pintar);
+    if (!video.paused) arrancar();
+    return () => {
+      window.clearInterval(id);
+      video.removeEventListener("play", arrancar);
+      video.removeEventListener("pause", parar);
+      video.removeEventListener("seeked", pintar);
+    };
+  }, [video, poster]);
+
+  return <canvas ref={lienzoRef} className="cine-halo" width={32} height={18} aria-hidden="true" />;
 }
 
 export interface PeliculaEstante {
@@ -238,13 +311,16 @@ export function CabeceraJuntos({
 }: {
   otro: string | null;
   acompanado: boolean;
-  alSalir: () => void;
+  /** Solo a pantalla completa: en modo teatro no hay de dónde salir. */
+  alSalir?: () => void;
 }) {
   return (
     <div className="cine-cabecera">
-      <button type="button" data-nav="button" className="cine-boton-redondo" aria-label="Volver a la sala" onClick={alSalir}>
-        <X aria-hidden="true" />
-      </button>
+      {alSalir && (
+        <button type="button" data-nav="button" className="cine-boton-redondo" aria-label="Volver a la sala" onClick={alSalir}>
+          <X aria-hidden="true" />
+        </button>
+      )}
       <span className="cine-cabecera-pildora">
         Juntos{otro ? ` · ${otro}` : ""}
         {acompanado && <Check aria-label="está aquí" />}

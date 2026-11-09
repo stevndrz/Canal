@@ -100,6 +100,7 @@ export const NativePlayer = memo(function NativePlayer({
   superpuesto,
   inmersivo = false,
   cabecera,
+  poster,
 }: {
   streams: ManualStream[];
   title: string;
@@ -128,6 +129,8 @@ export const NativePlayer = memo(function NativePlayer({
    * de la sala—. Se esconde con los controles.
    */
   cabecera?: React.ReactNode;
+  /** Imagen antes de arrancar (el fondo de TMDB en Mi enlace). */
+  poster?: string;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -839,6 +842,7 @@ export const NativePlayer = memo(function NativePlayer({
         ref={videoRef}
         className="h-full w-full object-contain"
         playsInline
+        poster={poster}
         muted={isMuted}
         onPointerDown={(evento) => {
           toqueRef.current = { tactil: evento.pointerType === "touch", barraVisible: showControls };
