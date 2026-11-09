@@ -389,7 +389,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                     />
                   ) : escenarioVisible ? (
                     <CabeceraJuntos otro={null} acompanado={false} alSalir={() => setInmersivo(false)} />
-                  ) : undefined
+                  ) : (
+                    // En modo teatro el título ya está encima del reproductor:
+                    // repetirlo dentro sobra.
+                    <span />
+                  )
                 }
                 superpuesto={
                   <>
