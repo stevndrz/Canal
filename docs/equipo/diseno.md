@@ -471,3 +471,17 @@ impacto.
   pantalla completa; valorar bajarlo un poco allí.
 - Probar en un televisor de verdad el héroe con varios destacados y el logo
   con TMDB real (aquí se probó con un simulador de TMDB).
+
+## Mi enlace: el reproductor es la portada (teatro)
+
+- Como siempre es una sola película, `.cine-portada.con-teatro` deja de ser
+  100svh: columna con sobretítulo, título (28–56px), píldoras y el
+  reproductor `.cine-teatro`. Título y reproductor comparten `--cine-ancho`
+  (el menor de 1180px y lo que deja caber el 16:9 con ~260px de título
+  encima; 1500px y 360px en la tele) y el borde izquierdo.
+- El arte de fondo va a `blur(40px) brightness(.55)` con `scale(1.1)` y
+  entra con opacidad (el `img` cambia de `key`). `.cine-halo` (canvas)
+  detrás del reproductor, `blur(60px) saturate(1.4)`, oculto en tele e
+  inmersivo (un blur de 60px en una tele es caro).
+- `.cine-teatro.is-inmersivo` reaprovecha el z del antiguo escenario
+  (`--capa-barra` + 5). Retiradas `.cine-escenario` y `.cine-vincular`.

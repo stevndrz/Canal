@@ -18,7 +18,7 @@ import {
 } from "@/lib/ver-juntos/recordar";
 import { crearCodigoSala } from "@/lib/ver-juntos/sala";
 import { duracionCorta } from "@/lib/ver-juntos/portada";
-import { CabeceraJuntos, CuentaAtras, Estante, Hoja, Portada, Presencia, presencia } from "./sala-cine";
+import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, presencia } from "./sala-cine";
 import { ElegirAlias, TecladoCodigo } from "./entrar-sala";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
@@ -63,8 +63,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [error, setError] = useState("");
   /** Lo elegido en este aparato fuera de la sala. */
   const [activa, setActiva] = useState<Reproducible | null>(null);
-  /** Fuera de la sala, el reproductor solo se monta al pedir «Ver aquí». */
-  const [verSolo, setVerSolo] = useState(false);
+  /**
+   * A pantalla completa (la tele, al arrancar). En PC y teléfono el
+   * reproductor se queda en la página, en modo teatro, con su propio botón de
+   * pantalla completa.
+   */
   const [inmersivo, setInmersivo] = useState(false);
   const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo">(null);
   /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
@@ -138,7 +141,18 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         : primera
           ? { id: `nuestra-${primera.id}`, titulo: primera.titulo, url: primera.url, subtitulos: primera.subtitulos }
           : null));
-  const enPantalla = enSala || verSolo ? portada : null;
+  /**
+   * El reproductor está siempre que hay película: es lo principal de esta
+   * pantalla. Fuera de la sala, darle a reproducir es verla aquí solo.
+   */
+  const enPantalla = portada;
+  /**
+   * Una misma película tiene que ser el mismo reproductor dentro y fuera de
+   * la sala (si no, al entrar se recargaba) y guardar su progreso con la
+   * misma clave de siempre: la de «Nuestras películas» si está en el estante.
+   */
+  const delEstante = nuestras.peliculas.find((p) => p.url === portada?.url);
+  const claveVideo = delEstante ? `nuestra-${delEstante.id}` : (portada?.id ?? "");
 
   /**
    * Quien crea la sala pone la película que tenía en la portada: así, al
@@ -159,9 +173,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     useMemo(() => (tituloPortada ? [...titulosEstante, tituloPortada] : titulosEstante), [titulosEstante, tituloPortada]),
   );
   const audios = useAudios(portada?.url);
-  const delCatalogo = nuestras.peliculas.find((p) => p.url === portada?.url);
   const pildoras = [
-    duracionCorta(delCatalogo?.duracion),
+    duracionCorta(delEstante?.duracion),
     audios.length > 0 ? audios.join(" · ") : "",
     portada
       ? portada.subtitulos?.length
@@ -170,7 +183,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       : "",
   ].filter(Boolean);
 
-  // --- El vídeo: inmersivo en cuanto arranca ---------------------------------
+  // --- El vídeo: en la tele, a pantalla completa en cuanto arranca -----------
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [reproduciendo, setReproduciendo] = useState(false);
   const alVideoSala = juntos.alVideo;
@@ -185,8 +198,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     if (!video) return;
     const alPlay = () => {
       setReproduciendo(true);
-      // Arrancó —por la cuenta atrás, por el otro o a mano—: a pantalla completa.
-      setInmersivo(true);
+      // Arrancó —por la cuenta atrás, por el otro o a mano—. En la tele, a
+      // pantalla completa: desde el sofá no se ve una película a media página.
+      if (document.documentElement.dataset.pantalla === "tv") setInmersivo(true);
     };
     const alPausa = () => setReproduciendo(false);
     video.addEventListener("play", alPlay);
@@ -197,6 +211,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     };
   }, [video]);
   const escenarioVisible = inmersivo && Boolean(enPantalla);
+  const fondo = portada ? (arte[portada.titulo]?.fondo ?? null) : null;
 
   // Atrás en el modo inmersivo vuelve a la portada (sin pausar: el otro sigue).
   useEffect(() => {
@@ -246,9 +261,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   );
 
   const reproducirEnlace = (item: Reproducible) => {
+    // Queda en la portada, en el reproductor: un enlace propio se ve igual
+    // que una de «Nuestras películas».
     elegir(item);
-    if (!enSala) setVerSolo(true);
     setHoja(null);
+    volverALaPortada();
   };
 
   const enviar = (evento: React.FormEvent) => {
@@ -289,25 +306,38 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   type Paso = "ver" | "crear" | "elegir" | "volver" | "empezar";
   let principal: { texto: string; icono?: React.ReactNode; paso: Paso } | null = null;
   if (!salaDisponible) {
-    if (portada) principal = { texto: "Ver ahora", icono: <Play />, paso: "ver" };
+    if (portada && !reproduciendo) principal = { texto: "Ver ahora", icono: <Play />, paso: "ver" };
   } else if (!dentro) {
     principal = { texto: "Crear sala", icono: <Users />, paso: "crear" };
   } else if (!portada) {
     principal = { texto: "Elegir película", paso: "elegir" };
   } else if (reproduciendo) {
-    principal = { texto: "Volver a la película", icono: <Play />, paso: "volver" };
+    // En modo teatro la película ya está a la vista: «volver» solo hace falta
+    // si se salió de la pantalla completa.
+    principal = inmersivo ? null : { texto: "Pantalla completa", icono: <Play />, paso: "volver" };
   } else if (conectada) {
     principal = { texto: acompanado ? "Empezar" : "Empezar sin esperar", icono: <Play />, paso: "empezar" };
   }
   const empezarSala = juntos.empezar;
   const dar = (paso: Paso) => {
     if (paso === "ver") {
-      setVerSolo(true);
-      setInmersivo(true);
+      // Dentro del toque, para que el navegador deje sonar el vídeo.
+      video?.play().catch(() => {});
     } else if (paso === "crear") conAlias("crear");
     else if (paso === "elegir") irAlEstante();
-    else if (paso === "volver") setInmersivo(true);
+    else if (paso === "volver") pantallaCompleta();
     else empezarSala();
+  };
+
+  /**
+   * «Pantalla completa» de la portada: la de verdad, la del contenedor del
+   * reproductor (como su propio botón); si el navegador no la da, el modo
+   * inmersivo, que ocupa toda la ventana.
+   */
+  const pantallaCompleta = () => {
+    const contenedor = video?.closest(".atv") as (HTMLElement & { webkitRequestFullscreen?: () => void }) | null;
+    if (contenedor?.requestFullscreen) contenedor.requestFullscreen().catch(() => setInmersivo(true));
+    else setInmersivo(true);
   };
 
   const estadoSala = !dentro
@@ -329,10 +359,66 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   return (
     <div className={`screen tv-safe fuente cine ${sinHueco ? "sin-hueco" : ""}`}>
       <Portada
-        fondo={portada ? (arte[portada.titulo]?.fondo ?? null) : null}
+        fondo={fondo}
         sobretitulo={sobretitulo}
         titulo={portada?.titulo || "Elijan una película"}
         pildoras={pildoras}
+        teatro={
+          enPantalla && (
+            <section
+              className={`cine-teatro ${escenarioVisible ? "is-inmersivo" : ""}`}
+              aria-label={`Reproductor: ${enPantalla.titulo}`}
+            >
+              <Halo video={video} poster={fondo} />
+              <NativePlayer
+                key={enPantalla.url}
+                streams={streamsActivos}
+                title={enPantalla.titulo}
+                poster={fondo ?? undefined}
+                inmersivo={escenarioVisible}
+                // En la sala solo retoma quien dirige: en los demás, su
+                // posición guardada provocaría un salto de ida y vuelta.
+                claveProgreso={enSala && !juntos.dirijo ? undefined : claveDeFuente(claveVideo)}
+                alVideo={alVideo}
+                cabecera={
+                  enSala ? (
+                    <CabeceraJuntos
+                      otro={otroNombre}
+                      acompanado={acompanado}
+                      alSalir={escenarioVisible ? () => setInmersivo(false) : undefined}
+                    />
+                  ) : escenarioVisible ? (
+                    <CabeceraJuntos otro={null} acompanado={false} alSalir={() => setInmersivo(false)} />
+                  ) : (
+                    // En modo teatro el título ya está encima del reproductor:
+                    // repetirlo dentro sobra.
+                    <span />
+                  )
+                }
+                superpuesto={
+                  <>
+                    {juntos.necesitaToque ? (
+                      <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.unirse}>
+                        <Play aria-hidden="true" />
+                        Toca para unirte a la sala
+                      </button>
+                    ) : juntos.silenciadoPorSala ? (
+                      <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.activarSonido}>
+                        <VolumeX aria-hidden="true" />
+                        Toca para activar el sonido
+                      </button>
+                    ) : null}
+                    {juntos.aviso && (
+                      <span key={juntos.aviso.n} className="cine-aviso-otro" role="status">
+                        {juntos.aviso.nombre} {juntos.aviso.que}
+                      </span>
+                    )}
+                  </>
+                }
+              />
+            </section>
+          )
+        }
       >
         {dentro && (
           <p className="cine-codigo mb-3 text-[length:var(--texto-3xl)] font-semibold tracking-[0.3em] text-tinta-1 tabular-nums" aria-label={`Código de la sala: ${codigo.split("").join(" ")}`}>
@@ -369,8 +455,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
           </p>
         )}
         <div className="cine-secundarias">
-          {salaDisponible && !dentro && portada && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { setVerSolo(true); setInmersivo(true); }}>
+          {salaDisponible && !dentro && portada && !reproduciendo && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => video?.play().catch(() => {})}>
               Ver aquí solo
             </button>
           )}
@@ -545,55 +631,6 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
 
       <CuentaAtras cuenta={juntos.cuenta} />
 
-      {/* El escenario se monta en cuanto hay algo que ver en la sala, aunque
-          todavía no se vea: así «Empezar» encuentra el `<video>` y lo puede
-          desbloquear dentro del toque (Safari), y la película carga durante
-          la cuenta atrás. */}
-      {enPantalla && (
-        <section
-          className={`cine-escenario ${escenarioVisible ? "is-visible" : ""}`}
-          aria-label={`Reproduciendo ${enPantalla.titulo}`}
-          aria-hidden={!escenarioVisible}
-        >
-          <NativePlayer
-            key={enPantalla.id}
-            streams={streamsActivos}
-            title={enPantalla.titulo}
-            inmersivo
-            // En la sala solo retoma quien dirige: en los demás, su posición
-            // guardada provocaría un salto de ida y vuelta.
-            claveProgreso={enSala && !juntos.dirijo ? undefined : claveDeFuente(enPantalla.id)}
-            alVideo={enSala ? alVideo : setVideo}
-            cabecera={
-              <CabeceraJuntos
-                otro={enSala ? otroNombre : null}
-                acompanado={enSala && acompanado}
-                alSalir={() => setInmersivo(false)}
-              />
-            }
-            superpuesto={
-              <>
-                {juntos.necesitaToque ? (
-                  <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.unirse}>
-                    <Play aria-hidden="true" />
-                    Toca para unirte a la sala
-                  </button>
-                ) : juntos.silenciadoPorSala ? (
-                  <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.activarSonido}>
-                    <VolumeX aria-hidden="true" />
-                    Toca para activar el sonido
-                  </button>
-                ) : null}
-                {juntos.aviso && (
-                  <span key={juntos.aviso.n} className="cine-aviso-otro" role="status">
-                    {juntos.aviso.nombre} {juntos.aviso.que}
-                  </span>
-                )}
-              </>
-            }
-          />
-        </section>
-      )}
     </div>
   );
 }
