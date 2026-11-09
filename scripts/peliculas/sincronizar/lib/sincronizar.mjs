@@ -18,6 +18,12 @@ import { carpetaDe, describir, planificar } from "./plan.mjs";
  *     corta a la mitad, la app no ve una película rota: ve la de antes, o nada.
  *   - El catálogo se guarda después de cada paso: si el quinto falla, los
  *     cuatro primeros quedan hechos.
+ *
+ * Con `automatico` (la tarea programada, sin nadie al teclado) no se pregunta
+ * nada: lo que solo AÑADE —subir, renombrar, subtítulos nuevos— se hace, y
+ * todo lo que quitaría algo de la nube —una película que ya no está, un
+ * reemplazo, un subtítulo borrado, pasarse del plan gratis— se deja como
+ * estaba y se devuelve en `pendientes`, para hacerlo a mano.
  */
 
 /** El plan gratis de R2: 10 GB. Se avisa antes de pasarse. */
@@ -26,6 +32,7 @@ export const LIMITE_NUBE = 10 * 1024 ** 3;
 export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, decir, opciones = {} }) {
   const op = {
     mirar: false,
+    automatico: false,
     calidad: 24,
     aceleracion: "auto",
     recodificar: false,
@@ -34,19 +41,21 @@ export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, de
     ahora: Date.now(),
     ...opciones,
   };
-  const resumen = { hechas: 0, fallidas: 0, saltadas: 0 };
+  const resumen = { hechas: 0, fallidas: 0, saltadas: 0, pendientes: [], subidas: [] };
 
   decir("titulo", `Leyendo ${raiz}`);
   const { peliculas: locales, saltadas } = await leerBiblioteca(raiz, { ahora: op.ahora });
   decir("titulo", `Leyendo la nube (${nube.descripcion})`);
   const catalogo = await nube.leerCatalogo();
   const carpetasNube = await nube.listarCarpetas();
-  const plan = planificar(locales, catalogo, { carpetasNube });
+  const planEntero = planificar(locales, catalogo, { carpetasNube });
+  const plan = op.automatico ? soloLoQueAnade(planEntero, resumen.pendientes) : planEntero;
 
   decir("info", `En la carpeta: ${locales.length} película(s). En la nube: ${catalogo.length}.`);
   for (const s of saltadas) decir("aviso", `Se salta ${s.ruta}: ${s.motivo}`);
+  for (const p of resumen.pendientes) decir("aviso", `Pendiente (hazlo a mano con «Sincronizar peliculas»): ${p}`);
   if (plan.length === 0) {
-    decir("bien", "Todo al día: la nube ya es igual que la carpeta.");
+    if (resumen.pendientes.length === 0) decir("bien", "Todo al día: la nube ya es igual que la carpeta.");
     return { ...resumen, plan };
   }
   decir("titulo", "Lo que hay que hacer");
@@ -57,7 +66,7 @@ export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, de
   }
 
   const constructivas = plan.filter((a) => !["huerfana", "basura"].includes(a.tipo));
-  if (constructivas.length > 0 && !(await preguntar("¿Lo hago?", true))) {
+  if (constructivas.length > 0 && !op.automatico && !(await preguntar("¿Lo hago?", true))) {
     decir("info", "No se hizo nada.");
     return { ...resumen, plan };
   }
@@ -69,7 +78,14 @@ export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, de
     const nuevo = aSubir.reduce((t, a) => t + a.local.video.tamano, 0);
     if (usado !== null && usado + nuevo > LIMITE_NUBE * 0.95) {
       decir("aviso", `La nube tiene ${gb(usado)} de ${gb(LIMITE_NUBE)} gratis, y esto suma hasta ${gb(nuevo)} más. Puede pasarse del plan gratis (R2 cobra lo que sobre).`);
-      if (!(await preguntar("¿Sigo de todas formas?", false))) {
+      if (op.automatico) {
+        // Sin nadie que decida, no se arriesga la factura: lo demás sí se hace.
+        for (const a of aSubir) {
+          plan.splice(plan.indexOf(a), 1);
+          resumen.pendientes.push(`Subir «${a.local.titulo}»: no cabe en los ${gb(LIMITE_NUBE)} gratis (hay ${gb(usado)}). Borra alguna antes.`);
+          decir("aviso", resumen.pendientes.at(-1));
+        }
+      } else if (!(await preguntar("¿Sigo de todas formas?", false))) {
         decir("info", "No se subió nada. Borra alguna película de la carpeta y vuelve a sincronizar.");
         return { ...resumen, plan };
       }
@@ -87,6 +103,7 @@ export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, de
       else if (hizo) {
         await guardar();
         resumen.hechas++;
+        if (accion.tipo === "subir") resumen.subidas.push(accion.local.titulo);
       } else resumen.saltadas++;
     } catch (error) {
       resumen.fallidas++;
@@ -94,6 +111,25 @@ export async function sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, de
     }
   }
   return { ...resumen, plan };
+}
+
+/**
+ * Del plan, lo que se puede hacer sin preguntar: lo que no quita nada de la
+ * nube. Lo demás se describe en `pendientes` y no se toca.
+ */
+export function soloLoQueAnade(plan, pendientes) {
+  const hacer = [];
+  for (const a of plan) {
+    if (a.tipo === "huerfana" || a.tipo === "basura" || a.tipo === "reemplazar") {
+      pendientes.push(describir(a));
+    } else if (a.tipo === "subtitulos" && a.quitar.length > 0) {
+      pendientes.push(`Quitar de «${a.entrada.titulo}» ${a.quitar.length} subtítulo(s) que ya no están en la carpeta`);
+      if (a.nuevos.length > 0 || (a.adoptarSubs?.length ?? 0) > 0) hacer.push({ ...a, quitar: [] });
+    } else {
+      hacer.push(a);
+    }
+  }
+  return hacer;
 }
 
 async function ejecutarAccion(accion, ctx) {
