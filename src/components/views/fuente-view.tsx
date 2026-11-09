@@ -36,7 +36,8 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
  *
  * La vista principal es la portada de la película de la sala, con quién está
  * y un solo botón que dice lo siguiente que toca (crear la sala, elegir,
- * empezar, volver a la película). Debajo, el estante de «Nuestras películas». Pegar un
+ * empezar, volver a la película). Encima de todo, el estante de «Nuestras películas»:
+ * lo que hay para ver es lo primero que se lee. Pegar un
  * enlace —la vía de siempre de Mi enlace— vive en una hoja aparte, a un botón.
  *
  * Por qué aquí sí hay controles completos, y no en Canales ni en Películas:
@@ -73,6 +74,11 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
   const [trasAlias, setTrasAlias] = useState<null | "crear" | "entrar">(null);
   const nuestras = useNuestrasPeliculas();
+  /**
+   * El estante va arriba del todo hasta que algo empieza a reproducirse en la
+   * página (PC y teléfono): ahí se recoge para dejarle el ancho al reproductor.
+   */
+  const [estanteVisible, setEstanteVisible] = useState(true);
   const estanteRef = useRef<HTMLButtonElement | null>(null);
   const principalRef = useRef<HTMLButtonElement | null>(null);
   /**
@@ -81,13 +87,21 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * película había cambiado allá arriba.
    */
   const volverALaPortada = useCallback(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    window.setTimeout(() => principalRef.current?.focus({ preventScroll: true }), 50);
+    // Con el estante arriba, el botón puede quedar bajo el borde en una tele:
+    // se desplaza lo justo para verlo, no al principio de la página.
+    window.setTimeout(() => {
+      principalRef.current?.focus({ preventScroll: true });
+      principalRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 50);
   }, []);
   /** «Cambiar película» y «Elegir película» llevan el foco al estante. */
   const irAlEstante = useCallback(() => {
-    estanteRef.current?.focus();
-    estanteRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    setEstanteVisible(true);
+    // Si estaba recogido, el estante existe a partir del siguiente render.
+    window.setTimeout(() => {
+      estanteRef.current?.focus();
+      estanteRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 50);
   }, []);
 
   /**
@@ -201,6 +215,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       // Arrancó —por la cuenta atrás, por el otro o a mano—. En la tele, a
       // pantalla completa: desde el sofá no se ve una película a media página.
       if (document.documentElement.dataset.pantalla === "tv") setInmersivo(true);
+      // En PC y teléfono se ve en la página: el estante se recoge y el
+      // reproductor crece a todo el ancho. Vuelve con «Cambiar película».
+      else setEstanteVisible(false);
     };
     const alPausa = () => setReproduciendo(false);
     video.addEventListener("play", alPlay);
@@ -363,6 +380,25 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         sobretitulo={sobretitulo}
         titulo={portada?.titulo || "Elijan una película"}
         pildoras={pildoras}
+        estante={
+          estanteVisible &&
+          nuestras.peliculas.length > 0 && (
+            <Estante
+              peliculas={nuestras.peliculas}
+              arte={arte}
+              elegida={portada?.url}
+              primeroRef={estanteRef}
+              // Fuera de la sala lo primero es elegir; dentro, «Empezar».
+              entrada={!dentro}
+              alElegir={(elegida) => {
+                const p = nuestras.peliculas.find((x) => x.url === elegida);
+                if (!p) return;
+                elegir({ id: `nuestra-${p.id}`, titulo: p.titulo, url: p.url, subtitulos: p.subtitulos });
+                volverALaPortada();
+              }}
+            />
+          )
+        }
         teatro={
           enPantalla && (
             <section
@@ -432,7 +468,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               ref={principalRef}
               type="button"
               data-nav="button"
-              data-nav-entrada=""
+              data-nav-entrada={dentro || !estanteVisible || nuestras.peliculas.length === 0 ? "" : undefined}
               className="cine-boton-principal" onClick={() => dar(principal.paso)}>
               {principal.icono}
               {principal.texto}
@@ -474,7 +510,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       </Portada>
 
       {nuestras.configurado &&
-        (!nuestras.listo ? null : nuestras.fallo ? (
+        nuestras.listo &&
+        (nuestras.fallo ? (
           <Aviso tono="aviso" className="fuente-aviso">
             No se pudo leer la lista de películas. Si acabas de crear el bucket, revisa su CORS (ver
             docs/PELICULAS-JUNTOS.md).
@@ -483,22 +520,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
           <EstadoVacio
             icono={<Clapperboard />}
             titulo="Todavía no hay películas"
-            texto="Arrastra una sobre subir-pelicula.cmd en tu PC y aparecerá aquí, en todos los aparatos."
+            texto="Deja una en la carpeta Descargas\Peliculas de tu PC y sincroniza: aparecerá aquí, en todos los aparatos."
           />
-        ) : (
-          <Estante
-            peliculas={nuestras.peliculas}
-            arte={arte}
-            elegida={portada?.url}
-            primeroRef={estanteRef}
-            alElegir={(elegida) => {
-              const p = nuestras.peliculas.find((x) => x.url === elegida);
-              if (!p) return;
-              elegir({ id: `nuestra-${p.id}`, titulo: p.titulo, url: p.url, subtitulos: p.subtitulos });
-              volverALaPortada();
-            }}
-          />
-        ))}
+        ) : null)}
 
       <div className="cine-pie">
         <button type="button" data-nav="button" className="cine-boton-pequeno" onClick={() => setHoja("enlace")}>

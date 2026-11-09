@@ -73,6 +73,7 @@ export function Portada({
   titulo,
   pildoras,
   teatro,
+  estante,
   children,
 }: {
   fondo: string | null;
@@ -81,10 +82,15 @@ export function Portada({
   pildoras: string[];
   /** El reproductor, ya montado. Sin película, nada. */
   teatro?: ReactNode;
+  /**
+   * «Nuestras películas», lo primero de la pantalla: qué hay para ver se
+   * tiene que leer sin bajar, antes que el reproductor y que cualquier enlace.
+   */
+  estante?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""}`} aria-labelledby="cine-titulo">
+    <section className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""} ${estante ? "con-estante" : ""}`} aria-labelledby="cine-titulo">
       {fondo && (
         // `key` por imagen: al cambiar de película, la nueva entra fundiéndose
         // en vez de saltar de golpe.
@@ -93,6 +99,7 @@ export function Portada({
       )}
       <div className="cine-portada-velo" aria-hidden="true" />
       <div className="cine-portada-contenido">
+        {estante}
         <p className="cine-sobretitulo">{sobretitulo}</p>
         <h2 id="cine-titulo" className="cine-titulo">
           {titulo}
@@ -188,12 +195,15 @@ export function Estante({
   elegida,
   alElegir,
   primeroRef,
+  entrada,
 }: {
   peliculas: PeliculaEstante[];
   arte: Record<string, Arte | null>;
   elegida: string | undefined;
   alElegir: (url: string) => void;
   primeroRef?: React.Ref<HTMLButtonElement>;
+  /** Con el mando, el foco entra a la pantalla por la película elegida. */
+  entrada?: boolean;
 }) {
   return (
     <section className="cine-estante" aria-labelledby="cine-estante-titulo">
@@ -210,6 +220,7 @@ export function Estante({
                 ref={i === 0 ? primeroRef : undefined}
                 type="button"
                 data-nav="card"
+                data-nav-entrada={entrada && (elegida ? esLa : i === 0) ? "" : undefined}
                 className={`cine-poster ${esLa ? "is-elegida" : ""}`}
                 aria-pressed={esLa}
                 onClick={() => alElegir(pelicula.url)}
