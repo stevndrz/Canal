@@ -51,4 +51,13 @@ export const publicConfig = {
    */
   peliculasUrl: (process.env.NEXT_PUBLIC_PELICULAS_URL?.trim() || "").replace(/\/+$/, ""),
 
+  /**
+   * La «view key» de Vimeus: va dentro de cada iframe, así que es pública por
+   * diseño (Vimeus la valida contra los dominios dados de alta en su panel,
+   * «Dominios válidos para inserciones»). La de por defecto es la de la
+   * cuenta de la casa; en Vercel se puede cambiar sin tocar el código. La API
+   * key, que es secreta, va aparte en `config.server.ts`.
+   */
+  vimeusViewKey: process.env.NEXT_PUBLIC_VIMEUS_VIEW_KEY?.trim() || "-cDmA0w7jgrm91zCZcpj_o9BzcP4hxnBqAOTh1ckDUM",
+
 } as const;

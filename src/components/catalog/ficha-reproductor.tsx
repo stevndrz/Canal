@@ -245,7 +245,14 @@ function ReproductorCatalogo({
     // Sin salidas anticipadas dentro del `useMemo`: el compilador de React no
     // sabe preservar la memoización de un `return` dentro de un bucle y el
     // lint lo rechaza. Con `map` + `find` es una expresión y sí la conserva.
-    const lista = enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders();
+    // Nunca uno que haya que comprobar: si no tiene este episodio, el respaldo
+    // es justo el «Not Found» que se quería evitar (pasaba al cambiar de
+    // capítulo, mientras respondía `/api/stream`). El primero que no se
+    // comprueba (Vidzee) se puede enseñar ya; Vimeus entra en cuanto el
+    // servidor confirma que lo tiene.
+    const lista = (enTelevisor ? ordenarParaTelevisor(getProviders()) : getProviders()).filter(
+      (provider) => !provider.compruebaPorEstado,
+    );
     const candidatos = lista.map((provider) => ({
       provider,
       url: buildEmbedUrl(provider, mediaType, {
@@ -674,6 +681,7 @@ function ReproductorCatalogo({
               id: servidor.id,
               label: servidor.label,
               subtitulos: servidor.subtitulos,
+              latino: servidor.latino,
             }))}
             activeId={activo.id}
             onSelect={setElegidoId}

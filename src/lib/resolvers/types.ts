@@ -31,6 +31,8 @@ export interface ServidorStream {
   puertaAntirrobot?: boolean;
   /** Trae subtítulos en español. Se enseña en el botón: es lo que se busca. */
   subtitulos?: boolean;
+  /** Doblaje latino (Vimeus). También se enseña en el botón. */
+  latino?: boolean;
   /**
    * Este proveedor responde con un estado HTTP distinto cuando NO tiene el
    * título, así que se le puede preguntar antes de ofrecerlo. Ver

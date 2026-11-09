@@ -23,14 +23,32 @@ describe("orden de los proveedores", () => {
     expect(paraTipo("movie")[1].id).toBe("vidzee");
   });
 
-  it("en SERIES manda Vidzee, porque Vimeus no las cubre", () => {
-    // La ruta de series de Vimeus responde 404, así que ni aparece.
-    expect(paraTipo("tv").map((p) => p.id)).not.toContain("vimeus");
-    expect(paraTipo("tv")[0].id).toBe("vidzee");
+  it("en SERIES también manda Vimeus (latino), con su ruta de series y la de anime detrás", () => {
+    // Desde el 2026-11-09 (cuenta propia, vimeus.net) Vimeus tiene series. De
+    // las dos rutas, la comprobación por estado deja solo la que corresponde.
+    expect(paraTipo("tv").map((p) => p.id).slice(0, 3)).toEqual(["vimeus", "vimeus-anime", "vidzee"]);
+  });
+
+  it("las URLs de Vimeus van a vimeus.net, con temporada, episodio y la view key", () => {
+    const [vimeus, anime] = getProviders();
+    expect(buildEmbedUrl(vimeus, "movie", { tmdbId: 550 })).toMatch(/^https:\/\/vimeus\.net\/e\/movie\?tmdb=550&view_key=[\w-]+&autoplay=1$/);
+    expect(buildEmbedUrl(vimeus, "tv", { tmdbId: 1399, season: 2, episode: 5 })).toMatch(
+      /^https:\/\/vimeus\.net\/e\/serie\?tmdb=1399&se=2&ep=5&view_key=/,
+    );
+    expect(buildEmbedUrl(anime, "tv", { tmdbId: 225180, season: 1, episode: 3 })).toMatch(/\/e\/anime\?tmdb=225180&se=1&ep=3&/);
+    // El anime de película va por /e/movie, como cualquier película.
+    expect(buildEmbedUrl(anime, "movie", { tmdbId: 372058 })).toBeNull();
+  });
+
+  it("los de Vimeus llevan la marca «Latino» y se comprueban antes de enseñarse", () => {
+    for (const p of getProviders().slice(0, 2)) {
+      expect(p.latino).toBe(true);
+      expect(p.compruebaPorEstado).toBe(true);
+    }
   });
 
   it("todos siguen ahí, en el orden acordado, y los muertos ya no", () => {
-    expect(getProviders().map((p) => p.id)).toEqual(["vimeus", "vidzee", "multiembed", "vidrock"]);
+    expect(getProviders().map((p) => p.id)).toEqual(["vimeus", "vimeus-anime", "vidzee", "multiembed", "vidrock"]);
   });
 
   it("nadie se anuncia con subtítulos en español: hoy ninguno los trae comprobados", () => {
@@ -58,15 +76,16 @@ describe("orden de los proveedores", () => {
   });
 
   it("`getProviders` numera sobre la lista COMPLETA, no por tipo", () => {
-    // Documenta el reparto: aquí Vimeus es el 1 aunque no cubra series, y por
-    // eso `/api/stream` renumera después de filtrar y el respaldo de la ficha
-    // se llama «Servidor 1» a mano.
+    // Documenta el reparto: «vimeus-anime» no cubre películas y aun así se
+    // numera, y por eso `/api/stream` renumera después de filtrar y el
+    // respaldo de la ficha se llama «Servidor 1» a mano.
     expect(getProviders().map((p) => p.label)).toEqual([
       "Servidor 1",
       "Servidor 2",
       "Servidor 3",
       "Servidor 4",
+      "Servidor 5",
     ]);
-    expect(paraTipo("tv")[0].label).toBe("Servidor 2");
+    expect(paraTipo("movie")[1].label).toBe("Servidor 3");
   });
 });

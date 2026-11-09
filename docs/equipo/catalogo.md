@@ -39,6 +39,27 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — Vimeus con cuenta propia: series en latino y sin «Not Found»
+
+- `vimeus.com` murió (200 con redirección a una página de aparcamiento): la
+  comprobación por estado lo daba por bueno y el marco enseñaba «Not Found».
+  Ahora `vimeus.net` con la view key de la casa (`NEXT_PUBLIC_VIMEUS_VIEW_KEY`,
+  con valor por defecto).
+- Medido: 404 exacto por episodio (`/e/serie?…&se=9` → 404) en ~0,25 s, y
+  `/e/serie` y `/e/anime` se excluyen entre sí. Se ofrecen `vimeus` y
+  `vimeus-anime` y la comprobación deja el bueno. Vimeus pasa a primero
+  también en series y anime, con la marca «Latino» en el botón.
+- El respaldo instantáneo de la ficha (al cambiar de episodio) ya no es nunca
+  un servidor por comprobar: era el otro origen del «Not Found».
+- API (`VIMEUS_API_KEY`, `lib/catalog/vimeus.ts`, `use cache` en horas): riel
+  «Recién llegadas en latino» en Inicio/Películas/Series/Anime y marca
+  «Latino» en los episodios que tiene. La respuesta real no es la de su
+  documentación (`data.result`/`data.pages`); se leen las dos.
+- Ojo en el contenedor: el `fetch` de Node no usa el proxy; para probar con la
+  clave inyectada, `NODE_USE_ENV_PROXY=1 npm run dev`.
+- Sin probar: la marca «Latino» en la lista de episodios de una ficha (aquí no
+  hay clave de TMDB para abrir fichas; la lógica tiene pruebas).
+
 ### 2026-11-09 — Sincronizar «Nuestras películas» desde una carpeta (Node)
 
 El dueño pedía algo más fácil y fiable que renombrar a `pelicula.mkv`, subir,

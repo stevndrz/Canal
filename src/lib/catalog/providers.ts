@@ -39,6 +39,11 @@ export interface EmbedProvider {
    */
   spanishSubtitles: boolean;
   /**
+   * Doblaje latino: es por lo que se usa Vimeus. Se enseña en el botón
+   * («Latino»), como los subtítulos.
+   */
+  latino?: boolean;
+  /**
    * Esconde el reproductor tras una **comprobación antirrobot** (Turnstile y
    * parecidas). En PC y teléfono se pasa sola; en un televisor NO se pasa
    * nunca, y al fallar esas puertas se recargan —la de VidSrc trae tres
@@ -63,11 +68,24 @@ export interface EmbedProvider {
 }
 
 /**
- * Clave pública del generador de embeds de Vimeus, tal cual la comparten los
- * sitios que lo usan. Si algún día dejan de funcionar sus enlaces, es lo
- * primero que hay que regenerar desde su web.
+ * Vimeus, con la cuenta propia de la casa (desde el 2026-11-09).
+ *
+ * El `vimeus.com` de antes, con una clave compartida, murió: responde 200 con
+ * una redirección a una página de aparcamiento, así que la comprobación por
+ * estado lo daba por bueno y en el marco salía «Not Found». En `vimeus.net`,
+ * medido con curl:
+ *
+ *   /e/movie?tmdb=550        → 200      /e/movie?tmdb=999999999       → 404
+ *   /e/serie?…&se=1&ep=1     → 200      /e/serie?…&se=9 o &ep=99      → 404
+ *   /e/anime?tmdb=225180…    → 200      /e/serie con un anime (y al revés) → 404
+ *
+ * El 404 es exacto POR EPISODIO y tarda ~0,25 s: se puede preguntar antes de
+ * enseñarlo. Las series van por `/e/serie` y el anime por `/e/anime`, y como
+ * desde aquí no se sabe cuál es cuál, se ofrecen las dos y la comprobación
+ * descarta la que no corresponde. Las películas de anime van por `/e/movie`.
  */
-const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
+const VIMEUS = "https://vimeus.net/e";
+const vista = () => `view_key=${encodeURIComponent(publicConfig.vimeusViewKey)}`;
 
 /**
  * `Vimeus` carga `pop.js` (popunder) y `vast.js` (preroll VAST) desde
@@ -88,7 +106,8 @@ const CLAVE_VIMEUS = "mIO3kPK2Jk3hiOdw1bzXPDYYWvf-IgblslyRhziDhw";
  * Revisado el 2026-10-08 a petición del dueño, que en su casa solo veía
  * funcionar Vimeus (doblaje latino) y «el último» (Multiembed):
  *
- * 1. **Vimeus**: el principal, por el doblaje latino. Solo películas.
+ * 1. **Vimeus**: el principal, por el doblaje latino. Desde el 2026-11-09,
+ *    también series y anime (cuenta propia, `vimeus.net`).
  * 2. **Vidzee**: la recaída, en inglés. Comprobado con un navegador de verdad
  *    que llega al vídeo (descarga la lista HLS y los segmentos, y sabe la
  *    duración exacta: Inception 2:28:07, Dune 2 2:45:48), y el dueño confirmó
@@ -119,10 +138,28 @@ const EMBED_PROVIDERS: Omit<EmbedProvider, "label">[] = [
     // título resuelto en su backend, así que no se pueden armar por plantilla.
     // Es el reproductor que Vimeus carga por dentro («S1 vimeos.net»).
     id: "vimeus",
-    movie: `https://vimeus.com/e/movie?tmdb={tmdbId}&view_key=${CLAVE_VIMEUS}&autoplay=1`,
-    tv: "",
+    get movie() {
+      return `${VIMEUS}/movie?tmdb={tmdbId}&${vista()}&autoplay=1`;
+    },
+    get tv() {
+      return `${VIMEUS}/serie?tmdb={tmdbId}&se={season}&ep={episode}&${vista()}&autoplay=1`;
+    },
     spanishSubtitles: false,
-    // Responde 404 cuando no tiene la película: por eso se puede preguntar.
+    latino: true,
+    // Responde 404 cuando no tiene el título (o ese episodio).
+    compruebaPorEstado: true,
+  },
+  {
+    // El mismo Vimeus, para anime: su ruta es otra. En una serie normal da
+    // 404 y la comprobación lo quita; en un anime, el que se quita es el de
+    // arriba. Solo uno de los dos llega a la lista.
+    id: "vimeus-anime",
+    movie: "",
+    get tv() {
+      return `${VIMEUS}/anime?tmdb={tmdbId}&se={season}&ep={episode}&${vista()}&autoplay=1`;
+    },
+    spanishSubtitles: false,
+    latino: true,
     compruebaPorEstado: true,
   },
   {
@@ -290,6 +327,7 @@ export function servidoresEmbed(
           urlEmbed: urlEmbed ?? url,
           puertaAntirrobot: provider.puertaAntirrobot,
           subtitulos: provider.spanishSubtitles,
+          latino: provider.latino,
           compruebaPorEstado: provider.compruebaPorEstado,
         }]
       : [];
@@ -311,6 +349,7 @@ export interface ServidorEmbed {
   urlEmbed?: string;
   puertaAntirrobot?: boolean;
   subtitulos?: boolean;
+  latino?: boolean;
   compruebaPorEstado?: boolean;
 }
 
