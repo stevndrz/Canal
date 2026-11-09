@@ -1,4 +1,5 @@
 import { fetchList, fetchPagina, fetchRecommendations, searchTitles, type TmdbListEntry } from "./tmdb";
+import { recienLlegadas } from "./vimeus";
 import { consultaDePlataforma } from "./plataformas";
 import { GENEROS_FUERA_DE_FILAS_DE_SERIES } from "./generos";
 import { ANIMACION, IDIOMA_ANIME, SECCIONES, rutaDeTipo, type SeccionCatalogo } from "./secciones";
@@ -312,16 +313,36 @@ function toCatalogItem(entry: TmdbListEntry): ResolvedCatalogItem {
  */
 export async function fetchCatalogRows(seccion?: SeccionCatalogo): Promise<CatalogSection[]> {
   const filas = seccion ? FILAS_POR_SECCION[seccion] : CATALOG_ROWS;
-  const rows = await Promise.all(
-    filas.map(async (row) => ({
-      title: row.title,
-      // Enlace a la cuadrilla completa del género/tipo de la fila: los títulos
-      // de las filas son clicables y llevan a «todas las de Acción», etc.
-      href: enlaceDeFila(row),
-      items: sinGeneros(await fetchList(row.path, row.mediaType), row.sinGeneros).map(toCatalogItem),
-    }))
-  );
-  return rows.filter((row) => row.items.length > 0);
+  const [rows, latino] = await Promise.all([
+    Promise.all(
+      filas.map(async (row) => ({
+        title: row.title,
+        // Enlace a la cuadrilla completa del género/tipo de la fila: los títulos
+        // de las filas son clicables y llevan a «todas las de Acción», etc.
+        href: enlaceDeFila(row),
+        items: sinGeneros(await fetchList(row.path, row.mediaType), row.sinGeneros).map(toCatalogItem),
+      }))
+    ),
+    filaEnLatino(seccion),
+  ]);
+  const llenas: CatalogSection[] = rows.filter((row) => row.items.length > 0);
+  // Segunda, detrás de Tendencias: es lo nuevo que de verdad se oye en
+  // latino, y lo que más se busca en casa. Sin `href`: no hay cuadrilla
+  // «todas las de Vimeus» a la que llevar.
+  if (latino.items.length > 0) llenas.splice(Math.min(1, llenas.length), 0, latino);
+  return llenas;
+}
+
+/**
+ * «Recién llegadas en latino»: lo último que añadió Vimeus (su API, ver
+ * `vimeus.ts`). En Inicio, películas; en Series, series; en Anime, anime. Sin
+ * `VIMEUS_API_KEY` sale vacía y no se pinta.
+ */
+async function filaEnLatino(seccion?: SeccionCatalogo): Promise<CatalogSection> {
+  const tipo = seccion === "series" ? "series" : seccion === "anime" ? "animes" : "movies";
+  const titulo = seccion === "series" ? "Series recién llegadas en latino" : seccion === "anime" ? "Anime recién llegado en latino" : "Recién llegadas en latino";
+  const entradas = await recienLlegadas(tipo).catch(() => []);
+  return { title: titulo, items: entradas.map(toCatalogItem) };
 }
 
 /** Quita de una lista los títulos de ciertos géneros (ver `RowSpec.sinGeneros`). */

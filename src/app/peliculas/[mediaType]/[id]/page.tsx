@@ -10,6 +10,7 @@ import type { MediaType } from "@/lib/catalog/types";
 import { esTelevisorUA } from "@/lib/dispositivo";
 import { numerarServidores, servidoresEmbed } from "@/lib/catalog/providers";
 import { servidoresConElTitulo } from "@/lib/catalog/disponibilidad";
+import { episodiosEnLatino } from "@/lib/catalog/vimeus";
 import { catalogToCard } from "@/lib/media-item";
 
 /**
@@ -72,7 +73,7 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
    * comprobación de servidores de arriba: ninguna depende de la otra, y las
    * dos ya esperan a `resolveItem`.
    */
-  const [servidoresIniciales, recomendados] = await Promise.all([
+  const [servidoresIniciales, recomendados, enLatino] = await Promise.all([
     tmdbId
       ? servidoresConElTitulo(
           servidoresEmbed(
@@ -85,6 +86,9 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
     tmdbId
       ? fetchSimilar(mediaType as MediaType, tmdbId).then((items) => items.map(catalogToCard))
       : Promise.resolve([]),
+    // Qué episodios de esta temporada tiene Vimeus en latino (su API). `null`
+    // = no se sabe, y entonces no se marca nada. En paralelo con lo demás.
+    mediaType === "tv" && tmdbId ? episodiosEnLatino(tmdbId, selectedSeason) : Promise.resolve(null),
   ]);
 
   return (
@@ -95,6 +99,7 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
       enTelevisor={enTelevisor}
       servidoresIniciales={servidoresIniciales}
       recomendados={recomendados}
+      enLatino={enLatino}
     />
   );
 }

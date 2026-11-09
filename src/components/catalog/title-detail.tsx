@@ -50,6 +50,7 @@ export function TitleDetail({
   selectedSeason,
   enTelevisor,
   servidoresIniciales,
+  enLatino,
   recomendados,
 }: {
   item: ResolvedCatalogItem;
@@ -63,6 +64,8 @@ export function TitleDetail({
    * Ver `lib/catalog/disponibilidad.ts`.
    */
   servidoresIniciales?: ServidorStream[];
+  /** Episodios de la temporada que Vimeus tiene en latino; `null` = no se sabe. */
+  enLatino?: number[] | null;
   /**
    * «También te puede interesar», ya convertido a tarjeta en el servidor —
    * mismo motivo que `CatalogRows`: no serializar la ficha de TMDB entera por
@@ -267,6 +270,7 @@ export function TitleDetail({
               item={item}
               claveBase={claveBase}
               episodes={episodes}
+              enLatino={enLatino ?? null}
               selectedSeason={selectedSeason}
               selectedEpisode={selectedEpisode}
               onSelectEpisode={elegirEpisodio}

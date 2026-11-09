@@ -42,6 +42,7 @@ export function FichaEpisodios({
   item,
   claveBase,
   episodes,
+  enLatino = null,
   selectedSeason,
   selectedEpisode,
   onSelectEpisode,
@@ -50,6 +51,11 @@ export function FichaEpisodios({
   /** La clave de la tarjeta (`"tv-tmdb-125988"`). Ver `claveCatalogo`. */
   claveBase: string;
   episodes: ResolvedEpisode[];
+  /**
+   * Los que Vimeus tiene en latino (su API). `null` cuando no se sabe: ahí
+   * no se marca nada, en vez de dar a entender que ninguno lo está.
+   */
+  enLatino?: number[] | null;
   selectedSeason: number;
   selectedEpisode: ResolvedEpisode | null;
   onSelectEpisode: (episode: ResolvedEpisode) => void;
@@ -65,6 +71,7 @@ export function FichaEpisodios({
     [episodes, vistos, claveBase, filtro],
   );
   const contados = cuantosVistos(vistos, claveBase, episodes);
+  const latinos = useMemo(() => (enLatino ? new Set(enLatino) : null), [enLatino]);
 
   return (
     <section className="ficha-seccion" id="episodios">
@@ -173,6 +180,12 @@ export function FichaEpisodios({
                   <span className="ficha-episodio-texto">
                     <strong>
                       {episode.episode}. {episode.title}
+                      {latinos?.has(episode.episode) && (
+                        <>
+                          {" "}
+                          <span className="ficha-marca is-si">Latino</span>
+                        </>
+                      )}
                     </strong>
                     {episode.overview && <span>{episode.overview}</span>}
                   </span>

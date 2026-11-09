@@ -52,6 +52,13 @@ export function serverConfig() {
     /** Secreto de Pusher: solo firma las salas de Ver juntos. Ver `/api/pusher/auth`. */
     pusherSecreto: process.env.PUSHER_SECRET?.trim() || "",
 
+    /**
+     * API key de Vimeus (cabecera `X-API-Key`): los listados de lo que tiene
+     * en latino —el riel «Recién llegadas» y qué episodios hay—. Secreta: solo
+     * servidor. Sin ella, Vimeus sigue funcionando; solo faltan esos extras.
+     */
+    vimeusApiKey: process.env.VIMEUS_API_KEY?.trim() || "",
+
     /** Addons de Stremio con enlaces directos, separados por comas. */
     stremioManifestos: process.env.STREMIO_MANIFESTS?.trim() || "",
 
