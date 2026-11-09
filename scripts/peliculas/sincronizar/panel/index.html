@@ -25,7 +25,9 @@
   main { max-width: 920px; margin: 0 auto; padding: 28px 20px 60px; }
   h1 { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
   h2 { font-size: 15px; color: var(--tinta-3); font-weight: 600; margin: 28px 0 10px; text-transform: uppercase; letter-spacing: 0.06em; }
-  .cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .cabecera > div { flex: 1; min-width: 0; }
+  #b-cerrar { flex-shrink: 0; }
   .carpeta { margin-top: 6px; color: var(--tinta-3); font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .carpeta code { color: var(--tinta-2); background: var(--relleno); padding: 2px 8px; border-radius: var(--radio-sm); word-break: break-all; }
   button { font: inherit; cursor: pointer; border-radius: var(--radio-pill); border: 1px solid var(--borde); background: var(--relleno); color: var(--tinta-1); padding: 8px 16px; }
@@ -37,6 +39,7 @@
   button.peligro { color: var(--peligro); }
   button.peligro:hover:not(:disabled) { background: var(--peligro-fondo); border-color: var(--peligro); }
   button.chico { padding: 5px 12px; font-size: 14px; }
+  #b-subir:not(.principal) { padding: 12px 22px; font-size: 17px; }
   .botones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
   .nube { margin-top: 18px; display: flex; align-items: center; gap: 12px; color: var(--tinta-2); font-size: 14px; }
   .barra { flex: 1; max-width: 320px; height: 8px; background: var(--superficie-3); border-radius: var(--radio-pill); overflow: hidden; }
@@ -89,7 +92,7 @@
 
   <div class="botones">
     <button class="principal" id="b-agregar">+ Agregar película</button>
-    <button class="principal" id="b-subir">Subir cambios</button>
+    <button id="b-subir">Subir cambios</button>
   </div>
 
   <div id="aviso" role="status"></div>
@@ -179,7 +182,8 @@ function pintar(e) {
     $("nube-barra").firstElementChild.style.width = p + "%";
     $("nube-barra").classList.toggle("llena", p > 85);
   }
-  $("b-subir").textContent = e.pendientes ? "Subir cambios (" + e.pendientes + ")" : "Subir cambios";
+  $("b-subir").textContent = e.pendientes ? "Subir cambios (" + e.pendientes + ")" : "Todo subido ✓";
+  $("b-subir").className = e.pendientes ? "principal" : "";
 
   const lista = $("lista");
   lista.replaceChildren();

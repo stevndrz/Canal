@@ -97,6 +97,30 @@ Y redespliega. Sin esta variable, «Nuestras películas» no aparece.
 
 ---
 
+## Lo fácil: el panel con botones
+
+Doble clic en **CanalCasa Peliculas.cmd** (en `Descargas\Peliculas`; lo crea
+`preparar-pc.ps1`). Se abre en el navegador una página que solo existe en
+tu PC, con la lista de películas y su estado («En la app ✓», «Por subir»,
+«Cambios por subir», «Solo en la app»):
+
+| Botón | Qué hace |
+|---|---|
+| **+ Agregar película** | Abre el selector de Windows. Elige el vídeo (y sus .srt, si quieres) de **cualquier carpeta**: USB, `D:\`… Se **copia** a la carpeta (el original no se toca) con sus subtítulos, y pregunta si subirla ya |
+| **Subir cambios (n)** | La sincronización de siempre, con barra de progreso. Si hay que borrar algo de la nube, pregunta |
+| **+ Subtítulo** (en cada fila) | Copia un .srt al lado de esa película, con su nombre. Después, «Subir cambios» |
+| **Borrar** (en cada fila) | Pregunta, y la quita **de la app y del PC**: sus archivos van a la **Papelera** (se pueden recuperar) |
+| **Cambiar** (carpeta) | Usa otra carpeta como biblioteca; se recuerda (también para «Sincronizar peliculas.cmd») |
+
+La ventana negra que se abre con él es el panel: no la cierres mientras lo
+uses. Se apaga sola 10 minutos después de cerrar la pestaña, o con «Cerrar
+panel». Otro doble clic con el panel abierto vuelve a enseñar el mismo.
+
+Es el mismo motor que «Sincronizar peliculas.cmd»: mismas reglas, mismo
+candado (no corren los dos a la vez) y el mismo registro. Solo escucha en
+`127.0.0.1` y cada sesión lleva un token aleatorio: nadie de la red lo ve,
+y ninguna otra página abierta en el navegador puede pulsar sus botones.
+
 ## Subir, cambiar y borrar: sincronizar
 
 `Descargas\Peliculas` **es** tu biblioteca: lo que esté ahí, está en la app.
@@ -149,7 +173,7 @@ vídeo dentro; por defecto español e inglés), `--recodificar`,
   pases de los 10 GB gratis antes de convertir.
 - Registro de cada vuelta en `%LOCALAPPDATA%\CanalCasa\registro\`.
 
-Código: `scripts/peliculas/sincronizar/` (Node, con pruebas: `npm test`).
+Código: `scripts/peliculas/sincronizar/` (Node, con pruebas: `npm test`); el panel es `panel.mjs` + `panel/index.html`.
 Los scripts de antes (`subir-pelicula`, `agregar-subtitulos`,
 `borrar-pelicula`) siguen en el repo por si acaso, pero ya no hacen falta.
 
