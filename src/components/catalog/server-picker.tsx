@@ -33,7 +33,7 @@ export function ServerPicker({
    * Antes pedía el proveedor entero de embeds; ahora los servidores pueden
    * venir también de `/api/stream`, y a este control le da igual de dónde.
    */
-  providers: { id: string; label: string; subtitulos?: boolean }[];
+  providers: { id: string; label: string; subtitulos?: boolean; latino?: boolean }[];
   activeId: string;
   onSelect: (id: string) => void;
   nota?: React.ReactNode;
@@ -70,6 +70,7 @@ export function ServerPicker({
                   significa nada: hubo que reordenarlos en televisor porque el
                   de los subtítulos no arranca ahí, y sin esta marca la persona
                   solo notaba que los había perdido, sin saber dónde buscarlos. */}
+              {provider.latino && <span className="servidor-marca">Latino</span>}
               {provider.subtitulos && <span className="servidor-marca">Subtítulos</span>}
             </button>
           );
