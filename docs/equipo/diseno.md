@@ -472,6 +472,26 @@ impacto.
 - Probar en un televisor de verdad el héroe con varios destacados y el logo
   con TMDB real (aquí se probó con un simulador de TMDB).
 
+## Mi enlace: «Nuestras películas» primero (2026-11-09)
+
+Pedido del dueño: que lo primero que se vea sea qué películas hay. Antes el
+estante quedaba bajo el reproductor y las acciones: en los tres aparatos había
+que bajar para verlo.
+
+- El estante va dentro de `.cine-portada-contenido`, lo primero. Pósters más
+  pequeños ahí (`clamp(72px, 6vw, 96px)`; 132px en la tele, antes 220px).
+- `.cine-portada.con-estante` le quita 240px más al alto del reproductor
+  (`--cine-ancho`) y baja el título a 24–40px: a 1600×1000 caben estante,
+  título, reproductor y «Crear sala» sin bajar.
+- En PC y teléfono, al empezar a reproducir el estante se recoge y el
+  reproductor recupera el ancho de antes; vuelve con «Cambiar película». En la
+  tele no hace falta: al reproducir va a pantalla completa.
+- Con el mando, el foco entra por la película elegida (`data-nav-entrada`);
+  dentro de una sala, por el botón principal, como antes.
+- Medido con Playwright (`e2e/nuestras-peliculas.spec.ts`) en PC, iPhone y
+  tele. Sin probar en aparatos reales. En la tele «Crear sala» queda justo
+  bajo el borde hasta que se elige película (el foco lo trae a la vista).
+
 ## Mi enlace: el reproductor es la portada (teatro)
 
 - Como siempre es una sola película, `.cine-portada.con-teatro` deja de ser

@@ -157,6 +157,10 @@ Los scripts de antes (`subir-pelicula`, `agregar-subtitulos`,
 
 ## Ver juntos
 
+Al abrir Mi enlace, lo primero es el estante **Nuestras películas**: se elige
+una (en la tele, el mando entra directamente por ahí) y debajo queda su
+reproductor.
+
 1. Cada persona elige su **alias** la primera vez («Steven», «Tele sala»…).
    Sale en su círculo y en «Juntos · Steven ✓».
 2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
