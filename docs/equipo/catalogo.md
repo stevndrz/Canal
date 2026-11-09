@@ -39,6 +39,31 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — Seguir viendo juntos, historial y sala recordada
+
+- `lib/ver-juntos/historial.ts` (puro, 6 pruebas): cada aparato de la sala
+  apunta en `localStorage` (`canalcasa:juntos-historial`, 30 entradas) la
+  película, el segundo, la duración, con quién y cuándo. Cada 5 s, al pausar y
+  al saltar; nunca el segundo 0 de antes de empezar.
+- `irA(tiempo)` en `use-ver-juntos.ts`: lleva a toda la sala a un segundo, en
+  pausa, lo pulse quien lo pulse. **Sin mensajes nuevos**: es un `estado`
+  normal; «Retomar» = `irA` + el `empezar` de siempre. Aparatos con la versión
+  anterior lo entienden igual.
+- «Retomar en 47:10» sustituye a «Empezar» si la sala dejó la película a
+  medias (> 60 s y < 94 %) y el vídeo no está ya ahí; «Desde el principio» al
+  lado.
+- «Volver a la sala 4821» (`canalcasa:juntos-ultima-sala`). Al volver, la
+  película de este aparato solo se pone si la sala estaba vacía: si ya hay
+  alguien, manda la suya.
+- «Vistas juntos» reutiliza `.fuente-lista`; lo único nuevo de CSS es el ancho
+  de `.cine-vistas`. Las que ya no están en la nube salen apagadas.
+- Probado con Playwright: dos aparatos ven hasta 1:10, cierran, vuelven a la
+  sala y el que NO dirige pulsa Retomar: los dos acaban a menos de 1,5 s.
+- Sin probar: aparatos reales; qué pasa si cada aparato recuerda una sala
+  distinta (cada uno vuelve a la suya: se ve en la presencia que están solos).
+- Idea sin hacer: con sala recordada, que el botón principal fuera «Volver a
+  la sala» y «Crear sala» pasara a secundario.
+
 ### 2026-11-09 — Sincronizar sola: tarea de Windows y modo `--automatico`
 
 Tarea programada (cada 10 min, `wscript` con ventana 0 para que no salte una

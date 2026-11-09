@@ -197,6 +197,18 @@ reproductor.
    y subtítulos.
 4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
 
+### Seguir otro día
+
+- **Volver a la sala 4821**: cada aparato recuerda la última sala. Si los dos
+  pulsan ese botón, vuelven a encontrarse sin dictarse el código.
+- **Retomar en 47:10**: mientras se ve en una sala, cada aparato apunta por
+  dónde van. Al volver, el botón principal ofrece retomarlo —lo puede pulsar
+  cualquiera y mueve a todos— y al lado queda «Desde el principio».
+- **Vistas juntos**, al final de la pantalla: qué se vio, por dónde iban, con
+  quién y cuándo. Tocar una la pone. Se guarda en cada aparato (no hay
+  servidor): un aparato que no estuvo ese día no la tiene en su lista, pero
+  recibe igual el «Retomar» del otro.
+
 **La última película elegida manda**, la elija quien la elija. Dirige quien la
 eligió (su pulso corrige al otro); si se va, quien lleve más tiempo dentro.
 Play, pausa y saltos de cualquiera pasan en los dos. Si uno sale de Mi enlace
