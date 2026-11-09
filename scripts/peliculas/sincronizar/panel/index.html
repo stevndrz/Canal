@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CanalCasa · Películas</title>
+<style>
+  /* Los mismos valores que los tokens de src/app/shell.css (copiados: este
+     panel vive en el PC, fuera de la app). */
+  :root {
+    --fondo: #0b0b0d; --superficie-1: #151517; --superficie-2: #1f1f22; --superficie-3: #2a2a2e;
+    --relleno: rgba(245, 245, 247, 0.1); --relleno-hover: rgba(245, 245, 247, 0.16);
+    --borde-sutil: rgba(245, 245, 247, 0.08); --borde: rgba(245, 245, 247, 0.12); --borde-fuerte: rgba(245, 245, 247, 0.26);
+    --tinta-1: #f5f5f7; --tinta-2: rgba(245, 245, 247, 0.76); --tinta-3: rgba(245, 245, 247, 0.62); --tinta-4: rgba(245, 245, 247, 0.4);
+    --acento: #f5f5f7; --acento-hover: #ffffff; --acento-tinta: #0b0b0d;
+    --peligro: #ff453a; --peligro-fondo: rgba(255, 69, 58, 0.12);
+    --exito: #30d158; --exito-fondo: rgba(48, 209, 88, 0.16);
+    --aviso: #ffd60a; --aviso-fondo: rgba(255, 214, 10, 0.08);
+    --sombra-2: 0 16px 40px rgba(0, 0, 0, 0.55);
+    --radio-sm: 8px; --radio-md: 12px; --radio-lg: 18px; --radio-pill: 999px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fondo); color: var(--tinta-1); font: 16px/1.45 system-ui, "Segoe UI", sans-serif; }
+  main { max-width: 920px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 26px; margin: 0; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; color: var(--tinta-3); font-weight: 600; margin: 28px 0 10px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .cabecera { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .carpeta { margin-top: 6px; color: var(--tinta-3); font-size: 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .carpeta code { color: var(--tinta-2); background: var(--relleno); padding: 2px 8px; border-radius: var(--radio-sm); word-break: break-all; }
+  button { font: inherit; cursor: pointer; border-radius: var(--radio-pill); border: 1px solid var(--borde); background: var(--relleno); color: var(--tinta-1); padding: 8px 16px; }
+  button:hover:not(:disabled) { background: var(--relleno-hover); border-color: var(--borde-fuerte); }
+  button:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.principal { background: var(--acento); color: var(--acento-tinta); border-color: transparent; font-weight: 600; padding: 12px 22px; font-size: 17px; }
+  button.principal:hover:not(:disabled) { background: var(--acento-hover); }
+  button.peligro { color: var(--peligro); }
+  button.peligro:hover:not(:disabled) { background: var(--peligro-fondo); border-color: var(--peligro); }
+  button.chico { padding: 5px 12px; font-size: 14px; }
+  .botones { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+  .nube { margin-top: 18px; display: flex; align-items: center; gap: 12px; color: var(--tinta-2); font-size: 14px; }
+  .barra { flex: 1; max-width: 320px; height: 8px; background: var(--superficie-3); border-radius: var(--radio-pill); overflow: hidden; }
+  .barra > i { display: block; height: 100%; background: var(--tinta-1); width: 0; transition: width 0.3s; }
+  .barra.llena > i { background: var(--aviso); }
+  .tarjeta { background: var(--superficie-1); border: 1px solid var(--borde-sutil); border-radius: var(--radio-lg); }
+  #progreso { margin-top: 20px; padding: 16px 18px; display: none; }
+  #progreso.visible { display: block; }
+  #progreso .barra { max-width: none; height: 10px; margin-top: 10px; }
+  #lista { overflow: hidden; }
+  .fila { display: grid; grid-template-columns: 1fr auto auto; gap: 14px; align-items: center; padding: 14px 18px; border-top: 1px solid var(--borde-sutil); }
+  .fila:first-child { border-top: 0; }
+  .titulo { font-weight: 600; font-size: 17px; }
+  .detalle { color: var(--tinta-3); font-size: 13px; margin-top: 2px; }
+  .chip { font-size: 13px; padding: 3px 10px; border-radius: var(--radio-pill); white-space: nowrap; background: var(--relleno); color: var(--tinta-2); }
+  .chip.al-dia { background: var(--exito-fondo); color: var(--exito); }
+  .chip.por-subir, .chip.cambios { background: var(--aviso-fondo); color: var(--aviso); }
+  .acciones { display: flex; gap: 8px; }
+  .vacio { padding: 28px 18px; color: var(--tinta-3); text-align: center; }
+  .saltadas { color: var(--tinta-3); font-size: 14px; margin: 8px 0 0; padding-left: 18px; }
+  details { margin-top: 28px; }
+  summary { cursor: pointer; color: var(--tinta-3); font-size: 14px; }
+  #registro { margin-top: 10px; padding: 12px 16px; max-height: 320px; overflow: auto; font: 13px/1.5 ui-monospace, Consolas, monospace; white-space: pre-wrap; }
+  #registro .titulo-msg { color: var(--tinta-1); font-weight: 600; margin-top: 6px; }
+  #registro .bien { color: var(--exito); } #registro .aviso { color: var(--aviso); } #registro .error { color: var(--peligro); } #registro .info { color: var(--tinta-2); }
+  #aviso { margin-top: 18px; padding: 12px 16px; border-radius: var(--radio-md); display: none; }
+  #aviso.visible { display: block; }
+  #aviso.error { background: var(--peligro-fondo); color: var(--peligro); }
+  #aviso.bien { background: var(--exito-fondo); color: var(--exito); }
+  dialog { background: var(--superficie-2); color: var(--tinta-1); border: 1px solid var(--borde); border-radius: var(--radio-lg); box-shadow: var(--sombra-2); padding: 22px; width: min(480px, calc(100vw - 32px)); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
+  dialog p { margin: 0 0 18px; font-size: 17px; }
+  dialog .botones { justify-content: flex-end; margin-top: 18px; }
+  label { display: block; font-size: 14px; color: var(--tinta-2); margin-top: 12px; }
+  input { width: 100%; font: inherit; margin-top: 4px; padding: 10px 12px; border-radius: var(--radio-md); border: 1px solid var(--borde); background: var(--superficie-1); color: var(--tinta-1); }
+  @media (max-width: 640px) { .fila { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main>
+  <div class="cabecera">
+    <div>
+      <h1>CanalCasa · Películas</h1>
+      <div class="carpeta">Carpeta: <code id="raiz">…</code> <button class="chico" id="b-carpeta">Cambiar</button></div>
+    </div>
+    <button class="chico" id="b-cerrar" title="Apaga el panel (la ventana negra también se cierra)">Cerrar panel</button>
+  </div>
+
+  <div class="nube" id="nube" hidden>Nube: <span id="nube-texto"></span><div class="barra" id="nube-barra"><i></i></div></div>
+
+  <div class="botones">
+    <button class="principal" id="b-agregar">+ Agregar película</button>
+    <button class="principal" id="b-subir">Subir cambios</button>
+  </div>
+
+  <div id="aviso" role="status"></div>
+
+  <div class="tarjeta" id="progreso" aria-live="polite">
+    <div id="progreso-texto"></div>
+    <div class="barra"><i id="progreso-barra"></i></div>
+  </div>
+
+  <h2>En la carpeta y en la app</h2>
+  <div class="tarjeta" id="lista"><div class="vacio">Cargando…</div></div>
+  <ul class="saltadas" id="saltadas"></ul>
+
+  <details>
+    <summary>Qué está pasando (registro)</summary>
+    <div class="tarjeta" id="registro"></div>
+  </details>
+</main>
+
+<dialog id="d-pregunta">
+  <p id="d-pregunta-texto"></p>
+  <div class="botones"><button id="d-no">No</button><button class="principal" id="d-si">Sí</button></div>
+</dialog>
+
+<dialog id="d-config">
+  <form method="dialog" id="f-config">
+    <p>Primera vez: dónde se suben las películas.</p>
+    <label>Nombre del remoto de rclone <input name="remoto" value="r2" required></label>
+    <label>Nombre del bucket de R2 <input name="cubo" value="canalcasa-peliculas" required></label>
+    <label>URL pública del bucket <input name="urlPublica" placeholder="https://pub-….r2.dev" pattern="https://.+" required></label>
+    <div class="botones"><button class="principal" type="submit">Guardar</button></div>
+  </form>
+</dialog>
+
+<dialog id="d-contrasena">
+  <form method="dialog" id="f-contrasena">
+    <p>La configuración de rclone tiene contraseña.</p>
+    <label>Contraseña <input name="valor" type="password" autocomplete="off" required></label>
+    <div class="botones"><button class="principal" type="submit">Entrar</button></div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+const token = new URLSearchParams(location.search).get("t");
+history.replaceState(null, "", "/?t=" + token);
+const $ = (id) => document.getElementById(id);
+let ocupado = null;
+let ultimoEstado = null;
+
+async function api(ruta, cuerpo) {
+  const res = await fetch("/api/" + ruta, {
+    method: cuerpo === undefined ? "GET" : "POST",
+    headers: { "X-Token": token, "Content-Type": "application/json" },
+    body: cuerpo === undefined ? undefined : JSON.stringify(cuerpo),
+  });
+  const datos = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(datos.error || "Algo falló (" + res.status + ").");
+  return datos;
+}
+
+function avisar(texto, tipo = "bien") {
+  const a = $("aviso");
+  a.textContent = texto;
+  a.className = "visible " + tipo;
+  clearTimeout(avisar.t);
+  if (tipo === "bien") avisar.t = setTimeout(() => (a.className = ""), 6000);
+}
+
+const gb = (b) => (b / 1024 ** 3).toFixed(1).replace(".", ",") + " GB";
+const ESTADOS = { "al-dia": "En la app ✓", "cambios": "Cambios por subir", "por-subir": "Por subir", "solo-nube": "Solo en la app" };
+
+function el(tag, props = {}, ...hijos) {
+  const e = document.createElement(tag);
+  Object.assign(e, props);
+  for (const h of hijos) if (h != null) e.append(h);
+  return e;
+}
+
+function pintar(e) {
+  ultimoEstado = e;
+  $("raiz").textContent = e.raiz;
+  if (typeof e.usado === "number") {
+    $("nube").hidden = false;
+    $("nube-texto").textContent = gb(e.usado) + " de " + gb(e.limite) + " gratis";
+    const p = Math.min(100, (e.usado / e.limite) * 100);
+    $("nube-barra").firstElementChild.style.width = p + "%";
+    $("nube-barra").classList.toggle("llena", p > 85);
+  }
+  $("b-subir").textContent = e.pendientes ? "Subir cambios (" + e.pendientes + ")" : "Subir cambios";
+
+  const lista = $("lista");
+  lista.replaceChildren();
+  if (e.necesita?.texto) lista.append(el("div", { className: "vacio", textContent: e.necesita.texto }));
+  else if (e.error) lista.append(el("div", { className: "vacio", textContent: "No pude leer la nube: " + e.error }));
+  else if (!e.peliculas.length) lista.append(el("div", { className: "vacio", textContent: "Todavía no hay películas. Pulsa «+ Agregar película»." }));
+  for (const f of e.peliculas) {
+    const subs = f.subtitulosPc.length ? f.subtitulosPc : f.subtitulos;
+    const detalle = [f.tamano ? gb(f.tamano) : null, subs.length ? "Subtítulos: " + subs.join(", ") : "Sin subtítulos"].filter(Boolean).join(" · ");
+    const acciones = el("div", { className: "acciones" });
+    if (f.enPc) acciones.append(el("button", { className: "chico", textContent: "+ Subtítulo", onclick: () => subtitulo(f) }));
+    acciones.append(el("button", { className: "chico peligro", textContent: "Borrar", onclick: () => borrar(f) }));
+    lista.append(el("div", { className: "fila" },
+      el("div", {}, el("div", { className: "titulo", textContent: f.titulo + (f.anio ? " (" + f.anio + ")" : "") }), el("div", { className: "detalle", textContent: detalle })),
+      el("span", { className: "chip " + f.estado, textContent: ESTADOS[f.estado] || f.estado }),
+      acciones));
+  }
+  $("saltadas").replaceChildren(...(e.saltadas || []).map((s) => el("li", { textContent: "Se salta " + s.ruta.split(/[\\/]/).pop() + ": " + s.motivo })));
+  ponerOcupado(e.ocupado);
+  ponerProgreso(e.progreso);
+  if (e.necesita?.que === "config" && !$("d-config").open) $("d-config").showModal();
+  if (e.necesita?.que === "contrasena" && !$("d-contrasena").open) $("d-contrasena").showModal();
+}
+
+function ponerOcupado(que) {
+  ocupado = que;
+  for (const b of document.querySelectorAll("main button:not(#b-cerrar)")) b.disabled = Boolean(que) || Boolean(ultimoEstado?.necesita);
+  if (que && !ultimoEstado?.progreso) {
+    $("progreso").classList.add("visible");
+    $("progreso-texto").textContent = "Un momento: " + que + "…";
+  } else if (!que) $("progreso").classList.remove("visible");
+}
+
+const FASES = { convertir: "Convirtiendo", subir: "Subiendo", copiar: "Copiando" };
+function ponerProgreso(p) {
+  if (ultimoEstado) ultimoEstado.progreso = p;
+  if (!p) {
+    $("progreso-barra").style.width = "0";
+    if (!ocupado) $("progreso").classList.remove("visible");
+    return;
+  }
+  $("progreso").classList.add("visible");
+  $("progreso-texto").textContent = (FASES[p.fase] || p.fase) + " «" + p.titulo + "»" + (p.porcentaje == null ? "…" : " · " + p.porcentaje + "%");
+  $("progreso-barra").style.width = (p.porcentaje ?? 0) + "%";
+}
+
+function registrar({ nivel, texto }) {
+  const r = $("registro");
+  r.append(el("div", { className: nivel === "titulo" ? "titulo-msg" : nivel, textContent: texto }));
+  r.scrollTop = r.scrollHeight;
+  if (nivel === "error") avisar(texto, "error");
+}
+
+let recarga = null;
+async function cargar() {
+  clearTimeout(recarga);
+  try {
+    pintar(await api("estado"));
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+}
+
+// ── Preguntas (del motor y nuestras) ─────────────────────────────────────────
+const cola = [];
+function preguntarAqui(texto, porDefecto = false) {
+  return new Promise((resolver) => {
+    cola.push({ texto, porDefecto, resolver });
+    if (cola.length === 1) siguientePregunta();
+  });
+}
+function siguientePregunta() {
+  const p = cola[0];
+  if (!p) return;
+  const d = $("d-pregunta");
+  $("d-pregunta-texto").textContent = p.texto;
+  const fin = (si) => {
+    d.close();
+    cola.shift();
+    p.resolver(si);
+    siguientePregunta();
+  };
+  $("d-si").onclick = () => fin(true);
+  $("d-no").onclick = () => fin(false);
+  d.oncancel = (ev) => { ev.preventDefault(); fin(false); };
+  d.showModal();
+  (p.porDefecto ? $("d-si") : $("d-no")).focus();
+}
+
+// ── Botones ──────────────────────────────────────────────────────────────────
+async function accion(ruta, cuerpo, exito) {
+  try {
+    const r = await api(ruta, cuerpo ?? {});
+    if (!r.cancelado && exito) await exito(r);
+  } catch (error) {
+    avisar(error.message, "error");
+  } finally {
+    cargar();
+  }
+}
+
+$("b-agregar").onclick = () =>
+  accion("agregar", {}, async (r) => {
+    const n = r.hechos.filter((h) => !h.yaEstaba).length;
+    avisar(n ? "Copiada a la carpeta." : "Ya estaba en la carpeta.");
+    if (await preguntarAqui("¿La subo ya a la app? (puede tardar: se convierte y se sube)", true)) await api("sincronizar", {});
+  });
+$("b-subir").onclick = () => accion("sincronizar", {});
+$("b-carpeta").onclick = () => accion("carpeta", {}, () => avisar("Carpeta cambiada."));
+$("b-cerrar").onclick = async () => {
+  if (ocupado && !(await preguntarAqui("Está " + ocupado + ". Si cierras ahora se corta (lo terminado queda hecho). ¿Cerrar?", false))) return;
+  await api("cerrar", {}).catch(() => {});
+  document.body.replaceChildren(el("main", {}, el("h1", { textContent: "Panel cerrado." }), el("p", { textContent: "Ya puedes cerrar esta pestaña. Para volver: doble clic en «CanalCasa Peliculas.cmd»." })));
+};
+
+function subtitulo(f) {
+  accion("subtitulo", { clave: f.clave }, () => avisar("Subtítulo copiado. Pulsa «Subir cambios» para que llegue a la app."));
+}
+
+async function borrar(f) {
+  const que = f.enPc && f.enNube
+    ? "Se quita de la app en todos los aparatos y sus archivos del PC van a la Papelera."
+    : f.enNube ? "Se quita de la app en todos los aparatos. En el PC no está."
+    : "Sus archivos van a la Papelera (todavía no estaba en la app).";
+  if (!(await preguntarAqui("¿Borrar «" + f.titulo + "»? " + que, false))) return;
+  accion("borrar", { clave: f.clave }, () => avisar("«" + f.titulo + "» borrada."));
+}
+
+$("f-config").onsubmit = (ev) => {
+  ev.preventDefault();
+  const datos = Object.fromEntries(new FormData(ev.target));
+  api("config", datos).then(() => { $("d-config").close(); cargar(); }, (e) => avisar(e.message, "error"));
+};
+$("f-contrasena").onsubmit = (ev) => {
+  ev.preventDefault();
+  const datos = Object.fromEntries(new FormData(ev.target));
+  api("contrasena", datos).then(() => { $("d-contrasena").close(); ev.target.reset(); cargar(); }, (e) => avisar(e.message, "error"));
+};
+
+// ── En vivo ──────────────────────────────────────────────────────────────────
+const vistas = new Set();
+function escuchar() {
+  const fuente = new EventSource("/api/eventos?t=" + encodeURIComponent(token));
+  fuente.onmessage = (m) => {
+    const e = JSON.parse(m.data);
+    if (e.tipo === "mensaje") registrar(e);
+    else if (e.tipo === "progreso") ponerProgreso(e.progreso);
+    else if (e.tipo === "ocupado") ponerOcupado(e.ocupado);
+    else if (e.tipo === "cambio") { clearTimeout(recarga); recarga = setTimeout(cargar, 200); }
+    else if (e.tipo === "pregunta" && !vistas.has(e.id)) vistas.add(e.id), preguntarAqui(e.texto, e.porDefecto).then((si) => api("responder", { id: e.id, si }).catch(() => {}));
+  };
+  fuente.onerror = () => {
+    if (fuente.readyState === EventSource.CLOSED) avisar("Se perdió la conexión con el panel. ¿Se cerró la ventana negra? Vuelve a abrir «CanalCasa Peliculas.cmd».", "error");
+  };
+}
+
+(async () => {
+  try {
+    const e = await api("estado");
+    for (const m of e.historial || []) registrar(m);
+    pintar(e);
+  } catch (error) {
+    avisar(error.message, "error");
+  }
+  escuchar();
+})();
+</script>
+</body>
+</html>
