@@ -32,6 +32,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    // `scripts/`: la lógica de la herramienta del PC que sube las películas
+    // (`scripts/peliculas/sincronizar`), que también es pura y se rompe igual.
+    include: ["src/**/*.test.ts", "scripts/**/*.test.mjs"],
   },
 });

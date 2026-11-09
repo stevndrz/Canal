@@ -118,3 +118,39 @@ describe("la sala lleva los subtítulos a quien entra", () => {
     });
   });
 });
+
+describe("el catálogo que escribe sincronizar (versión 2)", () => {
+  it("se lee igual: los campos de más (origen, carpeta, subida) se ignoran", () => {
+    const peliculas = leerCatalogo({
+      version: 2,
+      peliculas: [
+        {
+          id: "interstellar",
+          titulo: "Interstellar",
+          url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/master.m3u8",
+          carpeta: "interstellar-e77ad4",
+          subtitulos: [
+            {
+              label: "Español",
+              srclang: "es",
+              url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/ext-0a1b2c3d4e.vtt",
+              origen: { archivo: "Interstellar.es.srt", huella: "0a1b2c3d4e5f6a7b" },
+            },
+          ],
+          duracion: 10140,
+          subida: "2026-11-09T10:00:00.000Z",
+          origen: { archivo: "Interstellar.mkv", tamano: 123, huella: "e77ad4aa", titulo: "Interstellar" },
+        },
+      ],
+    });
+    expect(peliculas).toEqual([
+      {
+        id: "interstellar",
+        titulo: "Interstellar",
+        url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/master.m3u8",
+        subtitulos: [{ label: "Español", srclang: "es", url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/ext-0a1b2c3d4e.vtt" }],
+        duracion: 10140,
+      },
+    ]);
+  });
+});

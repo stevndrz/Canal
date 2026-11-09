@@ -1,8 +1,9 @@
 # Nuestras películas
 
-Películas propias para **Ver juntos**: se suben a Cloudflare R2 desde el PC
-con un script, y aparecen solas en Mi enlace → «Nuestras películas», en todos
-los aparatos, con sus audios (latino, inglés…) y subtítulos.
+Películas propias para **Ver juntos**: se dejan en una carpeta del PC, un doble
+clic las sincroniza con Cloudflare R2, y aparecen solas en Mi enlace →
+«Nuestras películas», en todos los aparatos, con sus audios (latino, inglés…)
+y subtítulos.
 
 Todo gratis: R2 da 10 GB y no cobra por ver. Con películas de 2–5 GB caben dos
 o tres a la vez; al terminar se borra una y queda sitio para la siguiente.
@@ -49,21 +50,40 @@ cobra mientras no se pasen los 10 GB.
 
 ### 2. Las herramientas del PC (Windows)
 
-En una terminal (tecla Windows → «Terminal»):
+Lo más fácil: desde la carpeta del repo, en una terminal,
 
 ```powershell
-winget install Gyan.FFmpeg
-winget install Rclone.Rclone
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\peliculas\preparar-pc.ps1
 ```
 
-Cierra la terminal y abre otra (para que encuentre los programas). Después,
-conecta rclone con tu bucket, sustituyendo los tres valores:
+Comprueba e instala con `winget` lo que falte (**Node.js 20+**, **ffmpeg**,
+**rclone**) y crea en `Descargas\Peliculas` los accesos «Sincronizar
+peliculas.cmd» y «Mirar que cambiaria.cmd».
+
+Después, conecta rclone con tu bucket. **Hazlo con el asistente**, que pregunta
+las llaves sin que queden escritas en ningún sitio:
 
 ```powershell
-rclone config create r2 s3 provider Cloudflare access_key_id TU_ACCESS_KEY_ID secret_access_key TU_SECRET endpoint https://TU_CUENTA.r2.cloudflarestorage.com acl private no_check_bucket true
+rclone config
 ```
+
+`n` (nuevo) → nombre `r2` → tipo `s3` → proveedor `Cloudflare` → pega el Access
+Key ID y el Secret cuando los pida → endpoint
+`https://TU_CUENTA.r2.cloudflarestorage.com` → `acl` private → lo demás, Enter.
+
+> Antes la guía decía `rclone config create … secret_access_key TU_SECRET`.
+> Así el secreto queda en el historial de PowerShell
+> (`%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`).
+> Si lo hiciste así, borra esa línea del archivo, o mejor: crea una llave nueva
+> en Cloudflare, ponla con `rclone config` y borra la vieja.
 
 Prueba: `rclone lsd r2:canalcasa-peliculas` no debe dar error (vacío es normal).
+
+**Para proteger la llave** (recomendado): `rclone config` → `s` (*Set
+configuration password*). rclone cifra su configuración y pide la contraseña
+al sincronizar. Y que la llave de Cloudflare sea solo **Object Read & Write**
+sobre `canalcasa-peliculas` (paso 1): si alguien la robara, no podría tocar
+nada más de tu cuenta.
 
 ### 3. La app
 
@@ -77,91 +97,61 @@ Y redespliega. Sin esta variable, «Nuestras películas» no aparece.
 
 ---
 
-## Subir una película
+## Subir, cambiar y borrar: sincronizar
 
-1. Deja la película como **`Descargas\Peliculas\pelicula.mkv`** (o `.mp4`).
-2. **Doble clic en `scripts\peliculas\subir-pelicula.cmd`.**
-3. Escribe el título (si el MKV trae uno en sus metadatos, lo sugiere: Enter
-   para aceptarlo). Con él se nombra la carpeta en R2; si ya existe una igual,
-   avisa y ofrece subirla con otro nombre (`coco-2`), sobrescribirla o cancelar.
-4. Al terminar, el archivo se mueve a `Descargas\Peliculas\subidas\` para no
-   volver a subirlo por error, y se borra la copia de trabajo de `Temp`.
+`Descargas\Peliculas` **es** tu biblioteca: lo que esté ahí, está en la app.
 
-También se puede arrastrar cualquier archivo sobre el `.cmd`; ese no se mueve.
+1. Deja la película tal como la bajaste, con el nombre que traiga
+   («Interstellar.2014.1080p.BluRay.x264.mkv»), y sus subtítulos al lado con un
+   nombre que empiece igual («Interstellar.2014.1080p.BluRay.x264.es.srt»).
+   O, si lo prefieres, **una carpeta por película** («Coco\» con el vídeo y los
+   .srt dentro, con cualquier nombre): el título sale del nombre de la carpeta.
+2. Doble clic en **Sincronizar peliculas.cmd**. Te enseña el plan, pregunta
+   «¿Lo hago?» y lo hace.
 
-La primera vez pregunta el remoto (`r2`), el bucket (`canalcasa-peliculas`) y
-la URL pública, y lo guarda. Luego:
-
-- Si el vídeo ya es H.264 de 8 bits hasta 1080p, **se copia**: minutos.
-- Si es H.265/HEVC, 10 bits, 4K o HDR, **se recodifica** a H.264 para que lo
-  reproduzca cualquier tele. Con tarjeta gráfica NVIDIA, Intel o AMD se usa
-  sola; sin ella, la CPU puede tardar casi lo que dura la película.
-- Todos los audios quedan elegibles en el reproductor (botón de audio). El
-  primero es el español; para otro: `subir-pelicula.cmd "peli.mkv" -AudioPrincipal eng`.
-- Subtítulos: solo **español e inglés** (forzados incluidos); un MKV puede
-  traer 40 pistas y el selector se volvería inmanejable. Los **de texto** (SRT,
-  ASS) se convierten; los de **imagen** (PGS de Blu-ray) no se pueden pasar a
-  texto y se omiten avisando.
-- ¿El archivo no trae los subtítulos que quieres? Deja el `.srt` **al lado,
-  con el mismo nombre**: `pelicula.es.srt`, `pelicula.en.srt`,
-  `pelicula.es.forced.srt` (sin idioma en el nombre se toma como español). Se
-  incluyen siempre, se arreglan los acentos si vienen en codificación de
-  Windows, y se mueven a `subidas\` con la película.
-- Tamaño: con `-Calidad 24` (por defecto), una película de 1080p y 2 h queda
-  en unos 1,5–2,5 GB, con techo de 6 Mb/s. Solo aplica si se recodifica; si
-  el vídeo se copia, pesa lo que pesaba.
-
-Opciones, añadidas detrás del archivo:
-
-| Opción | Para qué |
+| Haces en la carpeta | Pasa en la nube |
 |---|---|
-| `-Titulo "Coco"` | El nombre que se ve en la app, sin preguntar |
-| `-Calidad 26` | Archivo más pequeño (16–32; más alto = más pequeño y algo menos nítido) |
-| `-Subtitulos "spa,eng,jpn"` | Qué idiomas de subtítulos se quedan (`todos` para no filtrar) |
-| `-AudioPrincipal eng` | Con qué audio arranca |
-| `-Recodificar` | Recodificar aunque se pudiera copiar |
-| `-Aceleracion cpu` | No usar la tarjeta gráfica (si da problemas) |
-| `-SoloConvertir` | Convertir sin subir, para revisar antes |
+| Pones una película | Se convierte y se sube (con todos sus audios y subtítulos) |
+| Pones, cambias o borras un `.srt` | Solo se suben o quitan esos subtítulos: el vídeo no se toca |
+| Renombras el archivo o su carpeta | Cambia el título en la app (no se vuelve a subir) |
+| Cambias el archivo por otra versión | Pregunta si reemplazarla |
+| Quitas una película | **Pregunta** si borrarla de la nube. Si dices que no, puedes dejarla «solo en la nube» (para liberar disco) y no vuelve a preguntar |
 
-## Añadir subtítulos a una película ya subida
+- **El título** sale del nombre, sin lo técnico (calidad, códec, grupo):
+  «The.Hunger.Games.Catching.Fire.2013.1080p.BluRay» → «The Hunger Games
+  Catching Fire». Si quieres otro, renombra la carpeta o el archivo.
+- **El idioma del subtítulo** sale del nombre: `es`, `spa`, `Spanish`,
+  `Latino`, `en`, `English`, `forced`, `SDH`… Sin idioma, se toma por español.
+  Si viene en codificación de Windows, se arreglan los acentos solo.
+- **Lo que se está descargando** (`.part`, `.crdownload`, o tocado hace menos
+  de 2 minutos) se salta hasta la siguiente vez.
+- **Mirar que cambiaria.cmd** enseña el plan sin hacer nada.
+- Las películas que subiste con el script de antes (en `subidas\`) se
+  reconocen solas: no se vuelven a subir, ni sus subtítulos se duplican.
 
-Sin reconvertir ni volver a subir el vídeo; tarda segundos.
+Opciones (escríbelas después del .cmd en una terminal):
+`--calidad 26` (más pequeño al recodificar), `--aceleracion cpu`,
+`--audio eng` (el que suena primero), `--subtitulos todos` (de los que trae el
+vídeo dentro; por defecto español e inglés), `--recodificar`,
+`--carpeta "D:\Pelis"`.
 
-1. Baja el `.srt` (por ejemplo de opensubtitles.com) y déjalo en
-   `Descargas\Peliculas` o en `subidas\`. Con `es`, `en` o `forced` en el
-   nombre se detecta el idioma (`catching.fire.es.srt`); si no dice nada, se
-   toma como español.
-2. **Doble clic en `Agregar subtitulos.cmd`** (o arrastra el `.srt` encima).
-   Pregunta a qué película va y, si hay varios `.srt`, cuál.
-3. Ábrela en la app y elige el subtítulo en el botón de subtítulos.
+### Por qué es fiable
 
-Arregla solo los acentos si el `.srt` viene en codificación de Windows. Si la
-película ya tenía un subtítulo con el mismo nombre (otro «Español»), pregunta
-si reemplazarlo (por defecto) o añadir otro.
+- **Nada se borra sin preguntar**, y la respuesta por defecto es «no».
+- Cada película se sube a una carpeta **nueva** (`interstellar-e77ad4`) y se
+  comprueba que llegó entera (`rclone check`) **antes** de apuntarla en el
+  catálogo: si se corta internet a la mitad, la app no ve una película rota.
+  La siguiente sincronización ofrece borrar los restos.
+- El catálogo se guarda tras cada paso, con una copia del anterior en
+  `peliculas/catalogo.anterior.json`. Y si no se puede leer, no se escribe
+  (nunca deja la app vacía por un fallo de red).
+- Una sola sincronización a la vez; comprueba el espacio en disco y que no te
+  pases de los 10 GB gratis antes de convertir.
+- Registro de cada vuelta en `%LOCALAPPDATA%\CanalCasa\registro\`.
 
-**Si va desfasado** (salen antes o después que las voces):
-
-- **Automático, con alass**: descarga el zip de Windows de
-  [github.com/kaegi/alass/releases](https://github.com/kaegi/alass/releases) y
-  pon `alass-cli.exe` en `%LOCALAPPDATA%\Microsoft\WinGet\Links` (la carpeta
-  donde winget dejó ffmpeg, que ya está en el PATH). A partir de ahí, cada
-  subtítulo se alinea solo con el audio de la película que esté en `subidas\`.
-- **A mano**: vuelve a lanzarlo desde una terminal con un desfase en segundos y
-  elige el mismo `.srt` (reemplaza al anterior):
-
-  ```powershell
-  & "$env:USERPROFILE\Downloads\Peliculas\Agregar subtitulos.cmd" -Desfase 1.5
-  ```
-
-  Positivo **retrasa** los subtítulos (úsalo si salen *antes* que la voz);
-  negativo los **adelanta** (si salen *después*).
-
-## Borrar una película
-
-```
-scripts\peliculas\borrar-pelicula.cmd              (lista lo subido y el espacio usado)
-scripts\peliculas\borrar-pelicula.cmd coco         (borra «coco»)
-```
+Código: `scripts/peliculas/sincronizar/` (Node, con pruebas: `npm test`).
+Los scripts de antes (`subir-pelicula`, `agregar-subtitulos`,
+`borrar-pelicula`) siguen en el repo por si acaso, pero ya no hacen falta.
 
 ---
 
@@ -200,5 +190,5 @@ podría pausar, y se le vería en la presencia con su alias.
   para dos personas. Si algún día se queda corto, se conecta un dominio propio
   al bucket y se cambia `NEXT_PUBLIC_PELICULAS_URL`.
 
-Código: `scripts/peliculas/`, `src/lib/ver-juntos/catalogo.ts`,
+Código: `scripts/peliculas/sincronizar/`, `src/lib/ver-juntos/catalogo.ts`,
 `src/hooks/use-nuestras-peliculas.ts` y la sala en `src/hooks/use-ver-juntos.ts`.

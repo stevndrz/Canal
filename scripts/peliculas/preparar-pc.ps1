@@ -10,11 +10,12 @@
 #      fusionadas y archivos sueltos que Git no conoce (te enseña la lista).
 #      NUNCA toca lo que Git ignora a propósito: tizen-tv\ (tus certificados de
 #      Samsung), los .env (claves), node_modules ni los instalables.
-#   4. Crea Descargas\Peliculas con «Subir pelicula.cmd» y «Borrar pelicula.cmd»,
-#      para hacerlo todo desde ahí con doble clic.
-#   5. Comprueba ffmpeg, rclone y la conexión con R2.
+#   4. Crea Descargas\Peliculas con «Sincronizar peliculas.cmd»: lo que dejes
+#      en esa carpeta queda en la nube y en la app (ver docs/PELICULAS-JUNTOS.md).
+#   5. Comprueba Node, ffmpeg, rclone y la conexión con R2 (y ofrece instalar
+#      lo que falte con winget).
 
-param([string]$Rama = "ver-juntos")
+param([string]$Rama = "main")
 
 $ErrorActionPreference = "Continue"   # Ver el porqué en subir-pelicula.ps1.
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -79,24 +80,37 @@ if ($fusionadas.Count -gt 0) {
 # ── 4. La carpeta de películas ──────────────────────────────────────────────
 Paso "Carpeta de películas"
 $peliculas = Join-Path $env:USERPROFILE "Downloads\Peliculas"
-New-Item -ItemType Directory -Force -Path (Join-Path $peliculas "subidas") | Out-Null
+New-Item -ItemType Directory -Force -Path $peliculas | Out-Null
 $scripts = Join-Path $repo "scripts\peliculas"
 # Solo ASCII en los .cmd: cmd.exe lee con la página de códigos del sistema y
 # una «í» se rompería.
-$subir = "@echo off`r`nrem Sube pelicula.mkv (o .mp4) de esta carpeta. Tambien puedes arrastrar un archivo encima.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\subir-pelicula.ps1`" %*`r`n"
-$borrar = "@echo off`r`nrem Lista lo subido a R2 y pregunta cual borrar.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\borrar-pelicula.ps1`" %*`r`npause`r`n"
-[System.IO.File]::WriteAllText((Join-Path $peliculas "Subir pelicula.cmd"), $subir, [System.Text.Encoding]::ASCII)
-$agregar = "@echo off`r`nrem Anade un .srt a una pelicula ya subida. Tambien puedes arrastrar el .srt encima.`r`npowershell -NoProfile -ExecutionPolicy Bypass -File `"$scripts\agregar-subtitulos.ps1`" %*`r`n"
-[System.IO.File]::WriteAllText((Join-Path $peliculas "Borrar pelicula.cmd"), $borrar, [System.Text.Encoding]::ASCII)
-[System.IO.File]::WriteAllText((Join-Path $peliculas "Agregar subtitulos.cmd"), $agregar, [System.Text.Encoding]::ASCII)
+$sincronizar = "@echo off`r`nrem Deja la nube igual que esta carpeta. Ver docs\PELICULAS-JUNTOS.md`r`ncall `"$scripts\sincronizar.cmd`" %*`r`n"
+$mirar = "@echo off`r`nrem Ensena lo que haria Sincronizar, sin hacer nada.`r`ncall `"$scripts\sincronizar.cmd`" --mirar %*`r`n"
+[System.IO.File]::WriteAllText((Join-Path $peliculas "Sincronizar peliculas.cmd"), $sincronizar, [System.Text.Encoding]::ASCII)
+[System.IO.File]::WriteAllText((Join-Path $peliculas "Mirar que cambiaria.cmd"), $mirar, [System.Text.Encoding]::ASCII)
 Bien "Listo: $peliculas"
-Write-Host "     · Subir pelicula.cmd   → doble clic sube pelicula.mkv de esa carpeta"
-Write-Host "     · Borrar pelicula.cmd  → doble clic: lista lo que hay en R2, el espacio usado, y pregunta cuál borrar"
-Write-Host "     · Agregar subtitulos.cmd → añade un .srt a una película ya subida, sin reconvertirla"
-Write-Host "     · subidas\             → ahí van las que ya se subieron"
+Write-Host "     · Sincronizar peliculas.cmd → lo que hay en esta carpeta, a la nube (pregunta antes de borrar)"
+Write-Host "     · Mirar que cambiaria.cmd   → enseña el plan sin hacer nada"
+
+# Los accesos de antes ya no hacen falta: «Sincronizar» sube, cambia
+# subtítulos y borra. Se pregunta antes de quitarlos (los scripts siguen en el repo).
+$viejos = @("Subir pelicula.cmd", "Borrar pelicula.cmd", "Agregar subtitulos.cmd") | ForEach-Object { Join-Path $peliculas $_ } | Where-Object { Test-Path -LiteralPath $_ }
+if ($viejos.Count -gt 0) {
+    Write-Host "   Accesos de antes: $(($viejos | ForEach-Object { Split-Path -Leaf $_ }) -join ', ')"
+    if (Si "¿Quitarlos de la carpeta? (los scripts siguen en el repo)") { $viejos | ForEach-Object { Remove-Item -LiteralPath $_ }; Bien "Quitados." }
+}
 
 # ── 5. Herramientas y R2 ────────────────────────────────────────────────────
 Paso "Comprobaciones"
+# Node 20 o más: lo usa «Sincronizar peliculas».
+$versionNode = 0
+if (Get-Command node -ErrorAction SilentlyContinue) { $versionNode = [int](((& node --version) -replace "^v", "") -split "\.")[0] }
+if ($versionNode -ge 20) { Bien "Node $versionNode instalado" }
+elseif (Si "Falta Node 20 o más (lo usa Sincronizar). ¿Lo instalo con winget?") {
+    & winget install --id OpenJS.NodeJS.LTS -e --accept-package-agreements --accept-source-agreements
+    Aviso "Cierra esta ventana y abre otra para que Windows encuentre «node»."
+} else { Aviso "Sin Node no funciona Sincronizar. Para instalarlo: winget install OpenJS.NodeJS.LTS" }
+
 foreach ($h in @("ffmpeg", "ffprobe", "rclone")) {
     if (Get-Command $h -ErrorAction SilentlyContinue) { Bien "$h instalado" }
     else { Aviso "Falta $h → winget install $(if ($h -eq 'rclone') { 'Rclone.Rclone' } else { 'Gyan.FFmpeg' })" }
@@ -108,6 +122,6 @@ if (Get-Command rclone -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "`n✔ Todo listo. Ahora:" -ForegroundColor Green
-Write-Host "   1. Mueve la película a $peliculas y llámala pelicula.mkv (o .mp4)."
-Write-Host "   2. Doble clic en «Subir pelicula.cmd» de esa carpeta."
+Write-Host "   1. Deja la película en $peliculas tal como venga (con sus .srt al lado, o en su propia carpeta)."
+Write-Host "   2. Doble clic en «Sincronizar peliculas.cmd» de esa carpeta."
 Read-Host "`nPulsa Enter para cerrar"
