@@ -39,6 +39,28 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — Sincronizar sola: tarea de Windows y modo `--automatico`
+
+Tarea programada (cada 10 min, `wscript` con ventana 0 para que no salte una
+consola) y no un vigilante de carpeta: la mantiene Windows, y «¿acabó la
+descarga?» ya lo sabía la biblioteca (2 min sin tocarse).
+
+- `sincronizar.mjs --automatico`: sin preguntas. `soloLoQueAnade` parte el
+  plan: subir, adoptar, renombrar y subtítulos NUEVOS se hacen; huérfanas,
+  basura, reemplazos, subtítulos borrados y «no cabe en 10 GB» quedan en
+  `pendientes` y **no se llama a `purge`/`deletefile`** (hay una prueba que
+  mira las órdenes que recibe rclone).
+- `Estado de la sincronizacion.txt` en la carpeta: qué subió, qué espera a la
+  persona, o por qué falló. El dueño no quiso aviso al teléfono.
+- `tarea.mjs activar|quitar|estado` + `sincronizar-sola.cmd`. El `.vbs` se
+  escribe en UTF-16 con BOM (rutas con acentos).
+- Pruebas: `programa.test.mjs` lanza el programa entero con ffmpeg real y
+  `pruebas/rclone-falso.mjs` (59 pruebas en `scripts/`).
+- Sin probar: todo lo de Windows (`schtasks`, `wscript`, que de verdad no
+  salga ventana, la tarea con la sesión bloqueada). Con rclone cifrado la
+  tarea no puede pedir la contraseña: falla diciéndolo; queda
+  `RCLONE_PASSWORD_COMMAND` como salida, sin receta probada.
+
 ### 2026-11-09 — ¿Ver juntos con Vimeus? No hay mando: «sincronía suave»
 
 Leído el código que sirve Vimeus (sin ejecutarlo; el script de vimeos.net va
