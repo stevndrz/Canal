@@ -305,6 +305,23 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
     [yo, enviar],
   );
 
+  /**
+   * «Retomar en 47:10»: lleva a TODA la sala a ese segundo, en pausa.
+   *
+   * Lo puede pulsar cualquiera, dirija o no, y aunque acabe de llegar: es una
+   * orden explícita de la persona, no el play accidental del segundo 0 del
+   * que protege `sincronizadoRef`. Pasa por `aplicar` para que en Safari el
+   * salto no se pierda si el vídeo aún no cargó.
+   */
+  const irA = useCallback(
+    (tiempo: number) => {
+      sincronizadoRef.current = true;
+      aplicar(tiempo, true);
+      enviar({ tipo: "estado", tiempo, pausado: true });
+    },
+    [aplicar, enviar],
+  );
+
   // --- Cuenta atrás ------------------------------------------------------------
   const lanzarCuenta = useCallback(() => setCuenta(CUENTA_S), []);
 
@@ -606,6 +623,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
     dirijo,
     cuenta,
     empezar,
+    irA,
     aviso,
     necesitaToque,
     silenciadoPorSala,

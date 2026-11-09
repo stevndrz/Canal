@@ -120,6 +120,50 @@ test.describe("Ver juntos", () => {
     await tele.contexto.close();
   });
 
+  test("Seguir viendo juntos: al volver a la sala se ofrece retomar, y lleva a los dos al mismo minuto", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const iphone = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await entrarEnSala(iphone.page, "Teléfono", codigo);
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await esperarReproduciendo(iphone.page);
+
+    // Ven hasta el 1:10 y lo dejan.
+    await pc.page.evaluate(() => {
+      document.querySelector("video")!.currentTime = 70;
+    });
+    await expect.poll(async () => Math.abs(((await video(iphone.page))?.tiempo ?? 0) - 70)).toBeLessThan(1.5);
+    await pc.page.evaluate(() => document.querySelector("video")!.pause());
+    await expect.poll(async () => (await video(iphone.page))?.pausado).toBe(true);
+    await pc.page.close();
+    await iphone.page.close();
+
+    // Otro día: pestañas nuevas en los mismos aparatos (mismo `localStorage`).
+    const pc2 = await pc.contexto.newPage();
+    const iphone2 = await iphone.contexto.newPage();
+    for (const page of [pc2, iphone2]) {
+      await page.goto("/?vista=fuente");
+      await expect(page.getByRole("list", { name: "Vistas juntos" })).toContainText("Coco");
+    }
+    await expect(pc2.getByRole("list", { name: "Vistas juntos" })).toContainText("con Teléfono");
+    // Sin dictarse el código: los dos vuelven a la misma sala.
+    await pc2.getByRole("button", { name: `Volver a la sala ${codigo}` }).click();
+    await iphone2.getByRole("button", { name: `Volver a la sala ${codigo}` }).click();
+    await expect(iphone2.locator("#cine-titulo")).toHaveText("Coco");
+    await expect(pc2.getByLabel("Quién está en la sala")).toContainText("Teléfono");
+
+    // Lo pulsa el teléfono, que NO dirige: tiene que mover también al PC.
+    await iphone2.getByRole("button", { name: /^Retomar en 1:(09|10|11)$/ }).click();
+    await esperarReproduciendo(pc2);
+    await esperarReproduciendo(iphone2);
+    const [a, b] = await Promise.all([video(pc2), video(iphone2)]);
+    expect(a!.tiempo).toBeGreaterThan(65);
+    expect(Math.abs(a!.tiempo - b!.tiempo)).toBeLessThan(1.5);
+
+    await pc.contexto.close();
+    await iphone.contexto.close();
+  });
+
   test("Una firma manipulada no entra en la sala", async ({ browser }) => {
     const intruso = await abrir(browser, pusher, "pc");
     await intruso.page.route("**/api/pusher/auth", async (ruta) => {

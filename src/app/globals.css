@@ -5607,6 +5607,16 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   padding: clamp(8px, 2vh, 20px) var(--margen) 0;
 }
 
+/* Vistas juntos: el historial de la sala, con las filas de «Usar un enlace». */
+.cine-vistas {
+  width: min(calc(100% - 2 * var(--margen)), 1180px);
+  margin: clamp(20px, 3.5vh, 44px) auto 0;
+}
+
+.cine-vistas .cine-estante-titulo {
+  padding-inline: 0;
+}
+
 /* ── Estante ───────────────────────────────────────────────────────── */
 .cine-estante {
   min-width: 0;
