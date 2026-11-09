@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import { crearPusherFalso, type PusherFalso } from "./pusher-falso";
+import { ipDePrueba, nuevoAparato, type NombreAparato } from "./aparatos";
 import { CLAVE_PUSHER, SECRETO_PUSHER } from "./constantes.mjs";
 
 /**
@@ -7,22 +8,13 @@ import { CLAVE_PUSHER, SECRETO_PUSHER } from "./constantes.mjs";
  * `localStorage`) y el Pusher de mentira que comprueba la firma.
  */
 
-const TELE_UA =
-  "Mozilla/5.0 (SMART-TV; Linux; Tizen 6.0) AppleWebKit/537.36 (KHTML, like Gecko) 76.0.3809.146/6.0 TV Safari/537.36";
-
-const APARATOS = {
-  pc: { viewport: { width: 1600, height: 1000 } },
-  iphone: { viewport: { width: 393, height: 852 }, hasTouch: true, isMobile: true },
-  tele: { viewport: { width: 1920, height: 1080 }, userAgent: TELE_UA },
-} as const;
-
 interface Aparato {
   contexto: BrowserContext;
   page: Page;
 }
 
-async function abrir(browser: Browser, pusher: PusherFalso, cual: keyof typeof APARATOS): Promise<Aparato> {
-  const contexto = await browser.newContext(APARATOS[cual]);
+async function abrir(browser: Browser, pusher: PusherFalso, cual: NombreAparato): Promise<Aparato> {
+  const contexto = await nuevoAparato(browser, cual);
   await pusher.conectar(contexto);
   const page = await contexto.newPage();
   await page.goto("/?vista=fuente");
@@ -145,7 +137,7 @@ test.describe("Ver juntos", () => {
   });
 
   test("Cada carátula se pide una sola vez (comparte cupo con la entrada a la sala)", async ({ browser }) => {
-    const contexto = await browser.newContext(APARATOS.pc);
+    const contexto = await nuevoAparato(browser, "pc");
     await pusher.conectar(contexto);
     const page = await contexto.newPage();
     const pedidas: string[] = [];
@@ -162,8 +154,10 @@ test.describe("Ver juntos", () => {
   });
 
   test("La ruta de firma solo firma salas de cuatro cifras", async ({ request }) => {
+    const ip = ipDePrueba();
     const firmar = (canal: string) =>
       request.post("/api/pusher/auth", {
+        headers: { "x-real-ip": ip },
         form: { socket_id: "1.2", channel_name: canal, id: "aparato-de-prueba", nombre: "X" },
       });
     expect((await firmar("presence-juntos-1234")).status()).toBe(200);
