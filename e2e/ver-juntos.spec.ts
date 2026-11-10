@@ -225,6 +225,36 @@ test.describe("Ver juntos", () => {
     await invitada.contexto.close();
   });
 
+  test("Un pulso viejo de quien dirige no deshace la pausa de la invitada", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const invitada = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await entrarEnSala(invitada.page, "Majo", codigo);
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await esperarReproduciendo(invitada.page);
+    await esperarReproduciendo(pc.page);
+    // Quien dirige (el PC) ya contó por dónde va: «reproduciendo».
+    const esPulsoEnMarcha = (d: Record<string, unknown>) => d.tipo === "estado" && d.pulso === true && d.pausado === false;
+    await expect.poll(() => pusher.mensajes.some((m) => esPulsoEnMarcha(m.dato as Record<string, unknown>)), { timeout: 12_000 }).toBe(true);
+
+    // Ella pausa, y justo después le llega ese pulso, que salió antes de su pausa.
+    await invitada.page.evaluate(() => document.querySelector("video")!.pause());
+    expect(pusher.entregarTarde(esPulsoEnMarcha)).toBe(true);
+
+    // Su pausa llega al otro…
+    await expect.poll(async () => (await video(pc.page))?.pausado).toBe(true);
+    // …y a ella no se le vuelve a arrancar la película sola.
+    await invitada.page.waitForTimeout(1200);
+    expect((await video(invitada.page))?.pausado).toBe(true);
+
+    // Pasado el momento, los pulsos se obedecen como siempre: si quien dirige
+    // sigue (aquí, porque reanuda), ella vuelve a ir con él.
+    await pc.page.evaluate(() => void document.querySelector("video")!.play());
+    await esperarReproduciendo(invitada.page);
+    await pc.contexto.close();
+    await invitada.contexto.close();
+  });
+
   test("Quién está y cómo: viendo, en la sala y fuera un momento", async ({ browser }) => {
     const pc = await abrir(browser, pusher, "pc");
     const movil = await abrir(browser, pusher, "iphone");
