@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard, History, Link2, Play, Plus, Trash2, Users, VolumeX } from "lucide-react";
+import { Clapperboard, History, Link2, MonitorUp, Play, Plus, Trash2, Users, VolumeX } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
+import { useEstadoPc } from "@/hooks/use-estado-pc";
 import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
 import { useArte, useAudios } from "@/hooks/use-portada";
@@ -79,6 +80,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
   const [trasAlias, setTrasAlias] = useState<null | "crear" | "entrar">(null);
   const nuestras = useNuestrasPeliculas();
+  /** Qué está haciendo el PC que sube las películas («Convirtiendo Buddy · 62 %»). */
+  const pc = useEstadoPc();
   /**
    * El estante va arriba del todo hasta que algo empieza a reproducirse en la
    * página (PC y teléfono): ahí se recoge para dejarle el ancho al reproductor.
@@ -586,6 +589,13 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         {estadoSala && (
           <p className="cine-estado" role="status">
             {estadoSala}
+          </p>
+        )}
+        {pc && !reproduciendo && (
+          // Con la película en marcha sobra: solo interesa mientras se elige o se espera.
+          <p className={`cine-estado cine-pc ${pc.tono === "activo" ? "text-tinta-1" : ""}`} role="status" data-tono={pc.tono}>
+            <MonitorUp aria-hidden="true" className="mr-2 inline h-4 w-4" />
+            {pc.texto}
           </p>
         )}
         <div className="cine-secundarias">
