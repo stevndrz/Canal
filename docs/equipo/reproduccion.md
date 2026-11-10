@@ -20,6 +20,26 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Los fallos de la sala se mandan a Web Analytics
+
+- Los registros de Vercel duran una hora y casi nada de «Ver juntos» pasa por
+  el servidor: lo único que sabe que «a ella no le arrancó» es su teléfono.
+  `registrarSala` (`lib/reproduccion/metricas.ts`) manda cinco eventos:
+  `sala_no_arranco`, `sala_sin_sonido`, `sala_desincronia` (`s`, `atras`),
+  `sala_corte` (`motivo`: `segundo_plano` | `conexion`) y `sala_sin_conexion`
+  (`motivo`: `firma` | `carga`).
+- `sala_desincronia` solo cuenta un salto que llega con el **pulso** y cuando
+  este aparato ya iba con la sala: un salto que alguien pidió, o el primer
+  ajuste al entrar, no son desincronía.
+- Freno: el mismo evento, como mucho uno cada 30 s y 40 por visita. Sin datos
+  de nadie: ni código de sala, ni alias, ni título.
+- **Web Analytics estaba apagado en el proyecto de Vercel**: los tres eventos
+  de reproducción que ya existían (`reproduccion_arranque`, `_atasco`,
+  `_fallo`) no llegaban a ningún sitio. Lo activa el dueño en Vercel; sin eso,
+  `track` no hace nada (y no rompe nada).
+- Sin probar: que los eventos lleguen a Vercel (no se puede desde aquí) y si
+  el plan del dueño admite eventos personalizados.
+
 ### 2026-11-07 — Ver juntos en iPhone: por qué no arrancaba ni se sincronizaba
 
 Sin WebKit en el contenedor: se simuló el iPhone en Chromium inyectando lo que

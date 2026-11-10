@@ -13,6 +13,7 @@ import {
   type PeliculaDeSala,
   type VideoDeSala,
 } from "@/lib/ver-juntos/sala";
+import { registrarSala } from "@/lib/reproduccion/metricas";
 import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
 import { leerSalaRecordada, recordarSala, tocarSala, type Perfil } from "@/lib/ver-juntos/recordar";
 
@@ -237,24 +238,29 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       if (v.muted) {
         necesitaToqueRef.current = true;
         setNecesitaToque(true);
+        registrarSala("no_arranco", { mudo: 1 });
         return;
       }
       v.muted = true;
       esperadoRef.current = { tiempo, pausado: false, desde: Date.now() };
       v.play()
-        .then(() => setSilenciadoPorSala(true))
+        .then(() => {
+          setSilenciadoPorSala(true);
+          registrarSala("sin_sonido");
+        })
         .catch(() => {
           // Ni en silencio (modo de bajo consumo del iPhone, por ejemplo).
           v.muted = false;
           necesitaToqueRef.current = true;
           setNecesitaToque(true);
+          registrarSala("no_arranco", { mudo: 0 });
         });
     });
   }, []);
 
   /** Lleva el `<video>` local al estado que manda otro aparato. */
   const aplicar = useCallback(
-    (tiempo: number, pausado: boolean) => {
+    (tiempo: number, pausado: boolean, pulso = false) => {
       const v = elementoRef.current;
       if (!v) return;
 
@@ -273,6 +279,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
         return;
       }
       pendienteRef.current = null;
+      const yaIba = sincronizadoRef.current;
       sincronizadoRef.current = true;
 
       const saltar = Math.abs(v.currentTime - tiempo) > TOLERANCIA_S;
@@ -285,6 +292,9 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       if (!saltar && !pausar && !reproducir) return;
       esperadoRef.current = { tiempo: saltar ? tiempo : v.currentTime, pausado, desde: Date.now() };
 
+      // Un salto que llega con el pulso no lo pidió nadie: es que este aparato
+      // se había quedado atrás (o adelantado). Si ya iba con la sala, se cuenta.
+      if (saltar && pulso && yaIba) registrarSala("desincronia", { s: Math.round(Math.abs(v.currentTime - tiempo)), atras: v.currentTime < tiempo ? 1 : 0 });
       if (saltar) v.currentTime = tiempo;
       if (pausar) v.pause();
       if (reproducir) arrancar(v, tiempo);
@@ -453,7 +463,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
         else if (!mensaje.pausado && v.paused) avisar(de, "reanudó");
         else if (Math.abs(v.currentTime - mensaje.tiempo) > 10) avisar(de, "saltó");
       }
-      aplicar(mensaje.tiempo, mensaje.pausado);
+      aplicar(mensaje.tiempo, mensaje.pausado, Boolean(mensaje.pulso));
     };
 
     (async () => {
@@ -522,11 +532,15 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
           publicar();
         });
         canal.bind("pusher:subscription_error", () => {
-          if (!cancelado) setConexion({ canal: canalSala, estado: "error" });
+          if (cancelado) return;
+          setConexion({ canal: canalSala, estado: "error" });
+          registrarSala("sin_conexion", { motivo: "firma" });
         });
         canal.bind(EVENTO, recibir);
         cliente.connection.bind("error", () => {
-          if (!cancelado) setConexion({ canal: canalSala, estado: "error" });
+          if (cancelado) return;
+          setConexion({ canal: canalSala, estado: "error" });
+          registrarSala("corte", { motivo: "conexion" });
         });
         // Sin conexión no hay suscripción: lo que se mande ahí se pierde, y
         // al volver `subscription_succeeded` lo pone otra vez en marcha.
@@ -536,6 +550,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       } catch (error) {
         console.error("❌ Ver juntos: no se pudo conectar", error);
         if (!cancelado) setConexion({ canal: canalSala, estado: "error" });
+        registrarSala("sin_conexion", { motivo: "carga" });
       }
     })();
 
@@ -551,6 +566,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       }
       contarAqui();
       if (!ocultaDesde || Date.now() - ocultaDesde < REHACER_TRAS_MS || !cliente) return;
+      registrarSala("corte", { motivo: "segundo_plano", s: Math.round((Date.now() - ocultaDesde) / 1000) });
       ocultaDesde = 0;
       suscritoRef.current = false;
       // `pusher-js` vuelve a suscribir sus canales solo al reconectar.
