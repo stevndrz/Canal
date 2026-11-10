@@ -55,7 +55,7 @@ export function nombreDeSub(sub, baseOrigen, baseDestino) {
 }
 
 /** «Coco.mkv», o «Coco (2).mkv» si ya hay otro. Si es el mismo archivo (mismo tamaño), lo dice. */
-async function destinoLibre(carpeta, nombre, tamano) {
+export async function destinoLibre(carpeta, nombre, tamano) {
   const ext = extname(nombre);
   const b = nombre.slice(0, -ext.length || undefined);
   for (let n = 1; ; n++) {
@@ -64,6 +64,21 @@ async function destinoLibre(carpeta, nombre, tamano) {
     if (!ya) return { ruta: candidato, yaEsta: false };
     if (ya.size === tamano) return { ruta: candidato, yaEsta: true };
   }
+}
+
+/**
+ * Falla, con las palabras de `que`, si en el disco de `carpeta` no caben
+ * `bytes` (más un 5 %). Si no se pudo preguntar al disco, se sigue: mejor
+ * intentarlo que negarse por no saber.
+ */
+export async function exigirSitio(carpeta, bytes, que = "copiarla") {
+  let libre;
+  try {
+    libre = await statfs(carpeta).then((s) => s.bavail * s.bsize);
+  } catch {
+    return;
+  }
+  if (libre < bytes * 1.05) throw new Error(`No hay sitio en el disco para ${que}: hacen falta ${(bytes / 1024 ** 3).toFixed(1)} GB.`);
 }
 
 async function copiarConAvance(origen, destino, tamano, alAvance) {
@@ -85,12 +100,7 @@ async function copiarConAvance(origen, destino, tamano, alAvance) {
 export async function copiarALaBiblioteca(grupos, raiz, { alAvance, decir = () => {} } = {}) {
   const tamanos = await Promise.all(grupos.map((g) => stat(g.video).then((s) => s.size)));
   const total = tamanos.reduce((a, b) => a + b, 0);
-  try {
-    const libre = await statfs(raiz).then((s) => s.bavail * s.bsize);
-    if (libre < total * 1.05) throw new Error(`No hay sitio en el disco para copiarla: hacen falta ${(total / 1024 ** 3).toFixed(1)} GB.`);
-  } catch (error) {
-    if (error instanceof Error && error.message.startsWith("No hay sitio")) throw error;
-  }
+  await exigirSitio(raiz, total);
 
   const hechos = [];
   for (const [i, { video, subtitulos }] of grupos.entries()) {

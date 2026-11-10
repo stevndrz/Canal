@@ -73,6 +73,8 @@
   dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
   dialog p { margin: 0 0 18px; font-size: 17px; }
   dialog .botones { justify-content: flex-end; margin-top: 18px; }
+  dialog p.nota { margin: 12px 0 0; font-size: 14px; color: var(--tinta-2); }
+  #progreso-botones { margin-top: 12px; }
   label { display: block; font-size: 14px; color: var(--tinta-2); margin-top: 12px; }
   input { width: 100%; font: inherit; margin-top: 4px; padding: 10px 12px; border-radius: var(--radio-md); border: 1px solid var(--borde); background: var(--superficie-1); color: var(--tinta-1); }
   @media (max-width: 640px) { .fila { grid-template-columns: 1fr; } }
@@ -92,6 +94,7 @@
 
   <div class="botones">
     <button class="principal" id="b-agregar">+ Agregar película</button>
+    <button id="b-enlace">Descargar desde un enlace</button>
     <button id="b-subir">Subir cambios</button>
   </div>
 
@@ -100,6 +103,7 @@
   <div class="tarjeta" id="progreso" aria-live="polite">
     <div id="progreso-texto"></div>
     <div class="barra"><i id="progreso-barra"></i></div>
+    <div class="botones" id="progreso-botones" hidden><button class="chico" id="b-cancelar">Cancelar descarga</button></div>
   </div>
 
   <h2>En la carpeta y en la app</h2>
@@ -115,6 +119,15 @@
 <dialog id="d-pregunta">
   <p id="d-pregunta-texto"></p>
   <div class="botones"><button id="d-no">No</button><button class="principal" id="d-si">Sí</button></div>
+</dialog>
+
+<dialog id="d-enlace">
+  <form method="dialog" id="f-enlace">
+    <p>Pega el enlace directo a la película.</p>
+    <label>Enlace (acaba en .mkv o .mp4) <input name="enlace" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://…/pelicula.mkv" pattern="https?://.+" required></label>
+    <p class="nota">Tiene que ser el enlace al archivo, no el de la página donde está el botón de descargar. Se baja a tu carpeta de películas; si se corta, sigue por donde iba.</p>
+    <div class="botones"><button type="button" id="b-enlace-no">Cancelar</button><button class="principal" type="submit">Descargar</button></div>
+  </form>
 </dialog>
 
 <dialog id="d-config">
@@ -210,16 +223,17 @@ function pintar(e) {
 
 function ponerOcupado(que) {
   ocupado = que;
-  for (const b of document.querySelectorAll("main button:not(#b-cerrar)")) b.disabled = Boolean(que) || Boolean(ultimoEstado?.necesita);
+  for (const b of document.querySelectorAll("main button:not(#b-cerrar):not(#b-cancelar)")) b.disabled = Boolean(que) || Boolean(ultimoEstado?.necesita);
   if (que && !ultimoEstado?.progreso) {
     $("progreso").classList.add("visible");
     $("progreso-texto").textContent = "Un momento: " + que + "…";
   } else if (!que) $("progreso").classList.remove("visible");
 }
 
-const FASES = { convertir: "Convirtiendo", subir: "Subiendo", copiar: "Copiando" };
+const FASES = { convertir: "Convirtiendo", subir: "Subiendo", copiar: "Copiando", descargar: "Descargando" };
 function ponerProgreso(p) {
   if (ultimoEstado) ultimoEstado.progreso = p;
+  $("progreso-botones").hidden = p?.fase !== "descargar";
   if (!p) {
     $("progreso-barra").style.width = "0";
     if (!ocupado) $("progreso").classList.remove("visible");
@@ -291,6 +305,21 @@ $("b-agregar").onclick = () =>
     avisar(n ? "Copiada a la carpeta." : "Ya estaba en la carpeta.");
     if (await preguntarAqui("¿La subo ya a la app? (puede tardar: se convierte y se sube)", true)) await api("sincronizar", {});
   });
+$("b-enlace").onclick = () => {
+  $("f-enlace").reset();
+  $("d-enlace").showModal();
+};
+$("b-enlace-no").onclick = () => $("d-enlace").close();
+$("f-enlace").onsubmit = (ev) => {
+  const enlace = new FormData(ev.target).get("enlace");
+  // Se contesta enseguida (202); el avance y el final llegan por los eventos.
+  accion("descargar", { enlace });
+};
+$("b-cancelar").onclick = () => api("cancelar", {}).catch((e) => avisar(e.message, "error"));
+async function trasDescargar(e) {
+  avisar(e.yaEstaba ? "Esa película ya estaba en la carpeta." : "Descargada a la carpeta.");
+  if (!e.yaEstaba && (await preguntarAqui("¿La subo ya a la app? (puede tardar: se convierte y se sube)", true))) await api("sincronizar", {}).catch((error) => avisar(error.message, "error"));
+}
 $("b-subir").onclick = () => accion("sincronizar", {});
 $("b-carpeta").onclick = () => accion("carpeta", {}, () => avisar("Carpeta cambiada."));
 $("b-cerrar").onclick = async () => {
@@ -331,6 +360,7 @@ function escuchar() {
     const e = JSON.parse(m.data);
     if (e.tipo === "mensaje") registrar(e);
     else if (e.tipo === "progreso") ponerProgreso(e.progreso);
+    else if (e.tipo === "descargada") trasDescargar(e);
     else if (e.tipo === "ocupado") ponerOcupado(e.ocupado);
     else if (e.tipo === "cambio") { clearTimeout(recarga); recarga = setTimeout(cargar, 200); }
     else if (e.tipo === "pregunta" && !vistas.has(e.id)) vistas.add(e.id), preguntarAqui(e.texto, e.porDefecto).then((si) => api("responder", { id: e.id, si }).catch(() => {}));
