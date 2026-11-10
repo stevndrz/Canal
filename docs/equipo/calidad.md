@@ -36,6 +36,19 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Pruebas con el motor de Safari (WebKit), en el CI
+
+- Proyecto `safari` en `playwright.config.ts`: solo `nuestras-peliculas.spec.ts`
+  (cómo se ve Mi enlace) y sin las pruebas que reproducen vídeo (las que dicen
+  «al reproducir» en el título: la película de prueba es WebM).
+- Solo se activa en el CI o con `CANALCASA_SAFARI=1`: las sesiones en la nube
+  no traen WebKit ni pueden bajarlo, así que **aquí no se ha podido ejecutar**;
+  lo que vale es el trabajo `navegador` del CI.
+- Convención: una prueba de esa hoja que necesite reproducir lleva «al
+  reproducir» en el título, para que WebKit la salte.
+- No es un iPhone: mismo motor de pintado, sin iOS. Quedan fuera el bloqueo de
+  sonido, la barra de Safari y la zona segura real.
+
 ### 2026-11-10 — «Sincronizar sola» encuentra Node, y `npm run e2e` vuelve a arrancar en la nube
 
 - `sincronizar-sola.cmd` se quedó fuera del #101: seguía con `where node`, que
