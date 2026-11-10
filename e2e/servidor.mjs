@@ -32,7 +32,18 @@ const VIDEO = join(aqui, "fixtures", "pelicula.webm");
 const CATALOGO = {
   version: 2,
   peliculas: [
-    { id: "coco", titulo: "Coco", url: `${URL_DATOS}/peliculas/coco/pelicula.webm`, duracion: 120, subtitulos: [] },
+    {
+      id: "coco",
+      titulo: "Coco",
+      url: `${URL_DATOS}/peliculas/coco/pelicula.webm`,
+      duracion: 120,
+      // Con subtítulos, como una película de verdad: es lo que llena la barra
+      // del reproductor en el teléfono.
+      subtitulos: [
+        { label: "Español", srclang: "es", url: `${URL_DATOS}/peliculas/coco/es.vtt` },
+        { label: "Inglés", srclang: "en", url: `${URL_DATOS}/peliculas/coco/en.vtt` },
+      ],
+    },
     { id: "matrix", titulo: "Matrix", url: `${URL_DATOS}/peliculas/matrix/pelicula.webm`, duracion: 120, subtitulos: [] },
   ],
 };
@@ -67,6 +78,9 @@ const datos = createServer((peticion, respuesta) => {
   } else if (ruta === "/peliculas/catalogo.json") {
     respuesta.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
     respuesta.end(JSON.stringify(CATALOGO));
+  } else if (ruta.endsWith(".vtt")) {
+    respuesta.writeHead(200, { "Content-Type": "text/vtt; charset=utf-8" });
+    respuesta.end("WEBVTT\n\n00:00:01.000 --> 00:01:59.000\nTodos deben calmarse.\n");
   } else if (ruta.endsWith("/pelicula.webm")) {
     servirVideo(peticion, respuesta);
   } else if (ruta.startsWith("/tmdb/")) {
