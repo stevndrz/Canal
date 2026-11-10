@@ -472,6 +472,36 @@ impacto.
 - Probar en un televisor de verdad el héroe con varios destacados y el logo
   con TMDB real (aquí se probó con un simulador de TMDB).
 
+## Mi enlace por estados: una pantalla, un siguiente paso (2026-11-10)
+
+Captura del dueño desde su iPhone, sin películas: media pantalla vacía, un
+«Elijan una película» enorme sin nada que elegir, tres botones iguales y el
+aviso de «Todavía no hay películas» cortado por la barra de abajo.
+
+- La pantalla está en uno de cinco estados (vacío, eligiendo, esperando,
+  viendo, pausa) y **cada uno tiene un solo `.cine-boton-principal`**. Todo lo
+  demás va en `.cine-boton-texto`. `.cine-boton-cristal` ya no se usa en Mi
+  enlace (sigue en las hojas).
+- `.cine-portada.is-vacia`: sin película la portada deja de medir la pantalla
+  entera con el contenido abajo; empieza arriba y mide lo que mide. La causa
+  del hueco era `align-items: flex-end` + `height: 100svh` sin reproductor.
+- Una sola escala: el título del estado vacío mide como el de una película
+  (`clamp(28px, 3.6vw, 56px)`), y el título grande es siempre un nombre, nunca
+  una instrucción.
+- Estante: `.cine-poster-marco` (para la etiqueta «Nueva» y la barra de «iban
+  por»), `.cine-poster-dato` (duración o «Iban por 47:10») y
+  `.cine-estante-cabeza` (el título con la línea del PC al lado).
+- `.cine-pc` deja de ser una variante de `.cine-estado`: su tono va por
+  `data-tono`, y el icono mide en `em` (en la tele uno de 16 px se perdía).
+- `.cine-esqueleto`: late **solo con opacidad**. `.cine-pasos`: los tres
+  pasos numerados con un contador de CSS.
+- Tele con estante: `--cine-ancho` baja (620 → 730 px de reserva). Con la
+  línea nueva de las tarjetas, «Crear sala» quedaba 23 px bajo el borde; lo
+  cazó la prueba nueva.
+- Todo con tokens de `shell.css`; `backdrop-filter` no se añade en ningún
+  sitio nuevo.
+- Sin probar: iPhone real (zona segura, barra de Safari) y la tele.
+
 ## La sala, sin repetirse (2026-11-10)
 
 Captura del dueño desde su iPhone: el código salía tres veces («SALA 8047»,

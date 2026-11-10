@@ -39,6 +39,35 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Mi enlace por estados, «Invitar» y el enlace que entra directo
+
+- `fuente-view.tsx` calcula `pantalla` (cargando · vacío · eligiendo ·
+  esperando · viendo · pausa) y de ahí sale el único botón principal:
+  vacío → «Cómo subir una película»; eligiendo → «Crear sala»; con sala
+  recordada (en los dos) → «Volver a la sala 8047»; esperando → «Invitar» a
+  solas, «Empezar»/«Retomar» acompañado; pausa → «Seguir»; viendo → ninguno.
+- «Ya empezó» se apunta por `<video>` (uno por película): así una parada es
+  pausa («Seguir», sin cuenta atrás) y no «sin empezar».
+- Quién pausó: el aviso de la sala y la pausa llegan a la vez, así que se
+  espera 80 ms tras el `pause` para saber si fue otro («Ana pausó») o este
+  aparato («Pausaste»).
+- **«Invitar»**: `navigator.share` con `/?sala=8047`; donde no hay, copia el
+  enlace. En la tele no hay ni lo uno ni lo otro: allí lo principal sigue
+  siendo «Empezar sin esperar» (el QR queda para el PR siguiente).
+- **`/?sala=8047`** abre en Mi enlace (`dashboard.tsx`) y entra: con nombre,
+  directo; sin nombre, lo pide primero. El código se quita de la barra
+  (`replaceState`) para que recargar no vuelva a «entrar por enlace». Se
+  adelantó del PR de invitar porque sin él «Invitar» compartiría un enlace
+  que no hace nada. Sin mensajes nuevos de sala.
+- Catálogo: se lee `subida` (ya la escribía el sincronizador) para «Nueva»:
+  menos de 7 días y sin empezar. Va en `PeliculaNuestra`, no en `Channel`.
+- No se hizo la tarjeta grande «Seguir viendo juntos»: la barra en la tarjeta,
+  «Iban por 47:10» y el botón «Retomar» ya lo dicen; otra tarjeta repetía.
+- Pruebas: 12 de navegador nuevas (33). Las de diseño corren también en
+  WebKit en el CI.
+- Sin probar: la hoja de compartir del iPhone, y abrir el enlace desde
+  WhatsApp (su navegador interno).
+
 ### 2026-11-10 — «Descargar desde un enlace» en el panel del PC
 
 - `lib/descargar.mjs` (Node, `fetch`, sin dependencias): escribe

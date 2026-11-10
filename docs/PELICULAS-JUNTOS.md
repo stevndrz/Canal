@@ -228,7 +228,10 @@ reproductor.
 1. Cada persona elige su **alias** la primera vez («Steven», «Tele sala»…).
    Sale en su círculo y en «Juntos · Steven ✓».
 2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
-3. El otro pulsa **Entrar con código** y lo escribe (con los números del mando
+   Y el botón principal pasa a ser **Invitar**: abre la hoja de compartir del
+   teléfono con un enlace (`…/?sala=8047`) que entra directo en la sala. En un
+   PC, copia el enlace.
+3. El otro abre ese enlace, o pulsa **Entrar con código** y lo escribe (con los números del mando
    o con el teclado de la pantalla). Le llega la película sola, con sus audios
    y subtítulos.
 4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
