@@ -227,6 +227,14 @@ reproductor.
    y subtítulos.
 4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
 
+**Todos mandan.** Pausar, reanudar, adelantar o saltar desde cualquier
+aparato pasa en todos. Cada círculo dice cómo está esa persona: **Viendo**
+(punto verde), **En la sala** o **Fuera un momento**.
+
+**Salir de la app no saca de la sala.** Si contestas un mensaje y vuelves, la
+app abre otra vez en la sala y se pone por donde van los demás (durante 6
+horas; para salir de verdad, «Salir de la sala»).
+
 ### Seguir otro día
 
 - **Volver a la sala 4821**: cada aparato recuerda la última sala. Si los dos

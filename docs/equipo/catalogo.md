@@ -39,6 +39,32 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Tras la primera película juntos de verdad: controles, sala que no se pierde, presencia
+
+El dueño vio una película con otra persona (iPhone ↔ iPhone). Funcionó, y
+salieron cuatro cosas.
+
+- **«Ella no tenía los controles».** Dos causas. (1) En el teléfono la fila de
+  botones no cabía: «0:56 / 1:35:50» se montaba sobre el volumen y «pantalla
+  completa» se salía por el borde (con subtítulos y AirPlay son 9 botones en
+  330 px). (2) Un fallo de la sala: `esperadoRef` seguía valiendo 10 s después
+  de una orden, así que un play de la persona que coincidiera con la última
+  orden se tomaba por eco y **no se mandaba**: pausar y volver a dar play
+  enseguida reanudaba solo a quien lo pulsaba. Ahora, en cuanto un evento no es
+  eco, lo esperado se borra. Lo cazó una prueba que usa los botones de verdad.
+- **Salir de la app sacaba de la sala.** La sala vivía en `sessionStorage`, que
+  el iPhone vacía al cerrar la app. Ahora en `localStorage` con hora (6 h desde
+  la última vez; un latido por minuto la renueva) y, si se estaba en ella hace
+  menos de 30 min, la app abre directamente en Mi enlace.
+- **Presencia con estado**: mensaje nuevo `aqui` (`visible`, `viendo`); las
+  versiones viejas lo ignoran. Viendo / En la sala / Fuera un momento. A quien
+  se le corta la conexión se le deja el círculo, apagado, por si vuelve.
+- La otra persona salía llamándose «8047»: escribió el código en la casilla del
+  alias. Ahora cuatro cifras ahí avisan y no se aceptan.
+- Sin probar: iPhone real (Safari congela la página en vez de cerrarla, y el
+  último `aqui` puede no llegar a salir: entonces el otro la ve «En la sala»
+  hasta que Pusher la da por caída).
+
 ### 2026-11-10 — El doble clic no encontraba Node
 
 En el PC del dueño, `where.exe node` en PowerShell daba solo el Node que trae
