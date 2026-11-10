@@ -182,11 +182,7 @@ async function ejecutarAccion(accion, ctx) {
         decir("info", `«${accion.entrada.titulo}» se queda en la nube.`);
         return false;
       }
-      catalogo.splice(catalogo.indexOf(accion.entrada), 1);
-      await nube.escribirCatalogo(catalogo);
-      const carpeta = carpetaDe(accion.entrada);
-      if (carpeta) await nube.borrarCarpeta(`peliculas/${carpeta}`);
-      decir("bien", `«${accion.entrada.titulo}» borrada de la nube.`);
+      await borrarDeLaNube(accion.entrada, { catalogo, nube, decir });
       return true;
     }
     case "basura": {
@@ -198,6 +194,21 @@ async function ejecutarAccion(accion, ctx) {
     default:
       return false;
   }
+}
+
+/**
+ * Quita una película de la nube: primero del catálogo (la app deja de verla
+ * al momento) y después sus archivos. En ese orden, si lo segundo falla,
+ * queda una carpeta suelta que la siguiente vuelta ofrece borrar; nunca una
+ * entrada que apunta a nada.
+ */
+export async function borrarDeLaNube(entrada, { catalogo, nube, decir }) {
+  const i = catalogo.indexOf(entrada);
+  if (i >= 0) catalogo.splice(i, 1);
+  await nube.escribirCatalogo(catalogo);
+  const carpeta = carpetaDe(entrada);
+  if (carpeta) await nube.borrarCarpeta(`peliculas/${carpeta}`);
+  decir("bien", `«${entrada.titulo}» borrada de la nube.`);
 }
 
 function origenDe(local) {
@@ -286,6 +297,7 @@ async function subirPelicula(local, id, { nube, ejecutar, trabajo, decir, op }, 
     else decir("info", `   Hay que recodificar (${analisis.motivos.join(", ") || "pedido"}) con ${modos[0]}.`);
     const filtros = filtrosDeVideo(analisis, { hayZscale: op.hayZscale ?? true });
 
+    op.alProgreso?.({ fase: "convertir", titulo: local.titulo, duracion: analisis.duracion });
     let convertido = false;
     for (const modo of modos) {
       await rm(salida, { recursive: true, force: true });
@@ -326,6 +338,7 @@ async function subirPelicula(local, id, { nube, ejecutar, trabajo, decir, op }, 
     decir("info", `   Listo en disco: ${gb(await tamanoDe(salida))}`);
 
     decir("titulo", `Subiendo «${local.titulo}» a peliculas/${carpeta}`);
+    op.alProgreso?.({ fase: "subir", titulo: local.titulo });
     await nube.subirCarpeta(salida, `peliculas/${carpeta}`);
 
     return {
@@ -339,6 +352,7 @@ async function subirPelicula(local, id, { nube, ejecutar, trabajo, decir, op }, 
       origen: origenDe(local),
     };
   } finally {
+    op.alProgreso?.(null);
     // La copia de trabajo pueden ser varios GB: fuera siempre, haya ido bien o mal.
     await rm(salida, { recursive: true, force: true });
   }

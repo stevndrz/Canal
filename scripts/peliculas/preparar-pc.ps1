@@ -88,9 +88,12 @@ $sincronizar = "@echo off`r`nrem Deja la nube igual que esta carpeta. Ver docs\P
 $mirar = "@echo off`r`nrem Ensena lo que haria Sincronizar, sin hacer nada.`r`ncall `"$scripts\sincronizar.cmd`" --mirar %*`r`n"
 [System.IO.File]::WriteAllText((Join-Path $peliculas "Sincronizar peliculas.cmd"), $sincronizar, [System.Text.Encoding]::ASCII)
 [System.IO.File]::WriteAllText((Join-Path $peliculas "Mirar que cambiaria.cmd"), $mirar, [System.Text.Encoding]::ASCII)
+$panel = "@echo off`r`nrem Panel con botones: agregar, subir y borrar peliculas. Ver docs\PELICULAS-JUNTOS.md`r`ncall `"$scripts\panel.cmd`" %*`r`n"
+[System.IO.File]::WriteAllText((Join-Path $peliculas "CanalCasa Peliculas.cmd"), $panel, [System.Text.Encoding]::ASCII)
 $sola = "@echo off`r`nrem Activa o quita la sincronizacion automatica (cada 10 minutos, sin ventana).`r`ncall `"$scripts\sincronizar-sola.cmd`" %*`r`n"
 [System.IO.File]::WriteAllText((Join-Path $peliculas "Sincronizar sola (activar o quitar).cmd"), $sola, [System.Text.Encoding]::ASCII)
 Bien "Listo: $peliculas"
+Write-Host "     · CanalCasa Peliculas.cmd   → el panel con botones (agregar, subir, borrar)"
 Write-Host "     · Sincronizar peliculas.cmd → lo que hay en esta carpeta, a la nube (pregunta antes de borrar)"
 Write-Host "     · Mirar que cambiaria.cmd   → enseña el plan sin hacer nada"
 Write-Host "     · Sincronizar sola (activar o quitar).cmd → que lo haga Windows cada 10 minutos (nunca borra)"
@@ -126,5 +129,5 @@ if (Get-Command rclone -ErrorAction SilentlyContinue) {
 
 Write-Host "`n✔ Todo listo. Ahora:" -ForegroundColor Green
 Write-Host "   1. Deja la película en $peliculas tal como venga (con sus .srt al lado, o en su propia carpeta)."
-Write-Host "   2. Doble clic en «Sincronizar peliculas.cmd» de esa carpeta."
+Write-Host "   2. Doble clic en «CanalCasa Peliculas.cmd» de esa carpeta (o en «Sincronizar peliculas.cmd»)."
 Read-Host "`nPulsa Enter para cerrar"
