@@ -180,6 +180,11 @@ y se sube.
   peliculas.cmd**, que pregunta una a una.
 - Lo que hizo la última vuelta —y lo pendiente— queda en **Estado de la
   sincronizacion.txt**, en la misma carpeta.
+- **Desde el teléfono se ve cómo va**: cada vuelta (y el panel, y «Sincronizar
+  peliculas.cmd») deja en el bucket un `peliculas/estado.json` y Mi enlace lo
+  enseña: «Convirtiendo «Buddy» · 62 %», «Sincronizado hace 5 min · 7,2 de
+  10 GB», «1 cosa por decidir en el PC». Es público como el catálogo: lleva el
+  título, números y horas; nunca rutas del PC.
 - Si una vuelta sigue convirtiendo o subiendo, la siguiente no hace nada.
 - Mientras convierte usa la tarjeta gráfica (o la CPU): si justo estás
   jugando, lo vas a notar. Para apagarla un rato, el mismo `.cmd`.
