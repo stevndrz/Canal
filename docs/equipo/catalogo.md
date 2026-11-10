@@ -39,6 +39,37 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — «Descargar desde un enlace» en el panel del PC
+
+- `lib/descargar.mjs` (Node, `fetch`, sin dependencias): escribe
+  `nombre.mkv.part` y renombra al final; `destinoLibre` y `exigirSitio` salen
+  de `agregar.mjs` y los comparten los dos (« (2)», sitio en disco).
+- Solo enlaces directos http(s). Una respuesta `text/html` se rechaza con
+  «abre una página web, no el vídeo»; lo que no tiene extensión de `VIDEOS`
+  (ni un `Content-Type` de vídeo) también. No se resuelven páginas de
+  descarga ni nada de Vimeus.
+- El nombre sale de `Content-Disposition` o del final de la URL, sin carpetas
+  ni caracteres que Windows no acepte: lo que diga el servidor no puede
+  escribir fuera de la biblioteca.
+- Cortes: hasta 4 reintentos siguiendo con `Range` (+ `If-Range`). Si no
+  termina, el `.part` se queda (la sincronización lo salta) con un
+  `.part.info` (enlace, tamaño, ETag): pegar el mismo enlace otro día sigue
+  desde ahí, y si el archivo cambió en el servidor empieza de cero. 60 s sin
+  recibir nada cuenta como corte.
+- Al terminar se le pone fecha de hace 5 min (o la `Last-Modified`): si no,
+  la biblioteca la tomaría por descarga a medias durante 2 minutos.
+- Panel: `POST /api/descargar` contesta 202 y el avance va por `/api/eventos`
+  (fase `descargar`); `POST /api/cancelar` corta y borra lo bajado. Un evento
+  nuevo `descargada` hace que la página pregunte «¿La subo ya?».
+- Se descartó bloquear direcciones de la red local: un disco de red en casa
+  es un uso legítimo, y el panel solo lo usa el dueño.
+- Pruebas: 20 contra un servidor HTTP local (bueno, redirección, página HTML,
+  zip, vacío, 404, 503, corte y reanudación, sin rangos, `.part` de otro
+  archivo, nombre repetido, disco lleno, cancelar, servidor mudo) y 4 del
+  panel. Y a mano con Playwright contra el panel de verdad.
+- Sin probar: Windows (rutas con `\`, antivirus que bloquee el `.part`), un
+  servidor real de descargas y un archivo de varios GB.
+
 ### 2026-11-10 — Tras la primera película juntos de verdad: controles, sala que no se pierde, presencia
 
 El dueño vio una película con otra persona (iPhone ↔ iPhone). Funcionó, y

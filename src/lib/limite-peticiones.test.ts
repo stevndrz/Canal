@@ -119,3 +119,23 @@ describe("tope global", () => {
     expect(LIMITES.TOPE_GLOBAL).toBeGreaterThanOrEqual(LIMITES.PETICIONES * 5);
   });
 });
+
+describe("cupos separados", () => {
+  it("agotar el general no cierra la sala, ni al revés", () => {
+    for (let i = 0; i <= LIMITES.PETICIONES; i++) excedeLimite("casa", 1_000);
+    expect(excedeLimite("casa", 1_000)).toBe(true);
+    expect(excedeLimite("casa", 1_000, "sala")).toBe(false);
+
+    for (let i = 0; i < LIMITES.PETICIONES; i++) excedeLimite("casa", 1_000, "sala");
+    expect(excedeLimite("casa", 1_000, "sala")).toBe(true);
+    expect(excedeLimite("otra-casa", 1_000)).toBe(false);
+  });
+
+  it("el tope de todo el mundo también va por cupo", () => {
+    // Alguien cambiando de IP en cada petición agota el tope global del
+    // general: la sala tiene que seguir abriendo.
+    for (let i = 0; i <= LIMITES.TOPE_GLOBAL; i++) excedeLimite(`ip-${i}`, 1_000);
+    expect(excedeLimite("nueva", 1_000)).toBe(true);
+    expect(excedeLimite("nueva", 1_000, "sala")).toBe(false);
+  });
+});

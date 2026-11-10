@@ -308,7 +308,7 @@ test.describe("Ver juntos", () => {
     await intruso.contexto.close();
   });
 
-  test("Cada carátula se pide una sola vez (comparte cupo con la entrada a la sala)", async ({ browser }) => {
+  test("Cada carátula se pide una sola vez", async ({ browser }) => {
     const contexto = await nuevoAparato(browser, "pc");
     await pusher.conectar(contexto);
     const page = await contexto.newPage();
@@ -323,6 +323,25 @@ test.describe("Ver juntos", () => {
     await page.getByRole("button", { name: "Matrix" }).click();
     await page.waitForTimeout(1500);
     expect(pedidas.sort()).toEqual(["Coco", "Matrix"]);
+    await contexto.close();
+  });
+
+  test("Con el cupo del buscador agotado se sigue pudiendo entrar en la sala", async ({ browser }) => {
+    const contexto = await nuevoAparato(browser, "pc");
+    await pusher.conectar(contexto);
+    const page = await contexto.newPage();
+    await page.goto("/?vista=fuente");
+    await expect(page.getByRole("heading", { name: "Nuestras películas" })).toBeVisible();
+    // Desde este mismo aparato (misma IP), hasta que el buscador diga basta.
+    const estados = await page.evaluate(async () => {
+      const vistos: number[] = [];
+      for (let i = 0; i < 40; i++) vistos.push((await fetch(`/api/buscar?q=cupo-${i}`)).status);
+      return vistos;
+    });
+    expect(estados.at(-1)).toBe(429);
+    // La firma de la sala lleva su propia cuenta.
+    await crearSala(page, "Steven");
+    await expect(page.getByLabel("Quién está en la sala")).toContainText("Steven");
     await contexto.close();
   });
 

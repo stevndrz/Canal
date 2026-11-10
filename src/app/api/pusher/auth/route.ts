@@ -13,12 +13,13 @@ import { CANAL_DE_SALA, ID_APARATO, limpiarNombre } from "@/lib/ver-juntos/sala"
  * vez por aparato al entrar en la sala, nada más.
  *
  * Solo firma canales con la forma exacta de una sala (`CANAL_DE_SALA`, cuatro
- * cifras), con el freno de peticiones de las demás rutas. Quién eres —id y
+ * cifras), con un freno de peticiones propio, separado del de las demás rutas. Quién eres —id y
  * alias— lo dice el propio aparato: no hay cuentas, y se comprueba a ojo en
  * la presencia («Steven» y «Tele sala» se ven el uno al otro).
  */
 export async function POST(request: Request) {
-  if (excedeLimite(identificarCliente(request))) return respuestaLimite();
+  // Cupo propio: las carátulas y el buscador no pueden dejar a nadie fuera.
+  if (excedeLimite(identificarCliente(request), Date.now(), "sala")) return respuestaLimite();
 
   const clave = publicConfig.pusherKey;
   const secreto = serverConfig().pusherSecreto;
