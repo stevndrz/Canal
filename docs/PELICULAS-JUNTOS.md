@@ -112,6 +112,12 @@ tu PC, con la lista de películas y su estado («En la app ✓», «Por subir»,
 | **Borrar** (en cada fila) | Pregunta, y la quita **de la app y del PC**: sus archivos van a la **Papelera** (se pueden recuperar) |
 | **Cambiar** (carpeta) | Usa otra carpeta como biblioteca; se recuerda (también para «Sincronizar peliculas.cmd») |
 
+**Node.js**: los `.cmd` lo buscan solos en su carpeta de instalación
+(`C:\Program Files\nodejs`…), comprueban que sea 20 o más nuevo y, si no lo
+hay, ofrecen instalarlo con winget y siguen sin reiniciar. ffmpeg y rclone se
+encuentran aunque el Explorador tenga el PATH de antes de instalarlos (se lee
+el del registro).
+
 La ventana negra que se abre con él es el panel: no la cierres mientras lo
 uses. Se apaga sola 10 minutos después de cerrar la pestaña, o con «Cerrar
 panel». Otro doble clic con el panel abierto vuelve a enseñar el mismo.

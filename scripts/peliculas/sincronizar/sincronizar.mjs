@@ -43,6 +43,7 @@ import {
   leerConfig,
   leerConfigGuardada,
   rcloneCifrado,
+  refrescarPath,
   tomarCandado,
 } from "./lib/entorno.mjs";
 import { ARCHIVO_ESTADO, textoDeEstado } from "./lib/automatico.mjs";
@@ -98,6 +99,7 @@ async function contrasenaDeRclone(rl, automatico) {
 
 // ── Principal ───────────────────────────────────────────────────────────────
 async function principal() {
+  refrescarPath();
   let op = {};
   let errorDeOpciones = null;
   try {

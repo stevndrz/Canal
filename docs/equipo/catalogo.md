@@ -39,6 +39,18 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — El doble clic no encontraba Node
+
+En el PC del dueño, `where.exe node` en PowerShell daba solo el Node que trae
+otra aplicación (`%LOCALAPPDATA%\hermes\node`), y el doble clic decía «"node"
+no se reconoce». Causa: el Explorador hereda el PATH de cuando arrancó.
+- `buscar-node.cmd`: prueba `Program Files\nodejs`, `%LOCALAPPDATA%\Programs\nodejs`,
+  x86, nvm, `where` y, al final, el de hermes; ejecuta `--version` y exige ≥ 20.
+  Si no hay, ofrece `winget install OpenJS.NodeJS.LTS` y sigue sin reiniciar.
+- `refrescarPath()` (entorno.mjs): suma el PATH del registro (HKLM + HKCU) y
+  `WinGet\Links` al de Node, para que ffmpeg y rclone aparezcan igual.
+- Sin probar en Windows de verdad (aquí no hay cmd.exe).
+
 ### 2026-11-10 — Sincronía suave con Vimeus, y un «Empezar» que arrancaba antes de tiempo
 
 - La franja de la ficha (`sala-suave.tsx`) y su reloj: detalle en
