@@ -6,7 +6,7 @@ const secreto = { valor: "secreto-de-prueba" };
 vi.mock("@/lib/config.server", () => ({ serverConfig: () => ({ pusherSecreto: secreto.valor }) }));
 
 const { POST } = await import("./route");
-const { olvidarTodo } = await import("@/lib/limite-peticiones");
+const { LIMITES, excedeLimite, olvidarTodo } = await import("@/lib/limite-peticiones");
 const { firmarCanal } = await import("@/lib/ver-juntos/firma");
 
 const SALA = "presence-juntos-4821";
@@ -32,6 +32,20 @@ describe("/api/pusher/auth", () => {
     const cuerpo = (await respuesta.json()) as { auth: string; channel_data: string };
     expect(JSON.parse(cuerpo.channel_data)).toEqual({ user_id: "aparato_123", user_info: { nombre: "Tele sala" } });
     expect(cuerpo.auth).toBe(`clave-publica:${firmarCanal("secreto-de-prueba", "123.456", SALA, cuerpo.channel_data)}`);
+  });
+
+  it("sigue firmando aunque el buscador y las carátulas hayan agotado su cupo", async () => {
+    // Sin cabeceras de IP, la ruta cuenta a quien llama como «desconocido».
+    for (let i = 0; i <= LIMITES.PETICIONES; i++) excedeLimite("desconocido");
+    expect(excedeLimite("desconocido")).toBe(true);
+    expect((await POST(pedir({ socket_id: "123.456", channel_name: SALA, ...YO }))).status).toBe(200);
+  });
+
+  it("su propio cupo también corta: 30 por minuto y por IP", async () => {
+    for (let i = 0; i < LIMITES.PETICIONES; i++) {
+      expect((await POST(pedir({ socket_id: "123.456", channel_name: SALA, ...YO }))).status).toBe(200);
+    }
+    expect((await POST(pedir({ socket_id: "123.456", channel_name: SALA, ...YO }))).status).toBe(429);
   });
 
   it("no firma canales que no son salas de cuatro cifras", async () => {
