@@ -82,7 +82,10 @@ jobs:
   # fallo aquí no tape uno de tipos o de pruebas, y al revés.
   navegador:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Las pruebas tardan ~2 min; el resto del margen es para instalar las
+    # librerías de sistema de WebKit (~170 paquetes), que con un espejo de apt
+    # lento ya se comió 15 minutos sin llegar a ejecutar ninguna prueba.
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
