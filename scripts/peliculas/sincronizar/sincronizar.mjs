@@ -26,11 +26,20 @@
  * (%APPDATA%\CanalCasa\peliculas.json); si no está, se pregunta una vez.
  */
 
-import { spawn, spawnSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
+import {
+  capacidadesDeFfmpeg,
+  carpetaLocal,
+  carpetaPorDefecto,
+  carpetaTrabajo,
+  crearEjecutar,
+  crearRegistro,
+  faltaPrograma,
+  leerConfig,
+  rcloneCifrado,
+  tomarCandado,
+} from "./lib/entorno.mjs";
 import { crearNubeRclone } from "./lib/nube.mjs";
 import { sincronizar } from "./lib/sincronizar.mjs";
 
@@ -56,75 +65,10 @@ function leerOpciones(argv) {
   return op;
 }
 
-// ── Lanzar programas, sin shell ─────────────────────────────────────────────
-/**
- * Sin shell a propósito: el nombre de una película va como argumento suelto,
- * así que un archivo llamado «x & del *.*» no puede ejecutar nada.
- * Con `mostrar`, la salida se ve en vivo (el avance de ffmpeg y rclone) y,
- * de paso, se guarda para poder explicar un fallo.
- */
-function crearEjecutar(registrar, entorno = process.env) {
-  return (programa, args, { cwd, mostrar = false } = {}) =>
-    new Promise((resolver) => {
-      // stdin cerrado: si un programa se pusiera a preguntar algo, falla en
-      // vez de quedarse esperando para siempre detrás de la ventana.
-      const hijo = spawn(programa, args, { cwd, windowsHide: true, env: entorno, stdio: ["ignore", "pipe", "pipe"] });
-      let salida = "";
-      let error = "";
-      hijo.stdout.on("data", (d) => {
-        salida += d;
-        if (mostrar) process.stdout.write(d);
-      });
-      hijo.stderr.on("data", (d) => {
-        error += d;
-        if (mostrar) process.stderr.write(d);
-        if (error.length > 200_000) error = error.slice(-100_000);
-      });
-      hijo.on("error", (e) => resolver({ codigo: -1, salida, error: String(e) }));
-      hijo.on("close", (codigo) => {
-        if (codigo !== 0) registrar(`[${programa} salió con ${codigo}] ${error.slice(-2000)}`);
-        resolver({ codigo, salida, error });
-      });
-    });
-}
-
-function hay(programa) {
-  return spawnSync(programa, ["--version"], { stdio: "ignore", windowsHide: true }).status === 0 ||
-    spawnSync(programa, ["-version"], { stdio: "ignore", windowsHide: true }).status === 0;
-}
-
-// ── Configuración de R2 (la misma de los scripts de PowerShell) ─────────────
-async function leerConfig(preguntarTexto) {
-  const carpeta = join(process.env.APPDATA ?? join(homedir(), ".config"), "CanalCasa");
-  const ruta = join(carpeta, "peliculas.json");
-  if (existsSync(ruta)) {
-    const c = JSON.parse(readFileSync(ruta, "utf8").replace(/^\uFEFF/, ""));
-    return { remoto: c.Remoto ?? c.remoto, cubo: c.Cubo ?? c.cubo, urlPublica: c.UrlPublica ?? c.urlPublica };
-  }
-  console.log("\nPrimera vez: dónde se suben las películas (ver docs/PELICULAS-JUNTOS.md).");
-  const remoto = (await preguntarTexto("Nombre del remoto de rclone [r2]: ")) || "r2";
-  const cubo = (await preguntarTexto("Nombre del bucket de R2 [canalcasa-peliculas]: ")) || "canalcasa-peliculas";
-  const urlPublica = (await preguntarTexto("URL pública del bucket (https://pub-….r2.dev): ")).replace(/\/+$/, "");
-  if (!/^https:\/\//.test(urlPublica)) throw new Error("La URL pública tiene que empezar por https://");
-  mkdirSync(carpeta, { recursive: true });
-  writeFileSync(ruta, JSON.stringify({ Remoto: remoto, Cubo: cubo, UrlPublica: urlPublica }, null, 2), "utf8");
-  return { remoto, cubo, urlPublica };
-}
-
-// ── Configuración de rclone cifrada ──────────────────────────────────────────
-/**
- * Si la configuración de rclone tiene contraseña (`rclone config` → `s`, lo
- * recomendado para que la llave de R2 no esté en claro en el disco), rclone
- * la pediría por su cuenta en cada llamada. Se pide aquí una vez, sin que se
- * vea al escribir, y se le pasa por `RCLONE_CONFIG_PASS`, solo a rclone.
- */
+// ── Contraseña de rclone, sin que se vea al escribir ────────────────────────
 async function contrasenaDeRclone(rl) {
   if (process.env.RCLONE_CONFIG_PASS) return process.env.RCLONE_CONFIG_PASS;
-  const ruta = (spawnSync("rclone", ["config", "file"], { encoding: "utf8", windowsHide: true }).stdout ?? "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .find((l) => /rclone\.conf$/i.test(l));
-  if (!ruta || !existsSync(ruta) || !/RCLONE_ENCRYPT_V0/.test(readFileSync(ruta, "utf8"))) return null;
+  if (!rcloneCifrado()) return null;
   const escribir = rl._writeToOutput;
   rl._writeToOutput = (texto) => {
     if (texto.includes("Contraseña")) escribir.call(rl, texto);
@@ -137,23 +81,6 @@ async function contrasenaDeRclone(rl) {
   }
 }
 
-// ── Un solo proceso a la vez ─────────────────────────────────────────────────
-function tomarCandado(ruta) {
-  if (existsSync(ruta)) {
-    const pid = Number(readFileSync(ruta, "utf8"));
-    let vivo = false;
-    try {
-      process.kill(pid, 0);
-      vivo = true;
-    } catch {
-      vivo = false;
-    }
-    if (vivo) throw new Error(`Ya hay una sincronización en marcha (proceso ${pid}). Espera a que termine.`);
-  }
-  writeFileSync(ruta, String(process.pid));
-  return () => rmSync(ruta, { force: true });
-}
-
 // ── Principal ───────────────────────────────────────────────────────────────
 async function principal() {
   let op = {};
@@ -163,11 +90,7 @@ async function principal() {
   } catch (error) {
     errorDeOpciones = error;
   }
-  const local = join(process.env.LOCALAPPDATA ?? join(homedir(), ".local", "share"), "CanalCasa");
-  mkdirSync(join(local, "registro"), { recursive: true });
-  const rutaRegistro = join(local, "registro", `${new Date().toISOString().slice(0, 10)}.txt`);
-  const registrar = (texto) => appendFileSync(rutaRegistro, `${new Date().toISOString()} ${texto}\n`);
-  registrar(`── sincronizar ${process.argv.slice(2).join(" ")}`);
+  const { ruta: rutaRegistro, registrar } = crearRegistro(`── sincronizar ${process.argv.slice(2).join(" ")}`);
 
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   // Sin nadie al teclado (la entrada se cerró): vale lo que diga cada
@@ -198,22 +121,19 @@ async function principal() {
   let soltar = () => {};
   try {
     if (errorDeOpciones) throw errorDeOpciones;
-    for (const h of ["ffmpeg", "ffprobe", "rclone"]) {
-      if (!hay(h)) throw new Error(`No encuentro «${h}». Ejecuta preparar-pc.ps1, o: winget install ${h === "rclone" ? "Rclone.Rclone" : "Gyan.FFmpeg"}`);
-    }
-    soltar = tomarCandado(join(local, "sincronizar.lock"));
+    const falta = faltaPrograma();
+    if (falta) throw new Error(falta);
+    mkdirSync(carpetaLocal(), { recursive: true });
+    soltar = tomarCandado();
     const config = await leerConfig(preguntarTexto);
     const pass = await contrasenaDeRclone(rl);
     const ejecutar = crearEjecutar(registrar, pass ? { ...process.env, RCLONE_CONFIG_PASS: pass } : process.env);
     const nube = crearNubeRclone(config, ejecutar);
-    const raiz = op.carpeta ?? join(homedir(), "Downloads", "Peliculas");
+    const raiz = op.carpeta ?? config.carpeta ?? carpetaPorDefecto();
     if (!existsSync(raiz)) throw new Error(`No existe la carpeta ${raiz}.`);
-    const trabajo = join(tmpdir(), "canalcasa");
-    mkdirSync(trabajo, { recursive: true });
+    const trabajo = carpetaTrabajo();
 
-    const probarCodificador = (nombre) =>
-      spawnSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "color=size=256x256", "-frames:v", "1", "-c:v", nombre, "-f", "null", "-"], { windowsHide: true }).status === 0;
-    const hayZscale = /zscale/.test(spawnSync("ffmpeg", ["-hide_banner", "-filters"], { encoding: "utf8", windowsHide: true }).stdout ?? "");
+    const { probarCodificador, hayZscale } = capacidadesDeFfmpeg();
     if (!hayZscale) decir("aviso", "Este ffmpeg no trae «zscale»: una película HDR saldría con colores lavados. Instala la versión completa: winget install Gyan.FFmpeg");
 
     // Ctrl+C: se suelta el candado; la copia de trabajo se limpia en la siguiente vuelta.
