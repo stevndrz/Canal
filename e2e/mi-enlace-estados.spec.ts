@@ -1,0 +1,134 @@
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { crearPusherFalso, type PusherFalso } from "./pusher-falso";
+import { nuevoAparato, type NombreAparato } from "./aparatos";
+import { CLAVE_PUSHER, SECRETO_PUSHER } from "./constantes.mjs";
+
+/**
+ * Mi enlace dentro de la sala: esperando, viendo y en pausa. Cada estado, un
+ * único botón principal. Y el enlace de invitación, que entra directo.
+ */
+
+async function abrir(browser: Browser, pusher: PusherFalso, cual: NombreAparato, ruta = "/?vista=fuente"): Promise<{ contexto: BrowserContext; page: Page }> {
+  const contexto = await nuevoAparato(browser, cual);
+  await pusher.conectar(contexto);
+  const page = await contexto.newPage();
+  await page.goto(ruta);
+  return { contexto, page };
+}
+
+async function crearSala(page: Page, alias: string): Promise<string> {
+  await page.getByRole("button", { name: "Crear sala" }).click();
+  await page.getByRole("textbox", { name: "Tu nombre" }).fill(alias);
+  await page.getByRole("button", { name: "Listo", exact: true }).click();
+  const codigo = page.locator(".cine-codigo");
+  await expect(codigo).toHaveText(/^\d{4}$/);
+  return (await codigo.textContent())!;
+}
+
+const reproduciendo = (page: Page) => page.evaluate(() => Boolean(document.querySelector("video") && !document.querySelector("video")!.paused));
+
+test.describe("Mi enlace por estados, en la sala", () => {
+  let pusher: PusherFalso;
+  test.beforeEach(() => {
+    pusher = crearPusherFalso(CLAVE_PUSHER, SECRETO_PUSHER);
+  });
+
+  test("PC: a solas, lo principal es «Invitar», y copia un enlace que entra directo", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    await pc.contexto.grantPermissions(["clipboard-read", "clipboard-write"]);
+    const codigo = await crearSala(pc.page, "Steven");
+    const principal = pc.page.locator(".cine-boton-principal");
+    await expect(principal).toHaveCount(1);
+    await expect(principal).toHaveText("Invitar");
+    // Empezar sin esperar sigue ahí, sin competir.
+    await expect(pc.page.getByRole("button", { name: "Empezar sin esperar" })).toHaveClass(/cine-boton-texto/);
+
+    await principal.click();
+    await expect(pc.page.locator(".cine-estado")).toHaveText("Enlace copiado: pégalo en un mensaje.");
+    const copiado = await pc.page.evaluate(() => navigator.clipboard.readText());
+    expect(copiado).toContain(`/?sala=${codigo}`);
+    expect(copiado).toContain("Coco");
+
+    // Quien abre ese enlace sin haber usado nunca la app: su nombre y dentro.
+    const enlace = new URL(copiado.slice(copiado.indexOf("http")));
+    const invitada = await abrir(browser, pusher, "iphone", enlace.pathname + enlace.search);
+    await invitada.page.getByRole("dialog", { name: "¿Cómo te llamas?" }).getByRole("textbox", { name: "Tu nombre" }).fill("Ana");
+    await invitada.page.getByRole("button", { name: "Listo", exact: true }).click();
+    await expect(invitada.page.locator(".cine-codigo")).toHaveText(codigo);
+    await expect(invitada.page.locator("#cine-titulo")).toHaveText("Coco");
+    // El código no se queda en la barra: recargar no vuelve a «entrar por enlace».
+    expect(new URL(invitada.page.url()).searchParams.get("sala")).toBeNull();
+
+    // Ya acompañado, lo principal pasa a ser empezar.
+    await expect(pc.page.getByLabel("Quién está en la sala")).toContainText("Ana");
+    await expect(principal).toHaveText("Empezar");
+    await pc.contexto.close();
+    await invitada.contexto.close();
+  });
+
+  test("Con nombre ya puesto, el enlace de invitación entra sin preguntar nada", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const codigo = await crearSala(pc.page, "Steven");
+    const contexto = await nuevoAparato(browser, "iphone");
+    await pusher.conectar(contexto);
+    await contexto.addInitScript(() => localStorage.setItem("canalcasa:juntos-perfil", JSON.stringify({ id: "aparato-prueba-0002", nombre: "Ana" })));
+    const page = await contexto.newPage();
+    await page.goto(`/?sala=${codigo}`);
+    await expect(page.locator(".cine-codigo")).toHaveText(codigo);
+    await expect(pc.page.getByLabel("Quién está en la sala")).toContainText("Ana");
+    // Un «código» que no lo es no hace nada raro: Inicio, como siempre.
+    const otro = await contexto.newPage();
+    await otro.goto("/?sala=hola");
+    await expect(otro.locator(".cine-codigo")).toHaveCount(0);
+    await pc.contexto.close();
+    await contexto.close();
+  });
+
+  test("Tele: sin forma de compartir, lo principal es empezar", async ({ browser }) => {
+    const tele = await abrir(browser, pusher, "tele");
+    await crearSala(tele.page, "Tele sala");
+    await expect(tele.page.locator(".cine-boton-principal")).toHaveText("Empezar sin esperar");
+    await expect(tele.page.getByRole("button", { name: "Invitar" })).toHaveCount(0);
+    await tele.contexto.close();
+  });
+
+  test("Viendo no hay botón principal; en pausa dice quién pausó y «Seguir» reanuda a los dos", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const iphone = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await iphone.page.getByRole("button", { name: "Entrar con código" }).click();
+    await iphone.page.getByRole("textbox", { name: "Tu nombre" }).fill("Ana");
+    await iphone.page.getByRole("button", { name: "Listo", exact: true }).click();
+    for (const cifra of codigo) await iphone.page.getByRole("dialog").getByRole("button", { name: cifra, exact: true }).click();
+    await expect(iphone.page.locator(".cine-codigo")).toHaveText(codigo);
+
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await expect.poll(() => reproduciendo(pc.page), { timeout: 15_000 }).toBe(true);
+    await expect.poll(() => reproduciendo(iphone.page), { timeout: 15_000 }).toBe(true);
+
+    // Viendo: el reproductor y quién está. Nada más pide atención.
+    for (const page of [pc.page, iphone.page]) {
+      await expect(page.locator(".cine-boton-principal")).toHaveCount(0);
+      await expect(page.getByLabel("Quién está en la sala")).toBeVisible();
+      await expect(page.locator(".cine-vistas")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Usar un enlace" })).toHaveCount(0);
+    }
+
+    // Pausa Steven en el PC.
+    await pc.page.waitForTimeout(2500);
+    await pc.page.evaluate(() => document.querySelector("video")!.pause());
+    await expect.poll(() => reproduciendo(iphone.page)).toBe(false);
+    await expect(pc.page.locator(".cine-pausa")).toHaveText(/^Pausaste · van por 0:0\d$/);
+    await expect(iphone.page.locator(".cine-pausa")).toHaveText(/^Steven pausó · van por 0:0\d$/);
+    await expect(iphone.page.locator(".cine-boton-principal")).toHaveText("Seguir");
+    await expect(iphone.page.locator(".cine-boton-principal")).toHaveCount(1);
+
+    // «Seguir» en el teléfono reanuda a los dos.
+    await iphone.page.locator(".cine-boton-principal").click();
+    await expect.poll(() => reproduciendo(iphone.page)).toBe(true);
+    await expect.poll(() => reproduciendo(pc.page)).toBe(true);
+    await expect(pc.page.locator(".cine-pausa")).toHaveCount(0);
+    await pc.contexto.close();
+    await iphone.contexto.close();
+  });
+});

@@ -5407,7 +5407,10 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 }
 
 :root[data-pantalla="tv"] .cine-portada.con-teatro.con-estante {
-  --cine-ancho: min(1500px, max(420px, calc((100svh - var(--topbar-h) - 620px) * 16 / 9)));
+  /* 730 y no 620: las tarjetas del estante llevan una línea más (duración o
+     «Iban por…») y, con 620, el botón principal quedaba 23 px bajo el borde.
+     El resto es margen para el recorte de imagen de las teles. */
+  --cine-ancho: min(1500px, max(420px, calc((100svh - var(--topbar-h) - 730px) * 16 / 9)));
 }
 
 :root[data-pantalla="tv"] .cine-halo,
@@ -6258,4 +6261,224 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   100% {
     opacity: 1;
   }
+}
+
+/* ── Mi enlace por estados: una pantalla, un siguiente paso ───────────
+   Vacío, eligiendo, sala esperando, viendo y en pausa (`fuente-view.tsx`).
+   Aquí va lo que esos estados añaden a la familia `.cine-*` de arriba. */
+
+/* Sin película que enseñar, la portada deja de ser una pantalla entera con el
+   texto abajo: empieza arriba, bajo la cabecera, y mide lo que mide. */
+.cine-portada.is-vacia {
+  display: block;
+  height: auto;
+  min-height: 0;
+  padding-top: calc(var(--topbar-h) + clamp(8px, 2vh, 24px));
+}
+
+.cine-portada.is-vacia .cine-portada-contenido {
+  max-width: 46rem;
+  padding-bottom: clamp(20px, 4vh, 48px);
+}
+
+/* Una sola escala de títulos: el de aquí mide como el de una película. */
+.cine-portada.is-vacia .cine-titulo {
+  font-size: clamp(28px, 3.6vw, 56px);
+}
+
+.cine-vacio {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(12px, 1.8vh, 20px);
+}
+
+.cine-vacio-frase {
+  max-width: 38rem;
+  margin: 0;
+  font-size: var(--texto-base);
+  line-height: 1.45;
+  color: var(--tinta-2);
+}
+
+.cine-pasos {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: paso;
+}
+
+.cine-pasos li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--texto-sm);
+  color: var(--tinta-2);
+  counter-increment: paso;
+}
+
+.cine-pasos li::before {
+  content: counter(paso);
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  place-items: center;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  font-size: var(--texto-xs);
+  font-weight: 650;
+  color: var(--tinta-1);
+}
+
+/* Qué está haciendo el PC que sube las películas. */
+.cine-pc {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+}
+
+/* En `em`: en la tele el texto es mucho mayor y un icono fijo se perdía. */
+.cine-pc svg {
+  width: 1.15em;
+  height: 1.15em;
+  flex: none;
+}
+
+.cine-pc[data-tono="activo"] {
+  color: var(--tinta-1);
+}
+
+.cine-pc[data-tono="aviso"] {
+  color: var(--tinta-2);
+}
+
+/* En pausa: quién pausó y por dónde van. Se lee antes que el botón. */
+.cine-pausa {
+  position: relative;
+  margin: 0;
+  font-size: var(--texto-base);
+  font-weight: 600;
+  color: var(--tinta-1);
+}
+
+/* Tarjetas del estante: lo que hace falta para elegir, sin abrir nada. */
+.cine-poster-marco {
+  position: relative;
+  display: block;
+}
+
+.cine-poster-nueva {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 3px 8px;
+  border-radius: var(--radio-pill);
+  background: var(--acento);
+  font-size: var(--texto-2xs);
+  font-weight: 650;
+  line-height: 1.2;
+  color: var(--acento-tinta);
+}
+
+.cine-poster-barra {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  left: 6px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: var(--radio-pill);
+  background: rgba(var(--fondo-rgb), 0.65);
+}
+
+.cine-poster-barra i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tinta-1);
+}
+
+.cine-poster-dato {
+  display: block;
+  margin-top: -4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--texto-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--tinta-3);
+}
+
+/* Esqueletos: solo opacidad (un `transform` en un ancestro rompe las barras fijas). */
+.cine-esqueleto {
+  display: block;
+  border-radius: var(--radio-tarjeta);
+  background: var(--relleno);
+  animation: cine-late 1100ms ease-in-out infinite alternate;
+}
+
+.cine-esqueleto-fila {
+  display: flex;
+  gap: clamp(12px, 1.2vw, 20px);
+}
+
+.cine-esqueleto.is-poster {
+  width: clamp(72px, 6vw, 96px);
+  aspect-ratio: 2 / 3;
+}
+
+.cine-esqueleto.is-titulo {
+  width: min(60%, 22rem);
+  height: clamp(28px, 3.6vw, 44px);
+}
+
+.cine-esqueleto.is-teatro {
+  width: min(100%, 44rem);
+  aspect-ratio: 16 / 9;
+}
+
+@keyframes cine-late {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cine-esqueleto {
+    animation: none;
+  }
+}
+
+:root[data-pantalla="tv"] .cine-esqueleto.is-poster {
+  width: 132px;
+}
+
+.cine-estante-cabeza {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 16px;
+}
+
+.cine-estante-cabeza .cine-estante-titulo {
+  margin-bottom: 0;
+}
+
+.cine-estante-cabeza .cine-pc {
+  align-self: center;
+}
+
+.cine-vacio .cine-estante-titulo {
+  padding-inline: 0;
 }

@@ -122,3 +122,96 @@ test("PC: en reposo dice cuándo sincronizó y cuánto ocupa; un estado roto o a
   await expect(pagina.locator(".cine-pc")).toHaveCount(0);
   await sin.close();
 });
+
+/**
+ * Mi enlace por estados: «una pantalla, un siguiente paso». Aquí, lo que se
+ * comprueba sin sala (vacío, cargando y eligiendo); lo de dentro de la sala,
+ * en `mi-enlace-estados.spec.ts`.
+ */
+const sinPeliculas = (cuerpo = JSON.stringify({ version: 2, peliculas: [] })) => ({ contentType: "application/json", headers: CORS, body: cuerpo });
+
+/** El botón principal es uno solo, entero a la vista y por encima de la barra de abajo del teléfono. */
+async function unSoloPrincipalALaVista(page: import("@playwright/test").Page, cual: NombreAparato, texto: string | RegExp) {
+  const principal = page.locator(".cine-boton-principal");
+  await expect(principal).toHaveCount(1);
+  await expect(principal).toHaveText(texto);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  const caja = (await principal.boundingBox())!;
+  const barra = await page.locator(".mobile-bottom-nav").boundingBox();
+  const suelo = barra && barra.height > 0 ? barra.y : APARATOS[cual].viewport.height;
+  expect(caja.y + caja.height).toBeLessThanOrEqual(suelo);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
+for (const { nombre, cual } of APARATOS_PROBADOS) {
+  test(`${nombre}: sin películas, la pantalla empieza arriba y dice cómo subir una`, async ({ browser }) => {
+    const contexto = await nuevoAparato(browser, cual);
+    await contexto.route(/\/peliculas\/catalogo\.json/, (ruta) => ruta.fulfill(sinPeliculas()));
+    const page = await contexto.newPage();
+    await page.goto("/?vista=fuente");
+    // Los pasos solo salen con el catálogo ya leído (antes hay esqueletos).
+    await expect(page.getByRole("list", { name: "Cómo llega una película" })).toBeVisible();
+    const titulo = page.getByRole("heading", { name: "Nuestras películas" });
+    await expect(titulo).toBeVisible();
+    // Arriba, bajo la cabecera: nunca media pantalla vacía antes del contenido.
+    expect((await titulo.boundingBox())!.y).toBeLessThan(APARATOS[cual].viewport.height * 0.25);
+    // Nada que elegir: no se pide elegir.
+    await expect(page.getByText("Elijan una película")).toHaveCount(0);
+    await expect(page.getByRole("list", { name: "Cómo llega una película" }).getByRole("listitem")).toHaveCount(3);
+    await unSoloPrincipalALaVista(page, cual, "Cómo subir una película");
+
+    await page.locator(".cine-boton-principal").click();
+    await expect(page.getByRole("dialog", { name: "Cómo subir una película" })).toContainText("Descargar desde un enlace");
+    await contexto.close();
+  });
+
+  test(`${nombre}: con películas, un solo botón principal y los demás en texto`, async ({ browser }) => {
+    const contexto = await nuevoAparato(browser, cual);
+    const page = await contexto.newPage();
+    await page.goto("/?vista=fuente");
+    await expect(page.locator(".cine-estante").getByRole("button", { name: "Coco" })).toBeVisible();
+    await unSoloPrincipalALaVista(page, cual, "Crear sala");
+    await expect(page.getByRole("button", { name: "Entrar con código" })).toHaveClass(/cine-boton-texto/);
+    // El título grande es la película, no una instrucción.
+    await expect(page.locator("#cine-titulo")).toHaveText("Coco");
+    // Cada tarjeta dice lo que dura.
+    await expect(page.locator(".cine-poster-dato").first()).toHaveText(/min/);
+    await contexto.close();
+  });
+}
+
+test("iPhone: con una sala recordada, lo principal es volver a ella (también sin películas)", async ({ browser }) => {
+  for (const vacio of [true, false]) {
+    const contexto = await nuevoAparato(browser, "iphone");
+    if (vacio) await contexto.route(/\/peliculas\/catalogo\.json/, (ruta) => ruta.fulfill(sinPeliculas()));
+    await contexto.addInitScript(() => {
+      localStorage.setItem("canalcasa:juntos-perfil", JSON.stringify({ id: "aparato-prueba-0001", nombre: "Steven" }));
+      localStorage.setItem("canalcasa:juntos-ultima-sala", "8047");
+    });
+    const page = await contexto.newPage();
+    await page.goto("/?vista=fuente");
+    await expect(page.getByRole("heading", { name: "Nuestras películas" })).toBeVisible();
+    await unSoloPrincipalALaVista(page, "iphone", "Volver a la sala 8047");
+    await expect(page.getByRole("button", { name: "Crear sala" })).toHaveClass(/cine-boton-texto/);
+    await contexto.close();
+  }
+});
+
+test("iPhone: mientras llega el catálogo hay esqueletos, no una pantalla en negro ni un «no hay películas»", async ({ browser }) => {
+  const contexto = await nuevoAparato(browser, "iphone");
+  let soltar = () => {};
+  const espera = new Promise<void>((resolver) => (soltar = resolver));
+  await contexto.route(/\/peliculas\/catalogo\.json/, async (ruta) => {
+    await espera;
+    await ruta.continue();
+  });
+  const page = await contexto.newPage();
+  await page.goto("/?vista=fuente");
+  await expect(page.locator(".cine-esqueleto").first()).toBeVisible();
+  await expect(page.getByText("Todavía no hay ninguna")).toHaveCount(0);
+  await expect(page.locator(".cine-boton-principal")).toHaveCount(0);
+  soltar();
+  await expect(page.locator(".cine-estante").getByRole("button", { name: "Coco" })).toBeVisible();
+  await expect(page.locator(".cine-esqueleto")).toHaveCount(0);
+  await contexto.close();
+});

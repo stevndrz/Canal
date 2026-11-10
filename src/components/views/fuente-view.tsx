@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard, History, Link2, MonitorUp, Play, Plus, Trash2, Users, VolumeX } from "lucide-react";
+import { History, Link2, MonitorUp, Play, Plus, Share2, Trash2, Users, VolumeX } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { useEstadoPc } from "@/hooks/use-estado-pc";
 import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
@@ -22,14 +22,17 @@ import {
   type Perfil,
 } from "@/lib/ver-juntos/recordar";
 import { dondeRetomar, reloj, resumen, type VistaJuntos } from "@/lib/ver-juntos/historial";
-import { crearCodigoSala } from "@/lib/ver-juntos/sala";
+import { crearCodigoSala, normalizarCodigo } from "@/lib/ver-juntos/sala";
 import { duracionCorta } from "@/lib/ver-juntos/portada";
-import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, presencia } from "./sala-cine";
+import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, SalaCargando, SalaVacia, presencia } from "./sala-cine";
 import { ElegirAlias, TecladoCodigo } from "./entrar-sala";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
 import type { SubtitleTrack } from "@/lib/catalog/types";
 import { Aviso, Boton, BotonIcono, Campo, EstadoVacio } from "@/components/ui";
+
+/** Una película subida hace menos de esto, y sin empezar, lleva la etiqueta «Nueva». */
+const NUEVA_MS = 7 * 24 * 3600_000;
 
 /** Arrastra hls.js: solo se descarga cuando hay algo que reproducir aquí. */
 const NativePlayer = dynamic(() => import("@/components/native-player"), {
@@ -40,11 +43,17 @@ const NativePlayer = dynamic(() => import("@/components/native-player"), {
 /**
  * Mi enlace: «sala de cine para dos».
  *
- * La vista principal es la portada de la película de la sala, con quién está
- * y un solo botón que dice lo siguiente que toca (crear la sala, elegir,
- * empezar, volver a la película). Encima de todo, el estante de «Nuestras películas»:
- * lo que hay para ver es lo primero que se lee. Pegar un
- * enlace —la vía de siempre de Mi enlace— vive en una hoja aparte, a un botón.
+ * **Una pantalla, un siguiente paso.** La pantalla está en uno de cinco
+ * estados y cada uno enseña solo lo que sirve, con un único botón principal:
+ *
+ *   vacío      no hay películas: qué es esto y cómo llega una («Cómo subir…»)
+ *   eligiendo  el estante y la elegida («Crear sala», o «Volver a la sala»)
+ *   esperando  dentro de la sala, sin empezar («Invitar», «Empezar»)
+ *   viendo     solo el reproductor y quién está; lo demás se recoge
+ *   pausa      quién pausó y por dónde van («Seguir»)
+ *
+ * Lo demás son botones de texto. Pegar un enlace —la vía de siempre de Mi
+ * enlace— vive en una hoja aparte, a un botón.
  *
  * Por qué aquí sí hay controles completos, y no en Canales ni en Películas:
  * aquí el `<video>` es nuestro, con su tiempo y sus controles al alcance (en
@@ -76,7 +85,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * pantalla completa.
    */
   const [inmersivo, setInmersivo] = useState(false);
-  const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo">(null);
+  const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo" | "como">(null);
   /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
   const [trasAlias, setTrasAlias] = useState<null | "crear" | "entrar">(null);
   const nuestras = useNuestrasPeliculas();
@@ -128,11 +137,34 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   const [vistas, setVistas] = useState<VistaJuntos[]>([]);
   /** «Ayer», «hace 3 días»: contado desde que se abrió la pantalla. */
   const [ahora, setAhora] = useState(0);
+  /** Se llegó por un enlace de invitación (`/?sala=8047`) sin tener nombre todavía. */
+  const [salaPorEnlace, setSalaPorEnlace] = useState("");
+  /** Este aparato sabe compartir o copiar (un teléfono, un PC): la tele no. */
+  const [puedeInvitar, setPuedeInvitar] = useState(false);
+  /** Lo que pasó al pulsar «Invitar», si hay que decirlo («Enlace copiado»). */
+  const [invitado, setInvitado] = useState("");
   useEffect(() => {
     // `localStorage` no existe en el render de servidor: leerlo en el primer
     // render rompía la hidratación. Mismo patrón que `use-fuentes.ts`.
+    const guardado = leerPerfil();
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPerfil(leerPerfil());
+    setPerfil(guardado);
+    setPuedeInvitar(
+      document.documentElement.dataset.pantalla !== "tv" && (typeof navigator.share === "function" || Boolean(navigator.clipboard)),
+    );
+    // Un enlace de invitación entra directo; sin nombre todavía, se pide antes.
+    const invitacion = normalizarCodigo(new URLSearchParams(window.location.search).get("sala") ?? "");
+    if (invitacion) {
+      // El código ya está leído: fuera de la barra, para que recargar no vuelva a entrar.
+      window.history.replaceState(null, "", "/?vista=fuente");
+      if (guardado) {
+        recordarSala({ codigo: invitacion, pelicula: null });
+        recordarUltimaSala(invitacion);
+      } else {
+        setSalaPorEnlace(invitacion);
+        setHoja("alias");
+      }
+    }
     // Si se salió de Mi enlace estando en una sala, al volver se entra sola.
     setCodigoSala(leerSalaRecordada()?.codigo ?? "");
     setUltimaSala(leerUltimaSala());
@@ -231,6 +263,19 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   // --- El vídeo: en la tele, a pantalla completa en cuanto arranca -----------
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const [reproduciendo, setReproduciendo] = useState(false);
+  /**
+   * La película ya arrancó alguna vez en esta visita: una parada es «en pausa»
+   * («Seguir») y no «sin empezar» («Empezar», con su cuenta atrás). Se apunta
+   * el `<video>`, que es uno por película: al cambiar de película deja de valer.
+   */
+  const [empezadoEn, setEmpezadoEn] = useState<HTMLVideoElement | null>(null);
+  /** Quién pausó: un alias, o «tú». */
+  const [quienPauso, setQuienPauso] = useState("");
+  const avisoRef = useRef<{ nombre: string; que: string; cuando: number } | null>(null);
+  const avisoSala = juntos.aviso;
+  useEffect(() => {
+    if (avisoSala) avisoRef.current = { nombre: avisoSala.nombre, que: avisoSala.que, cuando: Date.now() };
+  }, [avisoSala]);
   const alVideoSala = juntos.alVideo;
   const alVideo = useCallback(
     (v: HTMLVideoElement | null) => {
@@ -243,6 +288,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     if (!video) return;
     const alPlay = () => {
       setReproduciendo(true);
+      setEmpezadoEn(video);
       // Arrancó —por la cuenta atrás, por el otro o a mano—. En la tele, a
       // pantalla completa: desde el sofá no se ve una película a media página.
       if (document.documentElement.dataset.pantalla === "tv") setInmersivo(true);
@@ -250,10 +296,21 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       // reproductor crece a todo el ancho. Vuelve con «Cambiar película».
       else setEstanteVisible(false);
     };
-    const alPausa = () => setReproduciendo(false);
+    let trasPausa = 0;
+    const alPausa = () => {
+      setReproduciendo(false);
+      // El aviso «Ana pausó» de la sala llega a la vez que la pausa: se espera
+      // un instante para saber si fue otra persona o este mismo aparato.
+      window.clearTimeout(trasPausa);
+      trasPausa = window.setTimeout(() => {
+        const aviso = avisoRef.current;
+        setQuienPauso(aviso && aviso.que === "pausó" && Date.now() - aviso.cuando < 2000 ? aviso.nombre : "tú");
+      }, 80);
+    };
     video.addEventListener("play", alPlay);
     video.addEventListener("pause", alPausa);
     return () => {
+      window.clearTimeout(trasPausa);
       video.removeEventListener("play", alPlay);
       video.removeEventListener("pause", alPausa);
     };
@@ -405,32 +462,95 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
     else setHoja("codigo");
   };
 
-  type Paso = "ver" | "crear" | "elegir" | "volver" | "empezar" | "retomar";
-  let principal: { texto: string; icono?: React.ReactNode; paso: Paso } | null = null;
-  if (!salaDisponible) {
-    if (portada && !reproduciendo) principal = { texto: "Ver ahora", icono: <Play />, paso: "ver" };
-  } else if (!dentro) {
-    principal = { texto: "Crear sala", icono: <Users />, paso: "crear" };
-  } else if (!portada) {
-    principal = { texto: "Elegir película", paso: "elegir" };
-  } else if (reproduciendo) {
-    // En modo teatro la película ya está a la vista: «volver» solo hace falta
-    // si se salió de la pantalla completa.
-    principal = inmersivo ? null : { texto: "Pantalla completa", icono: <Play />, paso: "volver" };
-  } else if (conectada && retomar !== null) {
-    principal = { texto: `Retomar en ${reloj(retomar)}`, icono: <Play />, paso: "retomar" };
-  } else if (conectada) {
-    principal = { texto: acompanado ? "Empezar" : "Empezar sin esperar", icono: <Play />, paso: "empezar" };
+  // --- En qué estado está la pantalla, y su único botón principal -------------
+  const empezada = Boolean(video) && empezadoEn === video;
+  const hayPeliculas = nuestras.peliculas.length > 0;
+  type Pantalla = "cargando" | "vacio" | "eligiendo" | "esperando" | "viendo" | "pausa";
+  const pantalla: Pantalla = !portada
+    ? nuestras.configurado && !nuestras.listo
+      ? "cargando"
+      : dentro && hayPeliculas
+        ? "esperando"
+        : "vacio"
+    : reproduciendo
+      ? "viendo"
+      : empezada
+        ? "pausa"
+        : dentro
+          ? "esperando"
+          : "eligiendo";
+  /** Hay una sala a la que volver sin dictarse el código: eso es lo siguiente. */
+  const puedeVolver = salaDisponible && !dentro && Boolean(ultimaSala) && Boolean(perfil);
+
+  type Paso = "ver" | "crear" | "elegir" | "volver-sala" | "empezar" | "retomar" | "invitar" | "seguir" | "como";
+  interface Accion {
+    texto: string;
+    icono?: React.ReactNode;
+    paso: Paso;
   }
+  let principal: Accion | null = null;
+  /** Arrancar, cuando el principal es «Invitar»: sigue a un toque, sin competir. */
+  let arrancarAparte: Accion | null = null;
+  if (pantalla === "vacio") {
+    principal = puedeVolver
+      ? { texto: `Volver a la sala ${ultimaSala}`, icono: <Users />, paso: "volver-sala" }
+      : { texto: "Cómo subir una película", paso: "como" };
+  } else if (pantalla === "eligiendo") {
+    principal = !salaDisponible
+      ? { texto: "Ver ahora", icono: <Play />, paso: "ver" }
+      : puedeVolver
+        ? { texto: `Volver a la sala ${ultimaSala}`, icono: <Users />, paso: "volver-sala" }
+        : { texto: "Crear sala", icono: <Users />, paso: "crear" };
+  } else if (pantalla === "esperando") {
+    if (!portada) principal = { texto: "Elegir película", paso: "elegir" };
+    else if (conectada) {
+      const arrancar: Accion =
+        retomar !== null
+          ? { texto: `Retomar en ${reloj(retomar)}`, icono: <Play />, paso: "retomar" }
+          : { texto: acompanado ? "Empezar" : "Empezar sin esperar", icono: <Play />, paso: "empezar" };
+      // A solas, lo siguiente es que venga la otra persona.
+      if (!acompanado && puedeInvitar) {
+        principal = { texto: "Invitar", icono: <Share2 />, paso: "invitar" };
+        arrancarAparte = arrancar;
+      } else principal = arrancar;
+    }
+  } else if (pantalla === "pausa") {
+    principal = { texto: "Seguir", icono: <Play />, paso: "seguir" };
+  }
+
+  /**
+   * «Invitar»: la hoja de compartir del teléfono con un enlace que entra
+   * directo en la sala (`/?sala=8047`). Donde no la hay, el enlace se copia.
+   */
+  const invitar = async () => {
+    const enlace = `${window.location.origin}/?sala=${codigo}`;
+    const texto = portada ? `Veamos «${portada.titulo}» juntos en CanalCasa. Sala ${codigo}.` : `Entra a mi sala de CanalCasa: ${codigo}.`;
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ title: "CanalCasa", text: texto, url: enlace });
+        return;
+      }
+      await navigator.clipboard.writeText(`${texto} ${enlace}`);
+      setInvitado("Enlace copiado: pégalo en un mensaje.");
+    } catch (error) {
+      // Cerrar la hoja de compartir sin elegir nada no es un fallo.
+      if ((error as { name?: string })?.name === "AbortError") return;
+      setInvitado(`No pude compartirlo. Pásale el código ${codigo}.`);
+    }
+  };
+
   const empezarSala = juntos.empezar;
   const irASala = juntos.irA;
   const dar = (paso: Paso) => {
-    if (paso === "ver") {
-      // Dentro del toque, para que el navegador deje sonar el vídeo.
+    if (paso === "ver" || paso === "seguir") {
+      // Dentro del toque, para que el navegador deje sonar el vídeo. En una
+      // sala, el play lo recoge `use-ver-juntos` y arrancan todos.
       video?.play().catch(() => {});
     } else if (paso === "crear") conAlias("crear");
+    else if (paso === "volver-sala") volverALaSala();
     else if (paso === "elegir") irAlEstante();
-    else if (paso === "volver") pantallaCompleta();
+    else if (paso === "como") setHoja("como");
+    else if (paso === "invitar") void invitar();
     else if (paso === "retomar" && retomar !== null) {
       // Primero todos a ese segundo, en pausa; luego la cuenta atrás de siempre.
       irASala(retomar);
@@ -461,7 +581,37 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             ? juntos.miembros.length > 2
               ? "Ya están todos."
               : "Ya están los dos."
-            : `Pásale el código ${codigo} a la otra persona.`;
+            : puedeInvitar
+              ? `Invita a la otra persona, o díctale el código ${codigo}.`
+              : `Pásale el código ${codigo} a la otra persona.`;
+
+  /** En pausa: quién pausó y por dónde van. */
+  const lineaPausa =
+    pantalla !== "pausa"
+      ? ""
+      : `${!enSala || !quienPauso ? "En pausa" : quienPauso === "tú" ? "Pausaste" : `${quienPauso} pausó`} · ${enSala ? "van" : "vas"} por ${reloj(tiempoVideo)}`;
+
+  /** Qué hace el PC: mientras se elige o se espera, no con la película en marcha. */
+  const lineaPc = pc && pantalla !== "viendo" && pantalla !== "pausa" && (
+    <p className="cine-pc" role="status" data-tono={pc.tono}>
+      <MonitorUp aria-hidden="true" />
+      {pc.texto}
+    </p>
+  );
+
+  /** Las tarjetas del estante: duración, por dónde iba la sala y si es nueva. */
+  const tarjetas = nuestras.peliculas.map((p) => {
+    const vista = vistas.find((v) => v.url === p.url);
+    const donde = dondeRetomar(vista);
+    return {
+      url: p.url,
+      titulo: p.titulo,
+      duracion: duracionCorta(p.duracion) || undefined,
+      progreso: vista && donde !== null && vista.duracion > 0 ? Math.min(1, donde / vista.duracion) : undefined,
+      iban: donde !== null ? `Iban por ${reloj(donde)}` : undefined,
+      nueva: !vista && p.subida !== undefined && ahora > 0 && ahora - p.subida < NUEVA_MS,
+    };
+  });
 
   /**
    * El estante es lo primero mientras se está eligiendo. Con la película de
@@ -476,12 +626,25 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
       <Portada
         fondo={fondo}
         sobretitulo=""
-        titulo={portada?.titulo || "Elijan una película"}
+        titulo={portada?.titulo ?? ""}
         pildoras={pildoras}
+        vacia={
+          pantalla === "cargando" ? (
+            <SalaCargando />
+          ) : pantalla === "vacio" ? (
+            <SalaVacia pc={lineaPc} />
+          ) : !portada ? (
+            // Dentro de la sala, con películas y ninguna puesta todavía.
+            <h2 id="cine-titulo" className="cine-titulo">
+              Elijan una película
+            </h2>
+          ) : undefined
+        }
         estante={
           mostrarEstante && (
             <Estante
-              peliculas={nuestras.peliculas}
+              peliculas={tarjetas}
+              nota={lineaPc}
               arte={arte}
               elegida={portada?.url}
               primeroRef={estanteRef}
@@ -558,50 +721,38 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             </p>
           </div>
         )}
-        <div className="cine-acciones">
-          {principal && (
+        {lineaPausa && (
+          <p className="cine-pausa" role="status">
+            {lineaPausa}
+          </p>
+        )}
+        {principal && (
+          <div className="cine-acciones">
             <button
               ref={principalRef}
               type="button"
               data-nav="button"
               data-nav-entrada={dentro || !mostrarEstante ? "" : undefined}
-              className="cine-boton-principal" onClick={() => dar(principal.paso)}>
+              className="cine-boton-principal"
+              onClick={() => dar(principal.paso)}
+            >
               {principal.icono}
               {principal.texto}
             </button>
-          )}
-          {salaDisponible && !dentro && ultimaSala && perfil && (
-            <button type="button" data-nav="button" className="cine-boton-cristal" onClick={volverALaSala}>
-              Volver a la sala {ultimaSala}
-            </button>
-          )}
-          {salaDisponible && !dentro && (
-            <button type="button" data-nav="button" className="cine-boton-cristal" onClick={() => conAlias("entrar")}>
-              Entrar con código
-            </button>
-          )}
-          {portada && nuestras.peliculas.length > 1 && (
-            <button type="button" data-nav="button" className="cine-boton-cristal" onClick={irAlEstante}>
-              Cambiar película
-            </button>
-          )}
-        </div>
-        {estadoSala && (
+          </div>
+        )}
+        {(invitado || estadoSala) && pantalla !== "viendo" && pantalla !== "pausa" && (
           <p className="cine-estado" role="status">
-            {estadoSala}
+            {invitado || estadoSala}
           </p>
         )}
-        {pc && !reproduciendo && (
-          // Con la película en marcha sobra: solo interesa mientras se elige o se espera.
-          <p className={`cine-estado cine-pc ${pc.tono === "activo" ? "text-tinta-1" : ""}`} role="status" data-tono={pc.tono}>
-            <MonitorUp aria-hidden="true" className="mr-2 inline h-4 w-4" />
-            {pc.texto}
-          </p>
-        )}
+        {/* Con el estante a la vista, la línea del PC va en su cabecera. */}
+        {!mostrarEstante && pantalla !== "vacio" && lineaPc}
+        {/* Todo lo demás, en texto: nada compite con el botón principal. */}
         <div className="cine-secundarias">
-          {salaDisponible && !dentro && portada && !reproduciendo && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => video?.play().catch(() => {})}>
-              Ver aquí solo
+          {arrancarAparte && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => dar(arrancarAparte.paso)}>
+              {arrancarAparte.texto}
             </button>
           )}
           {conectada && retomar !== null && !reproduciendo && (
@@ -617,12 +768,42 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               Desde el principio
             </button>
           )}
+          {pantalla === "viendo" && !inmersivo && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={pantallaCompleta}>
+              Pantalla completa
+            </button>
+          )}
+          {salaDisponible && !dentro && puedeVolver && pantalla !== "viendo" && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => conAlias("crear")}>
+              Crear sala
+            </button>
+          )}
+          {salaDisponible && !dentro && pantalla !== "viendo" && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => conAlias("entrar")}>
+              Entrar con código
+            </button>
+          )}
+          {salaDisponible && pantalla === "eligiendo" && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => video?.play().catch(() => {})}>
+              Ver aquí solo
+            </button>
+          )}
+          {portada && nuestras.peliculas.length > 1 && !mostrarEstante && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={irAlEstante}>
+              Cambiar película
+            </button>
+          )}
+          {pantalla === "vacio" && puedeVolver && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => setHoja("como")}>
+              Cómo subir una película
+            </button>
+          )}
           {enSala && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { ponerCodigo(""); setInmersivo(false); }}>
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => { ponerCodigo(""); setInmersivo(false); setInvitado(""); }}>
               Salir de la sala
             </button>
           )}
-          {salaDisponible && perfil && (
+          {salaDisponible && perfil && pantalla !== "viendo" && (
             <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => setHoja("alias")}>
               Alias: {perfil.nombre}
             </button>
@@ -630,22 +811,14 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </div>
       </Portada>
 
-      {nuestras.configurado &&
-        nuestras.listo &&
-        (nuestras.fallo ? (
-          <Aviso tono="aviso" className="fuente-aviso">
-            No se pudo leer la lista de películas. Si acabas de crear el bucket, revisa su CORS (ver
-            docs/PELICULAS-JUNTOS.md).
-          </Aviso>
-        ) : nuestras.peliculas.length === 0 ? (
-          <EstadoVacio
-            icono={<Clapperboard />}
-            titulo="Todavía no hay películas"
-            texto="Deja una en la carpeta Descargas\Peliculas de tu PC y sincroniza: aparecerá aquí, en todos los aparatos."
-          />
-        ) : null)}
+      {nuestras.configurado && nuestras.listo && nuestras.fallo && (
+        <Aviso tono="aviso" className="fuente-aviso">
+          No se pudo leer la lista de películas. Si acabas de crear el bucket, revisa su CORS (ver
+          docs/PELICULAS-JUNTOS.md).
+        </Aviso>
+      )}
 
-      {vistas.length > 0 && (
+      {vistas.length > 0 && pantalla !== "viendo" && (
         <section className="cine-vistas" aria-labelledby="cine-vistas-titulo">
           <h3 id="cine-vistas-titulo" className="cine-estante-titulo">
             Vistas juntos
@@ -683,12 +856,29 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </section>
       )}
 
-      <div className="cine-pie">
-        <button type="button" data-nav="button" className="cine-boton-pequeno" onClick={() => setHoja("enlace")}>
-          <Link2 aria-hidden="true" />
-          Usar un enlace
-        </button>
-      </div>
+      {pantalla !== "viendo" && (
+        <div className="cine-pie">
+          <button type="button" data-nav="button" className="cine-boton-pequeno" onClick={() => setHoja("enlace")}>
+            <Link2 aria-hidden="true" />
+            Usar un enlace
+          </button>
+        </div>
+      )}
+
+      <Hoja abierta={hoja === "como"} titulo="Cómo subir una película" alCerrar={() => setHoja(null)}>
+        <ol className="cine-pasos">
+          <li>En tu PC, abre «CanalCasa Peliculas» (el panel)</li>
+          <li>Pulsa «+ Agregar película» o «Descargar desde un enlace»</li>
+          <li>Pulsa «Subir cambios», o deja que «Sincronizar sola» lo haga cada 10 minutos</li>
+          <li>Cuando termine de convertir y subir, aparece aquí en todos los aparatos</li>
+        </ol>
+        {pc && (
+          <p className="cine-pc mt-4" role="status" data-tono={pc.tono}>
+            <MonitorUp aria-hidden="true" />
+            {pc.texto}
+          </p>
+        )}
+      </Hoja>
 
       <Hoja abierta={hoja === "alias"} titulo="¿Cómo te llamas?" alCerrar={() => setHoja(null)}>
         <ElegirAlias
@@ -704,6 +894,12 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               ponerAlConectarRef.current = portada;
               ponerCodigo(crearCodigoSala());
             } else if (siguiente === "entrar") setHoja("codigo");
+            else if (salaPorEnlace) {
+              // Venía por un enlace de invitación: ya con nombre, entra.
+              soloSiVaciaRef.current = true;
+              ponerCodigo(salaPorEnlace);
+              setSalaPorEnlace("");
+            }
           }}
         />
       </Hoja>

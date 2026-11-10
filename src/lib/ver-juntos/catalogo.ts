@@ -21,6 +21,8 @@ export interface PeliculaNuestra {
   subtitulos: SubtitleTrack[];
   /** En segundos, si se sabe. */
   duracion?: number;
+  /** Cuándo se subió (ms), si el catálogo lo dice: para la etiqueta «Nueva». */
+  subida?: number;
 }
 
 export function rutaCatalogo(base: string): string {
@@ -71,12 +73,14 @@ export function leerCatalogo(crudo: unknown): PeliculaNuestra[] {
     if (!id || vistos.has(id) || !esHttp(entrada.url)) continue;
     vistos.add(id);
     const duracion = typeof entrada.duracion === "number" && entrada.duracion > 0 ? entrada.duracion : undefined;
+    const subida = typeof entrada.subida === "string" ? Date.parse(entrada.subida) : NaN;
     peliculas.push({
       id,
       titulo: texto(entrada.titulo, 200) || id,
       url: entrada.url,
       subtitulos: leerSubtitulos(entrada.subtitulos),
       duracion,
+      ...(Number.isFinite(subida) ? { subida } : {}),
     });
   }
   return peliculas;

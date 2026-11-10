@@ -27,6 +27,8 @@ describe("catálogo de Nuestras películas", () => {
         url: "https://pub-x.r2.dev/peliculas/coco/master.m3u8",
         subtitulos: [{ label: "Español", srclang: "es", url: "https://pub-x.r2.dev/peliculas/coco/sub0-spa.vtt" }],
         duracion: 6300,
+        // Cuándo se subió: para la etiqueta «Nueva» del estante.
+        subida: Date.parse("2026-11-06T20:00:00Z"),
       },
       {
         id: "sin-subs",
@@ -120,7 +122,7 @@ describe("la sala lleva los subtítulos a quien entra", () => {
 });
 
 describe("el catálogo que escribe sincronizar (versión 2)", () => {
-  it("se lee igual: los campos de más (origen, carpeta, subida) se ignoran", () => {
+  it("se lee igual: los campos de más (origen, carpeta) se ignoran, y la subida es una fecha", () => {
     const peliculas = leerCatalogo({
       version: 2,
       peliculas: [
@@ -150,7 +152,15 @@ describe("el catálogo que escribe sincronizar (versión 2)", () => {
         url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/master.m3u8",
         subtitulos: [{ label: "Español", srclang: "es", url: "https://pub-x.r2.dev/peliculas/interstellar-e77ad4/ext-0a1b2c3d4e.vtt" }],
         duracion: 10140,
+        subida: Date.parse("2026-11-09T10:00:00.000Z"),
       },
     ]);
+  });
+});
+
+describe("la fecha de subida", () => {
+  it("una fecha que no lo es no rompe la película: sale sin fecha", () => {
+    const [p] = leerCatalogo({ peliculas: [{ id: "a", titulo: "A", url: "https://x/a.m3u8", subida: "ayer por la tarde" }] });
+    expect(p).toEqual({ id: "a", titulo: "A", url: "https://x/a.m3u8", subtitulos: [] });
   });
 });
