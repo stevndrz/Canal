@@ -44,8 +44,23 @@ interface Ventana {
 
 const visto = new Map<string, Ventana>();
 
-/** La cuenta que no depende de quién llame. Ver `TOPE_GLOBAL`. */
-const compartida: Ventana = { contador: 0, hasta: 0 };
+/**
+ * La cuenta que no depende de quién llame, una por cupo. Ver `TOPE_GLOBAL`.
+ * Los cupos son nombres fijos del código, nunca algo que mande la petición:
+ * este `Map` no crece.
+ */
+const compartidas = new Map<string, Ventana>();
+
+/**
+ * Cada cupo cuenta aparte, por IP y en total.
+ *
+ * La entrada a la sala de «Ver juntos» (`/api/pusher/auth`) compartía cuenta
+ * con las carátulas y el buscador (`/api/buscar`): con tres aparatos en casa
+ * —misma IP— pidiendo carátulas, la firma de la sala devolvía 429 y no se
+ * podía entrar a ver la película. Ya pasó una vez (#94). Con su propio cupo,
+ * nada de lo que haga el catálogo puede dejar a alguien fuera de la sala.
+ */
+export type Cupo = "general" | "sala";
 
 /**
  * Quién llama, de menos falsificable a más. Ninguna es de fiar por sí sola:
@@ -72,8 +87,15 @@ export function identificarCliente(request: Request): string {
  *
  * `ahora` se inyecta para poder probar la ventana sin esperar un minuto.
  */
-export function excedeLimite(clave: string, ahora: number = Date.now()): boolean {
+export function excedeLimite(clave: string, ahora: number = Date.now(), cupo: Cupo = "general"): boolean {
   if (visto.size > MAX_IPS) visto.clear();
+  let compartida = compartidas.get(cupo);
+  if (!compartida) {
+    compartida = { contador: 0, hasta: 0 };
+    compartidas.set(cupo, compartida);
+  }
+  // El cupo general conserva sus claves de siempre (la IP a secas).
+  const claveDeCupo = cupo === "general" ? clave : `${cupo}|${clave}`;
 
   // Cuenta siempre, incluso lo que el cupo por IP ya iba a rechazar: si solo
   // contara lo que pasa, machacar desde una sola IP saldría gratis.
@@ -85,9 +107,9 @@ export function excedeLimite(clave: string, ahora: number = Date.now()): boolean
     if (compartida.contador > TOPE_GLOBAL) return true;
   }
 
-  const ventana = visto.get(clave);
+  const ventana = visto.get(claveDeCupo);
   if (!ventana || ahora > ventana.hasta) {
-    visto.set(clave, { contador: 1, hasta: ahora + VENTANA_MS });
+    visto.set(claveDeCupo, { contador: 1, hasta: ahora + VENTANA_MS });
     return false;
   }
 
@@ -112,8 +134,7 @@ export function respuestaLimite(): Response {
 /** Solo para las pruebas: deja el contador a cero entre casos. */
 export function olvidarTodo(): void {
   visto.clear();
-  compartida.contador = 0;
-  compartida.hasta = 0;
+  compartidas.clear();
 }
 
 export const LIMITES = { PETICIONES, VENTANA_MS, MAX_IPS, TOPE_GLOBAL } as const;

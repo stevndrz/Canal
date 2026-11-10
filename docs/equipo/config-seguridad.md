@@ -35,6 +35,20 @@ no es código».
 
 Lo más reciente arriba.
 
+### 2026-11-10 — La sala tiene su propio cupo de peticiones
+
+- `/api/pusher/auth` compartía con `/api/buscar` y el resto el cupo de 30
+  peticiones por minuto y por IP. En casa todos salen por la misma IP: el #94
+  ya encontró un 429 al entrar en la sala por culpa de las carátulas.
+- `excedeLimite(clave, ahora, cupo)`: cada cupo (`"general"`, `"sala"`) cuenta
+  aparte, por IP **y** en el tope de todo el mundo. Los cupos son nombres fijos
+  del código, no algo que mande la petición.
+- No afloja nada: la sala sigue con 30/min por IP; solo deja de pagarla el
+  catálogo. El tope serio sigue siendo el Firewall de Vercel (pendiente del
+  dueño).
+- Pruebas: dos del freno, dos de la ruta, y una de navegador que agota el
+  buscador desde un aparato y después crea una sala.
+
 ### 2026-08-31 — Auditoría de credenciales + rotación TMDB confirmada
 
 - Escaneé el árbol versionado completo (AWS keys, private keys, `ghp_`/`sk-`/
