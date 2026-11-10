@@ -39,6 +39,87 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Sincronía suave con Vimeus, y un «Empezar» que arrancaba antes de tiempo
+
+- La franja de la ficha (`sala-suave.tsx`) y su reloj: detalle en
+  `docs/VIMEUS-JUNTOS.md`. Sin CSS nuevo (utilidades con los tokens y
+  `.cine-boton-texto`/`.cine-cuenta`, que ya existían).
+- `lib/ver-juntos/conexion.ts` es la conexión de sala sin vídeo. **Pendiente**:
+  que `use-ver-juntos.ts` la use también (hoy lleva su copia); no se tocó para
+  no mezclar un refactor con una función nueva.
+- Pruebas: 6 del reloj; con Playwright, dos aparatos hacen el guion entero y
+  un tercero que llega tarde recibe el minuto. Las pruebas levantan un TMDB de
+  mentira (`TMDB_API_BASE`) para que exista una ficha.
+- **Fallo que ya estaba en `main`, encontrado por la prueba de «Retomar»**: al
+  pulsar «Empezar», el play-y-pausa que desbloquea el sonido en Safari salía a
+  la sala como un «estado» en marcha, y el otro aparato arrancaba durante la
+  cuenta atrás, 3 s por delante. Arreglado (`desbloqueandoRef`), y quien
+  arranca con la cuenta atrás ya cuenta como sincronizado (antes su pausa de
+  los primeros 5 s se ignoraba si no dirigía).
+- Sin probar: Vimeus de verdad dentro del marco (en las pruebas se corta), la
+  tele, y la precisión real entre personas (estimada ±2–3 s).
+
+### 2026-11-09 — Seguir viendo juntos, historial y sala recordada
+
+- `lib/ver-juntos/historial.ts` (puro, 6 pruebas): cada aparato de la sala
+  apunta en `localStorage` (`canalcasa:juntos-historial`, 30 entradas) la
+  película, el segundo, la duración, con quién y cuándo. Cada 5 s, al pausar y
+  al saltar; nunca el segundo 0 de antes de empezar.
+- `irA(tiempo)` en `use-ver-juntos.ts`: lleva a toda la sala a un segundo, en
+  pausa, lo pulse quien lo pulse. **Sin mensajes nuevos**: es un `estado`
+  normal; «Retomar» = `irA` + el `empezar` de siempre. Aparatos con la versión
+  anterior lo entienden igual.
+- «Retomar en 47:10» sustituye a «Empezar» si la sala dejó la película a
+  medias (> 60 s y < 94 %) y el vídeo no está ya ahí; «Desde el principio» al
+  lado.
+- «Volver a la sala 4821» (`canalcasa:juntos-ultima-sala`). Al volver, la
+  película de este aparato solo se pone si la sala estaba vacía: si ya hay
+  alguien, manda la suya.
+- «Vistas juntos» reutiliza `.fuente-lista`; lo único nuevo de CSS es el ancho
+  de `.cine-vistas`. Las que ya no están en la nube salen apagadas.
+- Probado con Playwright: dos aparatos ven hasta 1:10, cierran, vuelven a la
+  sala y el que NO dirige pulsa Retomar: los dos acaban a menos de 1,5 s.
+- Sin probar: aparatos reales; qué pasa si cada aparato recuerda una sala
+  distinta (cada uno vuelve a la suya: se ve en la presencia que están solos).
+- Idea sin hacer: con sala recordada, que el botón principal fuera «Volver a
+  la sala» y «Crear sala» pasara a secundario.
+
+### 2026-11-09 — Sincronizar sola: tarea de Windows y modo `--automatico`
+
+Tarea programada (cada 10 min, `wscript` con ventana 0 para que no salte una
+consola) y no un vigilante de carpeta: la mantiene Windows, y «¿acabó la
+descarga?» ya lo sabía la biblioteca (2 min sin tocarse).
+
+- `sincronizar.mjs --automatico`: sin preguntas. `soloLoQueAnade` parte el
+  plan: subir, adoptar, renombrar y subtítulos NUEVOS se hacen; huérfanas,
+  basura, reemplazos, subtítulos borrados y «no cabe en 10 GB» quedan en
+  `pendientes` y **no se llama a `purge`/`deletefile`** (hay una prueba que
+  mira las órdenes que recibe rclone).
+- `Estado de la sincronizacion.txt` en la carpeta: qué subió, qué espera a la
+  persona, o por qué falló. El dueño no quiso aviso al teléfono.
+- `tarea.mjs activar|quitar|estado` + `sincronizar-sola.cmd`. El `.vbs` se
+  escribe en UTF-16 con BOM (rutas con acentos).
+- Pruebas: `programa.test.mjs` lanza el programa entero con ffmpeg real y
+  `pruebas/rclone-falso.mjs` (59 pruebas en `scripts/`).
+- Sin probar: todo lo de Windows (`schtasks`, `wscript`, que de verdad no
+  salga ventana, la tarea con la sesión bloqueada). Con rclone cifrado la
+  tarea no puede pedir la contraseña: falla diciéndolo; queda
+  `RCLONE_PASSWORD_COMMAND` como salida, sin receta probada.
+
+### 2026-11-09 — ¿Ver juntos con Vimeus? No hay mando: «sincronía suave»
+
+Leído el código que sirve Vimeus (sin ejecutarlo; el script de vimeos.net va
+empaquetado y se desempaquetó como texto). Detalle en `docs/VIMEUS-JUNTOS.md`.
+
+- Dos iframes: `vimeus.net/e/…` (envoltorio React) → `vimeos.net/embed-…`
+  (JWPlayer). **Ninguno escucha `message`.** vimeos.net solo *manda* su
+  configuración al padre si este es `tv.la.movie` (lista blanca).
+- `/cf/*` no es un mando: se salta el envoltorio y exige un token `cf` de
+  sesión por aparato y título («invalid_cf_format»). No se intentó forjarlo.
+- `logo_url`/`primary_color` no existen en su código; sí `theme`, `overlay`,
+  `playUI`, `autoplay`…
+- Propuesta: reloj compartido de la sala + «Listo» después de los anuncios +
+  «Pausa para todos» / «Voy por…». Sin construir: espera al dueño.
 ### 2026-11-09 — Panel con botones para Nuestras películas
 
 El dueño pidió «algo visual, con botones al mínimo» para cargar, borrar y

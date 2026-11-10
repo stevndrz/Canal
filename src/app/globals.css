@@ -5340,6 +5340,12 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   animation: cine-fondo-entra 900ms var(--ease) both;
 }
 
+/* Con el estante encima, el reproductor cede su alto: todo —qué hay, cuál
+   está elegida y el botón de empezar— cabe en una pantalla sin bajar. */
+.cine-portada.con-teatro.con-estante {
+  --cine-ancho: min(1180px, max(420px, calc((100svh - var(--topbar-h) - 560px) * 16 / 9)));
+}
+
 .cine-teatro {
   position: relative;
   z-index: 0;
@@ -5365,6 +5371,10 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 
 :root[data-pantalla="tv"] .cine-portada.con-teatro {
   --cine-ancho: min(1500px, max(420px, calc((100svh - var(--topbar-h) - 360px) * 16 / 9)));
+}
+
+:root[data-pantalla="tv"] .cine-portada.con-teatro.con-estante {
+  --cine-ancho: min(1500px, max(420px, calc((100svh - var(--topbar-h) - 620px) * 16 / 9)));
 }
 
 :root[data-pantalla="tv"] .cine-halo,
@@ -5597,6 +5607,16 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   padding: clamp(8px, 2vh, 20px) var(--margen) 0;
 }
 
+/* Vistas juntos: el historial de la sala, con las filas de «Usar un enlace». */
+.cine-vistas {
+  width: min(calc(100% - 2 * var(--margen)), 1180px);
+  margin: clamp(20px, 3.5vh, 44px) auto 0;
+}
+
+.cine-vistas .cine-estante-titulo {
+  padding-inline: 0;
+}
+
 /* ── Estante ───────────────────────────────────────────────────────── */
 .cine-estante {
   min-width: 0;
@@ -5632,6 +5652,34 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 .cine-estante-fila > li {
   flex: none;
   scroll-snap-align: start;
+}
+
+/* Arriba de la portada: lo primero que se lee es qué hay para ver. Más
+   pequeño que suelto, para no echar el reproductor de la primera pantalla. */
+.cine-portada-contenido > .cine-estante {
+  position: relative;
+  padding-top: 0;
+  margin-bottom: clamp(10px, 2.5vh, 28px);
+}
+
+.cine-portada-contenido > .cine-estante .cine-estante-titulo {
+  padding-inline: 0;
+}
+
+/* El hueco de 8px deja sitio al aro del foco, que el desbordamiento recortaría. */
+.cine-portada-contenido > .cine-estante .cine-estante-fila {
+  margin-inline: -8px;
+  padding-inline: 8px;
+  scroll-padding-inline: 8px;
+}
+
+.cine-portada-contenido > .cine-estante .cine-poster {
+  width: clamp(72px, 6vw, 96px);
+}
+
+/* El título ya se lee bajo su póster: aquí acompaña, no encabeza. */
+.cine-portada.con-teatro.con-estante .cine-titulo {
+  font-size: clamp(24px, 2.6vw, 40px);
 }
 
 .cine-poster {
@@ -6012,6 +6060,12 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 
 :root[data-pantalla="tv"] .cine-poster {
   width: 220px;
+}
+
+/* Arriba de la portada, más contenido: a tres metros se lee igual y deja
+   ver el reproductor sin bajar. */
+:root[data-pantalla="tv"] .cine-portada-contenido > .cine-estante .cine-poster {
+  width: 132px;
 }
 
 :root[data-pantalla="tv"] .cine-persona {

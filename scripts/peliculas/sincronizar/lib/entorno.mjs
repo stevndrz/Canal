@@ -150,7 +150,7 @@ export function tomarCandado(ruta = join(carpetaLocal(), "sincronizar.lock")) {
   mkdirSync(join(ruta, ".."), { recursive: true });
   if (existsSync(ruta)) {
     const pid = Number(readFileSync(ruta, "utf8"));
-    if (pid !== process.pid && vivo(pid)) throw new Error(`Ya hay una sincronización en marcha (proceso ${pid}). Espera a que termine.`);
+    if (pid !== process.pid && vivo(pid)) throw Object.assign(new Error(`Ya hay una sincronización en marcha (proceso ${pid}). Espera a que termine.`), { ocupado: true });
   }
   writeFileSync(ruta, String(process.pid));
   return () => rmSync(ruta, { force: true });

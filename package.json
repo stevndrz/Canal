@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "addon": "node scripts/probar-addon.mjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "e2e": "playwright test --trace off"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
@@ -28,6 +29,7 @@
   },
   "devDependencies": {
     "@csstools/postcss-cascade-layers": "6.0.2",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.4",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",

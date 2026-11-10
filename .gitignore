@@ -57,3 +57,7 @@ empaque/android/gradle/wrapper/gradle-wrapper.jar
 # .metadata, certificados y .wgt compilados. No es parte de la app, es
 # estado local de la IDE — empaque/tizen/ es la fuente que sí se versiona.
 tizen-tv/
+
+# Playwright
+test-results/
+playwright-report/

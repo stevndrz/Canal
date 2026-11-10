@@ -24,6 +24,44 @@ function leerRecordado(): Recordado {
   }
 }
 
+/**
+ * Una petición por título y por visita, pase lo que pase con los renders.
+ *
+ * La lista de títulos cambia varias veces mientras carga la pantalla (llega
+ * el estante, llega la película de la sala…), y antes cada cambio cancelaba
+ * lo que iba en camino y lo volvía a pedir todo: medido, cinco peticiones por
+ * película en ocho segundos. `/api/buscar` comparte el cupo por IP con
+ * `/api/pusher/auth`, así que con dos o tres aparatos en la misma casa el
+ * cupo se agotaba y **no se podía entrar en la sala** (429).
+ *
+ * `undefined` = no se sabe (sin TMDB, caído): no se recuerda en disco, pero
+ * tampoco se reintenta hasta la próxima visita.
+ */
+const enCurso = new Map<string, Promise<Arte | null | undefined>>();
+
+function pedirArte(titulo: string): Promise<Arte | null | undefined> {
+  const ya = enCurso.get(titulo);
+  if (ya) return ya;
+  const peticion = fetch(`/api/buscar?q=${encodeURIComponent(titulo.slice(0, 80))}`)
+    .then((respuesta) => (respuesta.ok ? respuesta.json() : null))
+    .then((datos: { resultados?: unknown; disponible?: boolean } | null) => {
+      if (!datos?.disponible) return undefined;
+      const encontrado = arteDe(datos.resultados, titulo);
+      try {
+        const todo = leerRecordado();
+        todo[titulo] = { arte: encontrado, en: Date.now() };
+        window.localStorage.setItem(CLAVE, JSON.stringify(todo));
+      } catch {
+        // Sin almacenamiento: se volverá a buscar la próxima vez.
+      }
+      return encontrado;
+    })
+    // Sin arte: la portada se ve con el fondo liso.
+    .catch(() => undefined);
+  enCurso.set(titulo, peticion);
+  return peticion;
+}
+
 export function useArte(titulos: readonly string[]): Record<string, Arte | null> {
   const [arte, setArte] = useState<Record<string, Arte | null>>({});
   const clave = titulos.join("\u0000");
@@ -43,27 +81,15 @@ export function useArte(titulos: readonly string[]): Record<string, Arte | null>
     setArte(yaSabido);
     if (faltan.length === 0) return;
 
-    const controlador = new AbortController();
-    for (const titulo of faltan) {
-      fetch(`/api/buscar?q=${encodeURIComponent(titulo.slice(0, 80))}`, { signal: controlador.signal })
-        .then((respuesta) => (respuesta.ok ? respuesta.json() : null))
-        .then((datos: { resultados?: unknown; disponible?: boolean } | null) => {
-          if (!datos?.disponible) return;
-          const encontrado = arteDe(datos.resultados, titulo);
-          setArte((antes) => ({ ...antes, [titulo]: encontrado }));
-          try {
-            const todo = leerRecordado();
-            todo[titulo] = { arte: encontrado, en: Date.now() };
-            window.localStorage.setItem(CLAVE, JSON.stringify(todo));
-          } catch {
-            // Sin almacenamiento: se volverá a buscar la próxima vez.
-          }
-        })
-        .catch(() => {
-          // Sin arte: la portada se ve con el fondo liso.
-        });
+    let vivo = true;
+    for (const titulo of new Set(faltan)) {
+      pedirArte(titulo).then((encontrado) => {
+        if (vivo && encontrado !== undefined) setArte((antes) => ({ ...antes, [titulo]: encontrado }));
+      });
     }
-    return () => controlador.abort();
+    return () => {
+      vivo = false;
+    };
   }, [clave]);
 
   return arte;

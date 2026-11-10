@@ -36,6 +36,31 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — Las pruebas de navegador ya viven en el repo (`npm run e2e`)
+
+Hasta hoy cada sesión rehacía a mano las pruebas de Playwright y se perdían.
+Ahora están en `e2e/`, con `@playwright/test` fijado a la versión del
+navegador instalado (1.63.0) y un trabajo propio en el CI.
+
+- `e2e/servidor.mjs`: sirve una M3U de tres canales y un «R2» con dos
+  películas (un WebM de 170 KB, con `Range` y CORS), compila con las variables
+  de prueba y arranca `next start` en el 3210.
+- `e2e/pusher-falso.ts`: protocolo 7 de Pusher sobre `routeWebSocket`
+  (saludo, presencia, altas/bajas, `client-*`). **Recalcula el HMAC** de
+  `socket_id:canal:channel_data` y rechaza la suscripción si no coincide.
+- Cinco pruebas: PC + iPhone (película que llega sola, cuenta atrás, pausa,
+  salto, deriva < 1,5 s tras un pulso), tele (código con los números del
+  mando, «la última elegida manda»), firma manipulada, canales que la ruta
+  no firma, y una petición de carátula por título.
+- **Fallo real que encontró la suite al primer intento:** `useArte` volvía a
+  pedir todas las carátulas en cada cambio de la lista de títulos (5 veces
+  «Coco» en 8 s sin TMDB). `/api/buscar` y `/api/pusher/auth` comparten el
+  cupo de 30/min por IP, así que con tres aparatos en casa la entrada a la
+  sala devolvía 429. Arreglado en `use-portada.ts`: una petición por título y
+  por visita.
+- Sin probar aquí: HLS/H.264, Safari (el camino «sin gesto» del iPhone), el
+  trabajo `navegador` del CI (se verá en el primer push).
+
 ### 2026-09-04 — Calidad de vivo: ABR afinado, multi-fuente, sonda y selector
 
 Excepción a mi regla: esto SÍ cambia comportamiento, a petición directa del

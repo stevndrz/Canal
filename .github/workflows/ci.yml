@@ -76,3 +76,26 @@ jobs:
         env:
           M3U_URL: ""
           TMDB_API_KEY: ""
+
+  # Varios aparatos a la vez contra la app compilada: lo que solo se rompe
+  # ENTRE aparatos (Ver juntos). Aparte del trabajo de arriba para que un
+  # fallo aquí no tape uno de tipos o de pruebas, y al revés.
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Chromium de pruebas
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas de navegador
+        run: npm run e2e
