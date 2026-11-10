@@ -16,6 +16,7 @@ import { join } from "node:path";
 
 export const CATALOGO = "peliculas/catalogo.json";
 export const CATALOGO_ANTERIOR = "peliculas/catalogo.anterior.json";
+export const ESTADO = "peliculas/estado.json";
 
 /** El tipo de cada archivo se fija a mano: Windows dice que un .ts es TypeScript. */
 export const TIPOS = [
@@ -68,6 +69,21 @@ export function crearNubeRclone({ remoto, cubo, urlPublica }, ejecutar) {
         await exigir(
           ["copyto", ruta, `${base}/${CATALOGO}`, "--header-upload", "Content-Type: application/json; charset=utf-8", "--header-upload", "Cache-Control: no-cache"],
           "No pude guardar el catálogo",
+        );
+      } finally {
+        await rm(carpeta, { recursive: true, force: true });
+      }
+    },
+
+    /** El estado del PC para la app (`estado-publico.mjs`). `no-cache`: se lee al momento. */
+    async escribirEstado(estado) {
+      const carpeta = await mkdtemp(join(tmpdir(), "canalcasa-est-"));
+      try {
+        const ruta = join(carpeta, "estado.json");
+        await writeFile(ruta, JSON.stringify(estado), "utf8");
+        await exigir(
+          ["copyto", ruta, `${base}/${ESTADO}`, "--header-upload", "Content-Type: application/json; charset=utf-8", "--header-upload", "Cache-Control: no-cache"],
+          "No pude guardar el estado",
         );
       } finally {
         await rm(carpeta, { recursive: true, force: true });

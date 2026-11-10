@@ -47,8 +47,9 @@ import {
   tomarCandado,
 } from "./lib/entorno.mjs";
 import { ARCHIVO_ESTADO, textoDeEstado } from "./lib/automatico.mjs";
+import { crearEstadoPublico } from "./lib/estado-publico.mjs";
 import { crearNubeRclone } from "./lib/nube.mjs";
-import { sincronizar } from "./lib/sincronizar.mjs";
+import { LIMITE_NUBE, sincronizar } from "./lib/sincronizar.mjs";
 
 const COLORES = { titulo: "\x1b[36m", bien: "\x1b[32m", aviso: "\x1b[33m", error: "\x1b[31m", info: "" };
 const FIN = "\x1b[0m";
@@ -136,6 +137,8 @@ async function principal() {
   };
 
   let soltar = () => {};
+  /** El estado para la app (`estado.json` en el bucket). Existe desde que hay nube. */
+  let publico = null;
   /** En automático, lo que pasó queda escrito en la propia carpeta de películas. */
   const dejarEstado = (datos) => {
     if (!op.automatico) return;
@@ -158,8 +161,15 @@ async function principal() {
     const config = op.automatico ? leerConfigGuardada() : await leerConfig(preguntarTexto);
     if (!config) throw new Error("Falta decir dónde se suben las películas. Abre una vez «Sincronizar peliculas.cmd» a mano.");
     const pass = await contrasenaDeRclone(rl, op.automatico);
-    const ejecutar = crearEjecutar(registrar, pass ? { ...process.env, RCLONE_CONFIG_PASS: pass } : process.env);
+    // La salida de ffmpeg y rclone va a la ventana, como siempre, y además se
+    // lee su porcentaje para contárselo a la app.
+    const ejecutar = crearEjecutar(registrar, pass ? { ...process.env, RCLONE_CONFIG_PASS: pass } : process.env, (d, flujo) => {
+      flujo.write(d);
+      publico?.leer(d);
+    });
     const nube = crearNubeRclone(config, ejecutar);
+    // «Mirar qué cambiaría» no toca la nube: tampoco su estado.
+    if (!op.mirar) publico = crearEstadoPublico({ nube, limite: LIMITE_NUBE, automatica: Boolean(op.automatico), registrar });
     const raiz = op.carpeta ?? config.carpeta ?? carpetaPorDefecto();
     if (!existsSync(raiz)) throw new Error(`No existe la carpeta ${raiz}.`);
     const trabajo = carpetaTrabajo();
@@ -174,7 +184,8 @@ async function principal() {
       process.exit(130);
     });
 
-    const r = await sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, decir, opciones: { ...op, probarCodificador, hayZscale } });
+    const r = await sincronizar({ raiz, trabajo, nube, ejecutar, preguntar, decir, opciones: { ...op, probarCodificador, hayZscale, alProgreso: (f) => publico?.fase(f) } });
+    await publico?.fin({ pendientes: r.pendientes.length, fallo: r.fallidas > 0 });
     if (!op.mirar && r.plan.length > 0) {
       decir(r.fallidas ? "aviso" : "bien", `Hecho: ${r.hechas} · sin hacer: ${r.saltadas} · con error: ${r.fallidas}`);
     }
@@ -190,6 +201,7 @@ async function principal() {
       return;
     }
     decir("error", error instanceof Error ? error.message : String(error));
+    await publico?.fin({ fallo: true });
     dejarEstado({ error: error instanceof Error ? error.message : String(error) });
     process.exitCode = 1;
   } finally {

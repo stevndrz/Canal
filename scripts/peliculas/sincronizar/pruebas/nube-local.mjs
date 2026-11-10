@@ -29,6 +29,10 @@ export function crearNubeLocal(raiz) {
       await mkdir(ruta("peliculas"), { recursive: true });
       await writeFile(ruta("peliculas/catalogo.json"), JSON.stringify({ version: 2, peliculas }, null, 2));
     },
+    async escribirEstado(estado) {
+      await mkdir(ruta("peliculas"), { recursive: true });
+      await writeFile(ruta("peliculas/estado.json"), JSON.stringify(estado));
+    },
     async subirCarpeta(local, remota) {
       await mkdir(ruta(remota), { recursive: true });
       await cp(local, ruta(remota), { recursive: true });

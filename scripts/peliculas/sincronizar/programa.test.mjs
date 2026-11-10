@@ -73,6 +73,12 @@ describe.skipIf(!hayFfmpeg || process.platform === "win32")("sincronizar.mjs --a
     expect(estado()).toContain("+ Coco");
     // No se queda esperando un Enter.
     expect(r.stdout).not.toContain("Pulsa Enter");
+    // Y la app puede ver cómo quedó el PC: nada en marcha, sin rutas.
+    const publico = JSON.parse(readFileSync(join(nube, "peliculas", "estado.json"), "utf8"));
+    expect(publico).toMatchObject({ version: 1, automatica: true, haciendo: null, pendientes: 0, fallo: false, limite: 10 * 1024 ** 3 });
+    expect(Date.now() - Date.parse(publico.actualizado)).toBeLessThan(60_000);
+    expect(publico.usado).toBeGreaterThan(0);
+    expect(JSON.stringify(publico)).not.toContain(base);
   }, 90_000);
 
   it("una película descargándose (tocada hace menos de 2 minutos) no se toca", () => {
@@ -96,6 +102,7 @@ describe.skipIf(!hayFfmpeg || process.platform === "win32")("sincronizar.mjs --a
     expect(estado()).toContain("Coco");
     // Ni se marca «solo en la nube» por su cuenta: eso lo decide la persona.
     expect(catalogo().find((p) => p.titulo === "Coco").soloNube).toBeUndefined();
+    expect(JSON.parse(readFileSync(join(nube, "peliculas", "estado.json"), "utf8"))).toMatchObject({ haciendo: null, pendientes: 1 });
   }, 60_000);
 
   it("si no cabe en el plan gratis, no la sube y lo dice", () => {
@@ -124,9 +131,12 @@ describe.skipIf(!hayFfmpeg || process.platform === "win32")("sincronizar.mjs --a
     const candado = join(base, "localappdata", "CanalCasa", "sincronizar.lock");
     writeFileSync(join(carpeta, ARCHIVO_ESTADO), "el de antes");
     writeFileSync(candado, String(process.pid));
+    const antes = readFileSync(join(nube, "peliculas", "estado.json"), "utf8");
     const r = correr();
     expect(r.status).toBe(0);
     expect(estado()).toBe("el de antes");
+    // Tampoco el de la app: la otra vuelta es la que cuenta por dónde va.
+    expect(readFileSync(join(nube, "peliculas", "estado.json"), "utf8")).toBe(antes);
     rmSync(candado);
   }, 30_000);
 });

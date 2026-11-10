@@ -45,6 +45,7 @@ import {
   vivo,
 } from "./lib/entorno.mjs";
 import { estado } from "./lib/estado.mjs";
+import { crearEstadoPublico } from "./lib/estado-publico.mjs";
 import { crearNubeRclone } from "./lib/nube.mjs";
 import { crearLectorDeProgreso } from "./lib/progreso.mjs";
 import { LIMITE_NUBE, borrarDeLaNube, sincronizar } from "./lib/sincronizar.mjs";
@@ -197,7 +198,14 @@ export function crearPanel(deps = {}) {
     sincronizar() {
       return operar("subiendo cambios", async () => {
         const lector = crearLectorDeProgreso(ponerProgreso);
-        const n = nube((t) => lector.leer(t));
+        // El mismo avance, también para la app (`estado.json` en el bucket).
+        let publico = null;
+        const leer = (t) => {
+          lector.leer(t);
+          publico?.leer(t);
+        };
+        const n = nube(leer);
+        publico = crearEstadoPublico({ nube: nube(), limite: LIMITE_NUBE, registrar });
         const { probarCodificador, hayZscale } = d.capacidades();
         if (!hayZscale) decir("aviso", "Este ffmpeg no trae «zscale»: una película HDR saldría con colores lavados. Instala la versión completa: winget install Gyan.FFmpeg");
         // «Subir cambios» ya es la confirmación del plan; borrar sigue preguntando.
@@ -206,11 +214,22 @@ export function crearPanel(deps = {}) {
           raiz: raiz(),
           trabajo: d.trabajo(),
           nube: n,
-          ejecutar: crearEjecutarCon((t) => lector.leer(t)),
+          ejecutar: crearEjecutarCon(leer),
           preguntar: preguntarAqui,
           decir,
-          opciones: { probarCodificador, hayZscale, alProgreso: (f) => lector.fase(f) },
+          opciones: {
+            probarCodificador,
+            hayZscale,
+            alProgreso: (f) => {
+              lector.fase(f);
+              publico.fase(f);
+            },
+          },
+        }).catch(async (error) => {
+          await publico.fin({ fallo: true });
+          throw error;
         });
+        await publico.fin({ pendientes: r.pendientes.length, fallo: r.fallidas > 0 });
         if (r.plan.length > 0) decir(r.fallidas ? "aviso" : "bien", `Hecho: ${r.hechas} · sin hacer: ${r.saltadas} · con error: ${r.fallidas}`);
         return { hechas: r.hechas, fallidas: r.fallidas, saltadas: r.saltadas };
       });
