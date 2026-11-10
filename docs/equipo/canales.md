@@ -43,6 +43,28 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-09 — La lista completa ya no se pide en pleno arranque
+
+Medido antes de decidir si migrar de Next (no se migra: ver el plan del
+2026-11-09): en un perfil de tele lenta (Playwright, CPU ×12) la portada
+gastaba 2,3 s de JavaScript, y 0,75 s eran `/api/canales`: interpretar 1 MB
+de JSON, reconstruir 7.822 canales y recalcular lo que cuelga de ellos,
+justo mientras la tele hidrataba y arrancaba el vídeo.
+
+- `lib/arranque-lista.ts` (`esperaParaLaLista`): la lista se pide a los 3 s
+  en la tele y a los 1,2 s en lo demás. **Ya**, sin esperar, si el último
+  canal visto no venía en el recorte del HTML (la tele no debe abrir en otro
+  y cambiar) o si la persona entra en Canales o en Buscar.
+- Mismo perfil, después: el tiempo bloqueado durante el arranque baja de
+  ~3,05 s a ~2,15 s (×12) y de ~1,0 s a ~0,85 s (×6). El momento en que la
+  página responde no cambia (~2,9 s a ×12): eso es Next + React. El trabajo
+  de la lista sigue costando lo mismo, pero ocurre después.
+- La línea base es una sola muestra de la compilación anterior; el «después»,
+  tres. Sin probar en una tele real.
+- Pendiente aparte: `partialPrefetching` (Next avisa al compilar; activarlo
+  cambia lo que precargan los enlaces y pide una revisión propia) y los logos
+  de canal, lo más pesado de la portada (1,6 MB en PC).
+
 ### 2026-10-08 — Secciones por tema en «Todo», de cualquier país
 
 - Pedido del dueño: al bajar, ver por categoría los canales más importantes,

@@ -14,6 +14,9 @@
  *
  * Opciones (también se pueden arrastrar al .cmd):
  *   --mirar               enseña el plan y no hace nada
+ *   --automatico          sin preguntas (la tarea programada): sube y actualiza,
+ *                         NUNCA borra; lo que haya que decidir queda apuntado en
+ *                         «Estado de la sincronizacion.txt», en la carpeta
  *   --carpeta "C:\…"      otra carpeta en vez de Descargas\Peliculas
  *   --calidad 26          al recodificar: más alto = más pequeño (16–32, 24 por defecto)
  *   --aceleracion cpu     auto (por defecto) · nvidia · intel · amd · cpu
@@ -26,7 +29,8 @@
  * (%APPDATA%\CanalCasa\peliculas.json); si no está, se pregunta una vez.
  */
 
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import {
   capacidadesDeFfmpeg,
@@ -37,10 +41,12 @@ import {
   crearRegistro,
   faltaPrograma,
   leerConfig,
+  leerConfigGuardada,
   rcloneCifrado,
   refrescarPath,
   tomarCandado,
 } from "./lib/entorno.mjs";
+import { ARCHIVO_ESTADO, textoDeEstado } from "./lib/automatico.mjs";
 import { crearNubeRclone } from "./lib/nube.mjs";
 import { sincronizar } from "./lib/sincronizar.mjs";
 
@@ -54,6 +60,7 @@ function leerOpciones(argv) {
     const a = argv[i];
     const valor = () => argv[++i];
     if (a === "--mirar") op.mirar = true;
+    else if (a === "--automatico") op.automatico = op.sinPausa = true;
     else if (a === "--recodificar") op.recodificar = true;
     else if (a === "--carpeta") op.carpeta = valor();
     else if (a === "--calidad") op.calidad = Math.min(32, Math.max(16, Number(valor()) || 24));
@@ -67,9 +74,17 @@ function leerOpciones(argv) {
 }
 
 // ── Contraseña de rclone, sin que se vea al escribir ────────────────────────
-async function contrasenaDeRclone(rl) {
+async function contrasenaDeRclone(rl, automatico) {
   if (process.env.RCLONE_CONFIG_PASS) return process.env.RCLONE_CONFIG_PASS;
+  // rclone sabe pedírsela a otro programa: entonces no hay nada que preguntar.
+  if (process.env.RCLONE_PASSWORD_COMMAND) return null;
   if (!rcloneCifrado()) return null;
+  if (automatico) {
+    throw new Error(
+      "La configuración de rclone tiene contraseña y aquí no hay nadie para escribirla. " +
+        "La sincronización automática necesita que rclone la obtenga solo (variable RCLONE_PASSWORD_COMMAND); ver docs/PELICULAS-JUNTOS.md.",
+    );
+  }
   const escribir = rl._writeToOutput;
   rl._writeToOutput = (texto) => {
     if (texto.includes("Contraseña")) escribir.call(rl, texto);
@@ -121,14 +136,28 @@ async function principal() {
   };
 
   let soltar = () => {};
+  /** En automático, lo que pasó queda escrito en la propia carpeta de películas. */
+  const dejarEstado = (datos) => {
+    if (!op.automatico) return;
+    try {
+      const raiz = op.carpeta ?? leerConfigGuardada()?.carpeta ?? carpetaPorDefecto();
+      if (!existsSync(raiz)) return;
+      const cuando = new Date().toLocaleString("es-GT", { dateStyle: "short", timeStyle: "short" });
+      writeFileSync(join(raiz, ARCHIVO_ESTADO), textoDeEstado({ cuando, ...datos }), "utf8");
+    } catch (error) {
+      registrar(`No pude escribir el estado: ${error}`);
+    }
+  };
   try {
     if (errorDeOpciones) throw errorDeOpciones;
     const falta = faltaPrograma();
     if (falta) throw new Error(falta);
     mkdirSync(carpetaLocal(), { recursive: true });
     soltar = tomarCandado();
-    const config = await leerConfig(preguntarTexto);
-    const pass = await contrasenaDeRclone(rl);
+    // Sin nadie al teclado no se puede preguntar dónde se suben.
+    const config = op.automatico ? leerConfigGuardada() : await leerConfig(preguntarTexto);
+    if (!config) throw new Error("Falta decir dónde se suben las películas. Abre una vez «Sincronizar peliculas.cmd» a mano.");
+    const pass = await contrasenaDeRclone(rl, op.automatico);
     const ejecutar = crearEjecutar(registrar, pass ? { ...process.env, RCLONE_CONFIG_PASS: pass } : process.env);
     const nube = crearNubeRclone(config, ejecutar);
     const raiz = op.carpeta ?? config.carpeta ?? carpetaPorDefecto();
@@ -150,9 +179,18 @@ async function principal() {
       decir(r.fallidas ? "aviso" : "bien", `Hecho: ${r.hechas} · sin hacer: ${r.saltadas} · con error: ${r.fallidas}`);
     }
     decir("info", `Registro: ${rutaRegistro}`);
+    dejarEstado({ resultado: r });
     process.exitCode = r.fallidas ? 1 : 0;
   } catch (error) {
+    // La vuelta anterior sigue convirtiendo o subiendo: no es un fallo, y su
+    // estado no se pisa.
+    if (op.automatico && error?.ocupado) {
+      registrar("automático: ya hay otra en marcha; esta vuelta no hace nada");
+      rl.close();
+      return;
+    }
     decir("error", error instanceof Error ? error.message : String(error));
+    dejarEstado({ error: error instanceof Error ? error.message : String(error) });
     process.exitCode = 1;
   } finally {
     soltar();

@@ -1,4 +1,5 @@
 import { leerSubtitulos } from "./catalogo";
+import { apuntar, leerHistorial, type VistaJuntos } from "./historial";
 import { ID_APARATO, limpiarNombre, normalizarCodigo, type PeliculaDeSala } from "./sala";
 
 /**
@@ -8,11 +9,17 @@ import { ID_APARATO, limpiarNombre, normalizarCodigo, type PeliculaDeSala } from
  *   azar para la presencia. Se elige una vez; se puede cambiar.
  * - **La sala en la que está** (`sessionStorage`): el código y su película.
  *   Salir de Mi enlace —Atrás en el mando— no saca de la sala; al volver se
- *   entra sola. Dura lo que la pestaña: mañana se crea otra sala.
+ *   entra sola. Dura lo que la pestaña.
+ * - **La última sala** (`localStorage`): solo su código, para ofrecer «Volver
+ *   a la sala 4821» otro día. Si los dos aparatos vuelven a la misma, es como
+ *   tener una sala fija de la casa sin tener que dictarse el código cada vez.
+ * - **Lo visto juntos** (`localStorage`): ver `historial.ts`.
  */
 
 const CLAVE_PERFIL = "canalcasa:juntos-perfil";
 const CLAVE_SALA = "canalcasa:ver-juntos";
+const CLAVE_ULTIMA = "canalcasa:juntos-ultima-sala";
+const CLAVE_HISTORIAL = "canalcasa:juntos-historial";
 
 export interface Perfil {
   id: string;
@@ -83,4 +90,23 @@ export function leerSalaRecordada(): SalaRecordada | null {
 
 export function recordarSala(sala: SalaRecordada | null): void {
   escribir("session", CLAVE_SALA, sala);
+}
+
+export function leerUltimaSala(): string {
+  return normalizarCodigo(String(leer("local", CLAVE_ULTIMA) ?? ""));
+}
+
+export function recordarUltimaSala(codigo: string): void {
+  if (normalizarCodigo(codigo)) escribir("local", CLAVE_ULTIMA, codigo);
+}
+
+export function leerVistasJuntos(): VistaJuntos[] {
+  return leerHistorial(leer("local", CLAVE_HISTORIAL));
+}
+
+/** Apunta por dónde va la película de la sala y devuelve el historial nuevo. */
+export function apuntarVistaJuntos(vista: VistaJuntos): VistaJuntos[] {
+  const nuevo = apuntar(leerVistasJuntos(), vista);
+  escribir("local", CLAVE_HISTORIAL, nuevo);
+  return nuevo;
 }

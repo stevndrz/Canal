@@ -145,6 +145,7 @@ Y por separado:
 | `npm run lint` | Reglas de estilo y de hooks |
 | `npm run test` | La lógica pura de `src/lib` |
 | `npm run build` | Los fallos de SSR, que son los que tumban producción |
+| `npm run e2e` | Lo que solo se rompe entre aparatos: Ver juntos con PC, iPhone y tele a la vez |
 
 ### Qué se prueba con qué, y por qué
 
@@ -160,6 +161,18 @@ muerta por `overflow-x`, el foco atrapado en la barra, el botón blanco sobre
 blanco). La comprobación mínima recorre las siete pantallas a 1920 y a 390
 buscando botones sin nombre, objetivos táctiles por debajo de 44px,
 desbordamiento horizontal y encabezados tapados por la barra fija.
+
+**`npm run e2e` son esas pruebas de Playwright, guardadas en `e2e/`.** Cada
+aparato es un contexto de navegador con su propio `localStorage`. Pusher es de
+mentira (`e2e/pusher-falso.ts`) pero comprueba la firma de `/api/pusher/auth`
+con el secreto, igual que el de verdad; la lista M3U y el «bucket» de películas
+los sirve `e2e/servidor.mjs`, que además compila la app con las variables de
+prueba. Lo que **no** cubren: HLS y H.264 (el Chromium de pruebas no los trae;
+la película de prueba es WebM), Safari y el bloqueo de sonido del iPhone.
+
+Dos avisos: se lanza con el servidor de desarrollo **parado** (compila, y un
+build con `next dev` encendido rompe `.next`), y deja en `.next` una compilación
+con claves de mentira: vuelve a compilar antes de un `npm start` a mano.
 
 ### Una trampa conocida de Turbopack
 

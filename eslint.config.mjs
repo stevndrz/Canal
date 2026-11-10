@@ -38,5 +38,6 @@ export default defineConfig([
     },
   },
 
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  // `*.d.mts`: declaraciones de tipos; el analizador de JS no las entiende.
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "**/*.d.mts", "test-results/**", "playwright-report/**"]),
 ]);

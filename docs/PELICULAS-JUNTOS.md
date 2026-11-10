@@ -165,6 +165,34 @@ Opciones (escríbelas después del .cmd en una terminal):
 vídeo dentro; por defecto español e inglés), `--recodificar`,
 `--carpeta "D:\Pelis"`.
 
+### Que se sincronice sola
+
+Doble clic en **Sincronizar sola (activar o quitar).cmd** (en
+`Descargas\Peliculas`; si no está, vuelve a ejecutar `preparar-pc.ps1`).
+Crea una tarea de Windows que lanza la sincronización **cada 10 minutos, sin
+ventana**, mientras tengas la sesión abierta. Con eso basta dejar la película
+en la carpeta: cuando la descarga lleva dos minutos sin tocarse, se convierte
+y se sube.
+
+- **Nunca borra nada de la nube.** Si quitas una película de la carpeta,
+  cambias un archivo por otro, borras un `.srt` o la nube se llenaría, lo deja
+  como estaba y lo apunta como pendiente. Eso se decide con **Sincronizar
+  peliculas.cmd**, que pregunta una a una.
+- Lo que hizo la última vuelta —y lo pendiente— queda en **Estado de la
+  sincronizacion.txt**, en la misma carpeta.
+- Si una vuelta sigue convirtiendo o subiendo, la siguiente no hace nada.
+- Mientras convierte usa la tarjeta gráfica (o la CPU): si justo estás
+  jugando, lo vas a notar. Para apagarla un rato, el mismo `.cmd`.
+- **Si cifraste la configuración de rclone** (`rclone config` → `s`), la tarea
+  no puede escribir la contraseña. O la dejas sin cifrar —la llave solo puede
+  leer y escribir en `canalcasa-peliculas`—, o defines la variable de usuario
+  `RCLONE_PASSWORD_COMMAND` con una orden que la devuelva (ver `rclone help
+  flags`, «password-command»). Sin una de las dos, el archivo de estado dirá
+  «NO SE PUDO SINCRONIZAR».
+
+A mano, desde una terminal: `node scripts\peliculas\sincronizar\tarea.mjs
+activar | quitar | estado`.
+
 ### Por qué es fiable
 
 - **Nada se borra sin preguntar**, y la respuesta por defecto es «no».
@@ -187,6 +215,10 @@ Los scripts de antes (`subir-pelicula`, `agregar-subtitulos`,
 
 ## Ver juntos
 
+Al abrir Mi enlace, lo primero es el estante **Nuestras películas**: se elige
+una (en la tele, el mando entra directamente por ahí) y debajo queda su
+reproductor.
+
 1. Cada persona elige su **alias** la primera vez («Steven», «Tele sala»…).
    Sale en su círculo y en «Juntos · Steven ✓».
 2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
@@ -194,6 +226,18 @@ Los scripts de antes (`subir-pelicula`, `agregar-subtitulos`,
    o con el teclado de la pantalla). Le llega la película sola, con sus audios
    y subtítulos.
 4. **Empezar**: cuenta atrás 3·2·1 en los dos y arranca a la vez.
+
+### Seguir otro día
+
+- **Volver a la sala 4821**: cada aparato recuerda la última sala. Si los dos
+  pulsan ese botón, vuelven a encontrarse sin dictarse el código.
+- **Retomar en 47:10**: mientras se ve en una sala, cada aparato apunta por
+  dónde van. Al volver, el botón principal ofrece retomarlo —lo puede pulsar
+  cualquiera y mueve a todos— y al lado queda «Desde el principio».
+- **Vistas juntos**, al final de la pantalla: qué se vio, por dónde iban, con
+  quién y cuándo. Tocar una la pone. Se guarda en cada aparato (no hay
+  servidor): un aparato que no estuvo ese día no la tiene en su lista, pero
+  recibe igual el «Retomar» del otro.
 
 **La última película elegida manda**, la elija quien la elija. Dirige quien la
 eligió (su pulso corrige al otro); si se va, quien lleve más tiempo dentro.

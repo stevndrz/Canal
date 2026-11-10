@@ -8,6 +8,7 @@ import { FichaColumnas } from "./ficha-columnas";
 import { FichaEpisodios } from "./ficha-episodios";
 import { FichaPortada } from "./ficha-portada";
 import { FichaReproductor } from "./ficha-reproductor";
+import { SalaSuave } from "./sala-suave";
 import type { PlaybackSource, ResolvedCatalogItem, ResolvedEpisode } from "@/lib/catalog/types";
 import { NavegacionCatalogo } from "./navegacion-catalogo";
 import { useAbrirTitulo } from "./catalog-row";
@@ -247,6 +248,17 @@ export function TitleDetail({
            */
           spokenInSpanish={item.originalLanguage === "es"}
         />
+
+        {/* Solo donde el vídeo no es nuestro (un iframe) y fuera del modo
+            cine, que ocupa la pantalla: en la tele, el teléfono hace de mando. */}
+        {!modoCine && item.tmdbId && activeSource?.kind !== "manual" && (
+          <SalaSuave
+            titulo={{
+              ruta: `/peliculas/${item.mediaType}/${item.id}${selectedEpisode ? `?t=${selectedEpisode.season}` : ""}`,
+              nombre: selectedEpisode ? `${item.title} · T${selectedEpisode.season}E${selectedEpisode.episode}` : item.title,
+            }}
+          />
+        )}
 
         {/* Con ratón o con el dedo, Atrás no existe: sin este botón, salir
             del modo cine solo funcionaría con un mando. */}

@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 tvg-id="canal3.gt" tvg-logo="" group-title="Guatemala",Canal 3
+https://emision.prueba/canal3/index.m3u8
+#EXTINF:-1 tvg-id="canal7.gt" tvg-logo="" group-title="Guatemala",Canal 7
+https://emision.prueba/canal7/index.m3u8
+#EXTINF:-1 tvg-id="guatevision.gt" tvg-logo="" group-title="Guatemala",Guatevision
+https://emision.prueba/guatevision/index.m3u8
