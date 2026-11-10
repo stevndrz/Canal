@@ -1543,14 +1543,35 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
     margin-inline: 2px;
   }
 
+  /* El tiempo, encima del riel y a la derecha: en la fila de botones no
+     cabía («0:56 / 1:35:50» son 110px) y se montaba sobre el volumen mientras
+     «pantalla completa» se salía por el borde. */
+  .atv-fila {
+    position: relative;
+  }
+
   .atv-tiempo {
-    padding: 0 4px;
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 22px);
+    padding: 0;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.8);
+  }
+
+  /* El volumen de un teléfono son sus botones. */
+  .atv-volumen {
+    display: none;
+  }
+
+  /* Lo de la derecha no se encoge ni se corta: si algo falta, que no sea
+     pantalla completa. */
+  .atv-grupo.is-derecha {
+    flex-shrink: 0;
   }
 }
 
 @media (max-width: 380px) {
-  .atv-btn.is-velocidad,
-  .atv-tiempo-dur {
+  .atv-btn.is-velocidad {
     display: none;
   }
 }
@@ -5334,8 +5355,20 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   font-size: clamp(28px, 3.6vw, 56px);
 }
 
+/* El arte solo tiñe la parte de arriba. A toda página y oscurecido dejaba
+   la pantalla de un marrón sucio, distinto con cada película. */
+.cine-portada.con-teatro .cine-portada-velo {
+  background: linear-gradient(
+    180deg,
+    rgba(var(--fondo-rgb), 0.35) 0%,
+    rgba(var(--fondo-rgb), 0.82) 38%,
+    var(--fondo) 62%
+  );
+}
+
 .cine-portada.con-teatro .cine-portada-fondo {
-  filter: blur(40px) brightness(0.55);
+  filter: blur(56px) saturate(1.25);
+  opacity: 0.5;
   transform: scale(1.1);
   animation: cine-fondo-entra 900ms var(--ease) both;
 }
@@ -5397,10 +5430,42 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 }
 
 /* ── Presencia ─────────────────────────────────────────────────────── */
+/* La fila de la sala: quién está (y cómo) y, a su lado, el código. */
+.cine-sala {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.cine-sala-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio-pill);
+  background: var(--relleno-sutil);
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  color: var(--tinta-3);
+}
+
+.cine-codigo {
+  font-size: var(--texto-md);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.18em;
+  color: var(--tinta-1);
+}
+
 .cine-presencia {
   display: flex;
   flex-wrap: wrap;
-  gap: clamp(14px, 2vw, 28px);
+  gap: 10px 22px;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -5408,44 +5473,68 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 
 .cine-persona {
   display: flex;
-  flex-direction: column;
+  min-width: 0;
   align-items: center;
-  gap: 8px;
-  max-width: 96px;
-  font-size: var(--texto-2xs);
-  font-weight: 600;
+  gap: 10px;
   color: var(--tinta-3);
   transition: color 500ms var(--ease);
 }
 
+.cine-persona-texto {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+
 .cine-persona-nombre {
-  max-width: 100%;
+  max-width: 11em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--texto-sm);
+  font-weight: 600;
+}
+
+.cine-persona-estado {
+  font-size: var(--texto-2xs);
+  font-weight: 500;
+  color: var(--tinta-4);
 }
 
 .cine-persona-circulo {
+  position: relative;
   display: grid;
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
   place-items: center;
   border: 1px solid var(--borde-fuerte);
   border-radius: 50%;
-  background: var(--cristal);
-  font-size: var(--texto-sm);
+  background: var(--relleno);
+  font-size: var(--texto-xs);
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--tinta-1);
-  opacity: 0.45;
-  backdrop-filter: blur(14px);
   transition:
     opacity 500ms var(--ease),
     background-color 500ms var(--ease),
     color 500ms var(--ease),
-    box-shadow 500ms var(--ease),
     transform 500ms var(--ease);
+}
+
+/* El punto de estado, montado sobre el borde del círculo. */
+.cine-persona-punto {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid var(--fondo);
+  border-radius: 50%;
+  background: var(--tinta-4);
+  transition: background-color 500ms var(--ease);
 }
 
 .cine-persona.is-aqui {
@@ -5456,18 +5545,53 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   border-color: transparent;
   background: var(--tinta-1);
   color: var(--fondo);
-  opacity: 1;
-  box-shadow: 0 0 0 6px var(--relleno), 0 0 28px var(--borde-fuerte);
   animation: cine-llega 600ms var(--ease) both;
+}
+
+.cine-persona.is-activo .cine-persona-punto {
+  background: var(--tinta-1);
+}
+
+.cine-persona.is-viendo .cine-persona-punto {
+  background: var(--exito);
+  animation: cine-late 2.4s var(--ease) infinite;
+}
+
+.cine-persona.is-viendo .cine-persona-estado {
+  color: var(--exito);
+}
+
+/* Fuera un momento: sigue siendo de la sala, pero apagado. */
+.cine-persona.is-ausente .cine-persona-circulo {
+  opacity: 0.5;
+}
+
+.cine-persona.is-esperando .cine-persona-circulo {
+  border-style: dashed;
+  background: transparent;
+  color: var(--tinta-4);
+}
+
+.cine-persona.is-esperando .cine-persona-punto {
+  display: none;
+}
+
+@keyframes cine-late {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--exito-fondo);
+  }
+  50% {
+    box-shadow: 0 0 0 5px var(--exito-fondo);
+  }
 }
 
 @keyframes cine-llega {
   from {
     transform: scale(0.88);
-    box-shadow: 0 0 0 0 transparent, 0 0 0 transparent;
   }
   55% {
-    transform: scale(1.1);
+    transform: scale(1.08);
   }
   to {
     transform: scale(1);
@@ -6068,13 +6192,9 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   width: 132px;
 }
 
-:root[data-pantalla="tv"] .cine-persona {
-  max-width: 120px;
-}
-
 :root[data-pantalla="tv"] .cine-persona-circulo {
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
 }
 
 :root[data-pantalla="tv"] .cine-boton-principal,

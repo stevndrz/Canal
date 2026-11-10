@@ -16,7 +16,14 @@ const ALIAS_SUGERIDOS = ["Steven", "Tele sala", "Tele cuarto", "Teléfono"];
  */
 export function ElegirAlias({ inicial, alGuardar }: { inicial: string; alGuardar: (nombre: string) => void }) {
   const [nombre, setNombre] = useState(inicial);
-  const limpio = limpiarNombre(nombre);
+  const escrito = limpiarNombre(nombre);
+  /**
+   * Cuatro cifras aquí son el código de la sala escrito en la casilla del
+   * nombre (pasó: alguien salía en la sala llamándose «8047»). El código se
+   * pide justo después.
+   */
+  const pareceCodigo = new RegExp(`^\\d{${LARGO_CODIGO}}$`).test(escrito);
+  const limpio = pareceCodigo ? "" : escrito;
   return (
     <form
       className="cine-alias flex flex-col gap-4"
@@ -33,7 +40,7 @@ export function ElegirAlias({ inicial, alGuardar }: { inicial: string; alGuardar
       </div>
       <Campo
         tamano="lg"
-        etiqueta="Tu alias"
+        etiqueta="Tu nombre"
         type="text"
         autoComplete="off"
         maxLength={24}
@@ -41,6 +48,11 @@ export function ElegirAlias({ inicial, alGuardar }: { inicial: string; alGuardar
         onChange={(evento) => setNombre(evento.target.value)}
         placeholder="Ej.: Steven"
       />
+      {pareceCodigo && (
+        <Aviso tono="aviso" className="fuente-aviso">
+          Eso parece el código de la sala. Aquí va tu nombre; el código se pide en el siguiente paso.
+        </Aviso>
+      )}
       <div className="flex flex-wrap gap-2" role="group" aria-label="Sugerencias">
         {ALIAS_SUGERIDOS.map((sugerido, i) => (
           <Chip

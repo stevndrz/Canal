@@ -84,6 +84,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * página (PC y teléfono): ahí se recoge para dejarle el ancho al reproductor.
    */
   const [estanteVisible, setEstanteVisible] = useState(true);
+  /** Se pulsó «Cambiar película»: el estante sale aunque ya haya una elegida. */
+  const [cambiando, setCambiando] = useState(false);
   const estanteRef = useRef<HTMLButtonElement | null>(null);
   const principalRef = useRef<HTMLButtonElement | null>(null);
   /**
@@ -102,6 +104,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   /** «Cambiar película» y «Elegir película» llevan el foco al estante. */
   const irAlEstante = useCallback(() => {
     setEstanteVisible(true);
+    setCambiando(true);
     // Si estaba recogido, el estante existe a partir del siguiente render.
     window.setTimeout(() => {
       estanteRef.current?.focus();
@@ -364,7 +367,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   };
 
   // --- El botón principal: lo siguiente que toca -------------------------------
-  const personas = perfil && dentro ? presencia(perfil, juntos.miembros, enSala) : [];
+  const personas = perfil && dentro ? presencia(perfil, juntos.miembros, enSala, juntos.ausentes) : [];
   const otros = personas.filter((p) => !p.soyYo && p.id !== "?");
   const otroAqui = otros.find((p) => p.aqui);
   const otroNombre = otroAqui?.nombre ?? null;
@@ -457,18 +460,23 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               : "Ya están los dos."
             : `Pásale el código ${codigo} a la otra persona.`;
 
-  const sobretitulo = enSala ? `Sala ${codigo}` : salaDisponible ? "Ver juntos" : "Nuestras películas";
+  /**
+   * El estante es lo primero mientras se está eligiendo. Con la película de
+   * la sala ya puesta —o si solo hay una— repetir su carátula encima de su
+   * propio reproductor es ruido: se guarda hasta «Cambiar película».
+   */
+  const yaElegida = Boolean(portada) && (dentro || nuestras.peliculas.length <= 1);
+  const mostrarEstante = nuestras.peliculas.length > 0 && (cambiando || (estanteVisible && !yaElegida));
 
   return (
     <div className={`screen tv-safe fuente cine ${sinHueco ? "sin-hueco" : ""}`}>
       <Portada
         fondo={fondo}
-        sobretitulo={sobretitulo}
+        sobretitulo=""
         titulo={portada?.titulo || "Elijan una película"}
         pildoras={pildoras}
         estante={
-          estanteVisible &&
-          nuestras.peliculas.length > 0 && (
+          mostrarEstante && (
             <Estante
               peliculas={nuestras.peliculas}
               arte={arte}
@@ -480,6 +488,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                 const p = nuestras.peliculas.find((x) => x.url === elegida);
                 if (!p) return;
                 elegir({ id: `nuestra-${p.id}`, titulo: p.titulo, url: p.url, subtitulos: p.subtitulos });
+                setCambiando(false);
                 volverALaPortada();
               }}
             />
@@ -503,12 +512,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                 claveProgreso={enSala && !juntos.dirijo ? undefined : claveDeFuente(claveVideo)}
                 alVideo={alVideo}
                 cabecera={
-                  enSala ? (
-                    <CabeceraJuntos
-                      otro={otroNombre}
-                      acompanado={acompanado}
-                      alSalir={escenarioVisible ? () => setInmersivo(false) : undefined}
-                    />
+                  enSala && escenarioVisible ? (
+                    <CabeceraJuntos otro={otroNombre} acompanado={acompanado} alSalir={() => setInmersivo(false)} />
                   ) : escenarioVisible ? (
                     <CabeceraJuntos otro={null} acompanado={false} alSalir={() => setInmersivo(false)} />
                   ) : (
@@ -543,18 +548,20 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         }
       >
         {dentro && (
-          <p className="cine-codigo mb-3 text-[length:var(--texto-3xl)] font-semibold tracking-[0.3em] text-tinta-1 tabular-nums" aria-label={`Código de la sala: ${codigo.split("").join(" ")}`}>
-            {codigo}
-          </p>
+          <div className="cine-sala">
+            <Presencia personas={personas} />
+            <p className="cine-sala-chip" aria-label={`Código de la sala: ${codigo.split("").join(" ")}`}>
+              Sala <span className="cine-codigo">{codigo}</span>
+            </p>
+          </div>
         )}
-        {dentro && <Presencia personas={personas} />}
         <div className="cine-acciones">
           {principal && (
             <button
               ref={principalRef}
               type="button"
               data-nav="button"
-              data-nav-entrada={dentro || !estanteVisible || nuestras.peliculas.length === 0 ? "" : undefined}
+              data-nav-entrada={dentro || !mostrarEstante ? "" : undefined}
               className="cine-boton-principal" onClick={() => dar(principal.paso)}>
               {principal.icono}
               {principal.texto}
@@ -673,7 +680,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         </button>
       </div>
 
-      <Hoja abierta={hoja === "alias"} titulo="Tu alias" alCerrar={() => setHoja(null)}>
+      <Hoja abierta={hoja === "alias"} titulo="¿Cómo te llamas?" alCerrar={() => setHoja(null)}>
         <ElegirAlias
           inicial={perfil?.nombre ?? ""}
           alGuardar={(nombre) => {

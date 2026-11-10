@@ -4,6 +4,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Check, Clapperboard, X } from "lucide-react";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import type { Miembro } from "@/hooks/use-ver-juntos";
+import type { EstadoPersona } from "@/lib/ver-juntos/sala";
 import type { Arte } from "@/lib/ver-juntos/portada";
 
 /**
@@ -25,36 +26,59 @@ export interface Persona {
   nombre: string;
   aqui: boolean;
   soyYo: boolean;
+  /** Viendo, en la sala, fuera un momento, o el hueco de quien falta. */
+  estado: EstadoPersona | "esperando";
 }
 
+const TEXTO_ESTADO: Record<Persona["estado"], string> = {
+  viendo: "Viendo",
+  activo: "En la sala",
+  ausente: "Fuera un momento",
+  esperando: "Falta por entrar",
+};
+
 /**
- * Quién hay que pintar: este aparato primero y luego los que están
- * (encendidos). Si no hay nadie más, un hueco «Esperando» para que se lea que
- * es de dos.
+ * Quién hay que pintar: este aparato primero, luego los que están y, apagados,
+ * los que estaban y se les cortó la conexión (lo normal es que vuelvan
+ * enseguida). Si no hay nadie más, un hueco para que se lea que es de dos.
  */
 export function presencia(
   yo: { id: string; nombre: string },
   miembros: Miembro[],
   dentro: boolean,
+  ausentes: Miembro[] = [],
 ): Persona[] {
-  const aqui = new Set(miembros.map((m) => m.id));
-  const lista: Persona[] = [{ id: yo.id, nombre: yo.nombre, aqui: dentro && aqui.has(yo.id), soyYo: true }];
-  for (const m of miembros) if (m.id !== yo.id) lista.push({ id: m.id, nombre: m.nombre, aqui: true, soyYo: false });
-  if (lista.length === 1) lista.push({ id: "?", nombre: "Esperando", aqui: false, soyYo: false });
+  const mio = miembros.find((m) => m.id === yo.id);
+  const lista: Persona[] = [
+    { id: yo.id, nombre: yo.nombre, aqui: dentro && Boolean(mio), soyYo: true, estado: mio?.estado ?? "activo" },
+  ];
+  for (const m of miembros) {
+    if (m.id !== yo.id) lista.push({ id: m.id, nombre: m.nombre, aqui: m.estado !== "ausente", soyYo: false, estado: m.estado ?? "activo" });
+  }
+  for (const m of ausentes) {
+    if (m.id !== yo.id && !lista.some((p) => p.id === m.id)) lista.push({ id: m.id, nombre: m.nombre, aqui: false, soyYo: false, estado: "ausente" });
+  }
+  if (lista.length === 1) lista.push({ id: "?", nombre: "Alguien más", aqui: false, soyYo: false, estado: "esperando" });
   return lista;
 }
 
+/**
+ * Los círculos de la sala. El punto de cada uno dice cómo está: verde y
+ * latiendo si está viendo, blanco si está en la sala en pausa, apagado si
+ * salió de la app un momento.
+ */
 export function Presencia({ personas }: { personas: Persona[] }) {
   return (
     <ul className="cine-presencia" aria-label="Quién está en la sala">
       {personas.map((p) => (
-        <li key={p.id} className={`cine-persona ${p.aqui ? "is-aqui" : ""}`}>
+        <li key={p.id} className={`cine-persona is-${p.estado} ${p.aqui ? "is-aqui" : ""}`}>
           <span className="cine-persona-circulo" aria-hidden="true">
-            {p.id === "?" ? "?" : iniciales(p.nombre)}
+            {p.id === "?" ? "+" : iniciales(p.nombre)}
+            <span className="cine-persona-punto" />
           </span>
-          <span className="cine-persona-nombre">
-            {p.nombre}
-            <span className="sr-only">{p.aqui ? ", aquí" : ", esperando"}</span>
+          <span className="cine-persona-texto">
+            <span className="cine-persona-nombre">{p.soyYo ? `${p.nombre} (tú)` : p.nombre}</span>
+            <span className="cine-persona-estado">{TEXTO_ESTADO[p.estado]}</span>
           </span>
         </li>
       ))}
@@ -100,7 +124,7 @@ export function Portada({
       <div className="cine-portada-velo" aria-hidden="true" />
       <div className="cine-portada-contenido">
         {estante}
-        <p className="cine-sobretitulo">{sobretitulo}</p>
+        {sobretitulo && <p className="cine-sobretitulo">{sobretitulo}</p>}
         <h2 id="cine-titulo" className="cine-titulo">
           {titulo}
         </h2>
