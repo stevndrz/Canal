@@ -40,6 +40,7 @@ import {
   guardarConfig,
   leerConfigGuardada,
   rcloneCifrado,
+  refrescarPath,
   tomarCandado,
   vivo,
 } from "./lib/entorno.mjs";
@@ -404,6 +405,7 @@ function abrirNavegador(url) {
 }
 
 async function principal() {
+  refrescarPath();
   const rutaSesion = join(carpetaLocal(), "panel.json");
   // Doble clic con el panel ya abierto: se vuelve a enseñar el mismo.
   try {

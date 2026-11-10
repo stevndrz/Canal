@@ -35,6 +35,54 @@ export function crearRegistro(cabecera) {
   return { ruta, registrar };
 }
 
+// ── El PATH de verdad (Windows) ─────────────────────────────────────────────
+/**
+ * Un doble clic desde el Explorador hereda el PATH que tenía el Explorador al
+ * arrancar: lo que se instaló después (Node, ffmpeg, rclone con winget) no
+ * está, aunque una PowerShell nueva sí lo vea. Se lee el PATH guardado en el
+ * registro (el de la máquina y el del usuario) y se suma al actual, más la
+ * carpeta donde winget deja sus programas portátiles.
+ */
+export function refrescarPath(entorno = process.env, leerRegistro = leerPathDelRegistro) {
+  if (process.platform !== "win32" && leerRegistro === leerPathDelRegistro) return;
+  const extra = [...leerRegistro(), entorno.LOCALAPPDATA ? `${entorno.LOCALAPPDATA}\\Microsoft\\WinGet\\Links` : null];
+  const clave = Object.keys(entorno).find((k) => k.toLowerCase() === "path") ?? "Path";
+  entorno[clave] = unirPath(entorno[clave] ?? "", extra.filter(Boolean).map((t) => expandir(t, entorno)).join(";"));
+}
+
+/** Las dos listas, sin repetir (sin distinguir mayúsculas ni la «\\» final). Primero la actual. */
+export function unirPath(actual, extra) {
+  const vistas = new Set();
+  const salida = [];
+  for (const parte of `${actual};${extra}`.split(";")) {
+    const limpia = parte.trim();
+    const clave = limpia.toLowerCase().replace(/\\+$/, "");
+    if (!limpia || vistas.has(clave)) continue;
+    vistas.add(clave);
+    salida.push(limpia);
+  }
+  return salida.join(";");
+}
+
+/** «%LOCALAPPDATA%\\x» → la ruta. Lo que no exista se deja tal cual. */
+export function expandir(texto, entorno = process.env) {
+  return texto.replace(/%([^%]+)%/g, (todo, nombre) => {
+    const k = Object.keys(entorno).find((x) => x.toLowerCase() === nombre.toLowerCase());
+    return k ? entorno[k] : todo;
+  });
+}
+
+/** La salida de `reg query … /v Path` → el valor. */
+export function valorDeReg(salida) {
+  const m = /^\s*Path\s+REG_(?:EXPAND_)?SZ\s+(.*)$/im.exec(salida ?? "");
+  return m ? m[1].trim() : "";
+}
+
+function leerPathDelRegistro() {
+  const claves = ["HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", "HKCU\\Environment"];
+  return claves.map((c) => valorDeReg(spawnSync("reg", ["query", c, "/v", "Path"], { encoding: "utf8", windowsHide: true }).stdout)).filter(Boolean);
+}
+
 // ── Lanzar programas, sin shell ─────────────────────────────────────────────
 /**
  * Sin shell a propósito: el nombre de una película va como argumento suelto,

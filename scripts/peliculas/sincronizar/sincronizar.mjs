@@ -38,6 +38,7 @@ import {
   faltaPrograma,
   leerConfig,
   rcloneCifrado,
+  refrescarPath,
   tomarCandado,
 } from "./lib/entorno.mjs";
 import { crearNubeRclone } from "./lib/nube.mjs";
@@ -83,6 +84,7 @@ async function contrasenaDeRclone(rl) {
 
 // ── Principal ───────────────────────────────────────────────────────────────
 async function principal() {
+  refrescarPath();
   let op = {};
   let errorDeOpciones = null;
   try {
