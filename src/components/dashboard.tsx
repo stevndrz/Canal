@@ -20,6 +20,7 @@ import {
   type UltimoCanal,
 } from "@/lib/channels";
 import { esperaParaLaLista } from "@/lib/arranque-lista";
+import { haySalaReciente } from "@/lib/ver-juntos/recordar";
 import { indexarCanales, normalizarCasa, unirMisCanales } from "@/lib/secciones-canales";
 import { publicConfig } from "@/lib/config";
 import {
@@ -167,6 +168,21 @@ export function Dashboard({
   const [view, setView] = useState<ViewId>(
     vistaPedida && vistaPedida !== "player" ? vistaPedida : esTV ? "player" : "home",
   );
+
+  /**
+   * Si se estaba en una sala hace un momento, la app abre en ella.
+   *
+   * El iPhone cierra la app en cuanto se cambia a otra (contestar un mensaje
+   * basta) y al volver arrancaba en Inicio: había que ir a Mi enlace cada vez.
+   * La sala se recuerda (`recordar.ts`); aquí solo se va a su pantalla. Tras
+   * montar, porque depende de `localStorage`.
+   */
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!vistaPedida && haySalaReciente()) setView("fuente");
+    // Solo al abrir: después manda la persona.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * La URL manda sobre la vista **también después de montar**: el `useState` de

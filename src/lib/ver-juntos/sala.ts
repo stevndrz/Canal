@@ -124,6 +124,8 @@ export function quienDirige(pelicula: PeliculaDeSala | null, orden: readonly str
  * - `hola`: alguien acaba de entrar y pide el estado y la película.
  * - `video`: la película de la sala, con su versión (ver `PeliculaDeSala`).
  * - `empezar`: alguien pulsó «Empezar»: cuenta atrás en todos y a reproducir.
+ * - `aqui`: cómo está quien lo manda —con la app delante o no, viendo o en
+ *   pausa—, para pintar su círculo. No toca el vídeo de nadie.
  *
  * Sin hora de envío: la versión anterior compensaba la latencia con
  * `Date.now()` del otro aparato, y el reloj de un televisor puede ir minutos
@@ -134,7 +136,8 @@ export type MensajeSala =
   | { tipo: "estado"; tiempo: number; pausado: boolean; pulso?: boolean }
   | { tipo: "hola" }
   | { tipo: "video"; pelicula: PeliculaDeSala }
-  | { tipo: "empezar" };
+  | { tipo: "empezar" }
+  | { tipo: "aqui"; visible: boolean; viendo: boolean };
 
 /** Lo que llega por la red, comprobado: un mensaje mal formado se ignora. */
 export function leerMensaje(dato: unknown): MensajeSala | null {
@@ -147,6 +150,10 @@ export function leerMensaje(dato: unknown): MensajeSala | null {
     return { tipo: "estado", tiempo: m.tiempo, pausado: m.pausado, pulso: m.pulso === true };
   }
   if (m.tipo === "empezar") return { tipo: "empezar" };
+  if (m.tipo === "aqui") {
+    if (typeof m.visible !== "boolean" || typeof m.viendo !== "boolean") return null;
+    return { tipo: "aqui", visible: m.visible, viendo: m.viendo };
+  }
   if (m.tipo === "video") {
     const p = m.pelicula as Record<string, unknown> | undefined;
     if (!p || typeof p !== "object") return null;
@@ -168,4 +175,20 @@ export function leerMensaje(dato: unknown): MensajeSala | null {
     };
   }
   return null;
+}
+
+/**
+ * Cómo está alguien de la sala, para su círculo:
+ * - `viendo`: con la película en marcha;
+ * - `activo`: en la sala, en pausa;
+ * - `ausente`: salió de la app un momento (o se le cortó la conexión). Sigue
+ *   contando como de la sala: al volver entra solo.
+ */
+export type EstadoPersona = "viendo" | "activo" | "ausente";
+
+export function estadoDe(aqui: { visible: boolean; viendo: boolean } | undefined): EstadoPersona {
+  // Sin noticias (una versión anterior de la app no las manda): está, sin más.
+  if (!aqui) return "activo";
+  if (!aqui.visible) return "ausente";
+  return aqui.viendo ? "viendo" : "activo";
 }

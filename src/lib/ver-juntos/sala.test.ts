@@ -124,3 +124,21 @@ describe("firma de Pusher", () => {
     );
   });
 });
+
+describe("presencia: cómo está cada uno", () => {
+  it("el mensaje `aqui` se lee con desconfianza", async () => {
+    const { leerMensaje } = await import("./sala");
+    expect(leerMensaje({ tipo: "aqui", visible: true, viendo: false })).toEqual({ tipo: "aqui", visible: true, viendo: false });
+    expect(leerMensaje({ tipo: "aqui", visible: "sí", viendo: false })).toBeNull();
+    expect(leerMensaje({ tipo: "aqui" })).toBeNull();
+  });
+
+  it("viendo, en la sala o fuera un momento; sin noticias, está sin más", async () => {
+    const { estadoDe } = await import("./sala");
+    expect(estadoDe({ visible: true, viendo: true })).toBe("viendo");
+    expect(estadoDe({ visible: true, viendo: false })).toBe("activo");
+    // Con la app en segundo plano da igual lo que diga del vídeo.
+    expect(estadoDe({ visible: false, viendo: true })).toBe("ausente");
+    expect(estadoDe(undefined)).toBe("activo");
+  });
+});

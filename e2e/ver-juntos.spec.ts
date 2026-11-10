@@ -23,7 +23,7 @@ async function abrir(browser: Browser, pusher: PusherFalso, cual: NombreAparato)
 }
 
 async function ponerAlias(page: Page, alias: string) {
-  await page.getByRole("textbox", { name: "Tu alias" }).fill(alias);
+  await page.getByRole("textbox", { name: "Tu nombre" }).fill(alias);
   await page.getByRole("button", { name: "Listo", exact: true }).click();
 }
 
@@ -47,6 +47,12 @@ const video = (page: Page) =>
     const v = document.querySelector("video");
     return v ? { tiempo: v.currentTime, pausado: v.paused, listo: v.readyState } : null;
   });
+
+/** Con la película en marcha los controles se esconden solos: un toque los trae. */
+async function mostrarControles(page: Page) {
+  if ((await page.locator(".atv.atv-activo").count()) === 0) await page.locator("video").tap();
+  await expect(page.locator(".atv.atv-activo")).toBeVisible();
+}
 
 async function esperarReproduciendo(page: Page) {
   await expect.poll(async () => (await video(page))?.pausado, { timeout: 15_000 }).toBe(false);
@@ -117,6 +123,7 @@ test.describe("Ver juntos", () => {
     await expect(tele.page.locator("#cine-titulo")).toHaveText("Coco");
 
     // La tele elige otra: la última elegida manda, también en el PC.
+    await tele.page.getByRole("button", { name: "Cambiar película" }).click();
     await tele.page.getByRole("button", { name: "Matrix" }).click();
     await expect(pc.page.locator("#cine-titulo")).toHaveText("Matrix");
 
@@ -150,9 +157,9 @@ test.describe("Ver juntos", () => {
       await expect(page.getByRole("list", { name: "Vistas juntos" })).toContainText("Coco");
     }
     await expect(pc2.getByRole("list", { name: "Vistas juntos" })).toContainText("con Teléfono");
-    // Sin dictarse el código: los dos vuelven a la misma sala.
-    await pc2.getByRole("button", { name: `Volver a la sala ${codigo}` }).click();
-    await iphone2.getByRole("button", { name: `Volver a la sala ${codigo}` }).click();
+    // Sin dictarse el código ni pulsar nada: al abrir, los dos siguen en su sala.
+    await expect(pc2.locator(".cine-codigo")).toHaveText(codigo);
+    await expect(iphone2.locator(".cine-codigo")).toHaveText(codigo);
     await expect(iphone2.locator("#cine-titulo")).toHaveText("Coco");
     await expect(pc2.getByLabel("Quién está en la sala")).toContainText("Teléfono");
 
@@ -166,6 +173,123 @@ test.describe("Ver juntos", () => {
 
     await pc.contexto.close();
     await iphone.contexto.close();
+  });
+
+  test("La invitada manda igual: pausa, salta y reanuda con los botones del reproductor, desde el teléfono", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const invitada = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await entrarEnSala(invitada.page, "Majo", codigo);
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await esperarReproduciendo(invitada.page);
+
+    // Todos los botones caben en el ancho del teléfono: ninguno cortado ni montado sobre otro.
+    await mostrarControles(invitada.page);
+    const cajas = await invitada.page.evaluate(() => {
+      const marco = document.querySelector(".atv")!.getBoundingClientRect();
+      const botones = [...document.querySelectorAll<HTMLElement>(".atv-fila .atv-btn")]
+        .filter((b) => b.offsetParent !== null)
+        .map((b) => b.getBoundingClientRect())
+        .sort((a, b) => a.left - b.left);
+      return {
+        dentro: botones.every((b) => b.left >= marco.left && b.right <= marco.right),
+        sinMontarse: botones.every((b, i) => i === 0 || b.left >= botones[i - 1]!.right - 1),
+        cuantos: botones.length,
+      };
+    });
+    expect(cajas.cuantos).toBeGreaterThanOrEqual(5);
+    expect(cajas.dentro).toBe(true);
+    expect(cajas.sinMontarse).toBe(true);
+    await expect(invitada.page.getByRole("button", { name: "Pantalla completa", exact: true }).last()).toBeVisible();
+
+    // Pausa ella → se pausa él.
+    await mostrarControles(invitada.page);
+    await invitada.page.getByRole("button", { name: "Pausar" }).click();
+    await expect.poll(async () => (await video(pc.page))?.pausado).toBe(true);
+    await expect(pc.page.locator(".cine-aviso-otro")).toContainText("Majo pausó");
+
+    // Adelanta ella 10 s tres veces → él va al mismo sitio.
+    const antes = (await video(invitada.page))!.tiempo;
+    for (let i = 0; i < 3; i++) await invitada.page.getByRole("button", { name: "Avanzar 10 segundos" }).click();
+    await expect.poll(async () => (await video(pc.page))?.tiempo ?? 0).toBeGreaterThan(antes + 25);
+
+    // Reanuda ella → sigue él, y van juntos.
+    await invitada.page.getByRole("button", { name: "Reproducir" }).last().click();
+    await esperarReproduciendo(pc.page);
+    await pc.page.waitForTimeout(6000);
+    const [a, b] = await Promise.all([video(pc.page), video(invitada.page)]);
+    expect(b!.pausado).toBe(false);
+    expect(Math.abs(a!.tiempo - b!.tiempo)).toBeLessThan(1.5);
+
+    await pc.contexto.close();
+    await invitada.contexto.close();
+  });
+
+  test("Quién está y cómo: viendo, en la sala y fuera un momento", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const movil = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await entrarEnSala(movil.page, "Majo", codigo);
+    const majoEnPc = pc.page.getByLabel("Quién está en la sala").getByRole("listitem").filter({ hasText: "Majo" });
+    await expect(majoEnPc).toContainText("En la sala");
+
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await esperarReproduciendo(movil.page);
+    await expect(majoEnPc).toContainText("Viendo");
+
+    // Se le corta (el iPhone cierra la app): su círculo se queda, apagado.
+    await pusher.cortar(movil.contexto);
+    await movil.page.close();
+    await expect(majoEnPc).toContainText("Fuera un momento");
+
+    await pc.contexto.close();
+    await movil.contexto.close();
+  });
+
+  test("Salir de la app no saca de la sala: al abrirla otra vez se vuelve sola, sin código", async ({ browser }) => {
+    const pc = await abrir(browser, pusher, "pc");
+    const movil = await abrir(browser, pusher, "iphone");
+    const codigo = await crearSala(pc.page, "Steven");
+    await entrarEnSala(movil.page, "Majo", codigo);
+    await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
+    await esperarReproduciendo(movil.page);
+    await pc.page.evaluate(() => {
+      document.querySelector("video")!.currentTime = 50;
+    });
+    await expect.poll(async () => Math.abs(((await video(movil.page))?.tiempo ?? 0) - 50)).toBeLessThan(2);
+
+    // El iPhone mata la app: página nueva, y `sessionStorage` vacío como allí.
+    await movil.page.close();
+    const otraVez = await movil.contexto.newPage();
+    await otraVez.addInitScript(() => sessionStorage.clear());
+    // Abre la app por su inicio, no por Mi enlace.
+    await otraVez.goto("/");
+    await expect(otraVez.locator(".cine-codigo")).toHaveText(codigo);
+    await expect(otraVez.getByLabel("Quién está en la sala")).toContainText("Steven");
+    await expect(otraVez.locator("#cine-titulo")).toHaveText("Coco");
+    // Y recibe por dónde va la película sin que nadie se lo dicte.
+    await expect.poll(async () => (await video(otraVez))?.tiempo ?? 0, { timeout: 15_000 }).toBeGreaterThan(45);
+
+    // «Salir de la sala» sí saca: la próxima vez abre en Inicio.
+    await otraVez.getByRole("button", { name: "Salir de la sala" }).click();
+    await otraVez.goto("/");
+    await expect(otraVez.locator(".cine-codigo")).toHaveCount(0);
+    // …pero la sala sigue a un botón, sin código.
+    await otraVez.goto("/?vista=fuente");
+    await otraVez.getByRole("button", { name: `Volver a la sala ${codigo}` }).click();
+    await expect(otraVez.locator(".cine-codigo")).toHaveText(codigo);
+
+    await pc.contexto.close();
+    await movil.contexto.close();
+  });
+
+  test("El código escrito en la casilla del nombre no se acepta como nombre", async ({ browser }) => {
+    const { page, contexto } = await abrir(browser, pusher, "iphone");
+    await page.getByRole("button", { name: "Entrar con código" }).click();
+    await page.getByRole("textbox", { name: "Tu nombre" }).fill("8047");
+    await expect(page.getByText("Eso parece el código de la sala")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Listo", exact: true })).toBeDisabled();
+    await contexto.close();
   });
 
   test("Una firma manipulada no entra en la sala", async ({ browser }) => {
@@ -195,6 +319,7 @@ test.describe("Ver juntos", () => {
     });
     await page.goto("/?vista=fuente");
     await crearSala(page, "Steven");
+    await page.getByRole("button", { name: "Cambiar película" }).click();
     await page.getByRole("button", { name: "Matrix" }).click();
     await page.waitForTimeout(1500);
     expect(pedidas.sort()).toEqual(["Coco", "Matrix"]);

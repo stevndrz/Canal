@@ -6,13 +6,15 @@ import {
   canalDeSala,
   leerMensaje,
   esMasNueva,
+  estadoDe,
   quienDirige,
+  type EstadoPersona,
   type MensajeSala,
   type PeliculaDeSala,
   type VideoDeSala,
 } from "@/lib/ver-juntos/sala";
 import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
-import { leerSalaRecordada, recordarSala, type Perfil } from "@/lib/ver-juntos/recordar";
+import { leerSalaRecordada, recordarSala, tocarSala, type Perfil } from "@/lib/ver-juntos/recordar";
 
 /**
  * «Ver juntos»: una sala con código de cuatro cifras, y cada uno con su alias.
@@ -59,6 +61,8 @@ export type EstadoSala = "fuera" | "sin-configurar" | "conectando" | "conectada"
 export interface Miembro {
   id: string;
   nombre: string;
+  /** Viendo, en pausa o fuera de la app un momento. */
+  estado?: EstadoPersona;
 }
 
 /** Lo que pasó en otro aparato y merece un aviso breve en este. */
@@ -123,6 +127,12 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   /** 3, 2, 1… o `null` sin cuenta atrás. */
   const [cuenta, setCuenta] = useState<number | null>(null);
   const [aviso, setAviso] = useState<AvisoSala | null>(null);
+  /** Lo último que contó cada uno de sí mismo (mensaje `aqui`). */
+  const [aquiDe, setAquiDe] = useState<Record<string, { visible: boolean; viendo: boolean }>>({});
+  /** Quien estaba y se le cortó: se le sigue viendo, apagado, hasta que vuelva. */
+  const [fueron, setFueron] = useState<Miembro[]>([]);
+  /** Cómo está este aparato, para su propio círculo. */
+  const [yoViendo, setYoViendo] = useState(false);
 
   const canalRef = useRef<CanalPusher | null>(null);
   const suscritoRef = useRef(false);
@@ -189,6 +199,12 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       console.warn("Ver juntos: no se pudo enviar", error);
     }
   }, []);
+
+  /** Le cuenta a la sala cómo está este aparato: delante o no, viendo o no. */
+  const contarAqui = useCallback(() => {
+    const v = elementoRef.current;
+    enviar({ tipo: "aqui", visible: document.visibilityState === "visible", viendo: Boolean(v && !v.paused) });
+  }, [enviar]);
 
   const estadoActual = useCallback((pulso = false): MensajeSala | null => {
     const v = elementoRef.current;
@@ -401,7 +417,12 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       if (!mensaje || cancelado) return;
       const de = metadatos?.user_id;
 
+      if (mensaje.tipo === "aqui") {
+        if (de) setAquiDe((antes) => ({ ...antes, [de]: { visible: mensaje.visible, viendo: mensaje.viendo } }));
+        return;
+      }
       if (mensaje.tipo === "hola") {
+        contarAqui();
         if (peliculaRef.current) enviar({ tipo: "video", pelicula: peliculaRef.current });
         if (dirijoRef.current) {
           const actual = estadoActual();
@@ -471,6 +492,9 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
           // Quien llega pide el estado, y cuenta su película: la más nueva gana.
           // Esto corre también al reconectar.
           enviar({ tipo: "hola" });
+          contarAqui();
+          // Quien vuelve deja de estar «fuera».
+          setFueron((antes) => antes.filter((m) => ordenRef.current.indexOf(m.id) < 0));
           if (peliculaRef.current) enviar({ tipo: "video", pelicula: peliculaRef.current });
           if (ordenRef.current[0] === perfil.id) sincronizadoRef.current = true;
         });
@@ -479,12 +503,22 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
           if (cancelado || !m?.id) return;
           nombres.set(m.id, nombreDe(m));
           if (!ordenRef.current.includes(m.id)) ordenRef.current = [...ordenRef.current, m.id];
+          setFueron((antes) => antes.filter((x) => x.id !== m.id));
           publicar();
         });
         canal.bind("pusher:member_removed", (dato) => {
           const m = dato as MiembroPusher;
           if (cancelado || !m?.id) return;
           ordenRef.current = ordenRef.current.filter((id) => id !== m.id);
+          // Lo normal es que vuelva enseguida (el iPhone corta la conexión al
+          // cambiar de app): su círculo se queda, apagado, en vez de desaparecer.
+          const nombre = nombres.get(m.id);
+          if (nombre) setFueron((antes) => [...antes.filter((x) => x.id !== m.id), { id: m.id, nombre, estado: "ausente" }]);
+          setAquiDe((antes) => {
+            const resto = { ...antes };
+            delete resto[m.id];
+            return resto;
+          });
           publicar();
         });
         canal.bind("pusher:subscription_error", () => {
@@ -509,8 +543,13 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
     const alCambiarVisibilidad = () => {
       if (document.visibilityState === "hidden") {
         ocultaDesde = Date.now();
+        // Puede ser lo último que este aparato alcance a decir antes de que
+        // el sistema lo congele: que se va un momento, y que sigue en la sala.
+        contarAqui();
+        tocarSala();
         return;
       }
+      contarAqui();
       if (!ocultaDesde || Date.now() - ocultaDesde < REHACER_TRAS_MS || !cliente) return;
       ocultaDesde = 0;
       suscritoRef.current = false;
@@ -519,8 +558,11 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       cliente.connect();
     };
     document.addEventListener("visibilitychange", alCambiarVisibilidad);
+    // «Sigo aquí»: mientras se esté en la sala, su recuerdo no caduca.
+    const latido = window.setInterval(() => tocarSala(), 60_000);
 
     return () => {
+      window.clearInterval(latido);
       document.removeEventListener("visibilitychange", alCambiarVisibilidad);
       /**
        * Quien se va, pausa a todos.
@@ -542,6 +584,8 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       canalRef.current = null;
       ordenRef.current = [];
       setMiembros([]);
+      setFueron([]);
+      setAquiDe({});
       const colgar = () => {
         try {
           // Desconectar ya da de baja el canal; darlo de baja antes mandaba
@@ -556,7 +600,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       if (despedida) window.setTimeout(colgar, 500);
       else colgar();
     };
-  }, [canalSala, configurada, perfil, enviar, estadoActual, aplicar, adoptar, lanzarCuenta]);
+  }, [canalSala, configurada, perfil, enviar, estadoActual, aplicar, adoptar, lanzarCuenta, contarAqui]);
 
   // --- Lo que hace el vídeo local, se cuenta --------------------------------
   useEffect(() => {
@@ -568,6 +612,14 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       if (esEco(esperadoRef.current, ahora, Date.now(), TOLERANCIA_S, evento.type as "play" | "pause" | "seeked")) {
         return;
       }
+      /*
+       * No era eco: lo hizo la persona. Lo que la sala esperaba del vídeo ya
+       * no vale. Sin borrarlo, durante diez segundos se seguía tomando por eco
+       * cualquier play (o pausa) que coincidiera con la última orden: quien
+       * pausaba y volvía a dar play enseguida reanudaba SOLO, y los demás se
+       * quedaban parados sin enterarse.
+       */
+      esperadoRef.current = null;
       if (pendienteRef.current) return;
       if (!dirijoRef.current && !sincronizadoRef.current) return;
       if (necesitaToqueRef.current) {
@@ -596,19 +648,28 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       arrancarAlLlegarRef.current = false;
       arrancar(elemento, elemento.currentTime);
     }
+    // Viendo o en pausa: para el círculo de este aparato, aquí y en los demás.
+    const alMarcha = () => {
+      setYoViendo(!elemento.paused);
+      contarAqui();
+    };
+    elemento.addEventListener("play", alMarcha);
+    elemento.addEventListener("pause", alMarcha);
     elemento.addEventListener("loadedmetadata", alMetadatos);
     elemento.addEventListener("volumechange", alVolumen);
     elemento.addEventListener("play", contar);
     elemento.addEventListener("pause", contar);
     elemento.addEventListener("seeked", contar);
     return () => {
+      elemento.removeEventListener("play", alMarcha);
+      elemento.removeEventListener("pause", alMarcha);
       elemento.removeEventListener("loadedmetadata", alMetadatos);
       elemento.removeEventListener("volumechange", alVolumen);
       elemento.removeEventListener("play", contar);
       elemento.removeEventListener("pause", contar);
       elemento.removeEventListener("seeked", contar);
     };
-  }, [elemento, canalSala, enviar, estadoActual, aplicar, arrancar]);
+  }, [elemento, canalSala, enviar, estadoActual, aplicar, arrancar, contarAqui]);
 
   // --- Pulso de quien dirige ------------------------------------------------
   useEffect(() => {
@@ -631,7 +692,14 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   return {
     estado,
     /** Quién está en la sala, por orden de llegada, este aparato incluido. */
-    miembros: conectada ? miembros : [],
+    miembros: conectada
+      ? miembros.map((m): Miembro => ({
+          ...m,
+          estado: m.id === yo ? (yoViendo ? "viendo" : "activo") : estadoDe(aquiDe[m.id]),
+        }))
+      : [],
+    /** Quien estaba y se le cortó la conexión: se pinta apagado, por si vuelve. */
+    ausentes: conectada ? fueron.filter((f) => !miembros.some((m) => m.id === f.id)) : [],
     yo,
     pelicula,
     elegir,

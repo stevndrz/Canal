@@ -472,6 +472,29 @@ impacto.
 - Probar en un televisor de verdad el héroe con varios destacados y el logo
   con TMDB real (aquí se probó con un simulador de TMDB).
 
+## La sala, sin repetirse (2026-11-10)
+
+Captura del dueño desde su iPhone: el código salía tres veces («SALA 8047»,
+la píldora «Juntos · 8047» y un «8 0 4 7» gigante), la carátula de la película
+encima de su propio reproductor, y un fondo marrón distinto con cada película.
+
+- Dentro de la sala: título, píldoras, reproductor, **una fila con quién está
+  y el código** (`.cine-sala`, `.cine-sala-chip`), botón principal, estado.
+  Fuera el sobretítulo, el código gigante y la píldora «Juntos» (esta solo a
+  pantalla completa).
+- El estante se guarda cuando ya hay película en la sala, o si solo hay una:
+  vuelve con «Cambiar película». Mientras se elige sigue siendo lo primero.
+- Presencia en fila: círculo de 44 px con un punto de estado —verde y latiendo
+  (`--exito`) viendo, blanco en la sala, apagado fuera un momento—, nombre y
+  estado en texto. El hueco de quien falta, con borde discontinuo.
+- Fondo: el arte solo tiñe la parte de arriba (`opacity: .5`, velo a `--fondo`
+  al 62 %). Antes cubría la página oscurecido.
+- Reproductor ≤ 640 px: el tiempo sube encima del riel, a la derecha; fuera el
+  botón de volumen (son los botones del teléfono); el grupo derecho no se
+  encoge. Medido a 393 px con subtítulos: 6 botones dentro del marco, ninguno
+  montado.
+- Sin probar en el iPhone real ni en la tele (allí los círculos van a 56 px).
+
 ## Mi enlace: «Nuestras películas» primero (2026-11-09)
 
 Pedido del dueño: que lo primero que se vea sea qué películas hay. Antes el
