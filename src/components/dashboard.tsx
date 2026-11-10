@@ -165,8 +165,13 @@ export function Dashboard({
    * —`/peliculas`— pida una sección concreta al volver.
    */
   const vistaPedida = searchParams.get("vista") as ViewId | null;
+  /**
+   * Un enlace de invitación (`/?sala=8047`) abre directamente en Mi enlace,
+   * que es quien entra en la sala (`fuente-view.tsx`).
+   */
+  const salaPedida = /^\d{4}$/.test(searchParams.get("sala") ?? "");
   const [view, setView] = useState<ViewId>(
-    vistaPedida && vistaPedida !== "player" ? vistaPedida : esTV ? "player" : "home",
+    vistaPedida && vistaPedida !== "player" ? vistaPedida : salaPedida ? "fuente" : esTV ? "player" : "home",
   );
 
   /**
