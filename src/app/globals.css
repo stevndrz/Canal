@@ -6482,3 +6482,72 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 .cine-vacio .cine-estante-titulo {
   padding-inline: 0;
 }
+
+/* ── El QR de la sala y la bienvenida de quien entra por enlace ─────── */
+
+/* En una esquina del reproductor, mientras se espera a la otra persona: no
+   mueve nada de la página y se va en cuanto alguien entra o la película arranca. */
+.cine-qr {
+  position: absolute;
+  top: clamp(10px, 1.6vw, 28px);
+  right: clamp(10px, 1.6vw, 28px);
+  z-index: 25;
+  display: flex;
+  width: clamp(112px, 11vw, 168px);
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 8px 10px;
+  border-radius: var(--radio-md);
+  background: var(--acento);
+  box-shadow: var(--sombra-2);
+  color: var(--acento-tinta);
+  pointer-events: none;
+}
+
+.cine-qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Claro de fondo y oscuro encima: al revés, muchas cámaras no lo leen. */
+.cine-qr-fondo {
+  fill: var(--acento);
+}
+
+.cine-qr-tinta {
+  fill: var(--acento-tinta);
+}
+
+.cine-qr figcaption {
+  font-size: var(--texto-2xs);
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+}
+
+:root[data-pantalla="tv"] .cine-qr {
+  width: clamp(180px, 13vw, 260px);
+}
+
+/* En el teléfono se invita con la hoja de compartir: el QR sobra (y no cabe). */
+@media (max-width: 680px) {
+  .cine-qr {
+    display: none;
+  }
+}
+
+.cine-bienvenida {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.cine-bienvenida-paso {
+  margin: 0 0 4px;
+  font-size: var(--texto-xs);
+  font-weight: 600;
+  color: var(--tinta-3);
+}

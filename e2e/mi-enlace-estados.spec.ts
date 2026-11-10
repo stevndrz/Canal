@@ -52,8 +52,19 @@ test.describe("Mi enlace por estados, en la sala", () => {
     // Quien abre ese enlace sin haber usado nunca la app: su nombre y dentro.
     const enlace = new URL(copiado.slice(copiado.indexOf("http")));
     const invitada = await abrir(browser, pusher, "iphone", enlace.pathname + enlace.search);
-    await invitada.page.getByRole("dialog", { name: "¿Cómo te llamas?" }).getByRole("textbox", { name: "Tu nombre" }).fill("Ana");
+    // La bienvenida, en tres pasos: su nombre, «ya estás dentro» y «todos mandan».
+    const alias = invitada.page.getByRole("dialog", { name: "Te invitaron a ver una película" });
+    await expect(alias).toContainText("Paso 1 de 3");
+    await alias.getByRole("textbox", { name: "Tu nombre" }).fill("Ana");
     await invitada.page.getByRole("button", { name: "Listo", exact: true }).click();
+    const dentro = invitada.page.getByRole("dialog", { name: "Ya estás dentro" });
+    await expect(dentro).toContainText(`Paso 2 de 3`);
+    await expect(dentro).toContainText(`Estás en la sala ${codigo}`);
+    await dentro.getByRole("button", { name: "Siguiente" }).click();
+    const mandan = invitada.page.getByRole("dialog", { name: "Todos mandan" });
+    await expect(mandan).toContainText("Cualquiera puede pausar");
+    await mandan.getByRole("button", { name: "Entendido" }).click();
+    await expect(invitada.page.getByRole("dialog")).toHaveCount(0);
     await expect(invitada.page.locator(".cine-codigo")).toHaveText(codigo);
     await expect(invitada.page.locator("#cine-titulo")).toHaveText("Coco");
     // El código no se queda en la barra: recargar no vuelve a «entrar por enlace».
@@ -90,6 +101,30 @@ test.describe("Mi enlace por estados, en la sala", () => {
     await expect(tele.page.locator(".cine-boton-principal")).toHaveText("Empezar sin esperar");
     await expect(tele.page.getByRole("button", { name: "Invitar" })).toHaveCount(0);
     await tele.contexto.close();
+  });
+
+  test("Tele: a solas enseña un QR que lleva a la sala, y se quita cuando entra alguien", async ({ browser }) => {
+    const tele = await abrir(browser, pusher, "tele");
+    const codigo = await crearSala(tele.page, "Tele sala");
+    const qr = tele.page.getByRole("img", { name: `Código QR para entrar en la sala ${codigo.split("").join(" ")}` });
+    await expect(qr).toBeVisible();
+    await expect(tele.page.locator(".cine-qr")).toContainText("Escanea con el teléfono");
+    // Entero dentro de la pantalla y con tamaño para leerse desde el sofá.
+    const caja = (await tele.page.locator(".cine-qr").boundingBox())!;
+    expect(caja.width).toBeGreaterThanOrEqual(180);
+    expect(caja.x + caja.width).toBeLessThanOrEqual(1920);
+    expect(caja.y).toBeGreaterThanOrEqual(0);
+    // Qué codifica lo prueba `invitar.test.ts`; aquí, que se pinta de verdad
+    // (el Chromium de pruebas no trae lector de códigos).
+    expect((await tele.page.locator(".cine-qr-tinta").getAttribute("d"))!.length).toBeGreaterThan(500);
+
+    const iphone = await abrir(browser, pusher, "iphone", `/?sala=${codigo}`);
+    await iphone.page.getByRole("textbox", { name: "Tu nombre" }).fill("Ana");
+    await iphone.page.getByRole("button", { name: "Listo", exact: true }).click();
+    await expect(tele.page.getByLabel("Quién está en la sala")).toContainText("Ana");
+    await expect(tele.page.locator(".cine-qr")).toHaveCount(0);
+    await tele.contexto.close();
+    await iphone.contexto.close();
   });
 
   test("Viendo no hay botón principal; en pausa dice quién pausó y «Seguir» reanuda a los dos", async ({ browser }) => {
