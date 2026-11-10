@@ -61,6 +61,35 @@ La sala no controla el vídeo, pero sí lleva **el reloj**:
 Precisión esperable: ±2–3 s (lo que tarda una persona en pulsar). Suficiente
 para reírse a la vez; no para un final con giro sorpresa.
 
+## Cómo quedó hecho (2026-11-10)
+
+En la ficha de un título, bajo el reproductor, **solo si este aparato ya
+estuvo en una sala** (las salas se crean en Mi enlace): un enlace de texto
+«Ver a la vez con la sala 4821». No se conecta a nada hasta pulsarlo, y no
+aparece en Mi enlace ni compite con «Nuestras películas».
+
+Al pulsarlo sale una franja con el guion de arriba: **Listo** → **Empezar**
+(cuenta atrás 3·2·1 en todos) → «Deberían ir por 12:34» → **Pausa para
+todos** / **Seguir todos** / **Voy por…** (se escribe `12:34`, o `47` para el
+minuto 47). Si otra persona de la sala está en otro título, lo dice con un
+enlace a su ficha.
+
+- Es la misma sala de siempre (código, presencia, firma), pero sus mensajes
+  van por otro evento (`client-reloj`): no le tocan el vídeo a quien esté en
+  Mi enlace en esa misma sala.
+- Nadie mira el reloj de pared: cada aparato cuenta con su cronómetro y quien
+  llegó primero re-ancla a los demás cada 5 s si se nota la diferencia.
+- La franja **no toca el reproductor de Vimeus**: ni lo pausa, ni lo lee, ni
+  esquiva sus anuncios. Cada persona pausa y da play en el suyo.
+- **En la tele**: en modo cine el reproductor ocupa la pantalla y el mando
+  queda dentro del marco del servidor, así que la franja no se ve ni se
+  alcanza. Quien tenga el teléfono lleva el reloj y avisa. Es un límite
+  aceptado, no un fallo pendiente.
+
+Código: `lib/ver-juntos/reloj.ts` (el reloj, puro), `lib/ver-juntos/conexion.ts`
+(entrar en la sala sin vídeo), `hooks/use-reloj-sala.ts` y
+`components/catalog/sala-suave.tsx`.
+
 ## Mensaje para Vimeus (para mandarlo el dueño)
 
 > Hola, soy socio con API key (cuenta CanalCasa). Uso su reproductor embebido

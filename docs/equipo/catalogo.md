@@ -39,6 +39,26 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Sincronía suave con Vimeus, y un «Empezar» que arrancaba antes de tiempo
+
+- La franja de la ficha (`sala-suave.tsx`) y su reloj: detalle en
+  `docs/VIMEUS-JUNTOS.md`. Sin CSS nuevo (utilidades con los tokens y
+  `.cine-boton-texto`/`.cine-cuenta`, que ya existían).
+- `lib/ver-juntos/conexion.ts` es la conexión de sala sin vídeo. **Pendiente**:
+  que `use-ver-juntos.ts` la use también (hoy lleva su copia); no se tocó para
+  no mezclar un refactor con una función nueva.
+- Pruebas: 6 del reloj; con Playwright, dos aparatos hacen el guion entero y
+  un tercero que llega tarde recibe el minuto. Las pruebas levantan un TMDB de
+  mentira (`TMDB_API_BASE`) para que exista una ficha.
+- **Fallo que ya estaba en `main`, encontrado por la prueba de «Retomar»**: al
+  pulsar «Empezar», el play-y-pausa que desbloquea el sonido en Safari salía a
+  la sala como un «estado» en marcha, y el otro aparato arrancaba durante la
+  cuenta atrás, 3 s por delante. Arreglado (`desbloqueandoRef`), y quien
+  arranca con la cuenta atrás ya cuenta como sincronizado (antes su pausa de
+  los primeros 5 s se ignoraba si no dirigía).
+- Sin probar: Vimeus de verdad dentro del marco (en las pruebas se corta), la
+  tele, y la precisión real entre personas (estimada ±2–3 s).
+
 ### 2026-11-09 — Seguir viendo juntos, historial y sala recordada
 
 - `lib/ver-juntos/historial.ts` (puro, 6 pruebas): cada aparato de la sala
