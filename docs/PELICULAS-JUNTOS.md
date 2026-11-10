@@ -107,6 +107,7 @@ tu PC, con la lista de películas y su estado («En la app ✓», «Por subir»,
 | Botón | Qué hace |
 |---|---|
 | **+ Agregar película** | Abre el selector de Windows. Elige el vídeo (y sus .srt, si quieres) de **cualquier carpeta**: USB, `D:\`… Se **copia** a la carpeta (el original no se toca) con sus subtítulos, y pregunta si subirla ya |
+| **Descargar desde un enlace** | Pegas el enlace **directo** a un `.mkv` o `.mp4` y el PC lo baja a la carpeta, con barra de avance y «Cancelar descarga». Si se corta sigue por donde iba; si el enlace abre una página web y no el archivo, lo dice. No sobrescribe nada (« (2)») y comprueba antes que cabe en el disco |
 | **Subir cambios (n)** | La sincronización de siempre, con barra de progreso. Si hay que borrar algo de la nube, pregunta |
 | **+ Subtítulo** (en cada fila) | Copia un .srt al lado de esa película, con su nombre. Después, «Subir cambios» |
 | **Borrar** (en cada fila) | Pregunta, y la quita **de la app y del PC**: sus archivos van a la **Papelera** (se pueden recuperar) |
