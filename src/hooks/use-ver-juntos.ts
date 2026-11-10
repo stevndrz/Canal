@@ -14,6 +14,7 @@ import {
   type VideoDeSala,
 } from "@/lib/ver-juntos/sala";
 import { registrarSala } from "@/lib/reproduccion/metricas";
+import { abrirCanalDeSala, type CanalDeSala } from "@/lib/ver-juntos/conexion";
 import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
 import { leerSalaRecordada, recordarSala, tocarSala, type Perfil } from "@/lib/ver-juntos/recordar";
 
@@ -74,38 +75,11 @@ export interface AvisoSala {
   n: number;
 }
 
-interface MiembroPusher {
-  id: string;
-  info?: { nombre?: unknown };
-}
-interface MiembrosPusher {
-  each(fn: (miembro: MiembroPusher) => void): void;
-  me?: MiembroPusher | null;
-}
-interface CanalPusher {
-  bind(evento: string, fn: (dato: unknown, metadatos?: { user_id?: string }) => void): void;
-  trigger(evento: string, dato: MensajeSala): boolean;
-}
-interface ClientePusher {
-  subscribe(canal: string): CanalPusher;
-  unsubscribe(canal: string): void;
-  connect(): void;
-  disconnect(): void;
-  connection: {
-    bind(evento: string, fn: (cambio?: { current?: string }) => void): void;
-  };
-}
-
 export interface OpcionesSala {
   /** El alias y el id de este aparato; sin perfil no se entra. */
   perfil: Perfil | null;
   /** El código de la sala; vacío = fuera, no se conecta nada. */
   codigo: string;
-}
-
-function nombreDe(miembro: MiembroPusher): string {
-  const nombre = miembro.info?.nombre;
-  return typeof nombre === "string" && nombre ? nombre : "Alguien";
 }
 
 export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
@@ -135,8 +109,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   /** Cómo está este aparato, para su propio círculo. */
   const [yoViendo, setYoViendo] = useState(false);
 
-  const canalRef = useRef<CanalPusher | null>(null);
-  const suscritoRef = useRef(false);
+  const canalRef = useRef<CanalDeSala | null>(null);
   const elementoRef = useRef<HTMLVideoElement | null>(null);
   /** Lo último que la sala le pidió al vídeo local: sus eventos son eco. */
   const esperadoRef = useRef<Esperado | null>(null);
@@ -189,16 +162,9 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
     dirijoRef.current = dirijo;
   });
 
+  /** Manda a los demás. Sin suscripción (aún, o ya) no hace nada, y nunca rompe la reproducción. */
   const enviar = useCallback((mensaje: MensajeSala) => {
-    const canal = canalRef.current;
-    if (!canal || !suscritoRef.current) return;
-    try {
-      canal.trigger(EVENTO, mensaje);
-    } catch (error) {
-      // Falla si «Enable client events» está apagado en el panel de Pusher.
-      // No debe romper la reproducción de nadie.
-      console.warn("Ver juntos: no se pudo enviar", error);
-    }
+    canalRef.current?.enviar(mensaje);
   }, []);
 
   /** Le cuenta a la sala cómo está este aparato: delante o no, viendo o no. */
@@ -406,7 +372,6 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   useEffect(() => {
     if (!canalSala || !configurada || !perfil) return;
     let cancelado = false;
-    let cliente: ClientePusher | null = null;
     sincronizadoRef.current = false;
     ordenRef.current = [];
 
@@ -422,10 +387,9 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       setAviso({ nombre, que, n: avisosRef.current });
     };
 
-    const recibir = (dato: unknown, metadatos?: { user_id?: string }) => {
+    const recibir = (dato: unknown, de: string | undefined) => {
       const mensaje = leerMensaje(dato);
       if (!mensaje || cancelado) return;
-      const de = metadatos?.user_id;
 
       if (mensaje.tipo === "aqui") {
         if (de) setAquiDe((antes) => ({ ...antes, [de]: { visible: mensaje.visible, viendo: mensaje.viendo } }));
@@ -466,93 +430,54 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       aplicar(mensaje.tiempo, mensaje.pausado, Boolean(mensaje.pulso));
     };
 
-    (async () => {
-      try {
-        // Carga diferida: solo quien entra en la sala paga estos KB.
-        const { default: Pusher } = await import("pusher-js");
+    // La conexión es la de todas las salas (`lib/ver-juntos/conexion.ts`):
+    // aquí solo va lo que esta sala hace con ella.
+    const canal = abrirCanalDeSala(perfil, codigo, EVENTO, {
+      miembros: (lista, por) => {
         if (cancelado) return;
-        cliente = new Pusher(publicConfig.pusherKey, {
-          cluster: publicConfig.pusherCluster,
-          channelAuthorization: {
-            endpoint: "/api/pusher/auth",
-            transport: "ajax",
-            // Quién eres: la ruta lo pone en la presencia tal cual (el alias,
-            // limpio). No hay cuentas; se comprueba a ojo.
-            params: { id: perfil.id, nombre: perfil.nombre },
-          },
-        }) as unknown as ClientePusher;
-
-        const canal = cliente.subscribe(canalSala);
-        canalRef.current = canal;
-        canal.bind("pusher:subscription_succeeded", (dato) => {
-          if (cancelado) return;
-          suscritoRef.current = true;
-          // Los que ya estaban, antes; yo, al final. Entre ellos, por id, para
-          // que todos vean el mismo orden.
-          const otros: string[] = [];
-          nombres.clear();
-          (dato as MiembrosPusher | undefined)?.each((m) => {
-            nombres.set(m.id, nombreDe(m));
-            if (m.id !== perfil.id) otros.push(m.id);
-          });
-          nombres.set(perfil.id, perfil.nombre);
-          ordenRef.current = [...otros.sort(), perfil.id];
-          publicar();
-          setConexion({ canal: canalSala, estado: "conectada" });
-          // Quien llega pide el estado, y cuenta su película: la más nueva gana.
-          // Esto corre también al reconectar.
-          enviar({ tipo: "hola" });
-          contarAqui();
-          // Quien vuelve deja de estar «fuera».
-          setFueron((antes) => antes.filter((m) => ordenRef.current.indexOf(m.id) < 0));
-          if (peliculaRef.current) enviar({ tipo: "video", pelicula: peliculaRef.current });
-          if (ordenRef.current[0] === perfil.id) sincronizadoRef.current = true;
-        });
-        canal.bind("pusher:member_added", (dato) => {
-          const m = dato as MiembroPusher;
-          if (cancelado || !m?.id) return;
-          nombres.set(m.id, nombreDe(m));
-          if (!ordenRef.current.includes(m.id)) ordenRef.current = [...ordenRef.current, m.id];
-          setFueron((antes) => antes.filter((x) => x.id !== m.id));
-          publicar();
-        });
-        canal.bind("pusher:member_removed", (dato) => {
-          const m = dato as MiembroPusher;
-          if (cancelado || !m?.id) return;
-          ordenRef.current = ordenRef.current.filter((id) => id !== m.id);
+        const antes = ordenRef.current;
+        ordenRef.current = lista.map((m) => m.id);
+        if (por === "entrada") nombres.clear();
+        for (const m of lista) nombres.set(m.id, m.nombre);
+        if (por === "alta") {
+          setFueron((fuera) => fuera.filter((x) => ordenRef.current.indexOf(x.id) < 0));
+        } else if (por === "baja") {
           // Lo normal es que vuelva enseguida (el iPhone corta la conexión al
           // cambiar de app): su círculo se queda, apagado, en vez de desaparecer.
-          const nombre = nombres.get(m.id);
-          if (nombre) setFueron((antes) => [...antes.filter((x) => x.id !== m.id), { id: m.id, nombre, estado: "ausente" }]);
-          setAquiDe((antes) => {
-            const resto = { ...antes };
-            delete resto[m.id];
-            return resto;
-          });
-          publicar();
-        });
-        canal.bind("pusher:subscription_error", () => {
-          if (cancelado) return;
-          setConexion({ canal: canalSala, estado: "error" });
-          registrarSala("sin_conexion", { motivo: "firma" });
-        });
-        canal.bind(EVENTO, recibir);
-        cliente.connection.bind("error", () => {
-          if (cancelado) return;
-          setConexion({ canal: canalSala, estado: "error" });
-          registrarSala("corte", { motivo: "conexion" });
-        });
-        // Sin conexión no hay suscripción: lo que se mande ahí se pierde, y
-        // al volver `subscription_succeeded` lo pone otra vez en marcha.
-        cliente.connection.bind("state_change", (cambio) => {
-          if (cambio?.current !== "connected") suscritoRef.current = false;
-        });
-      } catch (error) {
-        console.error("❌ Ver juntos: no se pudo conectar", error);
-        if (!cancelado) setConexion({ canal: canalSala, estado: "error" });
-        registrarSala("sin_conexion", { motivo: "carga" });
-      }
-    })();
+          for (const id of antes) {
+            if (ordenRef.current.includes(id)) continue;
+            const nombre = nombres.get(id);
+            if (nombre) setFueron((fuera) => [...fuera.filter((x) => x.id !== id), { id, nombre, estado: "ausente" }]);
+            setAquiDe((aqui) => {
+              const resto = { ...aqui };
+              delete resto[id];
+              return resto;
+            });
+          }
+        }
+        publicar();
+      },
+      // Suscrito. Corre también al reconectar.
+      dentro: () => {
+        if (cancelado) return;
+        setConexion({ canal: canalSala, estado: "conectada" });
+        // Quien llega pide el estado, y cuenta su película: la más nueva gana.
+        enviar({ tipo: "hola" });
+        contarAqui();
+        // Quien vuelve deja de estar «fuera».
+        setFueron((fuera) => fuera.filter((m) => ordenRef.current.indexOf(m.id) < 0));
+        if (peliculaRef.current) enviar({ tipo: "video", pelicula: peliculaRef.current });
+        if (ordenRef.current[0] === perfil.id) sincronizadoRef.current = true;
+      },
+      mensaje: recibir,
+      error: (motivo) => {
+        if (cancelado) return;
+        setConexion({ canal: canalSala, estado: "error" });
+        if (motivo === "conexion") registrarSala("corte", { motivo });
+        else registrarSala("sin_conexion", { motivo });
+      },
+    });
+    canalRef.current = canal;
 
     let ocultaDesde = 0;
     const alCambiarVisibilidad = () => {
@@ -565,13 +490,10 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
         return;
       }
       contarAqui();
-      if (!ocultaDesde || Date.now() - ocultaDesde < REHACER_TRAS_MS || !cliente) return;
+      if (!ocultaDesde || Date.now() - ocultaDesde < REHACER_TRAS_MS) return;
       registrarSala("corte", { motivo: "segundo_plano", s: Math.round((Date.now() - ocultaDesde) / 1000) });
       ocultaDesde = 0;
-      suscritoRef.current = false;
-      // `pusher-js` vuelve a suscribir sus canales solo al reconectar.
-      cliente.disconnect();
-      cliente.connect();
+      canal.rehacer();
     };
     document.addEventListener("visibilitychange", alCambiarVisibilidad);
     // «Sigo aquí»: mientras se esté en la sala, su recuerdo no caduca.
@@ -591,32 +513,21 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
        */
       const v = elementoRef.current;
       let despedida = false;
-      if (suscritoRef.current && v && !v.paused && (dirijoRef.current || sincronizadoRef.current)) {
+      if (canal.suscrito() && v && !v.paused && (dirijoRef.current || sincronizadoRef.current)) {
         enviar({ tipo: "estado", tiempo: v.currentTime, pausado: true });
         despedida = true;
       }
       cancelado = true;
-      suscritoRef.current = false;
+      // Colgar en el mismo instante perdía la despedida (medido: el mensaje
+      // no llegaba al otro). Medio segundo le da tiempo a salir.
+      canal.cerrar(despedida ? 500 : 0);
       canalRef.current = null;
       ordenRef.current = [];
       setMiembros([]);
       setFueron([]);
       setAquiDe({});
-      const colgar = () => {
-        try {
-          // Desconectar ya da de baja el canal; darlo de baja antes mandaba
-          // un mensaje más por un socket que se estaba cerrando.
-          cliente?.disconnect();
-        } catch {
-          // Cerrar una conexión ya cerrada no es un problema.
-        }
-      };
-      // Colgar en el mismo instante perdía la despedida (medido: el mensaje
-      // no llegaba al otro). Medio segundo le da tiempo a salir.
-      if (despedida) window.setTimeout(colgar, 500);
-      else colgar();
     };
-  }, [canalSala, configurada, perfil, enviar, estadoActual, aplicar, adoptar, lanzarCuenta, contarAqui]);
+  }, [canalSala, codigo, configurada, perfil, enviar, estadoActual, aplicar, adoptar, lanzarCuenta, contarAqui]);
 
   // --- Lo que hace el vídeo local, se cuenta --------------------------------
   useEffect(() => {
