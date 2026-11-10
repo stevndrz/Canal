@@ -69,6 +69,17 @@ const datos = createServer((peticion, respuesta) => {
     respuesta.end(JSON.stringify(CATALOGO));
   } else if (ruta.endsWith("/pelicula.webm")) {
     servirVideo(peticion, respuesta);
+  } else if (ruta.startsWith("/tmdb/")) {
+    // Un TMDB de mentira: lo justo para que exista la ficha de una película.
+    const ficha = /^\/tmdb\/movie\/(\d+)$/.exec(ruta);
+    respuesta.writeHead(200, { "Content-Type": "application/json" });
+    respuesta.end(
+      JSON.stringify(
+        ficha
+          ? { id: Number(ficha[1]), title: "Película de prueba", overview: "Una sinopsis.", release_date: "2020-01-01", runtime: 100, genres: [], vote_average: 7 }
+          : { page: 1, total_pages: 1, results: [] },
+      ),
+    );
   } else {
     respuesta.writeHead(404).end();
   }
@@ -79,7 +90,8 @@ const datos = createServer((peticion, respuesta) => {
     ...process.env,
     M3U_URL: `${URL_DATOS}/lista.m3u`,
     EPG_URL: "",
-    TMDB_API_KEY: "",
+    TMDB_API_KEY: "clave-de-prueba",
+    TMDB_API_BASE: `${URL_DATOS}/tmdb`,
     VIMEUS_API_KEY: "",
     NEXT_PUBLIC_PELICULAS_URL: URL_DATOS,
     NEXT_PUBLIC_PUSHER_KEY: CLAVE_PUSHER,
