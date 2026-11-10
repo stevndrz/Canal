@@ -133,6 +133,8 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   const pendienteRef = useRef<{ tiempo: number; pausado: boolean } | null>(null);
   const sincronizadoRef = useRef(false);
   const necesitaToqueRef = useRef(false);
+  /** El play-y-pausa de «Empezar» que desbloquea el sonido: no es de nadie. */
+  const desbloqueandoRef = useRef(false);
   /** Al acabar la cuenta atrás no había vídeo todavía: arranca en cuanto llegue. */
   const arrancarAlLlegarRef = useRef(false);
   /** Orden de llegada que ve este aparato, `yo` incluido. */
@@ -335,6 +337,9 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       setCuenta(null);
       // Arrancan todos a la vez y desde donde estén: el pulso de quien dirige
       // iguala lo que quede de diferencia.
+      // Quien arranca con la cuenta atrás ya va con la sala: su pausa o su
+      // salto de los primeros segundos cuentan, sin esperar al primer pulso.
+      sincronizadoRef.current = true;
       const v = elementoRef.current;
       if (v) arrancar(v, v.currentTime);
       else arrancarAlLlegarRef.current = true;
@@ -352,10 +357,20 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   const empezar = useCallback(() => {
     const v = elementoRef.current;
     if (v && v.paused) {
+      /*
+       * Ese play no se le cuenta a la sala. Antes sí: salía como un «estado»
+       * en marcha y el otro aparato arrancaba YA, durante la cuenta atrás,
+       * tres segundos por delante hasta que un pulso lo corregía (y si quien
+       * pulsaba no dirigía, era quien dirige el que iba adelantado). La pausa
+       * de después sí se reconocía como eco; el play, no.
+       */
+      desbloqueandoRef.current = true;
       esperadoRef.current = { tiempo: v.currentTime, pausado: true, desde: Date.now() };
       v.play()
         .then(() => v.pause())
-        .catch(() => {});
+        .catch(() => {})
+        // Sus eventos llegan un instante después; la cuenta atrás dura segundos.
+        .finally(() => window.setTimeout(() => (desbloqueandoRef.current = false), 400));
     }
     enviar({ tipo: "empezar" });
     lanzarCuenta();
@@ -547,6 +562,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   useEffect(() => {
     if (!elemento || !canalSala) return;
     const contar = (evento: Event) => {
+      if (desbloqueandoRef.current) return;
       // Lo que acabamos de aplicar desde fuera es eco: no se devuelve.
       const ahora = { tiempo: elemento.currentTime, pausado: elemento.paused };
       if (esEco(esperadoRef.current, ahora, Date.now(), TOLERANCIA_S, evento.type as "play" | "pause" | "seeked")) {

@@ -74,6 +74,10 @@ test.describe("Ver juntos", () => {
 
     await pc.page.getByRole("button", { name: "Empezar", exact: true }).click();
     await expect(iphone.page.locator(".cine-cuenta")).toBeVisible();
+    // Durante la cuenta atrás no arranca nadie: los dos empiezan al acabar.
+    await pc.page.waitForTimeout(1200);
+    expect((await video(iphone.page))?.pausado).toBe(true);
+    expect((await video(pc.page))?.pausado).toBe(true);
     await esperarReproduciendo(pc.page);
     await esperarReproduciendo(iphone.page);
 
