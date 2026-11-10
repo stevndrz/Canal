@@ -7,9 +7,12 @@ import { ID_APARATO, limpiarNombre, normalizarCodigo, type PeliculaDeSala } from
  *
  * - **Su perfil** (`localStorage`): el alias que eligió la persona y un id al
  *   azar para la presencia. Se elige una vez; se puede cambiar.
- * - **La sala en la que está** (`sessionStorage`): el código y su película.
- *   Salir de Mi enlace —Atrás en el mando— no saca de la sala; al volver se
- *   entra sola. Dura lo que la pestaña.
+ * - **La sala en la que está** (`localStorage`, con la hora): el código y su
+ *   película. Salir de Mi enlace —Atrás en el mando— no saca de la sala; al
+ *   volver se entra sola. Antes vivía en `sessionStorage`, y el iPhone lo
+ *   vacía cada vez que cierra la app (contestar un mensaje basta): al volver
+ *   había que entrar otra vez con el código. Ahora dura `VIGENCIA_SALA_MS`
+ *   desde la última vez que se estuvo en ella; se sale con «Salir de la sala».
  * - **La última sala** (`localStorage`): solo su código, para ofrecer «Volver
  *   a la sala 4821» otro día. Si los dos aparatos vuelven a la misma, es como
  *   tener una sala fija de la casa sin tener que dictarse el código cada vez.
@@ -30,6 +33,11 @@ export interface SalaRecordada {
   codigo: string;
   pelicula: PeliculaDeSala | null;
 }
+
+/** Pasado esto sin estar en la sala, ya no se entra sola: es otra noche. */
+export const VIGENCIA_SALA_MS = 6 * 60 * 60 * 1000;
+/** Si se estaba en la sala hace menos de esto, la app abre directamente en ella. */
+export const SALA_RECIENTE_MS = 30 * 60 * 1000;
 
 function leer(almacen: "local" | "session", clave: string): unknown {
   try {
@@ -81,15 +89,34 @@ function leerPelicula(p: unknown): PeliculaDeSala | null {
   };
 }
 
-export function leerSalaRecordada(): SalaRecordada | null {
-  const s = leer("session", CLAVE_SALA) as Record<string, unknown> | null;
+function leerSalaConHora(): (SalaRecordada & { en: number }) | null {
+  const s = leer("local", CLAVE_SALA) as Record<string, unknown> | null;
   if (!s || typeof s !== "object") return null;
   const codigo = normalizarCodigo(String(s.codigo ?? ""));
-  return codigo ? { codigo, pelicula: leerPelicula(s.pelicula) } : null;
+  const en = typeof s.en === "number" ? s.en : 0;
+  return codigo ? { codigo, pelicula: leerPelicula(s.pelicula), en } : null;
 }
 
-export function recordarSala(sala: SalaRecordada | null): void {
-  escribir("session", CLAVE_SALA, sala);
+export function leerSalaRecordada(ahora: number = Date.now()): SalaRecordada | null {
+  const sala = leerSalaConHora();
+  if (!sala || ahora - sala.en > VIGENCIA_SALA_MS || sala.en > ahora + 60_000) return null;
+  return { codigo: sala.codigo, pelicula: sala.pelicula };
+}
+
+export function recordarSala(sala: SalaRecordada | null, ahora: number = Date.now()): void {
+  escribir("local", CLAVE_SALA, sala ? { ...sala, en: ahora } : null);
+}
+
+/** «Sigo aquí»: renueva la hora de la sala sin cambiar nada más. */
+export function tocarSala(ahora: number = Date.now()): void {
+  const sala = leerSalaConHora();
+  if (sala) escribir("local", CLAVE_SALA, { ...sala, en: ahora });
+}
+
+/** ¿Se estaba en una sala hace un momento? Entonces la app abre en ella. */
+export function haySalaReciente(ahora: number = Date.now()): boolean {
+  const sala = leerSalaConHora();
+  return Boolean(sala && ahora >= sala.en - 60_000 && ahora - sala.en < SALA_RECIENTE_MS);
 }
 
 export function leerUltimaSala(): string {
