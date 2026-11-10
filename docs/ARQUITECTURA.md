@@ -168,7 +168,10 @@ mentira (`e2e/pusher-falso.ts`) pero comprueba la firma de `/api/pusher/auth`
 con el secreto, igual que el de verdad; la lista M3U y el «bucket» de películas
 los sirve `e2e/servidor.mjs`, que además compila la app con las variables de
 prueba. Lo que **no** cubren: HLS y H.264 (el Chromium de pruebas no los trae;
-la película de prueba es WebM), Safari y el bloqueo de sonido del iPhone.
+la película de prueba es WebM) y el bloqueo de sonido del iPhone. En el CI,
+las pruebas de cómo se ve Mi enlace corren además con **WebKit**, el motor de
+Safari (proyecto `safari`; a mano, `CANALCASA_SAFARI=1 npm run e2e`): pinta
+como el iPhone, pero no es iOS.
 
 Dos avisos: se lanza con el servidor de desarrollo **parado** (compila, y un
 build con `next dev` encendido rompe `.next`), y deja en `.next` una compilación

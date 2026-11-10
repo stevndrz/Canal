@@ -94,8 +94,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Chromium de pruebas
-        run: npx playwright install --with-deps chromium
+      # WebKit es el motor de Safari: pinta como el iPhone (ver playwright.config.ts).
+      - name: Chromium y WebKit de pruebas
+        run: npx playwright install --with-deps chromium webkit
 
       - name: Pruebas de navegador
         run: npm run e2e
