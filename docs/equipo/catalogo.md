@@ -75,6 +75,31 @@ empaquetado y se desempaquetó como texto). Detalle en `docs/VIMEUS-JUNTOS.md`.
   `playUI`, `autoplay`…
 - Propuesta: reloj compartido de la sala + «Listo» después de los anuncios +
   «Pausa para todos» / «Voy por…». Sin construir: espera al dueño.
+### 2026-11-09 — Panel con botones para Nuestras películas
+
+El dueño pidió «algo visual, con botones al mínimo» para cargar, borrar y
+elegir de otras carpetas. Decidió: borrar = nube + PC (a la Papelera);
+agregar de otra carpeta = copiar. Es un servidor Node local (`panel.mjs`) y una
+página sin compilar (`panel/index.html`), encima del mismo motor.
+
+- `lib/entorno.mjs`: lo común con la consola (config, candado, registro,
+  lanzar programas). La consola respeta ahora la `Carpeta` de peliculas.json.
+- `lib/estado.mjs`: una fila por película cruzando carpeta, catálogo y plan.
+  Ojo: «adoptar» y «renombrar» traen `entrada` en la acción; «igual» no tiene
+  acción y se empareja por huella.
+- `lib/agregar.mjs`: copia como `.part` y **le deja la fecha del original**;
+  sin eso, la copia parecía recién descargada y se saltaba 2 minutos.
+- Borrar: primero el PC (Papelera), luego la nube. Al revés, si la nube
+  fallara después, la siguiente vuelta volvería a subirla.
+- «Subir cambios» contesta solo el «¿Lo hago?» (el botón ya es la
+  confirmación); borrar de la nube sigue preguntando.
+- Seguridad: 127.0.0.1, token por sesión, rechaza otro Host/Origin; las rutas
+  salen del escaneo del servidor, nunca del navegador.
+- Probado: pruebas con nube local y ffmpeg real, y Playwright contra
+  `node panel.mjs` con un rclone falso y diálogos falsos
+  (`CANALCASA_DIALOGOS_FALSOS`). **Sin probar en Windows**: los selectores
+  reales (PowerShell `-STA` + WinForms), la Papelera, `start` para abrir el
+  navegador y rutas con `\` y espacios.
 
 ### 2026-11-09 — Vimeus con cuenta propia: series en latino y sin «Not Found»
 
