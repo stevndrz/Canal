@@ -36,6 +36,23 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — «Sincronizar sola» encuentra Node, y `npm run e2e` vuelve a arrancar en la nube
+
+- `sincronizar-sola.cmd` se quedó fuera del #101: seguía con `where node`, que
+  falla cuando el Explorador hereda el PATH de antes de instalar Node. Ahora
+  usa `buscar-node.cmd` como `sincronizar.cmd` y `panel.cmd`. La tarea guarda
+  la ruta completa de ese Node (`process.execPath`), así que tampoco depende
+  del PATH cada diez minutos.
+- `scripts/peliculas/sincronizar/cmd.test.mjs`: aquí no hay `cmd.exe`, pero se
+  vigila lo que ya falló: que ningún `.cmd` lance `node` a secas, que todos
+  lleven CRLF y solo ASCII.
+- `playwright.config.ts`: el #102 subió `@playwright/test` a 1.65 y el
+  Chromium que traen las sesiones en la nube es de otra versión: la suite
+  entera fallaba con «Executable doesn't exist». Si existe
+  `/opt/pw-browsers/chromium` (y no es el CI) se usa ese; `CANALCASA_CHROMIUM`
+  apunta a otro. En el CI y en un PC no cambia nada.
+- Sin probar: el `.cmd` en Windows de verdad.
+
 ### 2026-11-09 — Las pruebas de navegador ya viven en el repo (`npm run e2e`)
 
 Hasta hoy cada sesión rehacía a mano las pruebas de Playwright y se perdían.
