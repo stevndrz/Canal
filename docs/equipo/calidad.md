@@ -36,6 +36,24 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — Una sola conexión de sala
+
+- `use-ver-juntos.ts` llevaba su propia copia de la conexión a Pusher (crear
+  el cliente, suscribirse, presencia, errores, colgar) mezclada con el vídeo.
+  Ahora usa `lib/ver-juntos/conexion.ts`, la misma que la sincronía suave. El
+  hook baja de 745 a 646 líneas y deja de declarar los tipos de Pusher.
+- `conexion.ts` ganó lo que el hook hacía de más: por qué cambió la lista
+  (`entrada` | `alta` | `baja`), qué falló (`firma` | `conexion` | `carga`),
+  `rehacer()` (volver de segundo plano en iPhone), `suscrito()` y
+  `cerrar(trasMs)` (deja salir la despedida antes de colgar).
+- **Sin cambio de comportamiento buscado.** Mismos mensajes, mismo orden de
+  presencia, mismos eventos de telemetría. Lo sostienen las pruebas de
+  navegador de la sala y de la sincronía suave (21), que pasan igual.
+- No hay prueba unitaria de `conexion.ts`: importa `pusher-js` en diferido y
+  lo que importa es el comportamiento entre aparatos, que ya cubre `e2e/`.
+- Sin probar: Pusher de verdad y el iPhone (el camino de `rehacer`).
+- Pendiente del mismo punto del plan: partir `native-player.tsx`.
+
 ### 2026-11-10 — Pruebas con el motor de Safari (WebKit), en el CI
 
 - Proyecto `safari` en `playwright.config.ts`: solo `nuestras-peliculas.spec.ts`
