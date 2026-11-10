@@ -15,7 +15,7 @@ import {
 } from "@/lib/ver-juntos/sala";
 import { registrarSala } from "@/lib/reproduccion/metricas";
 import { abrirCanalDeSala, type CanalDeSala } from "@/lib/ver-juntos/conexion";
-import { esEco, type Esperado } from "@/lib/ver-juntos/eco";
+import { ESPERA_PULSO_MS, esEco, pulsoVigente, type Esperado } from "@/lib/ver-juntos/eco";
 import { leerSalaRecordada, recordarSala, tocarSala, type Perfil } from "@/lib/ver-juntos/recordar";
 
 /**
@@ -117,6 +117,8 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
   const pendienteRef = useRef<{ tiempo: number; pausado: boolean } | null>(null);
   const sincronizadoRef = useRef(false);
   const necesitaToqueRef = useRef(false);
+  /** Cuándo mandó este aparato algo suyo por última vez (play, pausa o salto de la persona). Ver `pulsoVigente`. */
+  const accionLocalRef = useRef(0);
   /** El play-y-pausa de «Empezar» que desbloquea el sonido: no es de nadie. */
   const desbloqueandoRef = useRef(false);
   /** Al acabar la cuenta atrás no había vídeo todavía: arranca en cuanto llegue. */
@@ -387,6 +389,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       setAviso({ nombre, que, n: avisosRef.current });
     };
 
+    let pulsoPendiente = 0;
     const recibir = (dato: unknown, de: string | undefined) => {
       const mensaje = leerMensaje(dato);
       if (!mensaje || cancelado) return;
@@ -420,14 +423,27 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       }
       // Estado. El pulso solo lo sigue quien no dirige; lo demás —un play, una
       // pausa o un salto de cualquiera— lo siguen todos.
-      if (mensaje.pulso && dirijoRef.current) return;
+      if (mensaje.pulso) {
+        if (dirijoRef.current) return;
+        // Un instante de espera y, si entre tanto la persona tocó algo, fuera:
+        // ese pulso salió antes de saberlo. Ver `pulsoVigente` (eco.ts).
+        window.clearTimeout(pulsoPendiente);
+        pulsoPendiente = window.setTimeout(() => {
+          if (cancelado || dirijoRef.current || !pulsoVigente(Date.now(), accionLocalRef.current)) return;
+          // Lo que la película avanzó mientras esperaba.
+          aplicar(mensaje.tiempo + (mensaje.pausado ? 0 : ESPERA_PULSO_MS / 1000), mensaje.pausado, true);
+        }, ESPERA_PULSO_MS);
+        return;
+      }
       const v = elementoRef.current;
       if (!mensaje.pulso && v) {
         if (mensaje.pausado && !v.paused) avisar(de, "pausó");
         else if (!mensaje.pausado && v.paused) avisar(de, "reanudó");
         else if (Math.abs(v.currentTime - mensaje.tiempo) > 10) avisar(de, "saltó");
       }
-      aplicar(mensaje.tiempo, mensaje.pausado, Boolean(mensaje.pulso));
+      // Una orden de alguien manda sobre el pulso que estuviera esperando.
+      window.clearTimeout(pulsoPendiente);
+      aplicar(mensaje.tiempo, mensaje.pausado);
     };
 
     // La conexión es la de todas las salas (`lib/ver-juntos/conexion.ts`):
@@ -520,6 +536,7 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
       cancelado = true;
       // Colgar en el mismo instante perdía la despedida (medido: el mensaje
       // no llegaba al otro). Medio segundo le da tiempo a salir.
+      window.clearTimeout(pulsoPendiente);
       canal.cerrar(despedida ? 500 : 0);
       canalRef.current = null;
       ordenRef.current = [];
@@ -559,7 +576,10 @@ export function useVerJuntos({ perfil, codigo }: OpcionesSala) {
         return;
       }
       const actual = estadoActual();
-      if (actual) enviar(actual);
+      if (actual) {
+        accionLocalRef.current = Date.now();
+        enviar(actual);
+      }
     };
     // Si la persona quita el silencio con el botón del reproductor, el aviso
     // de «Toca para activar el sonido» sobra.
