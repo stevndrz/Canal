@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, utimes, writeFile } from "node:fs/promises";
 import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -120,6 +120,8 @@ describe.skipIf(!hayFfmpeg)("panel (ffmpeg real, nube local, diálogos falsos)",
     expect(e.peliculas).toMatchObject([{ titulo: "Coco", estado: "al-dia", enNube: true, id: "coco" }]);
     expect(e.historial.map((m) => m.texto)).toContain("«Coco» subida.");
     expect(await nube.leerCatalogo()).toHaveLength(1);
+    // La app ve cómo quedó el PC.
+    expect(JSON.parse(await readFile(join(base, "nube", "peliculas", "estado.json"), "utf8"))).toMatchObject({ haciendo: null, automatica: false, fallo: false });
 
     const borrado = await pedir("/api/borrar", { metodo: "POST", cuerpo: { clave: "nube:coco" } });
     expect(borrado.codigo).toBe(200);

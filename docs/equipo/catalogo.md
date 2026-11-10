@@ -96,6 +96,31 @@ salieron cuatro cosas.
   último `aqui` puede no llegar a salir: entonces el otro la ve «En la sala»
   hasta que Pusher la da por caída).
 
+### 2026-11-10 — El estado del PC, a la vista en la app (`estado.json`)
+
+- PC: `lib/estado-publico.mjs` escribe `peliculas/estado.json` en el bucket
+  (`nube.escribirEstado`, `no-cache`): qué convierte o sube y su porcentaje,
+  bytes usados y tope, pendientes, si falló y la hora. Lo usan la consola
+  (también en `--automatico`: cada vuelta de 10 min deja su hora, es el
+  latido) y el panel. «Mirar qué cambiaría» no escribe nada.
+- Escribe al cambiar de fase, cada 5 puntos de porcentaje o al minuto; de una
+  en una. **Nunca rompe la sincronización**: si falla, al registro y se sigue.
+  No lleva rutas ni el texto de los errores (hay una prueba).
+- En automático la consola no leía el porcentaje de ffmpeg/rclone (solo el
+  panel): ahora su salida pasa también por el lector de `progreso.mjs`.
+- App: `lib/ver-juntos/estado-pc.ts` (puro, 11 pruebas) lo lee con
+  desconfianza y lo pone en una frase; `hooks/use-estado-pc.ts` lo pide cada
+  15 s si el PC trabaja y cada 60 s si no, nunca con la pestaña oculta. Un
+  «convirtiendo» de hace más de 5 min se dice como «se quedó…», no como vivo.
+- En Mi enlace es una línea `.cine-estado.cine-pc` bajo los botones, que se
+  quita al reproducir. Sin CSS nuevo. **Pendiente para el rediseño**: con
+  estante y reproductor, en el iPhone queda bajo el pliegue; su sitio bueno es
+  junto al título del estante y dentro del estado «vacío».
+- Sin `estado.json` (404, hasta que el PC sincronice con esta versión) no se
+  enseña nada: no hace falta coordinar el despliegue con el PC.
+- Sin probar: rclone y R2 de verdad (la cabecera `no-cache`), Windows, y el
+  coste real (una escritura por vuelta: ~4.300 al mes, de 1 millón gratis).
+
 ### 2026-11-10 — El doble clic no encontraba Node
 
 En el PC del dueño, `where.exe node` en PowerShell daba solo el Node que trae
