@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readdir, rm, utimes, writeFile } from "node:fs/promises";
-import { request } from "node:http";
+import { createServer, request } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -132,6 +132,65 @@ describe.skipIf(!hayFfmpeg)("panel (ffmpeg real, nube local, diálogos falsos)",
     // El original del USB, intacto.
     expect((await readdir(usb)).length).toBe(2);
   }, 60_000);
+
+  describe("descargar desde un enlace", () => {
+    let web, enlace;
+    const PELI = Buffer.alloc(200_000, 7);
+    beforeAll(async () => {
+      web = createServer((req, res) => {
+        if (req.url === "/Up.2009.mkv") return res.writeHead(200, { "Content-Type": "video/x-matroska", "Content-Length": PELI.length }).end(PELI);
+        // Manda el principio y no termina nunca: para poder cancelar.
+        if (req.url === "/Eterna.mkv") return res.writeHead(200, { "Content-Type": "video/x-matroska", "Content-Length": 10_000_000 }).write(PELI);
+        res.writeHead(200, { "Content-Type": "text/html" }).end("<html>Pulsa aquí</html>");
+      });
+      await new Promise((r) => web.listen(0, "127.0.0.1", r));
+      enlace = (ruta) => `http://127.0.0.1:${web.address().port}${ruta}`;
+    });
+    afterAll(() => {
+      web.closeAllConnections();
+      web.close();
+    });
+
+    it("lo que no es un enlace http(s) se dice al momento y no empieza nada", async () => {
+      for (const malo of ["", "magnet:?xt=urn:btih:abc", "C:\\Pelis\\a.mkv", "file:///etc/passwd"]) {
+        const r = await pedir("/api/descargar", { metodo: "POST", cuerpo: { enlace: malo } });
+        expect(r.codigo, malo).toBe(400);
+      }
+      expect((await estado()).ocupado).toBeNull();
+    });
+
+    it("baja el archivo a la carpeta, con su avance, y aparece «por subir»", async () => {
+      expect((await pedir("/api/descargar", { metodo: "POST", cuerpo: { enlace: enlace("/Up.2009.mkv") } })).codigo).toBe(202);
+      const e = await hastaLibre();
+      expect(await readdir(raiz)).toEqual(["Up.2009.mkv"]);
+      expect(e.peliculas).toMatchObject([{ titulo: "Up", estado: "por-subir" }]);
+      expect(e.historial.map((m) => m.texto)).toContain("Descargada: Up.2009.mkv");
+      await rm(join(raiz, "Up.2009.mkv"));
+    });
+
+    it("una página web se rechaza con un mensaje claro y no deja nada", async () => {
+      expect((await pedir("/api/descargar", { metodo: "POST", cuerpo: { enlace: enlace("/ver/pelicula") } })).codigo).toBe(202);
+      const e = await hastaLibre();
+      expect(e.historial.at(-1)).toMatchObject({ nivel: "error", texto: expect.stringMatching(/abre una página web, no el vídeo/) });
+      expect(await readdir(raiz)).toEqual([]);
+    });
+
+    it("con una descarga en marcha no empieza otra, y «Cancelar» la corta sin dejar restos", async () => {
+      expect((await pedir("/api/descargar", { metodo: "POST", cuerpo: { enlace: enlace("/Eterna.mkv") } })).codigo).toBe(202);
+      for (let i = 0; i < 100 && !(await estado()).progreso; i++) await new Promise((r) => setTimeout(r, 50));
+      const e = await estado();
+      expect(e.ocupado).toBe("descargando");
+      expect(e.progreso).toMatchObject({ fase: "descargar", titulo: "Eterna" });
+      expect((await pedir("/api/descargar", { metodo: "POST", cuerpo: { enlace: enlace("/Up.2009.mkv") } })).codigo).toBe(409);
+
+      expect((await pedir("/api/cancelar", { metodo: "POST", cuerpo: {} })).datos).toEqual({ ok: true });
+      const fin = await hastaLibre();
+      expect(fin.historial.at(-1)).toMatchObject({ nivel: "aviso", texto: expect.stringMatching(/Descarga cancelada/) });
+      expect(await readdir(raiz)).toEqual([]);
+      // Sin nada en marcha, cancelar no hace nada.
+      expect((await pedir("/api/cancelar", { metodo: "POST", cuerpo: {} })).datos).toEqual({ ok: false });
+    });
+  });
 
   it("una clave que no existe no borra nada", async () => {
     const r = await pedir("/api/borrar", { metodo: "POST", cuerpo: { clave: "pc:../../etc" } });

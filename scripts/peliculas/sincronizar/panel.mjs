@@ -5,10 +5,11 @@
  *   Doble clic en «CanalCasa Peliculas.cmd» (en Descargas\Peliculas).
  *
  * Abre en el navegador una página que solo existe en este PC
- * (http://127.0.0.1:<puerto>/?t=<token>) con la lista de películas y cuatro
- * cosas: Agregar película (de cualquier carpeta: se copia), Subir cambios
- * (la sincronización de siempre, con barra de progreso), Borrar (de la app y
- * a la Papelera) y Cambiar carpeta.
+ * (http://127.0.0.1:<puerto>/?t=<token>) con la lista de películas y cinco
+ * cosas: Agregar película (de cualquier carpeta: se copia), Descargar desde
+ * un enlace (directo a un .mkv o .mp4), Subir cambios (la sincronización de
+ * siempre, con barra de progreso), Borrar (de la app y a la Papelera) y
+ * Cambiar carpeta.
  *
  * Por dentro es el mismo motor que «Sincronizar peliculas.cmd»
  * (`lib/sincronizar.mjs`): mismas reglas, mismo candado, mismo registro.
@@ -29,6 +30,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { agregarSubtitulos, agrupar, copiarALaBiblioteca } from "./lib/agregar.mjs";
 import { leerBiblioteca } from "./lib/biblioteca.mjs";
+import { descargarALaBiblioteca, leerEnlace } from "./lib/descargar.mjs";
 import {
   capacidadesDeFfmpeg,
   carpetaLocal,
@@ -71,6 +73,7 @@ export function crearPanel(deps = {}) {
     trabajo: carpetaTrabajo,
     carpetaPorDefecto,
     html: () => readFileSync(join(AQUI, "panel", "index.html"), "utf8"),
+    descargar: descargarALaBiblioteca,
     alCerrar: () => {},
     ...deps,
   };
@@ -84,6 +87,8 @@ export function crearPanel(deps = {}) {
   const historial = [];
   const preguntas = new Map();
   let ultimaPestana = Date.now();
+  /** Corta la descarga en curso (null si no hay ninguna). */
+  let cancelarDescarga = null;
 
   // ── Mensajes al navegador (Server-Sent Events) ────────────────────────────
   const emitir = (evento) => {
@@ -134,11 +139,16 @@ export function crearPanel(deps = {}) {
     return null;
   };
 
-  /** Una operación a la vez, con el mismo candado que la consola. */
-  const operar = async (que, fn) => {
+  /** Falla si ahora mismo no se puede empezar nada. */
+  const exigirLibre = () => {
     if (ocupado) throw Object.assign(new Error(`Espera: ahora mismo estoy ${ocupado}.`), { codigo: 409 });
     const falta = necesita();
     if (falta) throw Object.assign(new Error(falta.texto ?? "Falta configurar el panel."), { codigo: 409 });
+  };
+
+  /** Una operación a la vez, con el mismo candado que la consola. */
+  const operar = async (que, fn) => {
+    exigirLibre();
     let soltar = () => {};
     ponerOcupado(que);
     try {
@@ -231,6 +241,40 @@ export function crearPanel(deps = {}) {
         }
         return { hechos };
       });
+    },
+
+    /**
+     * Baja un enlace directo a la carpeta. Larga: el avance va por
+     * /api/eventos y al acabar se avisa con un evento «descargada».
+     */
+    descargar({ enlace } = {}) {
+      return operar("descargando", async () => {
+        const control = new AbortController();
+        cancelarDescarga = () => control.abort();
+        try {
+          const r = await d.descargar(enlace, raiz(), {
+            decir,
+            senal: control.signal,
+            alAvance: (a) => ponerProgreso(a ? { fase: "descargar", titulo: a.titulo, porcentaje: a.porcentaje } : null),
+          });
+          decir("bien", `${r.yaEstaba ? "Ya estaba" : "Descargada"}: ${r.video}`);
+          emitir({ tipo: "descargada", video: r.video, yaEstaba: r.yaEstaba });
+          return r;
+        } catch (error) {
+          // Cancelar lo pidió la persona: no es un error.
+          if (!control.signal.aborted) throw error;
+          decir("aviso", "Descarga cancelada. No quedó nada a medias en la carpeta.");
+          return { cancelado: true };
+        } finally {
+          cancelarDescarga = null;
+        }
+      });
+    },
+
+    async cancelar() {
+      if (!cancelarDescarga) return { ok: false };
+      cancelarDescarga();
+      return { ok: true };
     },
 
     async subtitulo({ clave }) {
@@ -352,6 +396,14 @@ export function crearPanel(deps = {}) {
           acciones.sincronizar().catch(() => {});
           return responder(res, 202, { ok: true });
         }
+        if (nombre === "descargar") {
+          // Lo que se sabe ya (enlace mal escrito, panel ocupado) se contesta
+          // ahora; lo demás tarda y va por /api/eventos.
+          leerEnlace(cuerpo.enlace);
+          exigirLibre();
+          acciones.descargar(cuerpo).catch(() => {});
+          return responder(res, 202, { ok: true });
+        }
         return responder(res, 200, await acciones[nombre](cuerpo));
       }
       return responder(res, 404, { error: "No existe." });
@@ -373,6 +425,7 @@ export function crearPanel(deps = {}) {
     clearInterval(latido);
     // Sin nadie para contestar, «no»: nunca se borra nada por cerrar la pestaña.
     for (const [, p] of preguntas) p.resolver(false);
+    cancelarDescarga?.();
     for (const c of clientes) c.end();
     servidor.close();
     d.alCerrar();
