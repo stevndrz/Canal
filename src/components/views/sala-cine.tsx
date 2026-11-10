@@ -98,6 +98,7 @@ export function Portada({
   pildoras,
   teatro,
   estante,
+  vacia,
   children,
 }: {
   fondo: string | null;
@@ -111,10 +112,19 @@ export function Portada({
    * tiene que leer sin bajar, antes que el reproductor y que cualquier enlace.
    */
   estante?: ReactNode;
+  /**
+   * Sin película que enseñar (no hay ninguna, o el catálogo aún carga): esto
+   * ocupa el sitio del título y del reproductor, y la pantalla empieza arriba
+   * en vez de dejar media pantalla vacía. Trae su propio `#cine-titulo`.
+   */
+  vacia?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""} ${estante ? "con-estante" : ""}`} aria-labelledby="cine-titulo">
+    <section
+      className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""} ${estante ? "con-estante" : ""} ${vacia ? "is-vacia" : ""}`}
+      aria-labelledby="cine-titulo"
+    >
       {fondo && (
         // `key` por imagen: al cambiar de película, la nueva entra fundiéndose
         // en vez de saltar de golpe.
@@ -124,11 +134,14 @@ export function Portada({
       <div className="cine-portada-velo" aria-hidden="true" />
       <div className="cine-portada-contenido">
         {estante}
-        {sobretitulo && <p className="cine-sobretitulo">{sobretitulo}</p>}
-        <h2 id="cine-titulo" className="cine-titulo">
-          {titulo}
-        </h2>
-        {pildoras.length > 0 && (
+        {vacia}
+        {!vacia && sobretitulo && <p className="cine-sobretitulo">{sobretitulo}</p>}
+        {!vacia && (
+          <h2 id="cine-titulo" className="cine-titulo">
+            {titulo}
+          </h2>
+        )}
+        {!vacia && pildoras.length > 0 && (
           <ul className="cine-pildoras" aria-label="Detalles">
             {pildoras.map((texto) => (
               <li key={texto} className="cine-pildora">
@@ -210,6 +223,55 @@ export function Halo({ video, poster }: { video: HTMLVideoElement | null; poster
 export interface PeliculaEstante {
   url: string;
   titulo: string;
+  /** «1 h 47 min». */
+  duracion?: string;
+  /** Por dónde iba la sala con ella, de 0 a 1, y dicho en palabras («Iban por 47:10»). */
+  progreso?: number;
+  iban?: string;
+  /** Recién subida y sin empezar. */
+  nueva?: boolean;
+}
+
+/**
+ * Sin películas: qué es esto en una frase y cómo llega una película hasta
+ * aquí. Nada de «elijan una película» cuando no hay nada que elegir.
+ */
+export function SalaVacia({ pc }: { pc?: ReactNode }) {
+  return (
+    <div className="cine-vacio">
+      <h2 id="cine-titulo" className="cine-titulo">
+        Nuestras películas
+      </h2>
+      <p className="cine-vacio-frase">Todavía no hay ninguna. Las que subas desde tu PC aparecen aquí, en todos los aparatos, para verlas juntos.</p>
+      <ol className="cine-pasos" aria-label="Cómo llega una película">
+        <li>Deja la película en la carpeta del PC</li>
+        <li>El PC la convierte y la sube solo</li>
+        <li>Aparece aquí, lista para ver juntos</li>
+      </ol>
+      {pc}
+    </div>
+  );
+}
+
+/** Mientras llega el catálogo: la forma de lo que va a salir, en vez de una pantalla en negro y un salto. */
+export function SalaCargando() {
+  return (
+    <div className="cine-vacio" aria-busy="true">
+      <h2 id="cine-titulo" className="cine-estante-titulo">
+        Nuestras películas
+      </h2>
+      <div className="cine-esqueleto-fila" aria-hidden="true">
+        <span className="cine-esqueleto is-poster" />
+        <span className="cine-esqueleto is-poster" />
+        <span className="cine-esqueleto is-poster" />
+      </div>
+      <span className="cine-esqueleto is-titulo" aria-hidden="true" />
+      <span className="cine-esqueleto is-teatro" aria-hidden="true" />
+      <span className="sr-only" role="status">
+        Cargando las películas…
+      </span>
+    </div>
+  );
 }
 
 /** La fila de pósters 2:3; la elegida, con un aro blanco fino. */
@@ -220,6 +282,7 @@ export function Estante({
   alElegir,
   primeroRef,
   entrada,
+  nota,
 }: {
   peliculas: PeliculaEstante[];
   arte: Record<string, Arte | null>;
@@ -228,12 +291,17 @@ export function Estante({
   primeroRef?: React.Ref<HTMLButtonElement>;
   /** Con el mando, el foco entra a la pantalla por la película elegida. */
   entrada?: boolean;
+  /** Junto al título: qué está haciendo el PC que las sube. */
+  nota?: ReactNode;
 }) {
   return (
     <section className="cine-estante" aria-labelledby="cine-estante-titulo">
-      <h3 id="cine-estante-titulo" className="cine-estante-titulo">
-        Nuestras películas
-      </h3>
+      <div className="cine-estante-cabeza">
+        <h3 id="cine-estante-titulo" className="cine-estante-titulo">
+          Nuestras películas
+        </h3>
+        {nota}
+      </div>
       <ul className="cine-estante-fila">
         {peliculas.map((pelicula, i) => {
           const poster = arte[pelicula.titulo]?.poster;
@@ -247,17 +315,28 @@ export function Estante({
                 data-nav-entrada={entrada && (elegida ? esLa : i === 0) ? "" : undefined}
                 className={`cine-poster ${esLa ? "is-elegida" : ""}`}
                 aria-pressed={esLa}
+                aria-label={pelicula.titulo}
+                title={[pelicula.titulo, pelicula.iban ?? pelicula.duracion].filter(Boolean).join(" · ")}
                 onClick={() => alElegir(pelicula.url)}
               >
-                {poster ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- ver `Portada`.
-                  <img src={poster} alt="" loading="lazy" decoding="async" />
-                ) : (
-                  <span className="cine-poster-vacio" aria-hidden="true">
-                    <Clapperboard />
-                  </span>
-                )}
+                <span className="cine-poster-marco">
+                  {poster ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- ver `Portada`.
+                    <img src={poster} alt="" loading="lazy" decoding="async" />
+                  ) : (
+                    <span className="cine-poster-vacio" aria-hidden="true">
+                      <Clapperboard />
+                    </span>
+                  )}
+                  {pelicula.nueva && <span className="cine-poster-nueva">Nueva</span>}
+                  {pelicula.progreso !== undefined && (
+                    <span className="cine-poster-barra" aria-hidden="true">
+                      <i style={{ width: `${Math.round(pelicula.progreso * 100)}%` }} />
+                    </span>
+                  )}
+                </span>
                 <span className="cine-poster-titulo">{pelicula.titulo}</span>
+                {(pelicula.iban || pelicula.duracion) && <span className="cine-poster-dato">{pelicula.iban ?? pelicula.duracion}</span>}
               </button>
             </li>
           );
