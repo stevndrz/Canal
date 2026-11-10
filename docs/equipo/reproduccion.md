@@ -20,6 +20,32 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — La película en la pantalla de bloqueo, y la pantalla encendida en la sala
+
+- `use-sesion-de-medios.ts`, dos hooks:
+  - `useSesionDeMedios` (lo usa `native-player.tsx`, así que vale para Mi
+    enlace y para la ficha): título y carátula con `MediaMetadata`, ±10 s,
+    ir a un punto y la barra de avance (`setPositionState`). Mueve el
+    `<video>` y nada más: en una sala, quien escucha al vídeo hace el resto.
+  - `useMantenerPantalla` (lo usa `fuente-view.tsx` dentro de una sala): Wake
+    Lock para la pausa y la espera. Con la película en marcha ya la mantiene
+    el navegador. Se suelta a los 20 min sin actividad (cada play, pausa o
+    minuto de película renueva el plazo) y se vuelve a pedir al volver a la
+    app.
+- **Play y pausa no se registran** como acciones propias: el navegador ya los
+  ofrece para el vídeo que suena. Un manejador propio sería un camino más por
+  el que un play del sistema que nadie pulsó (el fin de una llamada)
+  arrancaría la película a toda la sala.
+- Lo puro, con pruebas, en `lib/reproduccion/sesion-medios.ts`: la carátula
+  solo si es http(s), la posición dentro de la duración (el navegador lanza
+  si no), y los saltos sin salirse de la película.
+- Donde no existen estas API (teles viejas), no hacen nada.
+- Prueba de navegador: el título llega a `navigator.mediaSession`, el estado
+  cambia con play y pausa, y el cerrojo de pantalla se pide al entrar en la
+  sala y se suelta al salir (con un cerrojo de mentira que cuenta).
+- Sin probar: la pantalla de bloqueo del iPhone de verdad, los auriculares, y
+  Wake Lock en Safari (existe desde iOS 16.4; con ahorro de batería lo niega).
+
 ### 2026-11-10 — Los fallos de la sala se mandan a Web Analytics
 
 - Los registros de Vercel duran una hora y casi nada de «Ver juntos» pasa por
