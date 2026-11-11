@@ -39,6 +39,27 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-10 — QR de la sala en la tele y bienvenida de tres pasos
+
+- `QrSala` (`sala-cine.tsx`): a solas en la sala, una tarjeta con el QR del
+  enlace de invitación en la esquina del reproductor. En la tele y en el PC;
+  en el teléfono se oculta (allí se invita con la hoja de compartir). Se va
+  cuando entra alguien o arranca la película. No mueve nada de la página.
+- Dependencia nueva: `qrcode-generator` (MIT, sin dependencias), cargada en
+  diferido solo ahí. El QR se calcula y se pinta en el aparato: el enlace no
+  sale a ningún servicio.
+- `lib/ver-juntos/invitar.ts` (puro): `enlaceDeSala`, `textoDeInvitacion` y
+  `trazoDeQr`, que junta los módulos seguidos en un rectángulo y deja los 4
+  módulos de margen que piden las cámaras.
+- Claro de fondo y oscuro encima (`--acento` / `--acento-tinta`): al revés
+  muchas cámaras no lo leen.
+- Bienvenida, solo para quien entra por enlace sin nombre: paso 1, su nombre
+  (la hoja del alias con otro título); paso 2, «Ya estás dentro»; paso 3,
+  «Todos mandan». Quien ya tiene nombre entra directo, sin nada de esto.
+- Comprobado a mano: un lector independiente (jsQR, fuera del repo) lee de la
+  captura de la tele `…/?sala=2960`. En las pruebas, lo que codifica lo cubre
+  `invitar.test.ts`; el Chromium de pruebas no trae `BarcodeDetector`.
+- Sin probar: escanearlo con un iPhone desde el sofá, y la tele de verdad.
 ### 2026-11-10 — La pausa que se perdía: un pulso viejo la deshacía
 
 - Una prueba de navegador fallaba 2 de cada 20 veces **en `main`** (el CI lo
