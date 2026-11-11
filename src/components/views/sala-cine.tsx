@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, Clapperboard, X } from "lucide-react";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import type { Miembro } from "@/hooks/use-ver-juntos";
 import type { EstadoPersona } from "@/lib/ver-juntos/sala";
+import { enlaceDeSala, trazoDeQr } from "@/lib/ver-juntos/invitar";
 import type { Arte } from "@/lib/ver-juntos/portada";
 
 /**
@@ -402,6 +403,47 @@ export function Hoja({
         {children}
       </div>
     </div>
+  );
+}
+
+/**
+ * El código QR de la sala: en la tele (y en el PC) no hay hoja de compartir,
+ * pero el teléfono está en la mano. Se escanea y entra directo, sin dictar el
+ * código ni teclearlo con el mando.
+ *
+ * La librería que lo calcula se carga solo aquí, cuando hay sala y falta
+ * alguien. Se pinta en el propio aparato: el enlace no sale a ningún servicio.
+ */
+export function QrSala({ codigo }: { codigo: string }) {
+  const [qr, setQr] = useState<{ codigo: string; lado: number; d: string } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    import("qrcode-generator")
+      .then(({ default: qrcode }) => {
+        if (!vivo) return;
+        const q = qrcode(0, "M");
+        q.addData(enlaceDeSala(window.location.origin, codigo));
+        q.make();
+        setQr({ codigo, ...trazoDeQr((fila, columna) => q.isDark(fila, columna), q.getModuleCount()) });
+      })
+      .catch(() => {
+        // Sin QR queda el código a la vista, como siempre.
+      });
+    return () => {
+      vivo = false;
+    };
+  }, [codigo]);
+
+  // El de otra sala no se enseña ni un instante.
+  if (!qr || qr.codigo !== codigo) return null;
+  return (
+    <figure className="cine-qr">
+      <svg viewBox={`0 0 ${qr.lado} ${qr.lado}`} role="img" aria-label={`Código QR para entrar en la sala ${codigo.split("").join(" ")}`} shapeRendering="crispEdges">
+        <rect className="cine-qr-fondo" width={qr.lado} height={qr.lado} />
+        <path className="cine-qr-tinta" d={qr.d} />
+      </svg>
+      <figcaption>Escanea con el teléfono para entrar</figcaption>
+    </figure>
   );
 }
 

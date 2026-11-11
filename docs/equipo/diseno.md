@@ -491,6 +491,27 @@ centrado y lejos.
 - Menos aire entre las acciones y «Vistas juntos».
 - Es un pulido, no un rediseño: el gusto lo decide el dueño en su teléfono.
 - Sin probar en el iPhone ni en la tele.
+## Las barras del teléfono, a media pantalla al tirar de la página (2026-11-11)
+
+Capturas del dueño (iPhone): al tirar de la página hacia abajo o hacia
+arriba, la barra de «Canal Casa» quedaba a media pantalla tapando el
+contenido (también un botón de volver), y la de abajo, flotando en el centro.
+
+- Causa: `use-viewport-visible.ts` movía las barras cada vez que lo visible se
+  desplazaba (`visualViewport.offsetTop`). Se hizo para un fallo de Safari al
+  cerrar el teclado, pero lo visible también se desplaza con el rebote
+  elástico de iOS, y ahí Safari ya arrastra las barras con la página:
+  corregirlas encima las descolocaba. Es muy probable que la «barra a media
+  pantalla» del 2026-10-08 fuera esto mismo y no el teclado.
+- Ahora la corrección solo actúa alrededor del teclado (con un campo de texto
+  enfocado y, al soltarlo, hasta que la persona vuelve a mover la página) y
+  nunca con la página rebotando (`estaRebotando`).
+- Además, en el teléfono, `html { overscroll-behavior-y: none }`: la página no
+  rebota. Estaba en `body`, donde no afecta a la página entera.
+- **Sin probar en el iPhone de verdad**: no hay forma de reproducir el rebote
+  de iOS aquí. Lo cubren pruebas de la cuenta (`viewport-visible.test.ts`),
+  no del aparato. Si tras esto vuelve a verse la barra corrida al cerrar el
+  teclado, el siguiente paso es quitar la corrección del todo.
 
 ## Mi enlace por estados: una pantalla, un siguiente paso (2026-11-10)
 

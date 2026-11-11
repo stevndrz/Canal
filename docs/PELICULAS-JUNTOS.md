@@ -230,7 +230,8 @@ reproductor.
 2. Uno pulsa **Crear sala**: sale un código de **4 cifras** en grande.
    Y el botón principal pasa a ser **Invitar**: abre la hoja de compartir del
    teléfono con un enlace (`…/?sala=8047`) que entra directo en la sala. En un
-   PC, copia el enlace.
+   PC, copia el enlace. En la **tele** (y en el PC) sale además un **código QR**
+   en la esquina del reproductor: se escanea con la cámara del teléfono y entra.
 3. El otro abre ese enlace, o pulsa **Entrar con código** y lo escribe (con los números del mando
    o con el teclado de la pantalla). Le llega la película sola, con sus audios
    y subtítulos.

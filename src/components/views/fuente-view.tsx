@@ -23,9 +23,10 @@ import {
   type Perfil,
 } from "@/lib/ver-juntos/recordar";
 import { dondeRetomar, reloj, resumen, type VistaJuntos } from "@/lib/ver-juntos/historial";
+import { enlaceDeSala, textoDeInvitacion } from "@/lib/ver-juntos/invitar";
 import { crearCodigoSala, normalizarCodigo } from "@/lib/ver-juntos/sala";
 import { duracionCorta } from "@/lib/ver-juntos/portada";
-import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, SalaCargando, SalaVacia, iniciales, presencia } from "./sala-cine";
+import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, QrSala, SalaCargando, SalaVacia, iniciales, presencia } from "./sala-cine";
 import { ElegirAlias, TecladoCodigo } from "./entrar-sala";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
@@ -86,7 +87,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * pantalla completa.
    */
   const [inmersivo, setInmersivo] = useState(false);
-  const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo" | "como">(null);
+  const [hoja, setHoja] = useState<null | "enlace" | "alias" | "codigo" | "como" | "bienvenida">(null);
+  /** La bienvenida de quien entra por enlace: 1 es su nombre; 2 y 3, qué es esto. */
+  const [pasoBienvenida, setPasoBienvenida] = useState<2 | 3>(2);
   /** Lo que se iba a hacer cuando se pidió el alias: se sigue al guardarlo. */
   const [trasAlias, setTrasAlias] = useState<null | "crear" | "entrar">(null);
   const nuestras = useNuestrasPeliculas();
@@ -528,8 +531,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
    * directo en la sala (`/?sala=8047`). Donde no la hay, el enlace se copia.
    */
   const invitar = async () => {
-    const enlace = `${window.location.origin}/?sala=${codigo}`;
-    const texto = portada ? `Veamos «${portada.titulo}» juntos en CanalCasa. Sala ${codigo}.` : `Entra a mi sala de CanalCasa: ${codigo}.`;
+    const enlace = enlaceDeSala(window.location.origin, codigo);
+    const texto = textoDeInvitacion(portada?.titulo, codigo);
     try {
       if (typeof navigator.share === "function") {
         await navigator.share({ title: "CanalCasa", text: texto, url: enlace });
@@ -695,6 +698,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
                 }
                 superpuesto={
                   <>
+                    {/* A solas en la sala: el teléfono lo escanea y entra. */}
+                    {pantalla === "esperando" && conectada && !acompanado && !escenarioVisible && <QrSala codigo={codigo} />}
                     {juntos.necesitaToque ? (
                       <button type="button" data-nav="button" className="atv-sala-aviso" onClick={juntos.unirse}>
                         <Play aria-hidden="true" />
@@ -889,7 +894,8 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         )}
       </Hoja>
 
-      <Hoja abierta={hoja === "alias"} titulo="¿Cómo te llamas?" alCerrar={() => setHoja(null)}>
+      <Hoja abierta={hoja === "alias"} titulo={salaPorEnlace ? "Te invitaron a ver una película" : "¿Cómo te llamas?"} alCerrar={() => setHoja(null)}>
+        {salaPorEnlace && <p className="cine-bienvenida-paso">Paso 1 de 3 · Dinos cómo te llamas: es lo que verá la otra persona.</p>}
         <ElegirAlias
           inicial={perfil?.nombre ?? ""}
           alGuardar={(nombre) => {
@@ -908,9 +914,39 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               soloSiVaciaRef.current = true;
               ponerCodigo(salaPorEnlace);
               setSalaPorEnlace("");
+              // Primera vez: dos pantallas cortas sobre qué es esto.
+              setPasoBienvenida(2);
+              setHoja("bienvenida");
             }
           }}
         />
+      </Hoja>
+
+      <Hoja abierta={hoja === "bienvenida"} titulo={pasoBienvenida === 2 ? "Ya estás dentro" : "Todos mandan"} alCerrar={() => setHoja(null)}>
+        <div className="cine-bienvenida">
+          <p className="cine-bienvenida-paso">Paso {pasoBienvenida} de 3</p>
+          {pasoBienvenida === 2 ? (
+            <>
+              <p className="cine-vacio-frase">
+                Estás en la sala {codigo}. La película llega sola: no tienes que buscarla. Cuando alguien pulse «Empezar», arranca
+                a la vez en todos los aparatos.
+              </p>
+              <button type="button" data-nav="button" className="cine-boton-principal" onClick={() => setPasoBienvenida(3)}>
+                Siguiente
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="cine-vacio-frase">
+                Cualquiera puede pausar, seguir o adelantar, y pasa en todos. Si sales de la app un momento, al volver sigues en la
+                sala.
+              </p>
+              <button type="button" data-nav="button" className="cine-boton-principal" onClick={() => setHoja(null)}>
+                Entendido
+              </button>
+            </>
+          )}
+        </div>
       </Hoja>
 
       <Hoja abierta={hoja === "codigo"} titulo="Entrar con código" alCerrar={() => setHoja(null)}>
