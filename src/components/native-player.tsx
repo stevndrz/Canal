@@ -25,6 +25,7 @@ import {
 import { useCast, type SubtituloCast } from "@/hooks/use-cast";
 import { useSeguirViendo } from "@/hooks/use-progreso";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useSesionDeMedios } from "@/hooks/use-sesion-de-medios";
 import { esIPhone } from "@/lib/dispositivo";
 import { extensionDe } from "@/lib/extension";
 import { accionDeTecla } from "@/lib/teclas-mando";
@@ -232,6 +233,8 @@ export const NativePlayer = memo(function NativePlayer({
       subtituloActivo: activeSubtitle,
     });
   const { isFullscreen, isSupported: canFullscreen, toggleFullscreen } = useFullscreen(containerRef, videoRef);
+  // Título, carátula y controles en la pantalla de bloqueo y en los auriculares.
+  useSesionDeMedios(videoRef, title, poster, Boolean(stream));
 
   /**
    * Por dónde iba, si se sabe. Escribe directo, sin estado: ver el hook.
