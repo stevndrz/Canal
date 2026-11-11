@@ -31,6 +31,11 @@ export interface PusherFalso {
   rechazadas: string[];
   /** Corta la conexión de todos los aparatos de un contexto (como un túnel). */
   cortar(contexto: BrowserContext): Promise<void>;
+  /**
+   * Vuelve a entregar a los demás el último mensaje que cumpla `cual`, como si
+   * llegara ahora: un mensaje que se cruzó por el camino. `false` si no hay.
+   */
+  entregarTarde(cual: (dato: Record<string, unknown>) => boolean): boolean;
 }
 
 export function crearPusherFalso(clave: string, secreto: string): PusherFalso {
@@ -38,6 +43,8 @@ export function crearPusherFalso(clave: string, secreto: string): PusherFalso {
   const porContexto = new Map<BrowserContext, Set<WebSocketRoute>>();
   const mensajes: PusherFalso["mensajes"] = [];
   const rechazadas: string[] = [];
+  /** Lo mismo que `mensajes`, con lo que hace falta para volver a entregarlos. */
+  const enviados: { canal: string; de: string; evento: string; dato: unknown; ws: WebSocketRoute }[] = [];
   let siguiente = 1;
 
   const mandar = (ws: WebSocketRoute, evento: string, dato: unknown, extra: Record<string, unknown> = {}) => {
@@ -113,6 +120,7 @@ export function crearPusherFalso(clave: string, secreto: string): PusherFalso {
         // Como Pusher: sin estar suscrito al canal, no se puede hablar en él.
         if (!de) return;
         mensajes.push({ canal: de.canal, de: de.id, dato: mensaje.data });
+        enviados.push({ canal: de.canal, de: de.id, evento: mensaje.event, dato: mensaje.data, ws });
         for (const otro of miembros) {
           if (otro.canal !== de.canal || otro.ws === ws) continue;
           mandar(otro.ws, mensaje.event, mensaje.data, { channel: de.canal, user_id: de.id });
@@ -130,6 +138,15 @@ export function crearPusherFalso(clave: string, secreto: string): PusherFalso {
     rechazadas,
     async conectar(contexto) {
       await contexto.routeWebSocket(/pusher(app)?\.com/, atender(contexto));
+    },
+    entregarTarde(cual) {
+      const viejo = enviados.findLast((m) => Boolean(m.dato) && typeof m.dato === "object" && cual(m.dato as Record<string, unknown>));
+      if (!viejo) return false;
+      for (const otro of miembros) {
+        if (otro.canal !== viejo.canal || otro.ws === viejo.ws) continue;
+        mandar(otro.ws, viejo.evento, viejo.dato, { channel: viejo.canal, user_id: viejo.de });
+      }
+      return true;
     },
     async cortar(contexto) {
       for (const ws of [...(porContexto.get(contexto) ?? [])]) {
