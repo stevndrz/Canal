@@ -472,6 +472,26 @@ impacto.
 - Probar en un televisor de verdad el héroe con varios destacados y el logo
   con TMDB real (aquí se probó con un simulador de TMDB).
 
+## Mi enlace, más limpio: las acciones secundarias (2026-11-11)
+
+El dueño, desde su iPhone: «se ve que tiene mucho IA slop». Lo que se veía:
+cuatro o cinco palabras grises sueltas en dos o tres filas, empezando 14 px
+más adentro que el título, mucho aire muerto debajo y «Usar un enlace» aparte,
+centrado y lejos.
+
+- `.cine-secundarias` es una sola fila bajo una línea fina
+  (`::before`, no `border`, para que empiece donde empieza el texto), con
+  `margin-left: -14px` para compensar el relleno de cada botón.
+- Menos acciones: fuera «Ver aquí solo» (es el play del propio reproductor);
+  «Usar un enlace» entra en la fila y desaparece `.cine-pie`; dentro de la
+  sala no salen ni el nombre (ya está en la presencia) ni «Usar un enlace»
+  (salvo que no haya otra película que poner).
+- El nombre es un mini avatar con sus iniciales (`.cine-mini-avatar`) y el
+  nombre, no «Alias: Steven».
+- Menos aire entre las acciones y «Vistas juntos».
+- Es un pulido, no un rediseño: el gusto lo decide el dueño en su teléfono.
+- Sin probar en el iPhone ni en la tele.
+
 ## Mi enlace por estados: una pantalla, un siguiente paso (2026-11-10)
 
 Captura del dueño desde su iPhone, sin películas: media pantalla vacía, un

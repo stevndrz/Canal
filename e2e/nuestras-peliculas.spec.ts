@@ -50,7 +50,8 @@ test("PC: al reproducir el estante se recoge y «Cambiar película» lo devuelve
 
   // El reproductor se carga bajo demanda: hasta que no hay `<video>`, no hay qué arrancar.
   await expect(page.locator("video")).toBeAttached();
-  await page.getByRole("button", { name: "Ver aquí solo" }).click();
+  // Ver a solas es el play del propio reproductor.
+  await page.locator(".atv-play-central").click();
   await expect(estante).toBeHidden();
   await expect.poll(async () => (await teatro.boundingBox())!.width).toBeGreaterThan(anchoAntes);
 
@@ -84,7 +85,8 @@ test("iPhone: se ve qué está convirtiendo el PC, y deja de verse al reproducir
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await expect(page.locator("video")).toBeAttached();
-  await page.getByRole("button", { name: "Ver aquí solo" }).click();
+  // Ver a solas es el play del propio reproductor.
+  await page.locator(".atv-play-central").click();
   await expect(pc).toBeHidden();
   await contexto.close();
 });
