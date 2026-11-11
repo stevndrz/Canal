@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ECO_MAXIMO_MS, esEco } from "./eco";
+import { ECO_MAXIMO_MS, TRAS_ACCION_MS, esEco, pulsoVigente } from "./eco";
 
 const T = 1.5;
 
@@ -41,5 +41,18 @@ describe("esEco", () => {
   it("pasado el tope, nada es eco", () => {
     const esperado = { tiempo: 100, pausado: true, desde: 0 };
     expect(esEco(esperado, { tiempo: 100, pausado: true }, ECO_MAXIMO_MS + 1, T, "seeked")).toBe(false);
+  });
+});
+
+describe("pulsoVigente", () => {
+  it("un pulso que llega justo después de una acción propia es viejo y se descarta", () => {
+    expect(pulsoVigente(10_000, 10_000)).toBe(false);
+    expect(pulsoVigente(10_000 + TRAS_ACCION_MS - 1, 10_000)).toBe(false);
+  });
+
+  it("pasado ese rato, el pulso ya trae la respuesta de quien dirige: se obedece", () => {
+    expect(pulsoVigente(10_000 + TRAS_ACCION_MS, 10_000)).toBe(true);
+    // Sin ninguna acción propia todavía (0), cualquier pulso vale.
+    expect(pulsoVigente(10_000, 0)).toBe(true);
   });
 });

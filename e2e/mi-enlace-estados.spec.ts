@@ -166,4 +166,49 @@ test.describe("Mi enlace por estados, en la sala", () => {
     await pc.contexto.close();
     await iphone.contexto.close();
   });
+
+  test("iPhone: la película sale en la pantalla de bloqueo, y en la sala la pantalla no se apaga", async ({ browser }) => {
+    const contexto = await nuevoAparato(browser, "iphone");
+    await pusher.conectar(contexto);
+    // El cerrojo de pantalla de verdad no se puede mirar desde fuera: se apunta quién lo pide y quién lo suelta.
+    await contexto.addInitScript(() => {
+      const cuenta = { pedidos: 0, sueltos: 0 };
+      (window as unknown as { __pantalla: typeof cuenta }).__pantalla = cuenta;
+      Object.defineProperty(navigator, "wakeLock", {
+        configurable: true,
+        value: {
+          request: async () => {
+            cuenta.pedidos += 1;
+            return { addEventListener() {}, release: async () => void (cuenta.sueltos += 1) };
+          },
+        },
+      });
+    });
+    const page = await contexto.newPage();
+    await page.goto("/?vista=fuente");
+    const pantalla = () => page.evaluate(() => (window as unknown as { __pantalla: { pedidos: number; sueltos: number } }).__pantalla);
+    const sesion = () => page.evaluate(() => ({ titulo: navigator.mediaSession.metadata?.title ?? null, estado: navigator.mediaSession.playbackState }));
+
+    // Fuera de la sala no se toca la pantalla.
+    await expect(page.locator("video")).toBeAttached();
+    await expect.poll(sesion).toEqual({ titulo: "Coco", estado: "paused" });
+    expect((await pantalla()).pedidos).toBe(0);
+
+    // Dentro, esperando a alguien: encendida.
+    await crearSala(page, "Steven");
+    await expect.poll(async () => (await pantalla()).pedidos).toBeGreaterThanOrEqual(1);
+
+    await page.getByRole("button", { name: "Empezar sin esperar" }).click();
+    await expect.poll(async () => (await sesion()).estado, { timeout: 15_000 }).toBe("playing");
+    await page.evaluate(() => document.querySelector("video")!.pause());
+    await expect.poll(async () => (await sesion()).estado).toBe("paused");
+
+    // Al salir de la sala se suelta: todo lo pedido, soltado.
+    await page.getByRole("button", { name: "Salir de la sala" }).click();
+    await expect.poll(async () => {
+      const p = await pantalla();
+      return p.pedidos - p.sueltos;
+    }).toBe(0);
+    await contexto.close();
+  });
 });

@@ -50,3 +50,32 @@ export function esEco(
   const avance = esperado.pausado ? 0 : pasado / 1000;
   return actual.tiempo >= esperado.tiempo - tolerancia && actual.tiempo <= esperado.tiempo + avance + tolerancia;
 }
+
+/**
+ * Un pulso que llega justo después de que la persona toque algo es viejo.
+ *
+ * Quien dirige cuenta cada cinco segundos por dónde va («voy por 12:34,
+ * reproduciendo»). Si ese pulso salió antes de que le llegara la pausa de otro
+ * aparato, a ese aparato le llega DESPUÉS de haber pausado, y obedecerlo era
+ * volver a arrancar: la película seguía sola hasta el pulso siguiente. Y si
+ * llegaba en el mismo instante —antes incluso de que el `<video>` avisara de
+ * su pausa—, la pausa se tomaba por eco y no se mandaba a nadie: «pulsé pausa
+ * y no pasó nada».
+ *
+ * Dos defensas, y hacen falta las dos:
+ * - un pulso no se aplica al momento, sino un instante después
+ *   (`ESPERA_PULSO_MS`): le da tiempo al `<video>` a contar lo que la persona
+ *   acaba de hacer;
+ * - y si para entonces este aparato mandó algo suyo hace menos de
+ *   `TRAS_ACCION_MS`, el pulso se descarta: el siguiente ya traerá la respuesta
+ *   de quien dirige a esa acción.
+ *
+ * Solo los pulsos: un play, una pausa o un salto de otra persona se obedecen
+ * siempre y al momento.
+ */
+export const ESPERA_PULSO_MS = 150;
+export const TRAS_ACCION_MS = 1500;
+
+export function pulsoVigente(ahora: number, ultimaAccionLocal: number): boolean {
+  return ahora - ultimaAccionLocal >= TRAS_ACCION_MS;
+}

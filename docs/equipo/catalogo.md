@@ -60,6 +60,29 @@ después: qué cambió, por qué, y qué me sorprendió.
   captura de la tele `…/?sala=2960`. En las pruebas, lo que codifica lo cubre
   `invitar.test.ts`; el Chromium de pruebas no trae `BarcodeDetector`.
 - Sin probar: escanearlo con un iPhone desde el sofá, y la tele de verdad.
+### 2026-11-10 — La pausa que se perdía: un pulso viejo la deshacía
+
+- Una prueba de navegador fallaba 2 de cada 20 veces **en `main`** (el CI lo
+  tapaba con su reintento): la invitada pulsaba «Pausar» y el otro seguía.
+  Con un registro de los eventos del `<video>` se vio: `pause` y, 2 ms
+  después, `play`, sin que saliera ningún mensaje.
+- Causa: quien dirige manda un pulso cada 5 s («voy por aquí,
+  reproduciendo»). Si ese pulso llega justo después de que otro aparato
+  pause, ese aparato lo obedecía y volvía a arrancar. Y si llegaba antes de
+  que el `<video>` avisara de su pausa, para entonces ya estaba otra vez en
+  marcha: la pausa «cuadraba» con lo esperado, se tomaba por eco y no se
+  mandaba. Es el «ella no tenía los controles» en su versión intermitente.
+- Arreglo (`pulsoVigente`, `eco.ts`): un pulso se aplica 150 ms después de
+  llegar, y se descarta si este aparato mandó algo suyo hace menos de 1,5 s.
+  Solo los pulsos: un play, pausa o salto de otra persona se obedece al
+  momento, y cancela el pulso que estuviera esperando.
+- `pusher-falso.ts` ganó `entregarTarde`, para reproducirlo a propósito. La
+  prueba nueva falla 3 de 3 sin el arreglo y pasa con él; el caso original,
+  25 de 25 (antes fallaba una de cada tres o cuatro, pulsando al segundo de
+  empezar).
+- Efecto que se acepta: quien no dirige tarda 150 ms más en corregirse con
+  cada pulso; va compensado en el tiempo que se aplica.
+- Sin probar: Pusher y aparatos de verdad, con su latencia real.
 
 ### 2026-11-10 — Mi enlace por estados, «Invitar» y el enlace que entra directo
 

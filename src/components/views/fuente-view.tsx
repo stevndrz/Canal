@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { History, Link2, MonitorUp, Play, Plus, Share2, Trash2, Users, VolumeX } from "lucide-react";
 import { useFuentes } from "@/hooks/use-fuentes";
 import { useEstadoPc } from "@/hooks/use-estado-pc";
+import { useMantenerPantalla } from "@/hooks/use-sesion-de-medios";
 import { useNuestrasPeliculas } from "@/hooks/use-nuestras-peliculas";
 import { useVerJuntos } from "@/hooks/use-ver-juntos";
 import { useArte, useAudios } from "@/hooks/use-portada";
@@ -321,6 +322,10 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   // --- Seguir viendo juntos: por dónde va la película de la sala -------------
   const [tiempoVideo, setTiempoVideo] = useState(0);
   const conQuienRef = useRef<string[]>([]);
+  // En la sala, la pantalla no se apaga en la pausa ni esperando a alguien
+  // (con la película en marcha ya la mantiene el navegador). Cada minuto de
+  // película, y cada play o pausa, renuevan el plazo.
+  useMantenerPantalla(enSala && Boolean(portada), `${reproduciendo}|${Math.floor(tiempoVideo / 60)}`);
   const urlSala = enSala ? (portada?.url ?? "") : "";
   const tituloSala = portada?.titulo ?? "";
   useEffect(() => {
