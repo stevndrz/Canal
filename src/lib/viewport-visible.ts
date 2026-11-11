@@ -13,6 +13,14 @@
  * visible, así que basta con bajarla `offsetTop`. La de abajo, lo que falte
  * para que su borde coincida con el borde de abajo de lo visible.
  *
+ * **Solo en ese caso.** Al principio se corregía siempre que lo visible se
+ * moviera, y lo visible también se mueve cuando se tira de la página más allá
+ * de su principio o de su final (el rebote de iOS): ahí Safari ya arrastra las
+ * barras con la página, y corregirlas encima las dejaba flotando a media
+ * pantalla —la de arriba tapando el contenido, la de abajo en el centro—. Lo
+ * vio el dueño en su iPhone. Por eso ahora hace falta que haya habido teclado
+ * (`trasTeclado`) y que la página no esté rebotando (`rebote`).
+ *
  * Sin React ni DOM, para probarlo.
  */
 export interface MedidasViewport {
@@ -24,6 +32,18 @@ export interface MedidasViewport {
   scale: number;
   /** `window.innerHeight` */
   innerHeight: number;
+  /**
+   * Hay un campo de texto con el foco, o lo hubo y la persona todavía no ha
+   * vuelto a mover la página. Fuera de eso no hay nada que corregir.
+   */
+  trasTeclado: boolean;
+  /** La página está estirada más allá de su principio o de su final. */
+  rebote: boolean;
+}
+
+/** ¿Está la página más allá de sus límites? (el rebote elástico de iOS). */
+export function estaRebotando(scrollY: number, altoPagina: number, innerHeight: number): boolean {
+  return scrollY < -1 || scrollY > Math.max(0, altoPagina - innerHeight) + 1;
 }
 
 /** Más que esto de diferencia es el teclado abierto, no un desajuste. */
@@ -33,6 +53,9 @@ export function desfaseDeBarras(m: MedidasViewport): { arriba: number; abajo: nu
   // Con zoom de pellizco las barras deben quedarse donde están: es la página
   // ampliada, no un fallo.
   if (Math.abs(m.scale - 1) > 0.01) return { arriba: 0, abajo: 0 };
+  // Sin teclado de por medio, o con la página rebotando, Safari ya pone las
+  // barras donde tocan: moverlas es lo que las descoloca.
+  if (!m.trasTeclado || m.rebote) return { arriba: 0, abajo: 0 };
   const arriba = Math.abs(m.offsetTop) < 1 ? 0 : Math.round(m.offsetTop);
   // Con el teclado abierto la barra de abajo se queda tras él, como siempre:
   // subirla encima del teclado taparía lo que se escribe.

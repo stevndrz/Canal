@@ -2109,6 +2109,14 @@
     --topbar-h: calc(58px + var(--safe-top));
   }
 
+  /* Que la página no rebote al tirar de ella más allá de su principio o su
+     final: con barras fijas arriba y abajo, el rebote las arrastra y se ve
+     roto. El navegador toma este valor de `html`, no de `body` (donde ya
+     estaba y no hacía efecto sobre la página entera). */
+  html {
+    overscroll-behavior-y: none;
+  }
+
   .sidebar {
     display: none;
   }
