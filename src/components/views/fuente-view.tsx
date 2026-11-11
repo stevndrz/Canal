@@ -26,7 +26,7 @@ import { dondeRetomar, reloj, resumen, type VistaJuntos } from "@/lib/ver-juntos
 import { enlaceDeSala, textoDeInvitacion } from "@/lib/ver-juntos/invitar";
 import { crearCodigoSala, normalizarCodigo } from "@/lib/ver-juntos/sala";
 import { duracionCorta } from "@/lib/ver-juntos/portada";
-import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, QrSala, SalaCargando, SalaVacia, presencia } from "./sala-cine";
+import { CabeceraJuntos, CuentaAtras, Estante, Halo, Hoja, Portada, Presencia, QrSala, SalaCargando, SalaVacia, iniciales, presencia } from "./sala-cine";
 import { ElegirAlias, TecladoCodigo } from "./entrar-sala";
 import { claveDeFuente } from "@/lib/progreso";
 import { esEnlaceFirmado, resolverFuente } from "@/lib/fuente-propia/url";
@@ -758,7 +758,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
         )}
         {/* Con el estante a la vista, la línea del PC va en su cabecera. */}
         {!mostrarEstante && pantalla !== "vacio" && lineaPc}
-        {/* Todo lo demás, en texto: nada compite con el botón principal. */}
+        {/* Todo lo demás, en texto y en una sola fila: nada compite con el botón
+            principal. Ver una película a solas no tiene botón propio: es el
+            play del reproductor. */}
         <div className="cine-secundarias">
           {arrancarAparte && (
             <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => dar(arrancarAparte.paso)}>
@@ -793,11 +795,6 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               Entrar con código
             </button>
           )}
-          {salaDisponible && pantalla === "eligiendo" && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => video?.play().catch(() => {})}>
-              Ver aquí solo
-            </button>
-          )}
           {portada && nuestras.peliculas.length > 1 && !mostrarEstante && (
             <button type="button" data-nav="button" className="cine-boton-texto" onClick={irAlEstante}>
               Cambiar película
@@ -813,9 +810,25 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
               Salir de la sala
             </button>
           )}
-          {salaDisponible && perfil && pantalla !== "viendo" && (
-            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => setHoja("alias")}>
-              Alias: {perfil.nombre}
+          {/* Dentro de la sala solo si no hay otra película que poner. */}
+          {pantalla !== "viendo" && (!dentro || nuestras.peliculas.length <= 1) && (
+            <button type="button" data-nav="button" className="cine-boton-texto" onClick={() => setHoja("enlace")}>
+              Usar un enlace
+            </button>
+          )}
+          {/* El nombre se cambia fuera de la sala: dentro ya se ve en la presencia. */}
+          {salaDisponible && perfil && !dentro && pantalla !== "viendo" && (
+            <button
+              type="button"
+              data-nav="button"
+              className="cine-boton-texto"
+              aria-label={`Tu nombre: ${perfil.nombre}. Cambiarlo`}
+              onClick={() => setHoja("alias")}
+            >
+              <span className="cine-mini-avatar" aria-hidden="true">
+                {iniciales(perfil.nombre)}
+              </span>
+              {perfil.nombre}
             </button>
           )}
         </div>
@@ -864,15 +877,6 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             })}
           </ul>
         </section>
-      )}
-
-      {pantalla !== "viendo" && (
-        <div className="cine-pie">
-          <button type="button" data-nav="button" className="cine-boton-pequeno" onClick={() => setHoja("enlace")}>
-            <Link2 aria-hidden="true" />
-            Usar un enlace
-          </button>
-        </div>
       )}
 
       <Hoja abierta={hoja === "como"} titulo="Cómo subir una película" alCerrar={() => setHoja(null)}>

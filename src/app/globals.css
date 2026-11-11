@@ -6483,6 +6483,60 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   padding-inline: 0;
 }
 
+/* ── Mi enlace, más limpio (2026-11-11) ───────────────────────────────
+   Las acciones secundarias eran palabras grises sueltas en dos o tres filas,
+   con «Usar un enlace» aparte, centrado y lejos. Ahora son una sola fila bajo
+   una línea fina, alineada con el borde del contenido. */
+.cine-secundarias {
+  width: 100%;
+  gap: 0 2px;
+  /* Cada botón lleva 14px de relleno: sin esto el texto empezaba 14px más
+     adentro que el título y el botón principal. */
+  margin-left: -14px;
+}
+
+/* La línea, como primer elemento de la fila y sin el desplazamiento de arriba:
+   empieza donde empieza el texto. */
+.cine-secundarias::before {
+  content: "";
+  flex: 0 0 calc(100% - 14px);
+  height: 1px;
+  margin: 0 0 6px 14px;
+  background: var(--borde-sutil);
+}
+
+.cine-secundarias:empty {
+  display: none;
+}
+
+.cine-mini-avatar {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+  font-size: var(--texto-2xs);
+  font-weight: 650;
+  color: var(--tinta-1);
+}
+
+/* Menos aire muerto entre las acciones y lo que viene debajo. */
+.cine-portada.con-teatro .cine-portada-contenido,
+.cine-portada.is-vacia .cine-portada-contenido {
+  padding-bottom: clamp(12px, 2vh, 28px);
+}
+
+.cine-vistas {
+  margin-top: clamp(12px, 2.4vh, 28px);
+}
+
+:root[data-pantalla="tv"] .cine-mini-avatar {
+  width: 1.6em;
+  height: 1.6em;
+}
+
 /* ── El QR de la sala y la bienvenida de quien entra por enlace ─────── */
 
 /* En una esquina del reproductor, mientras se espera a la otra persona: no
