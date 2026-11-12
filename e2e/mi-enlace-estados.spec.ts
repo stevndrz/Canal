@@ -88,11 +88,16 @@ test.describe("Mi enlace por estados, en la sala", () => {
     await expect(page.locator(".cine-codigo")).toHaveText(codigo);
     await expect(pc.page.getByLabel("Quién está en la sala")).toContainText("Ana");
     // Un «código» que no lo es no hace nada raro: Inicio, como siempre.
-    const otro = await contexto.newPage();
+    // En un aparato aparte: en este, la app ya recuerda la sala en la que
+    // acaba de entrar Ana y, con razón, vuelve a ella al abrir (`haySalaReciente`).
+    // Según si ya lo había guardado o no, la prueba fallaba una de cada pocas.
+    const aparte = await nuevoAparato(browser, "iphone");
+    const otro = await aparte.newPage();
     await otro.goto("/?sala=hola");
     await expect(otro.locator(".cine-codigo")).toHaveCount(0);
     await pc.contexto.close();
     await contexto.close();
+    await aparte.close();
   });
 
   test("Tele: sin forma de compartir, lo principal es empezar", async ({ browser }) => {

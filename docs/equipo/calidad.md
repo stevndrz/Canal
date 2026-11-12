@@ -36,6 +36,18 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-12 — La prueba intermitente de «Con nombre ya puesto»
+
+- Fallaba más o menos una de cada cuatro suites completas: `/?sala=hola`
+  enseñaba un `.cine-codigo`. Se abría en el MISMO contexto donde Ana acababa
+  de entrar a la sala, y la app recuerda la sala y vuelve a ella al abrir
+  (`haySalaReciente` en `dashboard.tsx`). Eso es lo que debe hacer; la prueba
+  mezclaba dos cosas.
+- Arreglo: lo del código que no es código, en un aparato aparte.
+- Sola no se reproduce (10 de 10 con y sin el arreglo); solo con la suite
+  entera, más lenta. La causa encaja con lo visto: el código que salía era el
+  de la sala de Ana.
+
 ### 2026-11-10 — Una sola conexión de sala
 
 - `use-ver-juntos.ts` llevaba su propia copia de la conexión a Pusher (crear
