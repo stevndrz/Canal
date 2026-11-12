@@ -332,7 +332,10 @@ export const GuiaInteractiva = forwardRef<
                 type="button"
                 tabIndex={-1}
                 className="guia-tv-canal"
-                onMouseEnter={() => setFoco(indice)}
+                // `onMouseMove` y no `onMouseEnter`: al moverse la ventana, las
+                // filas pasan por debajo de un ratón quieto y le robaban el foco
+                // a las flechas.
+                onMouseMove={() => setFoco(indice)}
                 onClick={() => sintonizar(canal)}
               >
                 <em>{canal.number}</em>
@@ -362,7 +365,7 @@ export const GuiaInteractiva = forwardRef<
                           !bloque.hueco && bloque.inicio <= ahora && ahora < bloque.fin ? "is-ahora" : ""
                         } ${bloque.cortadoAlInicio ? "is-cortado" : ""}`}
                         style={{ width: `${bloque.ancho}%` }}
-                        onMouseEnter={() => {
+                        onMouseMove={() => {
                           setFoco(indice);
                           setCursor(Math.max(ahora, Math.max(bloque.inicio, franja)));
                         }}
