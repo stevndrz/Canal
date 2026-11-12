@@ -103,7 +103,8 @@ const datos = createServer((peticion, respuesta) => {
   const entorno = {
     ...process.env,
     M3U_URL: `${URL_DATOS}/lista.m3u`,
-    EPG_URL: "",
+    // Sin guía: con la variable vacía se usarían las de respaldo de internet.
+    EPG_URL: "no",
     TMDB_API_KEY: "clave-de-prueba",
     TMDB_API_BASE: `${URL_DATOS}/tmdb`,
     VIMEUS_API_KEY: "",
