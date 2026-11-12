@@ -4297,7 +4297,13 @@ body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
-/* Lo que dan ahora, debajo del número: una línea, cortada si no cabe. */
+/* Lo que dan ahora, debajo del número: una línea, cortada si no cabe. Las
+   tarjetas se alinean arriba (`align-items: start`): con una sin programa y
+   otra con él, centradas bailaban a alturas distintas. */
+.casa .casa-fila {
+  align-items: start;
+}
+
 .casa-programa {
   max-width: 100%;
   margin-top: 4px;
@@ -4312,6 +4318,13 @@ body {
   color: var(--tinta-3);
 }
 
+/* En el teléfono no cabe la hora: queda el título. */
+@media (max-width: 680px) {
+  .casa-hasta {
+    display: none;
+  }
+}
+
 /* En vertical no caben tres de ese ancho: se reparten el sitio que haya. */
 @media (max-width: 680px) {
   .casa-fila {
@@ -4322,11 +4335,6 @@ body {
 
   .casa-boton {
     width: auto;
-  }
-
-  /* En el teléfono no cabe la hora: queda el título. */
-  .casa-hasta {
-    display: none;
   }
 }
 
