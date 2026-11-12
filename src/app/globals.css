@@ -3784,6 +3784,26 @@ body {
   }
 }
 
+/* Teléfono en horizontal: arriba están Salir y el sonido del reproductor, y
+   la cabecera de la guía caía debajo de ellos. Se quita (la hora ya la dice la
+   rejilla) y se deja hueco para esos botones. */
+@media (max-height: 520px) {
+  .guia-tv {
+    padding-top: 76px;
+    padding-bottom: 12px;
+  }
+
+  .guia-tv-cabecera,
+  .guia-tv-pistas {
+    display: none;
+  }
+
+  .guia-tv-detalle {
+    min-height: 0;
+    margin-top: 8px;
+  }
+}
+
 /* ── Ajustes ─────────────────────────────────────────────────────────
    Hecha con las primitivas (`src/components/ui`): el margen y el ancho los
    pone `ContenedorVista`, los controles son `Segmentado`, `Interruptor`,
