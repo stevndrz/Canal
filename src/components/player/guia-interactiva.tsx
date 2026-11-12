@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { channelMark } from "@/lib/channels";
 import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
 import {
+  aplanarSecciones,
   bloquesDeFila,
   filasDeGuia,
   franjaPara,
@@ -84,7 +85,12 @@ function useReloj() {
 export const GuiaInteractiva = forwardRef<
   GuiaInteractivaHandle,
   {
-    playlist: Channel[];
+    /**
+     * Todo lo que se puede recorrer, por secciones: la guía enseña la cadena
+     * entera de zapeo (los 4.900 canales, de lo de aquí a lo lejano) y no solo
+     * la sección que zapean ↑/↓, que con Guatemala eran 52.
+     */
+    secciones: readonly { titulo: string; canales: readonly Channel[] }[];
     /** El que suena: la guía abre sobre él. */
     channelId: number;
     onTune: (canal: Channel) => void;
@@ -92,7 +98,8 @@ export const GuiaInteractiva = forwardRef<
     /** Cualquier movimiento dentro: quien la monta reinicia su reloj de cierre. */
     onActividad: () => void;
   }
->(function GuiaInteractiva({ playlist, channelId, onTune, onCerrar, onActividad }, ref) {
+>(function GuiaInteractiva({ secciones, channelId, onTune, onCerrar, onActividad }, ref) {
+  const { canales: playlist, seccionDe } = useMemo(() => aplanarSecciones(secciones), [secciones]);
   const ahora = useReloj();
   const { ancho, alto } = useMedidas();
   const horas = horasDeGuia(ancho);
@@ -300,7 +307,13 @@ export const GuiaInteractiva = forwardRef<
     >
       <div className="guia-tv-cabecera">
         <h2>Guía</h2>
-        <span className="guia-tv-dia">{dia}</span>
+        {/* Dónde se está: con miles de canales, sin esto se pierde uno. */}
+        <span className="guia-tv-dia">
+          {seccionDe[fila] && <b>{seccionDe[fila]}</b>}
+          {seccionDe[fila] && " · "}
+          {(fila + 1).toLocaleString("es-GT")} de {total.toLocaleString("es-GT")} ·{" "}
+          <span className="guia-tv-fecha">{dia}</span>
+        </span>
         <span className="guia-tv-reloj">{hora(ahora)}</span>
       </div>
 

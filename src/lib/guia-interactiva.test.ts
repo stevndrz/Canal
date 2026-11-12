@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aplanarSecciones,
   bloquesDeFila,
   filasDeGuia,
   franjaPara,
@@ -74,5 +75,16 @@ describe("guía interactiva", () => {
     expect(textoRestante(D + 60 * M, AHORA)).toBe("Quedan 50 min");
     expect(textoRestante(D + 89 * M, D + 10 * M)).toBe("Quedan 1 h 19 min");
     expect(textoRestante(D + 120 * M, D)).toBe("Quedan 2 h");
+  });
+
+  it("junta las secciones sin repetir canales y recuerda de cuál es cada uno", () => {
+    const tres = { id: 3 };
+    const { canales, seccionDe } = aplanarSecciones([
+      { titulo: "Mis canales y Guatemala", canales: [tres, { id: 7 }, tres] },
+      { titulo: "México", canales: [{ id: 5 }, { id: 7 }] },
+      { titulo: "Vacía", canales: [] },
+    ]);
+    expect(canales.map((c) => c.id)).toEqual([3, 7, 5]);
+    expect(seccionDe).toEqual(["Mis canales y Guatemala", "Mis canales y Guatemala", "México"]);
   });
 });
