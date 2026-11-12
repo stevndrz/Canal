@@ -14,7 +14,7 @@ import { stepChannel } from "@/lib/channels";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
 import { soltarOrientacion } from "@/lib/orientacion";
 import { accionDeTecla } from "@/lib/teclas-mando";
-import { GuiaCanales } from "@/components/player/guia-canales";
+import { GuiaInteractiva, type GuiaInteractivaHandle } from "@/components/player/guia-interactiva";
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { useCast } from "@/hooks/use-cast";
@@ -38,7 +38,9 @@ interface FullscreenPlayerProps {
    pulsar es lo que la hace sentir hostil. Solo en pantalla completa — los
    controles de Inicio van debajo del vídeo y no se ocultan nunca. */
 const CONTROLS_TIMEOUT = 5000;
-const GUIDE_TIMEOUT = 5000;
+/* La guía se recorre con calma, leyendo: se cierra sola tras medio minuto
+   sin tocar nada, y cada tecla o movimiento dentro reinicia la cuenta. */
+const GUIDE_TIMEOUT = 30000;
 
 export function FullscreenPlayer({
   channel,
@@ -53,6 +55,7 @@ export function FullscreenPlayer({
   const guideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const videoElRef = useRef<HTMLVideoElement | null>(null);
+  const guiaRef = useRef<GuiaInteractivaHandle | null>(null);
 
   // El <video> real vive dentro de StreamPlayer y se expone por método
   // imperativo, no por ref directa: `videoElRef.current` hay que copiarlo a
@@ -112,6 +115,11 @@ export function FullscreenPlayer({
     setShowGuide(true);
     if (guideTimer.current) clearTimeout(guideTimer.current);
     guideTimer.current = setTimeout(() => setShowGuide(false), GUIDE_TIMEOUT);
+  }, []);
+
+  const cerrarGuia = useCallback(() => {
+    setShowGuide(false);
+    if (guideTimer.current) clearTimeout(guideTimer.current);
   }, []);
 
   /**
@@ -278,6 +286,10 @@ export function FullscreenPlayer({
         return;
       }
 
+      // Con la guía abierta, las flechas y OK son suyas: recorrerla no cambia
+      // de canal, solo OK sintoniza. Ver `guia-interactiva.tsx`.
+      if (showGuide && guiaRef.current?.tecla(event)) return;
+
       // Los controles cuyo OK es suyo: la barra y los botones de los avisos.
       // Fuera de ellos, OK abre o cierra la guía. Antes solo contaba la barra,
       // y OK sobre «Reintentar» abría la guía en vez de reintentar.
@@ -301,13 +313,11 @@ export function FullscreenPlayer({
          */
         case "ArrowLeft":
           event.preventDefault();
-          if (showGuide) zap(-1);
-          else moverFoco(-1);
+          moverFoco(-1);
           return;
         case "ArrowRight":
           event.preventDefault();
-          if (showGuide) zap(1);
-          else moverFoco(1);
+          moverFoco(1);
           return;
         case "Enter":
           // Con un botón enfocado, el navegador ya lo pulsa solo: interceptar
@@ -464,15 +474,15 @@ export function FullscreenPlayer({
         ]}
       />
 
-      {/* Guía: la cuadrícula vuelve como overlay translúcido, sin salir del vivo */}
+      {/* Guía: la rejilla de canales y horas, encima del vivo y sin pararlo. */}
       {showGuide && (
-        <GuiaCanales
+        <GuiaInteractiva
+          ref={guiaRef}
           playlist={playlist}
           channelId={channel.id}
-          onTune={(canal) => {
-            onTune(canal);
-            openGuide();
-          }}
+          onTune={onTune}
+          onCerrar={cerrarGuia}
+          onActividad={openGuide}
         />
       )}
 

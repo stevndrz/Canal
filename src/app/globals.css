@@ -3486,163 +3486,322 @@ body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
-/* ── La guía de canales del reproductor ──────────────────────────────
-   Asoma por abajo sobre el vídeo, así que su fondo tiene que apoyar el texto
-   sin tapar la imagen: degradado, no panel opaco. */
-.guia {
+/* ── La guía del reproductor, como la de una caja de cable ───────────
+   Canales en filas, horas en columnas y el detalle de lo elegido abajo
+   (`guia-interactiva.tsx`). Se abre ENCIMA del vídeo en reproducción: fondo
+   en degradado casi opaco y SIN `backdrop-filter`, que obligaría a desenfocar
+   una imagen que cambia 30 veces por segundo. Sin `gap` en flex (las teles con
+   Chromium < 84 lo ignoran): márgenes, o rejilla, que sí lo tiene. */
+.guia-tv {
+  --canal-ancho: clamp(170px, 18vw, 320px);
+  --fila-alto: clamp(46px, 6.6vh, 74px);
   position: absolute;
   inset: auto 0 0;
-  /* Entre el velo de los controles (25) y su capa (30): por debajo del velo,
-     el degradado oscuro de abajo apagaba la guía entera mientras se veían los
-     controles. La capa sigue encima, pero con la guía abierta solo enseña la
-     fila de arriba y no recibe toques fuera de sus botones. */
+  /* Entre el velo (25) y la capa de controles (30). Ver `--capa-video-guia`. */
   z-index: var(--capa-video-guia);
-  /* Abajo ya no hay barra que esquivar: los controles subieron al centro y
-     arriba (ver `controles-vivo.tsx`). Solo el margen seguro del televisor. */
-  padding: clamp(16px, 2.4vh, 28px) 0 clamp(28px, 5vh, 64px);
-  /* Degradado opaco, SIN `backdrop-filter`.
-     Este panel se abre ENCIMA del vídeo en reproducción, que es el peor sitio
-     posible para un desenfoque de fondo: obliga a copiar y desenfocar una
-     imagen que cambia 25-30 veces por segundo. El degradado ya oscurece lo que
-     hay detrás, que es para lo que estaba. */
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.97) 30%, rgba(0, 0, 0, 0.82) 70%, transparent);
+  padding: clamp(40px, 9vh, 120px) var(--margen) clamp(18px, 4vh, 48px);
+  background: linear-gradient(
+    0deg,
+    rgba(var(--fondo-rgb), 0.97) 0%,
+    rgba(var(--fondo-rgb), 0.94) 78%,
+    rgba(var(--fondo-rgb), 0) 100%
+  );
+  color: var(--tinta-1);
   animation: cc-entrar 220ms var(--ease, ease) both;
 }
 
-.guia-cabecera {
-  display: flex;
+.guia-tv-cabecera {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: clamp(10px, 1.4vh, 16px);
+  column-gap: 16px;
+  margin-bottom: clamp(8px, 1.2vh, 14px);
+}
+
+.guia-tv-cabecera h2 {
+  margin: 0;
+  font-size: var(--texto-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.guia-tv-dia {
+  font-size: var(--texto-sm);
+  color: var(--tinta-3);
+  text-transform: capitalize;
+}
+
+.guia-tv-reloj {
+  font-size: var(--texto-sm);
+  font-weight: 600;
+  color: var(--tinta-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.guia-tv-horas {
+  display: flex;
+  margin-bottom: 6px;
+}
+
+.guia-tv-esquina {
+  flex: none;
+  width: var(--canal-ancho);
+}
+
+.guia-tv-columnas {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.guia-tv-columnas span {
+  flex: none;
+  padding-left: 10px;
+  border-left: 1px solid var(--borde);
   font-size: var(--texto-xs);
+  font-weight: 600;
+  color: var(--tinta-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dónde va la emisión: una raya roja, el mismo rojo de EN VIVO. */
+.guia-tv-ahora {
+  position: absolute;
+  top: -2px;
+  bottom: -6px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: var(--radio-pill);
+  background: var(--vivo);
+}
+
+.guia-tv-fila {
+  display: flex;
+  height: var(--fila-alto);
+}
+
+.guia-tv-fila + .guia-tv-fila {
+  margin-top: 4px;
+}
+
+.guia-tv-canal {
+  display: grid;
+  grid-template-columns: 2.6em 2.4em minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  flex: none;
+  width: var(--canal-ancho);
+  height: 100%;
+  margin-right: 2px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radio-sm) 0 0 var(--radio-sm);
+  background: var(--superficie-1);
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.guia-tv-canal em {
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
   color: var(--tinta-3);
 }
 
-.guia-tira {
-  display: flex;
-  gap: clamp(10px, 1vw, 16px);
-  overflow-x: auto;
-  padding: 6px 0 10px;
-  scroll-snap-type: x proximity;
-}
-
-/* La cabecera y la tira arrancaban en x = 0, y un televisor recorta hasta un
-   5% de cada borde (*overscan*): el primer canal y «4.816 canales» quedaban
-   medio fuera. El mismo margen que el resto de la app, que a 1920 ronda ese
-   5%. La tira lo lleva por dentro para que al recorrer los canales sigan
-   pasando de borde a borde. */
-.guia-cabecera,
-.guia-tira {
-  padding-left: var(--margen);
-  padding-right: var(--margen);
-}
-
-.guia-tira {
-  scroll-padding-inline: var(--margen);
-}
-
-.guia-canal {
-  flex: 0 0 clamp(140px, 13vw, 200px);
-  width: clamp(140px, 13vw, 200px);
-  display: grid;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  scroll-snap-align: center;
-}
-
-.guia-canal-arte {
-  position: relative;
-  display: grid;
-  place-items: center;
-  aspect-ratio: 16 / 9;
-  border-radius: var(--radio-tarjeta);
-  overflow: hidden;
-  background: linear-gradient(145deg, var(--arte-desde), var(--arte-hasta));
-  /* Solo crece animado; el anillo aparece en seco (animar `box-shadow`
-     repinta en cada fotograma, y esto va encima del vídeo). */
-  transition: transform var(--dur-media) var(--ease);
-}
-
-.guia-canal-arte img {
-  max-width: 68%;
-  max-height: 68%;
+.guia-tv-canal img,
+.guia-tv-canal b {
+  width: 100%;
+  height: 1.9em;
   object-fit: contain;
 }
 
-.guia-canal-arte b {
-  font-size: var(--texto-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
+.guia-tv-canal b {
+  display: grid;
+  place-items: center;
+  font-size: var(--texto-xs);
   color: var(--tinta-3);
 }
 
-.guia-canal-arte em {
-  position: absolute;
-  top: 6px;
-  left: 8px;
-  font-style: normal;
-  font-size: var(--texto-2xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta-2);
-}
-
-.guia-canal p {
-  margin: 0;
-  font-size: var(--texto-xs);
-  font-weight: 500;
-  color: var(--tinta-2);
+.guia-tv-canal span {
   overflow: hidden;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* El ENFOCADO: el realce de las tarjetas del resto de la app, crecer y
-   rodearse de blanco. Es solo del foco (y del ratón encima). */
-.guia-canal:hover .guia-canal-arte,
-.guia-canal:focus-visible .guia-canal-arte,
-[data-input="dpad"] .guia-canal:focus .guia-canal-arte {
-  transform: scale(var(--foco-escala));
-  box-shadow: var(--foco-borde), var(--foco-sombra);
-}
-
-/* El ELEGIDO, el canal que suena: una marca, no el anillo. Antes llevaba el
-   mismo realce que el foco, y con el mando sobre otro canal había dos piezas
-   «enfocadas» a la vez: desde el sofá no se sabía cuál era cuál. Ahora lleva
-   la etiqueta «Viendo» en rojo de directo y un filo fino, que se distinguen
-   del anillo blanco incluso cuando coinciden (foco sobre el que suena). */
-.guia-canal.is-active .guia-canal-arte {
-  box-shadow: inset 0 0 0 2px var(--vivo);
-}
-
-/* Foco sobre el que suena: el anillo del foco Y la marca, los dos. */
-.guia-canal.is-active:hover .guia-canal-arte,
-.guia-canal.is-active:focus-visible .guia-canal-arte,
-[data-input="dpad"] .guia-canal.is-active:focus .guia-canal-arte {
-  box-shadow: var(--foco-borde), var(--foco-sombra), inset 0 0 0 2px var(--vivo);
-}
-
-.guia-canal-ahora {
-  position: absolute;
-  right: 6px;
-  bottom: 6px;
-  padding: 0.2em 0.55em;
-  border-radius: var(--radio-sm);
-  background: var(--vivo);
-  color: var(--vivo-tinta);
-  font-size: var(--texto-2xs);
-  font-weight: 700;
-  line-height: 1.1;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.guia-canal.is-active p,
-.guia-canal:hover p {
+.guia-tv-fila.is-foco .guia-tv-canal {
+  background: var(--superficie-3);
   color: var(--tinta-1);
+}
+
+/* El que suena: punto rojo delante del nombre, como en Casa. */
+.guia-tv-fila.is-sonando .guia-tv-canal span::before {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-right: 0.4em;
+  border-radius: var(--radio-pill);
+  background: var(--vivo);
+  vertical-align: 0.1em;
+}
+
+.guia-tv-programas {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 0 var(--radio-sm) var(--radio-sm) 0;
+}
+
+.guia-tv-programa {
+  flex: none;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-left: 2px solid var(--fondo);
+  background: var(--superficie-1);
+  color: var(--tinta-2);
+  font-size: var(--texto-sm);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.guia-tv-programa:first-child {
+  border-left: 0;
+}
+
+.guia-tv-programa.is-ahora {
+  background: var(--superficie-2);
+  color: var(--tinta-1);
+}
+
+.guia-tv-programa.is-hueco {
+  color: var(--tinta-3);
+}
+
+/* Empezó antes de la franja: «‹ Alguien como tú», como en el cable. */
+.guia-tv-programa.is-cortado::before {
+  content: "‹ ";
+  color: var(--tinta-3);
+}
+
+.guia-tv-fila.is-foco .guia-tv-programa {
+  background: var(--superficie-3);
+}
+
+/* Lo elegido: blanco lleno, lo único que se lee a tres metros sin buscar. */
+.guia-tv-fila .guia-tv-programa.is-elegido {
+  background: var(--acento);
+  color: var(--acento-tinta);
+  font-weight: 600;
+}
+
+.guia-tv-programa.is-elegido.is-cortado::before {
+  color: inherit;
+}
+
+.guia-tv-cargando {
+  height: 100%;
+  background: var(--superficie-1);
+  opacity: 0.6;
+}
+
+.guia-tv-detalle {
+  min-height: calc(var(--texto-lg) * 3.4);
+  margin-top: clamp(10px, 1.8vh, 20px);
+}
+
+.guia-tv-detalle-titulo {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--texto-lg);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guia-tv-detalle-meta {
+  margin: 4px 0 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-2);
+}
+
+.guia-tv-detalle-meta span + span::before {
+  content: " · ";
+  color: var(--tinta-3);
+}
+
+.guia-tv-barra {
+  display: block;
+  width: min(420px, 40%);
+  height: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: var(--radio-pill);
+  background: var(--relleno);
+}
+
+.guia-tv-barra i {
+  display: block;
+  height: 100%;
+  background: var(--tinta-1);
+}
+
+.guia-tv-pistas {
+  margin: 10px 0 0;
+  font-size: var(--texto-xs);
+  color: var(--tinta-3);
+}
+
+/* Teléfono: una hora, cinco filas, y el canal solo con número y logo. */
+@media (max-width: 680px) {
+  .guia-tv {
+    --canal-ancho: 92px;
+    --fila-alto: 52px;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .guia-tv-canal {
+    grid-template-columns: 1.8em minmax(0, 1fr);
+    column-gap: 6px;
+    padding: 0 8px;
+  }
+
+  .guia-tv-canal span {
+    display: none;
+  }
+
+  .guia-tv-pistas {
+    display: none;
+  }
+}
+
+/* Teléfono en horizontal: arriba están Salir y el sonido del reproductor, y
+   la cabecera de la guía caía debajo de ellos. Se quita (la hora ya la dice la
+   rejilla) y se deja hueco para esos botones. */
+@media (max-height: 520px) {
+  .guia-tv {
+    padding-top: 76px;
+    padding-bottom: 12px;
+  }
+
+  .guia-tv-cabecera,
+  .guia-tv-pistas {
+    display: none;
+  }
+
+  .guia-tv-detalle {
+    min-height: 0;
+    margin-top: 8px;
+  }
 }
 
 /* ── Ajustes ─────────────────────────────────────────────────────────
@@ -5128,23 +5287,6 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   }
 }
 
-/* La guía: el canal que suena, en blanco y con el punto rojo del directo.
-   La regla general de `.guia-canal p` lo dejaba en gris, igual que los demás. */
-.guia .guia-canal.is-active p:first-of-type {
-  color: var(--tinta-1);
-  font-weight: 600;
-}
-
-.guia .guia-canal.is-active p:first-of-type::before {
-  content: "";
-  display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-right: 0.4em;
-  border-radius: var(--radio-pill);
-  background: var(--vivo);
-  vertical-align: 0.1em;
-}
 
 /* ═══ La tele, sin desenfoques ══════════════════════════════════════════
    Medido (Chromium con la CPU a 6×, bajando por Cine y series con el mando):

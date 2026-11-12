@@ -127,7 +127,7 @@ function enfocarConMando(boton: HTMLElement | null): void {
   const libre =
     !activo ||
     activo === document.body ||
-    (reproductor?.contains(activo) && !activo.closest(".guia"));
+    (reproductor?.contains(activo) && !activo.closest(".guia-tv"));
   if (libre) boton.focus();
 }
 
