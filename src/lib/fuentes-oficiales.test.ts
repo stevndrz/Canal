@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fuenteOficial } from "./fuentes-oficiales";
+import { ENSANCHE_ANAMORFICO, fuenteOficial, ensancheDeImagen } from "./fuentes-oficiales";
 import { parseM3uChannels } from "./m3u";
 
 const LISTA = `#EXTM3U
@@ -26,5 +26,19 @@ describe("fuentes oficiales", () => {
     expect(siete?.streamUrlBackup).toBe("https://d6qmllupbc5d2.cloudfront.net/hls/hm8maie2jnn2/index.m3u8");
     const pampa = canales.find((c) => c.name === "Canal 3 La Pampa");
     expect(pampa?.streamUrl).toContain("arcast.com.ar");
+  });
+
+  it("ensancha Canal 3 y Canal 7 solo mientras la imagen mida 3:2", () => {
+    const siete = fuenteOficial("canal7.gt")!;
+    expect(ensancheDeImagen(siete.principal, 720, 480)).toBe(ENSANCHE_ANAMORFICO);
+    expect(ensancheDeImagen(siete.respaldo, 720, 480)).toBe(ENSANCHE_ANAMORFICO);
+    expect(ensancheDeImagen(fuenteOficial("canal3.gt")!.principal, 540, 360)).toBe(ENSANCHE_ANAMORFICO);
+    // Si pasan a 720p, o aún no se sabe el tamaño, se deja como viene.
+    expect(ensancheDeImagen(siete.principal, 1280, 720)).toBe(1);
+    expect(ensancheDeImagen(siete.principal)).toBe(1);
+    // TN23 ya es 16:9, y una señal ajena de 720×480 puede ser 4:3 de verdad.
+    expect(ensancheDeImagen(fuenteOficial("tn23.gt")!.principal, 720, 480)).toBe(1);
+    expect(ensancheDeImagen("https://otro.example/live/index.m3u8", 720, 480)).toBe(1);
+    expect(ENSANCHE_ANAMORFICO * 1.5).toBeCloseTo(16 / 9);
   });
 });

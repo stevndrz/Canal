@@ -1,6 +1,7 @@
 import { gunzipSync } from "node:zlib";
 import { channelNameVariants, normalizeChannelName } from "./text";
 import { paraRegistro } from "./url-segura";
+import { paisDeCanal } from "./origenes";
 
 export interface EpgProgramme {
   title: string;
@@ -20,6 +21,14 @@ export interface EpgGuide {
   // Normaliza nombre de canal -> id XMLTV. Sirve de respaldo cuando la
   // lista M3U no trae tvg-id (caso común en listas públicas grandes).
   idByName: Map<string, string>;
+  /**
+   * `pais|nombre` → id XMLTV, con el nombre ya limpio de lo que las guías le
+   * cuelgan: «Canal 7 - Televisiete.gt» se guarda como `gt|canal7`. Va aparte
+   * y con el país delante porque, limpio, «Canal 7» hay en cinco países: solo
+   * se usa cuando el canal de la lista es de ese mismo país. Varios ids por
+   * clave: al juntar guías, dos pueden limpiar al mismo nombre.
+   */
+  idPorPais: Map<string, string[]>;
 }
 
 // Las guías compartidas cubren cientos de canales de varios países: sin tope,
@@ -41,7 +50,7 @@ const EPG_CACHE_MS = 10 * 60 * 1000;
 const EPG_TIMEOUT_MS = 5000;
 
 /** Interpretar un XMLTV de miles de canales cuesta, y cambia cada pocos minutos. */
-let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null = null;
+const cachedEpg = new Map<string, { guide: EpgGuide | null; expiresAt: number }>();
 
 /**
  * `deLaLista` es una diferencia de confianza, no de forma: `false` la puso
@@ -50,11 +59,46 @@ let cachedEpg: { url: string; guide: EpgGuide | null; expiresAt: number } | null
  * que con una lista pública no es quien despliega. Solo esa se comprueba.
  */
 export async function fetchEpg(url: string, deLaLista = false): Promise<EpgGuide | null> {
-  if (cachedEpg?.url === url && cachedEpg.expiresAt > Date.now()) return cachedEpg.guide;
+  const guardada = cachedEpg.get(url);
+  if (guardada && guardada.expiresAt > Date.now()) return guardada.guide;
 
   const guide = await downloadAndParseEpg(url, deLaLista);
-  cachedEpg = { url, guide, expiresAt: Date.now() + EPG_CACHE_MS };
+  cachedEpg.set(url, { guide, expiresAt: Date.now() + EPG_CACHE_MS });
   return guide;
+}
+
+/** Una guía a descargar y cuánto fiarse de quien la eligió (ver `fetchEpg`). */
+export interface FuenteDeGuia {
+  url: string;
+  deLaLista: boolean;
+}
+
+/**
+ * Descarga varias guías a la vez y las junta en una. Ninguna puede tumbar a
+ * las demás: la que falle o no conteste a tiempo simplemente no aporta.
+ */
+export async function fetchGuias(fuentes: readonly FuenteDeGuia[]): Promise<EpgGuide | null> {
+  const guias = await Promise.all(fuentes.map((f) => fetchEpg(f.url, f.deLaLista)));
+  return combinarGuias(guias.filter((g): g is EpgGuide => g !== null));
+}
+
+/**
+ * Junta guías **sin mezclar canales**: si dos traen el mismo id, manda la
+ * primera entera. Mezclar los programas de dos fuentes del mismo canal daría
+ * solapes (cada una corta los programas a su manera).
+ */
+export function combinarGuias(guias: readonly EpgGuide[]): EpgGuide | null {
+  if (guias.length === 0) return null;
+  if (guias.length === 1) return guias[0];
+  const juntas: EpgGuide = { programmesByChannel: new Map(), idByName: new Map(), idPorPais: new Map() };
+  for (const guia of guias) {
+    for (const [id, programas] of guia.programmesByChannel) {
+      if (!juntas.programmesByChannel.has(id)) juntas.programmesByChannel.set(id, programas);
+    }
+    for (const [clave, id] of guia.idByName) if (!juntas.idByName.has(clave)) juntas.idByName.set(clave, id);
+    for (const [clave, ids] of guia.idPorPais) juntas.idPorPais.set(clave, [...(juntas.idPorPais.get(clave) ?? []), ...ids]);
+  }
+  return juntas;
 }
 
 /**
@@ -219,10 +263,29 @@ function desfaseEnMs(tz: string | undefined): number {
  * por nodo costaría más memoria de la que tiene un televisor.
  */
 export function parseXmltv(xml: string): EpgGuide {
+  const { idPorNombre, idPorPais } = indexarCanales(xml);
   return {
-    idByName: indexarCanales(xml),
+    idByName: idPorNombre,
+    idPorPais,
     programmesByChannel: indexarProgramas(xml),
   };
+}
+
+/** El país al final de un id XMLTV: `Canal 3.gt`, `Canal7.gt@SD` → `gt`. */
+function paisDelId(id: string): string {
+  const match = id.split("@")[0].trim().match(/\.([a-z]{2})$/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+/**
+ * Las formas limpias de un nombre de guía, para emparejar con el de la lista:
+ * sin el país del final, sin lo que va tras « - » y sin paréntesis.
+ * «Canal 7 - Televisiete.gt» → «Canal 7 - Televisiete», «Canal 7».
+ */
+export function nombresLimpios(nombre: string): string[] {
+  const sinPais = nombre.replace(/\.[a-z]{2}$/i, "").replace(/\./g, " ").trim();
+  const formas = [sinPais, sinPais.split(" - ")[0], sinPais.replace(/\s*\([^)]*\)/g, "")];
+  return [...new Set(formas.map((f) => f.trim()).filter(Boolean))];
 }
 
 /**
@@ -233,8 +296,9 @@ export function parseXmltv(xml: string): EpgGuide {
  * **Gana el primero**: una guía puede declarar varios `display-name` para el
  * mismo canal, y el primero es el principal.
  */
-function indexarCanales(xml: string): Map<string, string> {
+function indexarCanales(xml: string): { idPorNombre: Map<string, string>; idPorPais: Map<string, string[]> } {
   const idPorNombre = new Map<string, string>();
+  const idPorPais = new Map<string, string[]>();
   const canalRe = /<channel([^>]*)>([\s\S]*?)<\/channel>/g;
   let canal: RegExpExecArray | null;
   let vistos = 0;
@@ -245,15 +309,28 @@ function indexarCanales(xml: string): Map<string, string> {
     const id = getAttr(atributos, "id")?.trim();
     if (!id) continue;
 
+    const pais = paisDelId(id);
     const nombreRe = /<display-name[^>]*>([\s\S]*?)<\/display-name>/g;
     let nombre: RegExpExecArray | null;
+    const nombres = [id];
     while ((nombre = nombreRe.exec(interior))) {
-      const clave = normalizeChannelName(decodeXmlEntities(nombre[1]));
+      const texto = decodeXmlEntities(nombre[1]);
+      nombres.push(texto);
+      const clave = normalizeChannelName(texto);
       if (clave && !idPorNombre.has(clave)) idPorNombre.set(clave, id);
+    }
+    if (!pais) continue;
+    for (const texto of nombres) {
+      for (const limpio of nombresLimpios(texto)) {
+        const clave = `${pais}|${normalizeChannelName(limpio)}`;
+        const ids = idPorPais.get(clave);
+        if (!ids) idPorPais.set(clave, [id]);
+        else if (!ids.includes(id)) ids.push(id);
+      }
     }
   }
 
-  return idPorNombre;
+  return { idPorNombre, idPorPais };
 }
 
 /** Id de canal → sus programas, descartando los que estén incompletos. */
@@ -296,29 +373,43 @@ function leerPrograma(
   return { canalId, programa: { title, start, stop } };
 }
 
-function findProgrammes(guide: EpgGuide, tvgId: string, channelName: string): EpgProgramme[] | null {
+/**
+ * Todas las listas de programas que pueden ser de este canal, de la más
+ * segura a la menos: id exacto, id sin la señal, nombre, nombre limpio con
+ * país. Devuelve todas y no la primera porque, con varias guías juntas, una
+ * puede traer el canal con programas viejos y otra con los de hoy: quien
+ * llama se queda con la primera que diga algo del momento pedido.
+ */
+function candidatos(guide: EpgGuide, tvgId: string, channelName: string): EpgProgramme[][] {
+  const encontrados: EpgProgramme[][] = [];
+  const anadir = (id: string | undefined) => {
+    const lista = id ? guide.programmesByChannel.get(id.toLowerCase()) : undefined;
+    if (lista && !encontrados.includes(lista)) encontrados.push(lista);
+  };
+
   const byId = tvgId.trim().toLowerCase();
   if (byId) {
-    const direct = guide.programmesByChannel.get(byId);
-    if (direct) return direct;
-
+    anadir(byId);
     // Las listas estilo iptv-org marcan la señal en el id (`Canal3.gt@SD`)
     // mientras que la guía suele publicarlo sin ese sufijo.
-    const withoutFeed = byId.split("@")[0];
-    if (withoutFeed !== byId) {
-      const base = guide.programmesByChannel.get(withoutFeed);
-      if (base) return base;
-    }
+    anadir(byId.split("@")[0]);
   }
 
   // Respaldo por nombre: la mayoría de listas públicas no traen tvg-id.
   for (const variant of channelNameVariants(channelName)) {
-    const resolvedId = guide.idByName.get(normalizeChannelName(variant));
-    const programmes = resolvedId ? guide.programmesByChannel.get(resolvedId.toLowerCase()) : undefined;
-    if (programmes) return programmes;
+    anadir(guide.idByName.get(normalizeChannelName(variant)));
   }
 
-  return null;
+  // Por nombre limpio y país: las guías por país (open-epg) ponen sus propios
+  // ids, «Canal 7 - Televisiete.gt», que no se parecen al `tvg-id`.
+  const pais = paisDeCanal({ nombre: channelName, tvgId });
+  if (pais) {
+    for (const variant of channelNameVariants(channelName)) {
+      for (const id of guide.idPorPais.get(`${pais}|${normalizeChannelName(variant)}`) ?? []) anadir(id);
+    }
+  }
+
+  return encontrados;
 }
 
 /**
@@ -335,22 +426,22 @@ export function programasEnFranja(
   desde: number,
   hasta: number,
 ): EpgProgramme[] {
-  const programmes = findProgrammes(guide, tvgId, channelName);
-  if (!programmes) return [];
-  return programmes
-    .filter((programme) => programme.stop > desde && programme.start < hasta)
-    .sort((a, b) => a.start - b.start);
+  for (const programmes of candidatos(guide, tvgId, channelName)) {
+    const enFranja = programmes.filter((programme) => programme.stop > desde && programme.start < hasta);
+    if (enFranja.length > 0) return enFranja.sort((a, b) => a.start - b.start);
+  }
+  return [];
 }
 
 export function getEpgEntry(guide: EpgGuide, tvgId: string, channelName: string, now: number): EpgEntry | null {
-  const programmes = findProgrammes(guide, tvgId, channelName);
-  if (!programmes || programmes.length === 0) return null;
-
-  let current: EpgProgramme | null = null;
-  let next: EpgProgramme | null = null;
-  for (const programme of programmes) {
-    if (programme.start <= now && now < programme.stop) current = programme;
-    if (programme.start > now && (!next || programme.start < next.start)) next = programme;
+  for (const programmes of candidatos(guide, tvgId, channelName)) {
+    let current: EpgProgramme | null = null;
+    let next: EpgProgramme | null = null;
+    for (const programme of programmes) {
+      if (programme.start <= now && now < programme.stop) current = programme;
+      if (programme.start > now && (!next || programme.start < next.start)) next = programme;
+    }
+    if (current || next) return { current, next };
   }
-  return current || next ? { current, next } : null;
+  return null;
 }

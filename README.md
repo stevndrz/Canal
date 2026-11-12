@@ -47,7 +47,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | Variable             | Para qué                                                        |
 |----------------------|-----------------------------------------------------------------|
 | `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código. ⚠️ **No apuntes a una lista de pago en un despliegue público**: sus URLs de emisión llevan tu usuario y contraseña dentro, y `/api/canales` las reparte a quien las pida ([por qué](docs/SEGURIDAD.md)) |
-| `EPG_URL`            | Guía de programación en XMLTV. Sin ella las filas no dicen qué dan. Ponerla además **desactiva** el `url-tvg` que venga dentro de la lista, que lo elige quien controle esa lista y no tú |
+| `EPG_URL`            | Guía de programación en XMLTV; varias, separadas por comas. Sin ella se usan la de la lista y las de respaldo de `src/lib/fuentes-guia.ts` (Guatemala, de open-epg). Ponerla **desactiva** esas dos, y `no` apaga la guía |
 | `TMDB_API_KEY`       | Credencial de TMDB. **No hay ninguna de reserva**: sin ella, Cine y series lo dice en pantalla y los canales siguen igual |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |
@@ -55,7 +55,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `VIMEUS_API_KEY` | API key de Vimeus (**Sensitive**, solo servidor): el riel «Recién llegadas en latino» y la marca «Latino» por episodio. Sin ella, Vimeus funciona igual por iframe; solo faltan esos extras |
 | `NEXT_PUBLIC_VIMEUS_VIEW_KEY` | Opcional: la *view key* de Vimeus (pública, va en el iframe). Trae por defecto la de la cuenta de la casa |
 | `NEXT_PUBLIC_PELICULAS_URL` | URL pública del bucket de R2 con «Nuestras películas» (`https://pub-….r2.dev`). Ver [docs/PELICULAS-JUNTOS.md](docs/PELICULAS-JUNTOS.md) |
-| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Por defecto, «Canal 3, Canal 7, TN23, Guatevision». Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 
 Las que llevan credencial viven en [`src/lib/config.server.ts`](src/lib/config.server.ts),
