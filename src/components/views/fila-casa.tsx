@@ -3,6 +3,8 @@
 import type { CSSProperties } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
+import { hora, queDanAhora } from "@/lib/guia-epg";
+import { useInstante } from "@/hooks/use-reloj";
 
 /**
  * Los canales de la casa: los que se ven de cajón.
@@ -31,6 +33,8 @@ export function FilaCasa({
 }) {
   // Sin ninguno en la lista de hoy, la sección no existe. Mejor eso que un
   // encabezado con un hueco debajo.
+  // Arriba del `return` temprano: los hooks van siempre en el mismo orden.
+  const ahora = useInstante();
   if (canales.length === 0) return null;
 
   return (
@@ -62,9 +66,23 @@ export function FilaCasa({
 
             <span className="casa-nombre">{canal.name}</span>
             <span className="casa-numero">{canal.number}</span>
+            {/* Lo que dan, si la guía lo sabe: lo que se pregunta desde el
+                sofá antes de cambiar. Nada si no se sabe; no se inventa. */}
+            <QueDan canal={canal} ahora={ahora} />
           </button>
         ))}
       </div>
     </section>
+  );
+}
+
+function QueDan({ canal, ahora }: { canal: Channel; ahora: number }) {
+  const ahoraDan = queDanAhora(canal, ahora);
+  if (!ahoraDan) return null;
+  return (
+    <span className="casa-programa" title={ahoraDan.titulo}>
+      <span>{ahoraDan.titulo}</span>
+      {ahoraDan.hasta && <span className="casa-hasta"> · hasta {hora(ahoraDan.hasta)}</span>}
+    </span>
   );
 }
