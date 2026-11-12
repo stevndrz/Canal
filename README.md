@@ -47,7 +47,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | Variable             | Para qué                                                        |
 |----------------------|-----------------------------------------------------------------|
 | `M3U_URL`            | Otra lista de canales en vez del Gist que trae el código. ⚠️ **No apuntes a una lista de pago en un despliegue público**: sus URLs de emisión llevan tu usuario y contraseña dentro, y `/api/canales` las reparte a quien las pida ([por qué](docs/SEGURIDAD.md)) |
-| `EPG_URL`            | Guía de programación en XMLTV; varias, separadas por comas. Sin ella se usan la de la lista y las de respaldo de `src/lib/fuentes-guia.ts` (Guatemala, de open-epg). Ponerla **desactiva** esas dos, y `no` apaga la guía |
+| `EPG_URL`            | Guía de programación en XMLTV; varias, separadas por comas. Sin ella se usan la guía diaria propia (rama `guia`, la arma `.github/workflows/guia.yml`), la de la lista y las de respaldo de `src/lib/fuentes-guia.ts`. Ponerla **desactiva** esas dos, y `no` apaga la guía |
 | `TMDB_API_KEY`       | Credencial de TMDB. **No hay ninguna de reserva**: sin ella, Cine y series lo dice en pantalla y los canales siguen igual |
 | `STREMIO_MANIFESTS`  | Addons que sirven enlaces directos — **la vía sin anuncios**      |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Un servidor de embeds propio, delante de la lista |

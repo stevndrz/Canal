@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { GUIAS_DE_RESPALDO, fuentesDeGuia } from "./fuentes-guia";
+import { GUIAS_DE_RESPALDO, GUIA_DIARIA, fuentesDeGuia } from "./fuentes-guia";
 
 describe("fuentesDeGuia", () => {
-  it("sin EPG_URL: la de la lista (sin fiarse) y después las de respaldo", () => {
+  it("sin EPG_URL: la diaria, la de la lista (sin fiarse) y después las de respaldo", () => {
     expect(fuentesDeGuia("", "https://lista.example/guia.xml.gz")).toEqual([
+      { url: GUIA_DIARIA, deLaLista: false },
       { url: "https://lista.example/guia.xml.gz", deLaLista: true },
       ...GUIAS_DE_RESPALDO.map((url) => ({ url, deLaLista: false })),
     ]);
-    expect(fuentesDeGuia("", null)).toEqual(GUIAS_DE_RESPALDO.map((url) => ({ url, deLaLista: false })));
+    expect(fuentesDeGuia("", null)).toEqual([GUIA_DIARIA, ...GUIAS_DE_RESPALDO].map((url) => ({ url, deLaLista: false })));
   });
 
   it("con EPG_URL manda solo eso, y admite varias separadas por comas", () => {
@@ -27,6 +28,6 @@ describe("fuentesDeGuia", () => {
   });
 
   it("solo https", () => {
-    for (const url of GUIAS_DE_RESPALDO) expect(url.startsWith("https://")).toBe(true);
+    for (const url of [GUIA_DIARIA, ...GUIAS_DE_RESPALDO]) expect(url.startsWith("https://")).toBe(true);
   });
 });
