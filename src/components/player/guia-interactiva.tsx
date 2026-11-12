@@ -228,8 +228,11 @@ export const GuiaInteractiva = forwardRef<
             volverAhora();
             break;
           case "Enter":
+            // Sin `onActividad`: avisar de actividad tras sintonizar volvía
+            // a abrir la guía que se acaba de cerrar.
+            evento.preventDefault();
             sintonizar(enfocado);
-            break;
+            return true;
           default:
             if (accion === "canal-arriba") moverFila(-filas);
             else if (accion === "canal-abajo") moverFila(filas);

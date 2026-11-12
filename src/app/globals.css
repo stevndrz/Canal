@@ -3671,7 +3671,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  transition: background-color var(--dur-rapida) var(--ease);
 }
 
 .guia-tv-programa:first-child {
@@ -3695,10 +3694,6 @@ body {
 
 .guia-tv-fila.is-foco .guia-tv-programa {
   background: var(--superficie-3);
-}
-
-.guia-tv-programa:hover {
-  background: var(--relleno-hover);
 }
 
 /* Lo elegido: blanco lleno, lo único que se lee a tres metros sin buscar. */
