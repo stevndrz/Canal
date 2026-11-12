@@ -4,6 +4,42 @@
 
 Lo más reciente arriba.
 
+### 2026-11-12 — Guía diaria propia, con GitHub Actions
+
+- Pedido del dueño: más canales con programación, que se actualice sola y
+  que siga siendo gratis. `.github/workflows/guia.yml` corre cada madrugada
+  (04:23 de Guatemala) los lectores de **iptv-org/epg** y deja `guia.xml.gz`
+  en la rama `guia`; la app la lee de `raw.githubusercontent.com` como
+  primera fuente (`GUIA_DIARIA` en `lib/fuentes-guia.ts`). El repositorio es
+  público: Actions no cobra minutos.
+- `scripts/guia/armar-canales.mjs` cruza la lista con los `*.channels.xml`
+  de iptv-org/epg por `tvg-id` (los mismos ids que nuestra lista) y se queda
+  con lo que se ve en casa: en español, o de Guatemala, Centroamérica y
+  México. Va solo: si la lista gana un canal con guía, entra al día siguiente.
+  `MANUALES` para los que no se emparejan solos: Canal 3 y 7 por mi.tv
+  («Televisiete» en GatoTV), TN23 por GatoTV.
+- **Rondas:** los canales que quedan sin programas prueban su siguiente sitio
+  (hasta 3). Los de Plex servidos por i.mjh.nz vienen vacíos a menudo; la
+  segunda ronda los cubre por plex.tv o pluto.tv.
+- **GatoTV salía una hora antes.** El lector de iptv-org lee sus horas como
+  de Nueva York (`'EST'`), pero cada página dice la suya (`utcOffset: -6` en
+  Guatemala). `gatotv.com.canalcasa.config.cjs` envuelve el lector y corrige
+  con lo que dice la página. Comprobado: Canal 7 a las 13:48 de Guatemala,
+  «Noti 7 - Vespertino», como en la web de GatoTV.
+- Medido aquí: 167 canales, 7.572 programas, 343 KB comprimida, 43 s. Con
+  ella, 144 canales de la lista dicen qué dan ahora (antes, 4).
+- **Seguridad:** el código de iptv-org corre en un trabajo con permiso solo
+  de lectura y sin credenciales en el checkout; otro trabajo, que no corre
+  nada de fuera, sube el archivo. La rama `guia` es un solo commit que se
+  reescribe cada día (son datos; su historia pesaría 120 MB al año).
+- Si un día sale casi vacía (<1.000 programas), no se publica y queda la de
+  ayer. `revisar-fuentes.mjs` avisa los lunes si la guía tiene más de 2 días:
+  GitHub apaga las tareas programadas de un repositorio público tras 60 días
+  sin actividad, y no está claro que los commits de la propia tarea cuenten.
+- Sin probar: la tarea en GitHub de verdad (aquí se corrió `bajar.sh` entero
+  con el mismo Node 22) y que GatoTV y mi.tv respondan a los servidores de
+  GitHub.
+
 ### 2026-11-12 — La guía no tenía datos: fuentes nuevas y emparejar por país
 
 - **El problema no era la pantalla, era la fuente.** La única guía era la

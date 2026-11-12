@@ -12,6 +12,10 @@
  * - Canales (`src/lib/fuentes-oficiales.ts`): que el master responda 200 con
  *   `#EXTM3U`, igual el respaldo, y que la web de Chapin TV siga anunciando la
  *   misma URL. Si la cambian, el aviso trae la nueva.
+ * - Guía diaria (`GUIA_DIARIA` en `src/lib/fuentes-guia.ts`): que exista, que
+ *   sea de hace dos días como mucho y que traiga programas. Si la tarea diaria
+ *   (`guia.yml`) se para —GitHub apaga las programadas de un repositorio sin
+ *   actividad en 60 días— esto es lo que avisa.
  * - Cine (`src/lib/catalog/providers.ts`): solo que el dominio responda. Un 200
  *   de un embed no garantiza que reproduzca (ver el comentario en
  *   providers.ts), pero un 404, un 5xx o un dominio que no existe sí garantizan
@@ -22,6 +26,7 @@
  * que no encontró nada en vez de dar todo por bueno.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
 
 const RAIZ = new URL("..", import.meta.url);
 const leer = (ruta) => readFileSync(new URL(ruta, RAIZ), "utf8");
@@ -86,6 +91,25 @@ async function revisarCanales() {
   );
 }
 
+async function revisarGuia() {
+  const url = leer("src/lib/fuentes-guia.ts").match(/GUIA_DIARIA\s*=\s*"([^"]+)"/)?.[1];
+  if (!url) return [{ nombre: "fuentes-guia.ts", ok: false, detalle: "no se encontró GUIA_DIARIA (¿cambió el formato?)" }];
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(TIEMPO_MS) });
+    if (!r.ok) return [{ nombre: "guía diaria", ok: false, detalle: `HTTP ${r.status}` }];
+    const xml = gunzipSync(Buffer.from(await r.arrayBuffer())).toString("utf8");
+    const fecha = xml.match(/<tv\b[^>]*\bdate="(\d{4})(\d{2})(\d{2})"/);
+    const programas = (xml.match(/<programme\b/g) ?? []).length;
+    const dias = fecha ? (Date.now() - Date.UTC(+fecha[1], +fecha[2] - 1, +fecha[3])) / 86_400_000 : Infinity;
+    const avisos = [];
+    if (dias > 2) avisos.push(fecha ? `es de hace ${Math.floor(dias)} días: ¿se paró guia.yml?` : "sin fecha");
+    if (programas < 1000) avisos.push(`solo ${programas} programas`);
+    return [{ nombre: "guía diaria", ok: avisos.length === 0, detalle: avisos.join("; ") || `${programas} programas, del ${fecha.slice(1).join("-")}` }];
+  } catch (error) {
+    return [{ nombre: "guía diaria", ok: false, detalle: error?.cause?.code || error?.name || String(error) }];
+  }
+}
+
 async function revisarCine() {
   const fuente = leer("src/lib/catalog/providers.ts");
   const bloques = [...fuente.matchAll(/id:\s*"([^"]+)",\s*movie:\s*[`"]([^`"]+)[`"]/g)];
@@ -104,14 +128,16 @@ async function revisarCine() {
   );
 }
 
-const [canales, cine] = await Promise.all([revisarCanales(), revisarCine()]);
+const [canales, guia, cine] = await Promise.all([revisarCanales(), revisarGuia(), revisarCine()]);
 const tabla = (filas) => ["| | Fuente | Detalle |", "|---|---|---|", ...filas.map((f) => `| ${f.ok ? "✅" : "❌"} | ${f.nombre} | ${f.detalle} |`)].join("\n");
-const caidos = [...canales, ...cine].filter((f) => !f.ok);
+const caidos = [...canales, ...guia, ...cine].filter((f) => !f.ok);
 const informe = [
   `## Revisión de fuentes — ${new Date().toISOString().slice(0, 10)}`,
   caidos.length ? `**${caidos.length} caída(s):** ${caidos.map((f) => f.nombre).join(", ")}` : "Todo responde.",
   "### Canales de Guatemala",
   tabla(canales),
+  "### Guía de programación",
+  tabla(guia),
   "### Servidores de cine (solo dominio: un ✅ no garantiza que reproduzca)",
   tabla(cine),
   "_Revisado desde fuera de Guatemala: lo que solo falla en casa no se ve aquí._",

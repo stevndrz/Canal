@@ -12,12 +12,21 @@ import type { FuenteDeGuia } from "./epg";
  * 1. `EPG_URL`, si quien despliega la puso. Admite varias separadas por comas,
  *    y entonces **solo** se usan esas: es una decisión explícita. `no` apaga
  *    la guía del todo (lo usan las pruebas e2e, que no deben salir a internet).
- * 2. La de la lista, por si algún día trae algo.
- * 3. `GUIAS_DE_RESPALDO`: guías públicas por país, elegidas a mano.
+ * 2. `GUIA_DIARIA`: la nuestra, que arma cada madrugada `guia.yml`.
+ * 3. La de la lista, por si algún día trae algo.
+ * 4. `GUIAS_DE_RESPALDO`: guías públicas por país, elegidas a mano.
  *
  * Las de respaldo cuentan como de quien despliega (`deLaLista: false`): están
  * escritas aquí, no las decide el dueño de una lista ajena.
  */
+/**
+ * La guía propia: unos 170 canales de la lista (en español, de Guatemala,
+ * Centroamérica y México) con los lectores de iptv-org/epg. Sus ids son los
+ * `tvg-id` exactos de la lista, así que empareja sin adivinar por nombre. Es
+ * la que trae TN23. Ver `scripts/guia/` y `.github/workflows/guia.yml`.
+ */
+export const GUIA_DIARIA = "https://raw.githubusercontent.com/stevndrz/Canal/guia/guia.xml.gz";
+
 export const GUIAS_DE_RESPALDO: readonly string[] = [
   /**
    * open-epg.com, Guatemala: 98 canales tal y como se ven aquí (Canal 3,
@@ -35,8 +44,8 @@ export function fuentesDeGuia(propia: string, deLaLista: string | null): FuenteD
     .map((url) => url.trim())
     .filter(Boolean);
   if (propias.length > 0) return propias.map((url) => ({ url, deLaLista: false }));
-  const fuentes: FuenteDeGuia[] = [];
-  if (deLaLista) fuentes.push({ url: deLaLista, deLaLista: true });
+  const fuentes: FuenteDeGuia[] = [{ url: GUIA_DIARIA, deLaLista: false }];
+  if (deLaLista && deLaLista !== GUIA_DIARIA) fuentes.push({ url: deLaLista, deLaLista: true });
   for (const url of GUIAS_DE_RESPALDO) {
     if (url !== deLaLista) fuentes.push({ url, deLaLista: false });
   }
