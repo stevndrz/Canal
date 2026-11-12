@@ -24,7 +24,7 @@ export const publicConfig = {
    * Se emparejan por NOMBRE y no por id: el id es la posición en la lista y se
    * mueve en cuanto la M3U cambia de tamaño.
    */
-  canalesDeCasa: (process.env.NEXT_PUBLIC_CANALES_CASA || "Canal 3, Canal 7, Guatevision")
+  canalesDeCasa: (process.env.NEXT_PUBLIC_CANALES_CASA || "Canal 3, Canal 7, TN23, Guatevision")
     .split(",")
     .map((nombre) => nombre.trim())
     .filter(Boolean),
