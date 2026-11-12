@@ -38,3 +38,28 @@ export function fuenteOficial(tvgId: string): FuenteOficial | undefined {
   const clave = tvgId.split("@")[0].trim().toLowerCase();
   return clave ? FUENTES_OFICIALES[clave] : undefined;
 }
+
+/**
+ * Canal 3 y Canal 7 emiten en SD, 720×480, pero la imagen es 16:9 apretada en
+ * ese cuadro y marcada como píxel cuadrado (SAR 1:1, es decir, 3:2). El
+ * navegador la pinta tal cual y la gente sale delgada: el «7» del logo se ve
+ * ovalado. TN23 ya emite 1280×720 y no lo necesita.
+ *
+ * Medido con ffprobe sobre un segmento de cada una (2026-11-12).
+ */
+const ANAMORFICAS = ["i8bocdjcqa5r", "hm8maie2jnn2"];
+
+/** Cuánto hay que ensanchar 3:2 para que sea 16:9: (16/9) / (3/2) = 32/27. */
+export const ENSANCHE_ANAMORFICO = 32 / 27;
+
+/**
+ * El factor por el que ensanchar la imagen, o 1 si se deja como viene.
+ *
+ * Pide las dos cosas: que la URL sea de una de esas señales y que la imagen
+ * mida de verdad 3:2. Si Chapin TV pasa a emitir en 720p, deja de aplicarse
+ * sola, sin tocar nada aquí.
+ */
+export function ensancheDeImagen(url: string, ancho?: number, alto?: number): number {
+  if (!ancho || !alto || Math.abs(ancho / alto - 1.5) > 0.01) return 1;
+  return ANAMORFICAS.some((id) => url.includes(`/${id}/`)) ? ENSANCHE_ANAMORFICO : 1;
+}

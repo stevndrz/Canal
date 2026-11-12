@@ -43,6 +43,31 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-12 — TN23 en Casa, y Canal 3 y 7 ya no se ven aplastados
+
+- **TN23 entra en Casa** (pedido del dueño): `canalesDeCasa` por defecto pasa
+  a «Canal 3, Canal 7, TN23, Guatevision». En Vercel no hay
+  `NEXT_PUBLIC_CANALES_CASA`, así que manda el valor por defecto. En el
+  teléfono, la fila usa `--casa-n` (cuántas son) en vez de `repeat(3…)` fijo:
+  la cuarta bajaba sola a otra fila.
+- **Canal 7 «se veía medio mal»: era la proporción, no solo la resolución.**
+  ffprobe sobre un segmento: 720×480 con SAR 1:1 (3:2), pero el contenido es
+  16:9 apretado. La gente salía delgada y el «7» del logo, ovalado. Canal 3,
+  igual. TN23 ya es 1280×720.
+- Arreglo: `ensancheDeImagen` en `fuentes-oficiales.ts` (por URL de Chapin TV
+  **y** solo si la imagen mide 3:2 de verdad, para que deje de actuar sola si
+  pasan a 720p) y `scaleX(32/27)` en el `<video>` de `stream-player`. Sobre
+  `contain` cuadra justo con un marco 16:9; en uno más estrecho recorta un poco
+  los lados, nunca deforma. Sin campos nuevos en `Channel`.
+- **Otra fuente mejor: no la hay.** La oficial de Chapin TV da como mucho
+  720×480 a 1,5 Mb/s (la de respaldo, igual). La alternativa de iptv-org
+  (`http://181.119.177.253:8000/…`) es HTTP desde una IP: el iPhone y la web
+  en https la bloquean (contenido mixto), y es una reemisión no oficial.
+- **Sin probar:** la pantalla completa nativa del iPhone dibuja el vídeo con
+  su propio reproductor e ignora el `transform`; ahí puede seguir viéndose
+  apretado. En la tele y el PC la pantalla completa es la del contenedor y sí
+  se corrige.
+
 ### 2026-11-09 — La lista completa ya no se pide en pleno arranque
 
 Medido antes de decidir si migrar de Next (no se migra: ver el plan del

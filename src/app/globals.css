@@ -4413,8 +4413,8 @@ body {
   vertical-align: 0.12em;
 }
 
-/* El logo, con sitio de sobra: son los tres canales que hay que reconocer de
-   un vistazo desde tres metros. */
+/* El logo, con sitio de sobra: son los canales que hay que reconocer de un
+   vistazo desde tres metros. */
 .casa-arte {
   display: grid;
   place-items: center;
@@ -4456,11 +4456,13 @@ body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
-/* En vertical no caben tres de ese ancho: se reparten el sitio que haya. */
+/* En vertical no caben de ese ancho: se reparten el sitio que haya, todas
+   en una fila. `--casa-n` lo pone `fila-casa.tsx` con cuántas son; con un
+   `repeat(3…)` fijo, la cuarta (TN23) bajaba sola a otra fila. */
 @media (max-width: 680px) {
   .casa-fila {
     grid-auto-flow: row;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--casa-n, 3), minmax(0, 1fr));
     gap: 8px;
   }
 

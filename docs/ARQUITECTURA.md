@@ -200,12 +200,12 @@ Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 | Variable | Para qué | Por defecto |
 |---|---|---|
 | `M3U_URL` | Lista de canales | Un gist público |
-| `EPG_URL` | Guía XMLTV | La que declare la lista, o ninguna |
+| `EPG_URL` | Guías XMLTV, separadas por comas; `no` la apaga | La de la lista + las de respaldo (`fuentes-guia.ts`) |
 | `TMDB_API_KEY` | Catálogo de películas | **Ninguno.** Sin ella, Cine y series lo dice en pantalla |
 | `TMDB_API_BASE` | Espejo o simulador de TMDB, para pruebas | La API pública |
 | `STREMIO_MANIFESTS` | Addons que sirven enlaces directos, sin anuncios | Ninguno |
 | `NEXT_PUBLIC_CANAL_INICIAL` | Canal de arranque | `Canal 7` |
-| `NEXT_PUBLIC_CANALES_CASA` | Los canales de la casa, separados por comas | `Canal 3, Canal 7, Guatevision` |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales de la casa, separados por comas | `Canal 3, Canal 7, TN23, Guatevision` |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML | Recortado a ~200 |
 

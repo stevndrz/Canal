@@ -2,7 +2,8 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import { loadM3uPlaylist, type ParsedChannel } from "@/lib/m3u";
-import { fetchEpg, getEpgEntry } from "@/lib/epg";
+import { fetchGuias, getEpgEntry } from "@/lib/epg";
+import { fuentesDeGuia } from "@/lib/fuentes-guia";
 import {
   empaquetarCanales,
   type CanalDeOrigen,
@@ -70,14 +71,10 @@ async function conProgramacion(
   canales: ParsedChannel[],
   epgDeLaLista: string | null,
 ): Promise<CanalDeOrigen[]> {
-  // La guía es opcional: si la lista M3U no referencia ninguna y no hay EPG_URL
-  // configurada, la app funciona igual, solo sin horarios.
-  // Cuál de las dos se usa decide también cuánto se la comprueba: la de
-  // `EPG_URL` la eligió quien despliega, la de la lista la eligió quien
-  // controla esa lista. Ver `fetchEpg`.
-  const propia = serverConfig().epgUrl;
-  const url = propia || epgDeLaLista || "";
-  const epg = url ? await fetchEpg(url, !propia) : null;
+  // La guía es opcional: si ninguna fuente contesta, la app funciona igual,
+  // solo sin horarios. Cuáles se usan y cuánto se fía de cada una, en
+  // `fuentes-guia.ts` y `fetchEpg`.
+  const epg = await fetchGuias(fuentesDeGuia(serverConfig().epgUrl, epgDeLaLista));
   if (!epg) return canales;
 
   // Corre una vez por descarga en el servidor, no en cada re-render.

@@ -20,6 +20,7 @@ import {
   type MotorMontado,
 } from "@/lib/reproduccion/motor";
 import { marcarInicio, registrarArranque, registrarAtasco, registrarFallo } from "@/lib/reproduccion/metricas";
+import { ensancheDeImagen } from "@/lib/fuentes-oficiales";
 import { accionDeTecla } from "@/lib/teclas-mando";
 import type { Channel, PlaybackSettings } from "@/lib/types";
 import { DEFAULT_PLAYBACK } from "@/lib/types";
@@ -248,6 +249,7 @@ const StreamPlayer = memo(
       usandoRespaldoRef.current = false;
     }, [channel.id, streamUrl]);
     const urlEfectiva = usandoRespaldo && respaldoUrl ? respaldoUrl : streamUrl;
+    const ensanche = ensancheDeImagen(urlEfectiva, emision.ancho, emision.alto);
 
     /**
      * Pausa síncrona al ocultarse. Mismo motivo que en `native-player.tsx`:
@@ -804,7 +806,13 @@ const StreamPlayer = memo(
           crossOrigin="anonymous"
           x-webkit-airplay="allow"
           disableRemotePlayback={false}
-          style={{ objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain" }}
+          style={{
+            objectFit: settings.ajusteImagen === "llenar" ? "cover" : "contain",
+            // Canal 3 y 7 llegan 16:9 apretados en 3:2 (`ensancheDeImagen`).
+            // Ensanchar sobre `contain` lo deja justo en un marco 16:9; en
+            // uno más estrecho recorta un poco los lados, nunca deforma.
+            transform: ensanche === 1 ? undefined : `scaleX(${ensanche})`,
+          }}
         />
 
         {/* «Conectando»: el logo del canal, grande, respirando —como Apple TV—
