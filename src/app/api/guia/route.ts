@@ -1,4 +1,5 @@
-import { fetchEpg, programasEnFranja } from "@/lib/epg";
+import { fetchGuias, programasEnFranja } from "@/lib/epg";
+import { fuentesDeGuia } from "@/lib/fuentes-guia";
 import { serverConfig } from "@/lib/config.server";
 import { loadM3uPlaylist } from "@/lib/m3u";
 import { normalizeChannelName } from "@/lib/text";
@@ -77,12 +78,9 @@ export async function GET(request: Request) {
   const hasta = desde + horas * 60 * 60 * 1000;
 
   try {
-    // Misma distinción de confianza que en `lista-canales.ts`: la de `EPG_URL`
-    // la puso quien despliega, la de la lista la eligió otro. Ver `fetchEpg`.
+    // Las mismas fuentes que `lista-canales.ts`. Ver `fuentes-guia.ts`.
     const { channels, epgUrl: epgDeLaLista } = await loadM3uPlaylist();
-    const propia = serverConfig().epgUrl;
-    const url = propia || epgDeLaLista || "";
-    const guia = url ? await fetchEpg(url, !propia) : null;
+    const guia = await fetchGuias(fuentesDeGuia(serverConfig().epgUrl, epgDeLaLista));
 
     if (!guia) {
       // Sin guía no es un error, es el caso por defecto: se responde con la
