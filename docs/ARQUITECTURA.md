@@ -205,7 +205,7 @@ Todo opcional: la aplicación arranca recién clonada sin preparar nada.
 | `TMDB_API_BASE` | Espejo o simulador de TMDB, para pruebas | La API pública |
 | `STREMIO_MANIFESTS` | Addons que sirven enlaces directos, sin anuncios | Ninguno |
 | `NEXT_PUBLIC_CANAL_INICIAL` | Canal de arranque | `Canal 7` |
-| `NEXT_PUBLIC_CANALES_CASA` | Los canales de la casa, separados por comas | `Canal 3, Canal 7, Guatevision` |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales de la casa, separados por comas | `Canal 3, Canal 7, TN23, Guatevision` |
 | `NEXT_PUBLIC_EMBED_PROVIDER_MOVIE` / `_TV` | Servidor propio de reproducción | Ninguno |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML | Recortado a ~200 |
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { Channel } from "@/lib/types";
 import { channelMark } from "@/lib/channels";
 
@@ -8,12 +9,12 @@ import { channelMark } from "@/lib/channels";
  *
  * **No es un riel, y por eso no usa `MediaRail`.** Un riel dice «hay más si
  * sigues»: tiene flechas, scroll y las tarjetas pegadas al margen izquierdo
- * esperando compañía. Aquí son tres, son siempre los mismos y no va a haber un
- * cuarto — es un acceso directo, y una fila de tres tarjetas alineadas a la
- * izquierda en una pantalla de 1920 se lee como un riel al que le faltan
- * carátulas.
+ * esperando compañía. Aquí son unos pocos (Canal 3, 7, TN23 y Guatevisión),
+ * siempre los mismos — es un acceso directo, y una fila de cuatro tarjetas
+ * alineadas a la izquierda en una pantalla de 1920 se lee como un riel al que
+ * le faltan carátulas.
  *
- * Así que van centradas y grandes: tres paradas de mando, el logo bien visible
+ * Así que van centradas y grandes: pocas paradas de mando, el logo bien visible
  * desde tres metros y el número de canal debajo, que es lo que la gente de la
  * casa dice en voz alta («pon el tres»).
  *
@@ -36,7 +37,8 @@ export function FilaCasa({
     <section className="casa" aria-label="Canales de la casa">
       <h3 className="casa-titulo">Casa</h3>
 
-      <div className="casa-fila">
+      {/* Cuántas son, para que en el teléfono quepan todas en una fila. */}
+      <div className="casa-fila" style={{ "--casa-n": canales.length } as CSSProperties}>
         {canales.map((canal) => (
           <button
             key={canal.id}

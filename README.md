@@ -55,7 +55,7 @@ Ninguna es obligatoria: la app arranca recién clonada, sin configurar nada.
 | `VIMEUS_API_KEY` | API key de Vimeus (**Sensitive**, solo servidor): el riel «Recién llegadas en latino» y la marca «Latino» por episodio. Sin ella, Vimeus funciona igual por iframe; solo faltan esos extras |
 | `NEXT_PUBLIC_VIMEUS_VIEW_KEY` | Opcional: la *view key* de Vimeus (pública, va en el iframe). Trae por defecto la de la cuenta de la casa |
 | `NEXT_PUBLIC_PELICULAS_URL` | URL pública del bucket de R2 con «Nuestras películas» (`https://pub-….r2.dev`). Ver [docs/PELICULAS-JUNTOS.md](docs/PELICULAS-JUNTOS.md) |
-| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
+| `NEXT_PUBLIC_CANALES_CASA` | Los canales que se ven de cajón, separados por comas. Por defecto, «Canal 3, Canal 7, TN23, Guatevision». Salen los primeros en Canales y tienen su riel en Inicio, **en todos los aparatos** |
 | `CANALES_EN_HTML=todos` | Marcha atrás: manda los 7.822 canales en el HTML, como antes |
 
 Las que llevan credencial viven en [`src/lib/config.server.ts`](src/lib/config.server.ts),
