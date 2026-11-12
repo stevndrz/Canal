@@ -28,3 +28,27 @@ export function hora(millis?: number): string {
   if (!millis) return "";
   return new Date(millis).toLocaleTimeString("es-GT", { hour: "numeric", minute: "2-digit" });
 }
+
+/**
+ * Qué dan ahora en un canal, con lo que trae la lista: el programa actual y,
+ * si ya terminó (la lista se arma cada pocos minutos y la página puede llevar
+ * horas abierta), el siguiente si ya empezó. `null` si no se sabe o si el
+ * instante aún no se conoce (`ahora` = 0, ver `useInstante`).
+ */
+export function queDanAhora(
+  canal: { currentProgram?: string; currentStart?: number; currentEnd?: number; nextProgram?: string; nextStart?: number },
+  ahora: number,
+): { titulo: string; hasta?: number } | null {
+  if (!ahora) return null;
+  const { currentProgram, currentStart, currentEnd, nextProgram, nextStart } = canal;
+  if (currentProgram && currentEnd && currentEnd > ahora && (!currentStart || currentStart <= ahora)) {
+    return { titulo: currentProgram, hasta: currentEnd };
+  }
+  // Dos horas como mucho: después ya puede ir por otro programa.
+  const reciente = nextStart && nextStart <= ahora && ahora - nextStart < 2 * 60 * 60_000;
+  if (nextProgram && reciente && (!currentEnd || currentEnd <= ahora)) {
+    // Del siguiente no se sabe cuándo acaba, y no se inventa.
+    return { titulo: nextProgram };
+  }
+  return null;
+}

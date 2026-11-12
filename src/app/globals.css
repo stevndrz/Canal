@@ -4297,6 +4297,21 @@ body {
   color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
+/* Lo que dan ahora, debajo del número: una línea, cortada si no cabe. */
+.casa-programa {
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: var(--texto-xs);
+  color: var(--tinta-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.casa-hasta {
+  color: var(--tinta-3);
+}
+
 /* En vertical no caben tres de ese ancho: se reparten el sitio que haya. */
 @media (max-width: 680px) {
   .casa-fila {
@@ -4307,6 +4322,11 @@ body {
 
   .casa-boton {
     width: auto;
+  }
+
+  /* En el teléfono no cabe la hora: queda el título. */
+  .casa-hasta {
+    display: none;
   }
 }
 
