@@ -4,6 +4,15 @@
 
 Lo más reciente arriba.
 
+### 2026-11-12 — La rama `guia` ya no intenta desplegarse en Vercel
+
+- Primera ejecución real de `guia.yml`: bien (166 canales, 7.455 programas,
+  ~1 min). GatoTV y mi.tv responden a los servidores de GitHub.
+- Pero Vercel despliega toda rama que recibe un push, y `guia` solo tiene el
+  archivo: «No Next.js version detected», un error al día. La tarea deja en
+  esa rama un `vercel.json` con `git.deploymentEnabled: { "guia": false }`;
+  Vercel lo lee de la rama que despliega. La app y `main` no cambian.
+
 ### 2026-11-12 — Guía diaria propia, con GitHub Actions
 
 - Pedido del dueño: más canales con programación, que se actualice sola y
