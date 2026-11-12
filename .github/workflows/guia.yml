@@ -1,0 +1,90 @@
+name: Guía diaria
+
+# Cada madrugada baja la programación de unos 170 canales de la lista con los
+# lectores de iptv-org/epg (GatoTV, mi.tv, Pluto, Plex…) y la deja en la rama
+# `guia`, de donde la lee la app (`src/lib/fuentes-guia.ts`). Gratis: el
+# repositorio es público y Actions no cobra minutos en repositorios públicos.
+#
+# Dos trabajos a propósito:
+# 1. `bajar` corre código de otros (iptv-org/epg, su rama principal, para
+#    recibir sus arreglos sin tocar nada aquí) con permiso SOLO de lectura y
+#    sin credenciales guardadas en el checkout.
+# 2. `publicar` no corre nada de fuera: coge el archivo y lo sube.
+#
+# La rama `guia` tiene un solo commit que se reescribe cada día (`--force`):
+# es un archivo de datos de 350 KB; guardar su historia engordaría el
+# repositorio 120 MB al año sin servir de nada.
+#
+# Si un día sale casi vacía, `juntar-guias.mjs` falla y se queda la de ayer.
+# La revisión semanal (`revisar-fuentes.yml`) avisa si la guía se queda vieja.
+on:
+  schedule:
+    - cron: "23 10 * * *" # 04:23 en Guatemala (UTC-6)
+  workflow_dispatch:
+
+concurrency:
+  group: guia
+  cancel-in-progress: false
+
+jobs:
+  bajar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Sin scripts de instalación: no hacen falta para leer guías, y así el
+      # código de terceros solo corre donde se le llama.
+      - name: Lectores de iptv-org/epg
+        run: |
+          git clone --depth 1 https://github.com/iptv-org/epg.git "$RUNNER_TEMP/epg"
+          cd "$RUNNER_TEMP/epg" && npm ci --ignore-scripts --no-audit --no-fund
+          git log -1 --format="iptv-org/epg %h del %cd"
+
+      - name: Bajar la guía
+        run: EPG="$RUNNER_TEMP/epg" scripts/guia/bajar.sh publicar/guia.xml.gz
+
+      - uses: actions/upload-artifact@v6
+        with:
+          name: guia
+          path: publicar/guia.xml.gz
+          retention-days: 3
+
+  publicar:
+    needs: bajar
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: guia
+          path: publicar
+
+      - name: Subir a la rama guia
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd publicar
+          cat > README.md <<'EOF'
+          # Guía de programación de CanalCasa
+
+          `guia.xml.gz` (XMLTV) la genera cada día `.github/workflows/guia.yml`
+          en la rama principal. No se edita a mano: se reescribe entera.
+          EOF
+          git init -q -b guia
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add guia.xml.gz README.md
+          git commit -qm "Guía del $(date -u +%F)"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" guia
+          echo "Publicada: https://raw.githubusercontent.com/${{ github.repository }}/guia/guia.xml.gz"
