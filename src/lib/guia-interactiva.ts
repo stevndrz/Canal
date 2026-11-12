@@ -111,3 +111,25 @@ export function textoRestante(fin: number, ahora: number): string {
   const resto = minutos % 60;
   return resto ? `Quedan ${horas} h ${resto} min` : `Quedan ${horas} h`;
 }
+
+/**
+ * Las secciones de zapeo en una sola lista para la guía, sin repetir canales
+ * (la casa sale en «Mis canales» y otra vez en Guatemala), con el título de
+ * la sección de cada uno para la cabecera.
+ */
+export function aplanarSecciones<T extends { id: number }>(
+  secciones: readonly { titulo: string; canales: readonly T[] }[],
+): { canales: T[]; seccionDe: string[] } {
+  const vistos = new Set<number>();
+  const canales: T[] = [];
+  const seccionDe: string[] = [];
+  for (const seccion of secciones) {
+    for (const canal of seccion.canales) {
+      if (vistos.has(canal.id)) continue;
+      vistos.add(canal.id);
+      canales.push(canal);
+      seccionDe.push(seccion.titulo);
+    }
+  }
+  return { canales, seccionDe };
+}

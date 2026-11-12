@@ -707,9 +707,12 @@ export function Dashboard({
       {view === "player" && tuned && (
         <FullscreenPlayer
           channel={tuned}
-          // El contexto de zapeo, no la lista entera: lo que recorren ↑/↓ y
-          // lo que enseña la guía. Ver `contexto`.
+          // El contexto de zapeo, no la lista entera: lo que recorren ↑/↓.
+          // Ver `contexto`.
           playlist={contexto.lista}
+          // La guía, en cambio, recorre todas las secciones (la cadena
+          // entera, o los resultados de Buscar si se llegó desde ahí).
+          secciones={contexto.secciones}
           settings={settings}
           onTune={alZapear}
           onSilencio={recordarSilencio}

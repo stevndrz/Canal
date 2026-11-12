@@ -43,6 +43,22 @@ src/lib/reproduccion/ · describir-canal.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-12 — La guía de pantalla completa recorre todos los canales
+
+- El dueño abría la guía y solo veía 52 canales: recibía el contexto de
+  zapeo (`contexto.lista`, «Mis canales y Guatemala» y la sección vecina),
+  que es lo que deben recorrer ↑/↓ al zapear, pero no lo que se espera de
+  una guía de cable.
+- Ahora `FullscreenPlayer` recibe además `secciones` (la cadena entera, o
+  los resultados de Buscar si se llegó desde ahí) y la guía la aplana sin
+  repetir (`aplanarSecciones`: la casa sale en «Mis canales» y otra vez en
+  Guatemala). Zapear sigue igual.
+- La cabecera dice dónde se está: «Centroamérica · 74 de 4.816». Solo se
+  pintan 6 filas y se pide la guía de esas, así que 4.816 no pesan más que 52.
+- Pendiente de opinión del dueño: muchas filas dicen «Sin programación»
+  (unos 170 canales tendrán guía con la diaria, #123). Un filtro «solo con
+  programación» haría la guía más corta y útil.
+
 ### 2026-11-12 — TN23 en Casa, y Canal 3 y 7 ya no se ven aplastados
 
 - **TN23 entra en Casa** (pedido del dueño): `canalesDeCasa` por defecto pasa

@@ -3528,7 +3528,16 @@ body {
 .guia-tv-dia {
   font-size: var(--texto-sm);
   color: var(--tinta-3);
+}
+
+/* «Jue, 12/11»: solo la fecha. En el contenedor ponía «Mis Canales Y…». */
+.guia-tv-fecha {
   text-transform: capitalize;
+}
+
+.guia-tv-dia b {
+  font-weight: 600;
+  color: var(--tinta-1);
 }
 
 .guia-tv-reloj {

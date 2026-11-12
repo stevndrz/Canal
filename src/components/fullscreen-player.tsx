@@ -25,8 +25,10 @@ interface FullscreenPlayerProps {
  * Una emisión en directo no se pausa ni se busca, así que aquí no hay barra de
  * progreso ni controles de tiempo: zapear es el único movimiento posible.
  */
-/** Lista visible: define qué zapea ↑↓ y qué muestra la guía. */
+/** Lista visible: define qué zapea ↑↓. La guía recorre `secciones`. */
   playlist: Channel[];
+  /** Todo lo que enseña la guía, por secciones (la cadena entera de zapeo). */
+  secciones: readonly { titulo: string; canales: readonly Channel[] }[];
   settings: PlaybackSettings;
   onTune: (channel: Channel) => void;
   onExit: () => void;
@@ -45,6 +47,7 @@ const GUIDE_TIMEOUT = 30000;
 export function FullscreenPlayer({
   channel,
   playlist,
+  secciones,
   settings,
   onTune,
   onExit,
@@ -478,7 +481,7 @@ export function FullscreenPlayer({
       {showGuide && (
         <GuiaInteractiva
           ref={guiaRef}
-          playlist={playlist}
+          secciones={secciones}
           channelId={channel.id}
           onTune={onTune}
           onCerrar={cerrarGuia}
