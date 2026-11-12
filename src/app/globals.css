@@ -4472,6 +4472,35 @@ body {
 }
 
 
+/* Lo que dan ahora, debajo del número: una línea, cortada si no cabe. Las
+   tarjetas se alinean arriba (`align-items: start`): con una sin programa y
+   otra con él, centradas bailaban a alturas distintas. */
+.casa .casa-fila {
+  align-items: start;
+}
+
+.casa-programa {
+  max-width: 100%;
+  margin-top: 4px;
+  overflow: hidden;
+  font-size: var(--texto-xs);
+  color: var(--tinta-2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.casa-hasta {
+  color: var(--tinta-3);
+}
+
+/* En el teléfono no cabe la hora: queda el título. */
+@media (max-width: 680px) {
+  .casa-hasta {
+    display: none;
+  }
+}
+
+
 /* ═══ Episodios: pestañas, marcado y atajo desde la portada ══════════════
    Lo nuevo de la lista de capítulos. El resto de `.ficha-episodio*` sigue
    arriba, con las demás piezas de la ficha; esto va al final porque son reglas

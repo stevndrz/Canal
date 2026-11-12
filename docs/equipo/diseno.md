@@ -46,6 +46,18 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-12 — Casa dice qué dan ahora
+
+- Debajo del número, una línea: «Laura · hasta 4:00 p. m.» (`.casa-programa`,
+  `--tinta-2`; la hora en `--tinta-3`). En el teléfono solo el título: con
+  cuatro tarjetas no cabe la hora.
+- Sale de `queDanAhora` (`lib/guia-epg.ts`): el actual mientras dura y, si la
+  página lleva rato abierta, el siguiente sin inventarle fin. Sin guía, nada.
+- `.casa .casa-fila { align-items: start }`: centradas, una tarjeta sin
+  programa (TN23) y otra con él quedaban a alturas distintas.
+- El bloque va lejos de la regla del teléfono de `.casa-fila` a propósito: el
+  PR de TN23 (#118) cambia esa regla y, pegados, chocaban.
+
 ### 2026-11-07 — Mi enlace: la familia `.cine-*` (sala de cine para dos)
 
 - Todo al final de `globals.css`, **sin capa**: portada a pantalla completa
