@@ -81,10 +81,15 @@ jobs:
           `guia.xml.gz` (XMLTV) la genera cada día `.github/workflows/guia.yml`
           en la rama principal. No se edita a mano: se reescribe entera.
           EOF
+          # Vercel despliega cada rama que recibe un push, y esta no tiene la
+          # app: fallaba cada día con «No Next.js version detected». Vercel lee
+          # `vercel.json` de la rama que despliega, así que esto solo apaga
+          # esta rama.
+          echo '{ "git": { "deploymentEnabled": { "guia": false } } }' > vercel.json
           git init -q -b guia
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add guia.xml.gz README.md
+          git add guia.xml.gz README.md vercel.json
           git commit -qm "Guía del $(date -u +%F)"
           git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" guia
           echo "Publicada: https://raw.githubusercontent.com/${{ github.repository }}/guia/guia.xml.gz"
