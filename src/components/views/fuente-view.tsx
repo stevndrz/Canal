@@ -632,6 +632,7 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
   return (
     <div className={`screen tv-safe fuente cine ${sinHueco ? "sin-hueco" : ""}`}>
       <Portada
+        inmersivo={escenarioVisible}
         fondo={fondo}
         sobretitulo=""
         titulo={portada?.titulo ?? ""}

@@ -100,6 +100,7 @@ export function Portada({
   teatro,
   estante,
   vacia,
+  inmersivo = false,
   children,
 }: {
   fondo: string | null;
@@ -119,11 +120,17 @@ export function Portada({
    * en vez de dejar media pantalla vacía. Trae su propio `#cine-titulo`.
    */
   vacia?: ReactNode;
+  /**
+   * El reproductor está a pantalla completa (`.cine-teatro.is-inmersivo`).
+   * La portada suelta entonces su capa propia (`isolation`): con ella, el
+   * reproductor competía DENTRO de la portada y la barra (z 60) le ganaba.
+   */
+  inmersivo?: boolean;
   children: ReactNode;
 }) {
   return (
     <section
-      className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""} ${estante ? "con-estante" : ""} ${vacia ? "is-vacia" : ""}`}
+      className={`cine-portada ${fondo ? "" : "is-sin-arte"} ${teatro ? "con-teatro" : ""} ${estante ? "con-estante" : ""} ${vacia ? "is-vacia" : ""} ${inmersivo ? "con-inmersivo" : ""}`}
       aria-labelledby="cine-titulo"
     >
       {fondo && (

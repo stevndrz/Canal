@@ -5610,6 +5610,14 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   background: #000;
 }
 
+/* Con `isolation: isolate`, la portada es una capa propia y el reproductor
+   (z 65) solo competía dentro de ella: la barra (z 60, fuera) se quedaba
+   encima, y en la tele el logo pisaba la píldora «Juntos». Mientras dura el
+   inmersivo, la portada suelta su capa; lo que hay detrás queda tapado. */
+.cine-portada.con-inmersivo {
+  isolation: auto;
+}
+
 .cine-teatro.is-inmersivo > .atv {
   box-shadow: none;
 }
