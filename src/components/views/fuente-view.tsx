@@ -673,6 +673,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
           enPantalla && (
             <section
               className={`cine-teatro ${escenarioVisible ? "is-inmersivo" : ""}`}
+              // Inmersivo, el mando solo recorre el reproductor: lo de debajo
+              // (la barra, la portada) sigue en la página, pero tapado.
+              data-nav-ambito={escenarioVisible ? "" : undefined}
               aria-label={`Reproductor: ${enPantalla.titulo}`}
             >
               <Halo video={video} poster={fondo} />

@@ -46,6 +46,24 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-13 — Mi enlace en la tele: la película ya tapa la barra
+
+- Foto del dueño: viendo una película en la tele, la barra de la app (logo,
+  pestañas, hora) se quedaba encima, el logo pisaba la píldora «Juntos» y el
+  mando no navegaba.
+- Causa de lo visual: `.cine-portada` lleva `isolation: isolate` (para que
+  su fondo y su velo, con z negativo, no se salgan). Eso la hace capa propia,
+  y el reproductor inmersivo (`z: calc(var(--capa-barra) + 5)`) competía
+  DENTRO de ella: la barra (`aside.sidebar`, z 60, fuera) le ganaba.
+  `.cine-portada.con-inmersivo { isolation: auto }` mientras dura el
+  inmersivo (`Portada` recibe `inmersivo`). Sin `:has()`: las teles llegan a
+  Chromium 76.
+- Causa de lo del mando (en `canales`/`reproduccion`, anotado aquí por
+  junto): el foco se quedaba en la página. Ahora entra en Pausar al pasar a
+  inmersivo (`native-player.tsx`), y `use-spatial-nav` respeta un
+  `[data-nav-ambito]` que el teatro pone mientras tapa la pantalla.
+- e2e nuevo en `nuestras-peliculas.spec.ts` (tele): falla sin el arreglo.
+
 ### 2026-11-12 — Casa dice qué dan ahora
 
 - Debajo del número, una línea: «Laura · hasta 4:00 p. m.» (`.casa-programa`,

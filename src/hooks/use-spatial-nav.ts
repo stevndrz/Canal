@@ -54,8 +54,15 @@ function esEnfocable(el: HTMLElement): boolean {
   return ENFOCABLES.has(el.tagName) && !el.hasAttribute("disabled");
 }
 
+/**
+ * Un `[data-nav-ambito]` en pantalla encierra el mando dentro de él: hoy, el
+ * reproductor de la sala a pantalla completa. Lo de debajo sigue en la página
+ * (y `offsetParent` no lo da por oculto), pero está tapado: sin esto, las
+ * flechas llevaban el foco a la barra y a la portada, invisibles detrás.
+ */
 function collect(root: HTMLElement): Candidate[] {
-  return [...root.querySelectorAll<HTMLElement>("[data-nav]")]
+  const ambito = root.querySelector<HTMLElement>("[data-nav-ambito]");
+  return [...(ambito ?? root).querySelectorAll<HTMLElement>("[data-nav]")]
     .filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null && esEnfocable(el))
     .map((el) => ({
       el,

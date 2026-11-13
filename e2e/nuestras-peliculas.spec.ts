@@ -39,6 +39,42 @@ test("Tele: con el mando, el foco entra por la película elegida", async ({ brow
   await contexto.close();
 });
 
+test("Tele: al reproducir, la película tapa la barra y el mando se queda en el reproductor", async ({ browser }) => {
+  const contexto = await nuevoAparato(browser, "tele");
+  const page = await contexto.newPage();
+  await page.goto("/?vista=fuente");
+  await expect(page.locator("video")).toBeAttached();
+  await page.locator(".atv-play-central").click();
+  const teatro = page.locator(".cine-teatro.is-inmersivo");
+  await expect(teatro).toBeVisible();
+
+  // Lo que hay arriba es el reproductor, no la barra de la app (antes el logo
+  // y las pestañas quedaban encima, pisando la píldora «Juntos»).
+  const arribaEsDelReproductor = () =>
+    page.evaluate(() =>
+      [[400, 45], [80, 40], [1700, 45]].every(([x, y]) => document.elementFromPoint(x, y)?.closest(".cine-teatro") !== null),
+    );
+  await expect.poll(arribaEsDelReproductor).toBe(true);
+
+  // El foco entra en Pausar: OK pausa y las flechas son del reproductor.
+  const reproducirPausar = page.locator(".cine-teatro .atv-btn.is-play");
+  await expect(reproducirPausar).toBeFocused();
+  await expect(reproducirPausar).toHaveAttribute("aria-label", "Pausar");
+  for (const tecla of ["ArrowUp", "ArrowLeft", "ArrowDown", "ArrowRight"]) {
+    await page.keyboard.press(tecla);
+    expect(await page.evaluate(() => document.activeElement?.closest(".cine-teatro") !== null)).toBe(true);
+  }
+  await page.keyboard.press("Enter");
+  await expect(reproducirPausar).toBeFocused();
+  await expect(reproducirPausar).toHaveAttribute("aria-label", "Reproducir");
+
+  // Atrás sale del inmersivo, sin salir de Mi enlace.
+  await page.keyboard.press("Escape");
+  await expect(teatro).toHaveCount(0);
+  await expect(page.locator(".cine-teatro")).toBeVisible();
+  await contexto.close();
+});
+
 test("PC: al reproducir el estante se recoge y «Cambiar película» lo devuelve", async ({ browser }) => {
   const contexto = await nuevoAparato(browser, "pc");
   const page = await contexto.newPage();
