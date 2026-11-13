@@ -731,6 +731,22 @@ export const NativePlayer = memo(function NativePlayer({
    * roto a la segunda pulsación. `stopPropagation` es lo mismo que ya hace el
    * riel de progreso más abajo para este mismo problema.
    */
+  /**
+   * Al pasar a pantalla completa de la sala (la tele lo hace sola al arrancar),
+   * el foco entra en Pausar. Se quedaba en la página de debajo: las flechas
+   * del mando no llegaban a `alTecla` (que solo oye con el foco dentro) y la
+   * navegación espacial lo llevaba a botones tapados por el vídeo. Desde aquí,
+   * OK pausa, ← → saltan 10 s y ↑ ↓ cambian el volumen, como en tvOS.
+   */
+  useEffect(() => {
+    if (!inmersivo) return;
+    const raiz = containerRef.current;
+    if (!raiz || raiz.contains(document.activeElement)) return;
+    wake();
+    const id = requestAnimationFrame(() => raiz.querySelector<HTMLElement>(".atv-btn.is-play")?.focus());
+    return () => cancelAnimationFrame(id);
+  }, [inmersivo, wake]);
+
   const alTecla = useCallback(
     (evento: React.KeyboardEvent) => {
       const objetivo = evento.target as HTMLElement | null;
