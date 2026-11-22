@@ -1191,7 +1191,6 @@
   padding: 0;
 }
 
-.watchlist-empty,
 .livetv-list-empty {
   padding: clamp(28px, 5vh, 60px) var(--margen);
   color: var(--soft);
@@ -1627,85 +1626,10 @@
   .livetv-columns {
     grid-template-columns: minmax(0, 1fr) clamp(300px, 26vw, 420px);
   }
-
-  .livetv-cats {
-    grid-column: 1 / -1;
-  }
-}
-
-.livetv-cats {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-
-.livetv-cats::-webkit-scrollbar {
-  display: none;
-}
-
-/* El chip lleva dentro el nombre y el recuento, en dos elementos. Sin `gap`
-   salían pegados —«Infantil297»— porque no hay espacio en el HTML entre ellos:
-   ponerlo con un espacio en el texto habría sido inventar contenido. */
-.livetv-cats button {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 8px 0 16px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: transparent;
-  color: var(--muted);
-  font-size: var(--texto-sm);
-  white-space: nowrap;
-  transition: background-color 160ms var(--ease), color 160ms var(--ease),
-    border-color 160ms var(--ease);
-}
-
-/* El recuento, en su propia cápsula: es un dato, no parte del nombre. */
-.livetv-cats button em {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--chip);
-  font-style: normal;
-  font-size: 0.82em;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--soft);
-  transition: background-color 160ms var(--ease), color 160ms var(--ease);
-}
-
-.livetv-cats button:hover {
-  border-color: var(--line-bright);
-  color: var(--text);
-}
-
-.livetv-cats button.is-active {
-  background: var(--acento);
-  border-color: var(--acento);
-  color: var(--acento-tinta);
-  font-weight: 600;
-}
-
-.livetv-cats button.is-active em {
-  background: rgba(0, 0, 0, 0.1);
-  color: rgba(0, 0, 0, 0.62);
 }
 
 .livetv-list {
   min-width: 0;
-}
-
-.livetv-list-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 10px;
-  color: var(--soft);
-  font-size: var(--texto-xs);
 }
 
 .livetv-rows {
@@ -1748,10 +1672,6 @@
   background: var(--chip);
 }
 
-.livetv-row.is-selected {
-  background: var(--chip-focus);
-}
-
 .livetv-row-logo {
   display: grid;
   place-items: center;
@@ -1781,27 +1701,6 @@
   min-width: 0;
 }
 
-/* El título lleva dentro el nombre y el número del canal, uno al lado del
-   otro. `min-width: 0` en el `<strong>` es lo que deja que el nombre largo se
-   recorte en vez de empujar al número fuera de la fila. */
-.livetv-row-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-  font-size: var(--texto-base);
-  font-weight: 500;
-  letter-spacing: -0.01em;
-}
-
-.livetv-row-title strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
-}
-
 /* Monograma de dos letras cuando el canal no trae logo, que en una lista M3U
    es la mayoría. */
 .livetv-row-mark {
@@ -1809,23 +1708,6 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--soft);
-}
-
-.livetv-row-now {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: var(--texto-xs);
-  color: var(--soft);
-}
-
-.livetv-row-now em {
-  font-style: normal;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 /* El programa siguiente: la tercera línea, y la más prescindible. Se esconde
@@ -1856,7 +1738,6 @@
   background: var(--muted);
 }
 
-.livetv-row-play,
 .livetv-row-star {
   display: grid;
   place-items: center;
@@ -1870,7 +1751,6 @@
   transition: background-color 160ms var(--ease), color 160ms var(--ease);
 }
 
-.livetv-row-play:hover,
 .livetv-row-star:hover {
   background: var(--chip);
   color: var(--text);
@@ -1878,17 +1758,6 @@
 
 .livetv-row-star.is-active {
   color: var(--gold);
-}
-
-.livetv-quality {
-  flex: none;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: var(--chip);
-  font-size: var(--texto-2xs);
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: var(--soft);
 }
 
 /* El panel de detalle. */
@@ -2010,44 +1879,6 @@
   to {
     background-position: -220% 0;
   }
-}
-
-.is-muted {
-  color: var(--soft);
-}
-
-/* El punto rojo del directo. */
-.live-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--red);
-  animation: cc-live 2.4s ease-in-out infinite;
-}
-
-@keyframes cc-live {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.25;
-  }
-}
-
-/* Listas de 7.800 canales: no calcular lo que no se ve. */
-.row-virtual {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 68px;
-}
-
-.scroll-none {
-  scrollbar-width: none;
-}
-
-.scroll-none::-webkit-scrollbar {
-  display: none;
 }
 
 /* ═══ Piezas sueltas que faltaban ══════════════════════════════════════ */

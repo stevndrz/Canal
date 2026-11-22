@@ -3123,32 +3123,6 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
   padding: clamp(16px, 2.4vh, 30px) clamp(16px, 3vw, 48px) 0;
 }
 
-.esqueleto-titulo-grande {
-  width: clamp(200px, 20vw, 330px);
-  height: clamp(28px, 2.6vw, 50px);
-  border-radius: 10px;
-}
-
-.esqueleto-buscador {
-  width: min(576px, 100%);
-  height: clamp(44px, 3.6vw, 58px);
-  margin: clamp(14px, 2vh, 26px) auto 0;
-  border-radius: 999px;
-}
-
-.esqueleto-pildoras {
-  display: grid;
-  grid-auto-flow: column;
-  justify-content: center;
-  gap: 10px;
-  margin-top: clamp(14px, 2vh, 26px);
-}
-
-.esqueleto-pildoras > span {
-  height: 44px;
-  border-radius: 999px;
-}
-
 .esqueleto-riel {
   margin-top: clamp(20px, 3.4vh, 40px);
 }
@@ -3169,9 +3143,6 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 .esqueleto-destinos > span,
 .esqueleto-reloj,
 .esqueleto-titulo,
-.esqueleto-titulo-grande,
-.esqueleto-buscador,
-.esqueleto-pildoras > span,
 .esqueleto-tarjeta,
 .esqueleto-cartel {
   background: var(--bg-elevated, #1c1c1f);
@@ -3478,12 +3449,6 @@ body {
   font-weight: 500;
   text-align: right;
   color: var(--text, #f5f5f7);
-}
-
-.livetv-acerca-nota {
-  margin: 0;
-  font-size: var(--texto-2xs);
-  color: var(--soft, rgba(245, 245, 247, 0.56));
 }
 
 /* ── La guía del reproductor, como la de una caja de cable ───────────
@@ -4006,19 +3971,11 @@ body {
   margin-bottom: 18px;
 }
 
-.fuente-reproductor {
-  margin: clamp(20px, 3vh, 36px) 0 clamp(28px, 4.5vh, 56px);
-}
-
 .fuente-marco.is-cargando {
   aspect-ratio: 16 / 9;
   width: 100%;
   border-radius: var(--radio-panel);
   background: linear-gradient(135deg, var(--arte-desde), var(--arte-hasta));
-}
-
-.fuente-guardados {
-  margin-top: clamp(28px, 4.5vh, 56px);
 }
 
 /* Lista agrupada, como la de Ajustes. Sin `overflow: hidden`: recortaría el
@@ -4234,14 +4191,6 @@ body {
   color: var(--text, #ededed);
 }
 
-/* El encabezado de Cine y series vive DENTRO de la caja del buscador, que ya
-   pone sus propios márgenes laterales: sin esto heredaría el `padding` de
-   `.section-heading`, pensado para encabezados a sangre, y quedaría desalineado
-   con el buscador que tiene justo debajo. */
-.catalogo-encabezado {
-  padding: 0 0 clamp(4px, 0.8vh, 10px);
-}
-
 /* ── Canales que han dejado de responder ─────────────────────────────────
    Se apagan y se etiquetan, pero siguen enteros y pulsables: la lista IPTV
    resucita canales continuamente, y esconderlos en silencio ya fue un error
@@ -4312,11 +4261,7 @@ body {
   margin-right: clamp(10px, 1vw, 20px);
 }
 
-/* Píldoras del catálogo y de Canales. */
-[data-sin-gap] .livetv-cats > *:not(:last-child) {
-  margin-bottom: 6px;
-}
-
+/* Píldoras del catálogo. */
 [data-sin-gap] .catalogo-chip:not(:last-child) {
   margin-right: 8px;
 }
@@ -4819,8 +4764,7 @@ body {
 /* El rojo del directo con su tinta: un rótulo de 12px en negrita y
    mayúsculas, que es texto grande en la práctica y se lee como marca antes
    que como palabra. */
-.vivo-pildora.is-vivo,
-.vivo-pildora.is-emitiendo {
+.vivo-pildora.is-vivo {
   background: var(--vivo);
   color: var(--vivo-tinta);
 }
@@ -5804,8 +5748,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   gap: 4px 8px;
 }
 
-.cine-boton-principal,
-.cine-boton-cristal {
+.cine-boton-principal {
   display: inline-flex;
   min-height: 52px;
   align-items: center;
@@ -5827,8 +5770,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
     box-shadow var(--dur-media) var(--ease);
 }
 
-.cine-boton-principal svg,
-.cine-boton-cristal svg {
+.cine-boton-principal svg {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
@@ -5840,28 +5782,15 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   box-shadow: var(--sombra-1);
 }
 
-.cine-boton-cristal {
-  border-color: var(--borde-fuerte);
-  background: var(--cristal);
-  color: var(--tinta-1);
-  backdrop-filter: blur(16px);
-}
-
 .cine-boton-principal:hover {
   background: var(--acento-hover);
 }
 
-.cine-boton-cristal:hover {
-  background: var(--cristal-fuerte);
-}
-
-.cine-boton-principal:active,
-.cine-boton-cristal:active {
+.cine-boton-principal:active {
   transform: scale(0.97);
 }
 
-.cine-boton-principal:disabled,
-.cine-boton-cristal:disabled {
+.cine-boton-principal:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -5872,8 +5801,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   color: var(--tinta-3);
 }
 
-.cine-boton-texto,
-.cine-boton-pequeno {
+.cine-boton-texto {
   display: inline-flex;
   min-height: 44px;
   align-items: center;
@@ -5894,18 +5822,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
     box-shadow var(--dur-media) var(--ease);
 }
 
-.cine-boton-pequeno {
-  font-size: var(--texto-xs);
-}
-
-.cine-boton-pequeno svg {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.cine-boton-texto:hover,
-.cine-boton-pequeno:hover {
+.cine-boton-texto:hover {
   color: var(--tinta-1);
   background: var(--relleno-sutil);
 }
@@ -5916,12 +5833,6 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 .cine-presencia,
 .cine-estado {
   position: relative;
-}
-
-.cine-pie {
-  display: flex;
-  justify-content: center;
-  padding: clamp(8px, 2vh, 20px) var(--margen) 0;
 }
 
 /* Vistas juntos: el historial de la sala, con las filas de «Usar un enlace». */
@@ -6084,20 +5995,8 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   box-shadow: var(--cine-aro), var(--foco-sombra);
 }
 
-.cine-boton-cristal:focus-visible,
-[data-input="dpad"] .cine-boton-cristal:focus {
-  outline: none;
-  transform: scale(1.06);
-  border-color: transparent;
-  background: var(--tinta-1);
-  color: var(--fondo);
-  box-shadow: var(--foco-borde), var(--foco-sombra);
-}
-
 .cine-boton-texto:focus-visible,
-.cine-boton-pequeno:focus-visible,
-[data-input="dpad"] .cine-boton-texto:focus,
-[data-input="dpad"] .cine-boton-pequeno:focus {
+[data-input="dpad"] .cine-boton-texto:focus {
   outline: none;
   transform: scale(1.06);
   background: var(--tinta-1);
@@ -6363,10 +6262,6 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   .cine-boton-principal {
     flex: 1 1 100%;
   }
-
-  .cine-boton-cristal {
-    flex: 1 1 100%;
-  }
 }
 
 @media (min-width: 1100px) {
@@ -6390,8 +6285,7 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
   height: 56px;
 }
 
-:root[data-pantalla="tv"] .cine-boton-principal,
-:root[data-pantalla="tv"] .cine-boton-cristal {
+:root[data-pantalla="tv"] .cine-boton-principal {
   min-height: 64px;
   padding: 0 36px;
 }
@@ -6414,7 +6308,6 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 :root[data-pantalla="tv"] .cine-cuenta,
 :root[data-pantalla="tv"] .cine-hoja,
 :root[data-pantalla="tv"] .cine-cabecera-pildora,
-:root[data-pantalla="tv"] .cine-boton-cristal,
 :root[data-pantalla="tv"] .cine-boton-redondo,
 :root[data-pantalla="tv"] .cine-pildora {
   backdrop-filter: none;
@@ -6434,7 +6327,6 @@ html:not([data-pantalla="tv"]):not([data-input="dpad"])
 
   .cine-persona-circulo,
   .cine-boton-principal,
-  .cine-boton-cristal,
   .cine-boton-redondo,
   .cine-poster img {
     transition: none;
