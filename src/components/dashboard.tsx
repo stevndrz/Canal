@@ -71,9 +71,9 @@ const M3U_SOURCE = "gist.githubusercontent.com/stevndrz/…/gt.m3u";
  * App Shell de CanalCasa.
  *
  * Reglas del shell:
- * - La ventana NO scrollea (body overflow:hidden en globals.css). El scroll
- *   vive en el contenedor de cada vista, así el sidebar y la barra inferior
- *   quedan fijos como en una app nativa.
+ * - Scrollea la ventana, y la barra superior y la inferior son `fixed`. (Hubo
+ *   un tiempo en que scrolleaba el contenedor de cada vista; `globals.css`
+ *   explica por qué se volvió a la ventana: la rueda del ratón.)
  * - Una sola fuente de verdad para el canal sintonizado, compartida por el
  *   panel de Canales y el reproductor a pantalla completa.
  * - El mando se maneja en un solo sitio: useSpatialNav para mover el foco,

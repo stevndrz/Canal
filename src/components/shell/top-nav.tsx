@@ -108,9 +108,8 @@ export function TopNav({
     else router.push(destino === "home" ? "/" : `/?vista=${destino}`);
   };
 
-  // La barra se opaca al bajar. Mientras el shell siga sin scrollear la
-  // ventana esto no se dispara nunca, y no molesta: cuando el modelo de
-  // scroll cambie, la barra ya está preparada.
+  // La barra se opaca al bajar: sobre una carátula clara el degradado solo
+  // no basta para leer los destinos.
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24);
     onScroll();

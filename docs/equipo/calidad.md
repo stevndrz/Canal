@@ -36,6 +36,36 @@ Si un refactor exige cambiar lo que la app hace, va a su dueño.
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-22 — Limpieza general: borrar antes que simplificar
+
+Recorrido de todo el repo con capturas en PC, iPhone y tele (UA de Tizen).
+Lo que se quitó, todo verificado con `grep` contra `src/`, `e2e/` y `scripts/`:
+
+- **`lib/telemetria.ts` entero.** Su panel de datos ya no se pinta; solo
+  vivía el tipo `EstadoEmision`, que pasó a `player/info-vivo.tsx`, junto a
+  `estadoDeEmision`. El estado `"emitiendo"` nunca se producía: fuera.
+- `groupByCategory` y `orderIndex` (`channels.ts`), `precargarCanal`
+  (`motor.ts`), `claveSinEpisodio` / `episodioDeClave` / `estaTerminado`
+  (`progreso.ts`): sin ningún llamador fuera de sus pruebas.
+- Props muertas de Canales (`search`, `onSearchChange`, `categories`…) y el
+  aviso «Mostrando solo lo que coincide… de Buscar», que ya no podía salir.
+- ~270 líneas de CSS sin ninguna clase viva en el código (`livetv-cats`,
+  `livetv-row-title/now/play`, `cine-boton-cristal/pequeno`, `live-dot`,
+  `row-virtual`, `scroll-none`…) y la animación `cc-live`, que solo usaba
+  `live-dot`.
+- Los doce `eslint-disable … no-img-element`: la regla se apaga una vez en
+  `eslint.config.mjs` (es la regla 4 de ARQUITECTURA). El lint sale sin avisos.
+
+Arreglado de paso: **la hidratación de Canales fallaba siempre** (barra del
+programa con `Date.now()` y hora formateada en la zona del servidor) y React
+repintaba la vista entera en el cliente. Ahora las filas y el panel reciben el
+minuto de `useInstante`, que vale 0 hasta montar.
+
+**Lo que me sorprendió:** el detector casero de «exports sin usar» da 100
+falsos positivos (tipos exportados que solo usa su archivo). Lo útil es
+filtrar por funciones y constantes que solo aparecen en su declaración o en
+sus pruebas.
+
 ### 2026-11-12 — La prueba intermitente de «Con nombre ya puesto»
 
 - Fallaba más o menos una de cada cuatro suites completas: `/?sala=hola`
@@ -129,7 +159,7 @@ de `canales` y `reproduccion` — ver sus memorias antes del PR.
 
 - `motor.ts`: reintentos y búfer para vivo inestable + `resolverCalidad`,
   `nivelMaxParaCalidad`, `fijarCalidad` (cambio en caliente sin reiniciar),
-  `precargarCanal`. Todo probado en `motor.test.ts`.
+  `precargarCanal` (este último se retiró en noviembre: nadie lo llamaba). Todo probado en `motor.test.ts`.
 - `stream-player.tsx`: fallback a `streamUrlBackup` antes de «Sin señal»,
   stalls/TTFF/dropped reales, calidad de arranque por `ref` para no reiniciar.
 - `m3u.ts` fusiona duplicados en `streamUrlBackup`; viaja en el paquete sin
