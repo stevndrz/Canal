@@ -45,7 +45,7 @@ describe("contarCosas", () => {
     expect(contarCosas(12, "favorito", "favoritos")).toBe("12 favoritos");
   });
 
-  it("separa los miles como se lee en español", () => {
-    expect(contarCosas(4816, "canal", "canales")).toMatch(/^4.?816 canales$/);
+  it("separa los miles igual que el resto de la app (es-GT)", () => {
+    expect(contarCosas(4816, "canal", "canales")).toBe("4,816 canales");
   });
 });

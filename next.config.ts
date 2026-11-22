@@ -81,7 +81,7 @@ const CABECERAS_SEGURIDAD = [
      */
     key: "Permissions-Policy",
     value:
-      "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), midi=(), serial=(), bluetooth=()",
+      "camera=(), microphone=(self), geolocation=(), payment=(), usb=(), midi=(), serial=()",
   },
   {
     // Que un popup que abramos no herede acceso a nuestra ventana.
