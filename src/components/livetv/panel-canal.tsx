@@ -76,7 +76,6 @@ export function PanelCanal({
           // `no-referrer` evita que un CDN con protección «anti-hotlink» —que
           // bloquea la imagen cuando ve un `Referer` de otro dominio— la
           // rechace precisamente por venir de esta app.
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={canal.logoUrl}
             alt=""

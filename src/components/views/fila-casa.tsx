@@ -57,7 +57,6 @@ export function FilaCasa({
                 /* `<img>` plano, como en el resto del diseño: las URLs de logo
                    salen de cientos de dominios de listas IPTV y `next/image`
                    exige declarar cada uno en `remotePatterns`. */
-                // eslint-disable-next-line @next/next/no-img-element
                 <img src={canal.logoUrl} alt="" loading="eager" />
               ) : (
                 <b className="casa-marca">{channelMark(canal)}</b>

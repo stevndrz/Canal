@@ -43,7 +43,6 @@ const LogoCanal = memo(function LogoCanal({ canal }: { canal: Channel }) {
       // un dominio que no es el suyo. Sin cabecera que mirar, sirven la
       // imagen real. Medido con el logo de ABC Kids: con `Referer` ajeno,
       // 404 disfrazado de imagen; sin él, la imagen de verdad.
-      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={canal.logoUrl}
         alt=""

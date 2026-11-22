@@ -310,7 +310,6 @@ const FilaParrilla = memo(function FilaParrilla({
           // `<img>` y no `next/image`: los logos vienen de dominios arbitrarios
           // de la lista M3U. Es regla de `ARQUITECTURA.md`, y ya rompió
           // `/peliculas` una vez.
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={canal.logoUrl} alt="" loading="lazy" className="mr-2 h-8 w-8 shrink-0 object-contain" />
         ) : (
           <b className="livetv-row-mark">{channelMark(canal)}</b>
@@ -345,7 +344,6 @@ function FilaParrillaEsqueleto({ canal }: { canal: Channel }) {
     <div className="mt-1 flex h-16 items-stretch rounded-lg" aria-hidden="true">
       <div className="flex w-[8.5rem] shrink-0 items-center overflow-hidden rounded-lg px-2 sm:w-44">
         {canal.logoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={canal.logoUrl}
             alt=""

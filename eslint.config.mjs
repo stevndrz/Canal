@@ -35,6 +35,15 @@ export default defineConfig([
           caughtErrors: "none",
         },
       ],
+
+      /**
+       * `<img>` y no `next/image`, siempre: es la regla 4 de
+       * `docs/ARQUITECTURA.md`. Los logos llegan de cientos de dominios que
+       * `next/image` exigiría declarar (y tumba la ruta si falta uno), y las
+       * teles viejas no entienden su `srcset`. Antes se apagaba a mano en
+       * doce sitios, y los que se olvidaban dejaban el lint con avisos.
+       */
+      "@next/next/no-img-element": "off",
     },
   },
 

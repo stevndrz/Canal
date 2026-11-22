@@ -120,7 +120,6 @@ export function LogoCanal({
       {channel.logoUrl && !fallo ? (
         // `<img>` plano: los logos vienen de cientos de dominios y
         // `next/image` exige declararlos todos en `remotePatterns`.
-        // eslint-disable-next-line @next/next/no-img-element
         <img
           key={channel.logoUrl}
           src={channel.logoUrl}
