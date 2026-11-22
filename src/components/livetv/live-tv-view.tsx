@@ -81,6 +81,8 @@ export function LiveTvView({
   const [modo, setModo] = useState<"lista" | "parrilla">("lista");
   const [enfocar, setEnfocar] = useState<PeticionDeFoco | null>(null);
   const instante = useInstante();
+  /** Para las barras de «lo que dan ahora»: basta el minuto, y vale 0 hasta montar. */
+  const minuto = Math.floor(instante / 60_000);
 
   /**
    * Llegar desde Inicio con una sección ya elegida («Ver los 27 ›»):
@@ -298,6 +300,7 @@ export function LiveTvView({
               favoritos={favorites}
               caidos={idsCaidos}
               sonandoId={tuned?.id ?? null}
+              minuto={minuto}
               enfocar={peticion}
               onFocusCanal={enfocarFila}
               onPlay={sintonizar}
@@ -312,6 +315,7 @@ export function LiveTvView({
           canal={canal}
           sonando={canal !== null && canal.id === tuned?.id}
           esFavorito={canal ? favorites.has(canal.id) : false}
+          minuto={minuto}
           onSelect={sintonizar}
           onTune={onTune}
           onToggleFavorite={onToggleFavorite}

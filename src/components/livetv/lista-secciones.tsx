@@ -52,6 +52,7 @@ export function ListaSecciones({
   favoritos,
   caidos,
   sonandoId,
+  minuto,
   enfocar,
   onFocusCanal,
   onPlay,
@@ -63,6 +64,8 @@ export function ListaSecciones({
   favoritos: Set<number>;
   caidos: Set<number>;
   sonandoId: number | null;
+  /** El minuto en curso, 0 antes de montar. Ver `LineaDeDetalle`. */
+  minuto: number;
   enfocar: PeticionDeFoco | null;
   onFocusCanal: (canal: Channel) => void;
   onPlay: (canal: Channel) => void;
@@ -189,6 +192,7 @@ export function ListaSecciones({
                   caido={caidos.has(fila.canal.id)}
                   sonando={sonandoId === fila.canal.id}
                   sinPais={fila.sinPais}
+                  minuto={minuto}
                   onFocus={onFocusCanal}
                   onPlay={onPlay}
                   onToggleFavorite={onToggleFavorite}
