@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { channelMark } from "@/lib/channels";
 import { hora, porcentajeDelPrograma } from "@/lib/guia-epg";
-import type { EstadoEmision } from "@/lib/telemetria";
 import type { Channel } from "@/lib/types";
 import type { StreamPlayerState } from "@/components/stream-player";
 
@@ -23,6 +22,9 @@ import type { StreamPlayerState } from "@/components/stream-player";
  * `waiting` (antes ponía «CARGANDO» con «Sintonizando…» debajo), salvo que el
  * navegador haya pedido un toque, que es «Toca para ver» y va con EN PAUSA.
  */
+/** En qué está el reproductor, en una palabra. */
+export type EstadoEmision = "vivo" | "pausa" | "sin-senal" | "sintonizando" | "buffering";
+
 export function estadoDeEmision(state: StreamPlayerState): EstadoEmision {
   if (state.streamError) return "sin-senal";
   if (state.conectando && !state.needsUserGesture) return "sintonizando";
@@ -38,7 +40,6 @@ export function estadoDeEmision(state: StreamPlayerState): EstadoEmision {
  */
 const ETIQUETA: Record<EstadoEmision, string> = {
   vivo: "En vivo",
-  emitiendo: "En vivo",
   sintonizando: "Conectando",
   buffering: "Cargando",
   pausa: "En pausa",

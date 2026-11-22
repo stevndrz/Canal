@@ -196,25 +196,6 @@ export function fijarCalidad(
   }
 }
 
-/**
- * Pre-conecta con el origen del siguiente canal probable (anterior/siguiente
- * en el zapeo). No descarga nada —un `fetch` dispararía CORS en la mitad de
- * los proveedores—: solo ahorra el DNS+TLS del manifiesto cuando se zapee.
- */
-export function precargarCanal(url: string): void {
-  try {
-    const origen = new URL(url, window.location.href).origin;
-    if (document.querySelector(`link[rel="preconnect"][href="${origen}"]`)) return;
-    const link = document.createElement("link");
-    link.rel = "preconnect";
-    link.href = origen;
-    link.crossOrigin = "anonymous";
-    document.head.appendChild(link);
-  } catch {
-    /* URL rara: no hay nada que pre-conectar */
-  }
-}
-
 export interface OpcionesMotor {
   video: HTMLVideoElement;
   url: string;

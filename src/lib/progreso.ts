@@ -66,22 +66,6 @@ export function claveDeTitulo(
   return claveBase;
 }
 
-/**
- * La clave del título a partir de la de un episodio suyo, o la misma cadena si
- * ya era la de un título. Es la vuelta de `claveDeTitulo`: la fila de
- * «Continuar viendo» guarda episodios y necesita saber de qué serie son.
- */
-export function claveSinEpisodio(clave: string): string {
-  return clave.replace(/-t\d+e\d+$/, "");
-}
-
-/** La temporada y el episodio escondidos en una clave, si los lleva. */
-export function episodioDeClave(clave: string): { temporada: number; episodio: number } | null {
-  const partes = /-t(\d+)e(\d+)$/.exec(clave);
-  if (!partes) return null;
-  return { temporada: Number(partes[1]), episodio: Number(partes[2]) };
-}
-
 /** La clave de una fuente propia. Su `id` ya es único dentro de la lista. */
 export function claveDeFuente(id: string): string {
   return `fuente-${id}`;
@@ -93,11 +77,6 @@ export function porcentaje(marca: Marca): number {
   const bruto = (marca.posicion / marca.duracion) * 100;
   // Acotado por si un `currentTime` se pasa de `duration` al terminar.
   return Math.min(100, Math.max(0, Math.round(bruto)));
-}
-
-/** ¿Se puede dar por visto? */
-export function estaTerminado(marca: Marca): boolean {
-  return porcentaje(marca) >= TERMINADO_PCT;
 }
 
 /** Ni lo apenas empezado, ni lo acabado, ni lo que dura demasiado poco. */

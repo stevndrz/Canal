@@ -6,10 +6,7 @@ import {
   type MemoriaProgreso,
   claveDeFuente,
   claveDeTitulo,
-  claveSinEpisodio,
-  episodioDeClave,
   enOrden,
-  estaTerminado,
   marcar,
   olvidar,
   podar,
@@ -38,9 +35,6 @@ describe("claveDeTitulo", () => {
     // El fallo que arregló esta firma: la tarjeta pregunta por
     // `tv-tmdb-125988` y el reproductor guardaba en `tv-125988`.
     expect(claveDeTitulo("tv-tmdb-125988", 1, 1)).toBe("tv-tmdb-125988-t1e1");
-    expect(claveSinEpisodio("tv-tmdb-125988-t1e1")).toBe("tv-tmdb-125988");
-    expect(episodioDeClave("tv-tmdb-125988-t2e7")).toEqual({ temporada: 2, episodio: 7 });
-    expect(episodioDeClave("movie-tmdb-550")).toBeNull();
   });
 
   it("las fuentes propias tienen su propio espacio", () => {
@@ -72,7 +66,6 @@ describe("valeLaPena", () => {
 
   it("lo terminado tampoco", () => {
     expect(valeLaPena(aMitad(88))).toBe(false);
-    expect(estaTerminado(aMitad(88))).toBe(true);
   });
 
   it("lo que dura menos de dos minutos no se recuerda", () => {

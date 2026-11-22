@@ -2,8 +2,7 @@
 
 import { ChevronLeft, Pause, Play, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
 import type { PlayerAction } from "@/components/player/player-controls";
-import { BarraPrograma, InfoVivo } from "@/components/player/info-vivo";
-import type { EstadoEmision } from "@/lib/telemetria";
+import { BarraPrograma, InfoVivo, type EstadoEmision } from "@/components/player/info-vivo";
 import type { Channel } from "@/lib/types";
 
 /**

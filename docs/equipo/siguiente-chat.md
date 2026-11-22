@@ -30,7 +30,7 @@ Lo que quiero que planifiques
 4. Estabilidad y eficiencia. Dime qué haría falta, ordenado por valor frente a esfuerzo:
    - sincronizar-sola.cmd no encuentra Node cuando Windows no refrescó el PATH; el #101 lo arregló en sincronizar.cmd y panel.cmd con buscar-node.cmd, pero ese se quedó fuera.
    - Pruebas con el motor de Safari (proyecto WebKit en Playwright), para cazar fallos de iPhone.
-   - Ver errores reales: los logs de Vercel duran 1 hora. Mandar «no arrancó», «se desincronizó» y cortes a los eventos de src/lib/telemetria.ts.
+   - Ver errores reales: los logs de Vercel duran 1 hora. Mandar «no arrancó», «se desincronizó» y cortes a los eventos de src/lib/reproduccion/metricas.ts.
    - Cupo de peticiones propio para /api/pusher/auth, separado del de /api/buscar.
    - Que use-ver-juntos.ts use lib/ver-juntos/conexion.ts (hoy hay dos copias de la conexión) y partir native-player.tsx, que tiene más de 1.300 líneas.
    - Logos de canal más pequeños (pesan 1,6 MB en la portada): necesita mi sí porque usa un servicio externo.
@@ -108,7 +108,7 @@ Ordenadas por valor frente a esfuerzo. Cada una, un PR propio desde `main`.
 | 5 | **`sincronizar-sola.cmd` usa `buscar-node.cmd`** | Fallo pendiente: el doble clic no encuentra Node | 0,5 d | Bajo |
 | 6 | **Pruebas con el motor de Safari** (proyecto WebKit en Playwright) | Cazar fallos de iPhone antes del iPhone | 1 d | Bajo |
 | 7 | **Media Session + Wake Lock** | Controles en pantalla de bloqueo; pantalla que no se apaga | 0,5 d | Bajo |
-| 8 | **Errores reales a la vista** | Hoy los logs duran 1 h; mandar «no arrancó», «se desincronizó» y cortes a los eventos de `src/lib/telemetria.ts` | 1 d | Bajo |
+| 8 | **Errores reales a la vista** | Hoy los logs duran 1 h; mandar «no arrancó», «se desincronizó» y cortes a los eventos de `src/lib/reproduccion/metricas.ts` | 1 d | Bajo |
 | 9 | **Cupo de peticiones separado para la sala** | Que `/api/buscar` nunca vuelva a bloquear `/api/pusher/auth` | 0,5 d | Bajo |
 | 10 | **Unificar la conexión de la sala** (`use-ver-juntos.ts` → `lib/ver-juntos/conexion.ts`) y partir `native-player.tsx` (1.335 líneas) | Menos sitios donde romper; ya hay 18 pruebas de red | 2–3 d | Medio |
 | 11 | **Logos de canal más pequeños** | 1,6 MB menos en la portada. Necesita el sí del dueño (servicio externo) | 1 d | Medio |
@@ -137,7 +137,7 @@ Ordenadas por valor frente a esfuerzo. Cada una, un PR propio desde `main`.
 - Reproductor: `src/components/native-player.tsx`.
 - PC: `scripts/peliculas/sincronizar/` (`panel.mjs`, `panel/index.html`, `lib/agregar.mjs`, `lib/estado.mjs`, `lib/progreso.mjs`, `lib/entorno.mjs`, `lib/automatico.mjs`, `tarea.mjs`), `scripts/peliculas/buscar-node.cmd`, `scripts/peliculas/sincronizar-sola.cmd`.
 - Pruebas: `e2e/` (`servidor.mjs`, `pusher-falso.ts`, `aparatos.ts`, `ver-juntos.spec.ts`, `nuestras-peliculas.spec.ts`, `sincronia-suave.spec.ts`), `scripts/peliculas/sincronizar/pruebas/rclone-falso.mjs`.
-- Telemetría: `src/lib/telemetria.ts`. Freno de peticiones: `src/lib/limite-peticiones.ts`.
+- Telemetría: `src/lib/reproduccion/metricas.ts`. Freno de peticiones: `src/lib/limite-peticiones.ts`.
 
 ## Verificación (cuando se ejecute)
 

@@ -111,7 +111,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             `soporte-gap.ts`. No pinta nada. */}
         <SoporteHuecos />
         {children}
-        {/* Web Vitals de campo + los eventos de `telemetria.ts`. Vercel las
+        {/* Web Vitals de campo + los eventos de `reproduccion/metricas.ts`. Vercel las
             sirve desde el edge de forma diferida: no compiten con el arranque. */}
         <SpeedInsights />
         <Analytics />
