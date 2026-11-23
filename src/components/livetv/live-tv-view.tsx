@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { X } from "lucide-react";
 import type { Channel } from "@/lib/types";
 import { QUE_SE_PINTA } from "@/lib/canales-empaquetados";
 import { publicConfig } from "@/lib/config";
@@ -37,16 +36,6 @@ interface LiveTvViewProps {
   favorites: Set<number>;
   /** Los vistos hace poco, ya resueltos a `Channel`. */
   recents: Channel[];
-  /** Ya no se usan: el tema y la búsqueda son de esta pantalla. Ver abajo. */
-  categories?: string[];
-  category?: string;
-  /**
-   * La búsqueda COMPARTIDA del shell (la de Buscar). Esta pantalla ya no la
-   * escribe; si llega con algo, `visible` viene filtrada por ella y se avisa.
-   */
-  search: string;
-  onCategoryChange?: (category: string) => void;
-  onSearchChange: (search: string) => void;
   onSelect: (channel: Channel) => void;
   onTune: (channel: Channel) => void;
   onToggleFavorite: (id: number) => void;
@@ -80,8 +69,6 @@ export function LiveTvView({
   tuned,
   favorites,
   recents,
-  search,
-  onSearchChange,
   onSelect,
   onTune,
   onToggleFavorite,
@@ -94,6 +81,8 @@ export function LiveTvView({
   const [modo, setModo] = useState<"lista" | "parrilla">("lista");
   const [enfocar, setEnfocar] = useState<PeticionDeFoco | null>(null);
   const instante = useInstante();
+  /** Para las barras de «lo que dan ahora»: basta el minuto, y vale 0 hasta montar. */
+  const minuto = Math.floor(instante / 60_000);
 
   /**
    * Llegar desde Inicio con una sección ya elegida («Ver los 27 ›»):
@@ -294,19 +283,6 @@ export function LiveTvView({
         onModo={setModo}
       />
 
-      {/* La búsqueda del shell es la de Buscar: si llega con algo, la lista
-          viene recortada por ella. Se dice y se puede quitar, en vez de
-          enseñar una lista corta sin explicación. */}
-      {search.trim() && (
-        <p className="livetv-aviso-busqueda" role="status">
-          <span>Mostrando solo lo que coincide con «{search.trim()}», de Buscar.</span>
-          <button type="button" data-nav="button" onClick={() => onSearchChange("")}>
-            <X aria-hidden="true" />
-            Quitar
-          </button>
-        </p>
-      )}
-
       <div className="livetv-columns">
         {/* `data-nav-entrada`: con el mando, entrar a Canales lleva el foco a
             la primera fila y no a la marca de la barra (`use-spatial-nav`). */}
@@ -324,6 +300,7 @@ export function LiveTvView({
               favoritos={favorites}
               caidos={idsCaidos}
               sonandoId={tuned?.id ?? null}
+              minuto={minuto}
               enfocar={peticion}
               onFocusCanal={enfocarFila}
               onPlay={sintonizar}
@@ -338,6 +315,7 @@ export function LiveTvView({
           canal={canal}
           sonando={canal !== null && canal.id === tuned?.id}
           esFavorito={canal ? favorites.has(canal.id) : false}
+          minuto={minuto}
           onSelect={sintonizar}
           onTune={onTune}
           onToggleFavorite={onToggleFavorite}

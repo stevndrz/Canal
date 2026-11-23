@@ -10,7 +10,8 @@ import {
   type CanalDeOrigen,
   type PaqueteCanales,
 } from "./canales-empaquetados";
-import { CATEGORY_ORDER, canalesDeCasa } from "./channels";
+import { canalesDeCasa } from "./channels";
+import { CATEGORY_ORDER } from "./categories";
 import { paisDe } from "./origenes";
 import { TEMAS } from "./temas";
 import {

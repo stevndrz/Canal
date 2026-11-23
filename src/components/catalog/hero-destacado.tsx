@@ -93,7 +93,6 @@ export function HeroDestacado({
           // fondo de la app en vez de en una línea recta.
           //
           // `srcset`: el teléfono pide `w780` y no `w1280`. Ver `imagen-tmdb.ts`.
-          // eslint-disable-next-line @next/next/no-img-element
           <img className="hero-arte" {...fondoResponsivo(arte)} alt="" fetchPriority="high" />
         )}
 
@@ -105,7 +104,6 @@ export function HeroDestacado({
             {logoUrl ? (
               // El logo ES el título: `alt` con el nombre, para el lector de
               // pantalla y por si la imagen no carga.
-              // eslint-disable-next-line @next/next/no-img-element -- logo de TMDB ya dimensionado (w500)
               <img className="hero-logo" src={logoUrl} alt={item.title} />
             ) : (
               item.title

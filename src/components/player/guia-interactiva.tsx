@@ -357,7 +357,6 @@ export const GuiaInteractiva = forwardRef<
                 <em>{canal.number}</em>
                 {canal.logoUrl ? (
                   // `<img>` plano: los logos vienen de cientos de dominios.
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={canal.logoUrl} alt="" loading="lazy" />
                 ) : (
                   <b>{channelMark(canal)}</b>

@@ -42,7 +42,6 @@ export function FilaPlataformas({
               aria-label={elegida ? `${p.nombre}: elegida. Pulsa para ver todo el catálogo` : `Ver lo que hay en ${p.nombre}`}
               className={`plataforma ${elegida ? "is-elegida" : ""}`}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element -- logo de TMDB ya dimensionado (w154) */}
               <img src={tmdbImage(p.logo, "w154") ?? ""} alt="" loading="lazy" decoding="async" />
               <span className="plataforma-nombre">{p.nombre}</span>
             </Link>

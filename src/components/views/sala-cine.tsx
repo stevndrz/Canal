@@ -136,7 +136,6 @@ export function Portada({
       {fondo && (
         // `key` por imagen: al cambiar de película, la nueva entra fundiéndose
         // en vez de saltar de golpe.
-        // eslint-disable-next-line @next/next/no-img-element -- `<img>` llano: las teles viejas no entienden el `srcset` de next/image.
         <img key={fondo} className="cine-portada-fondo" src={fondo} alt="" aria-hidden="true" decoding="async" />
       )}
       <div className="cine-portada-velo" aria-hidden="true" />
@@ -329,7 +328,6 @@ export function Estante({
               >
                 <span className="cine-poster-marco">
                   {poster ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- ver `Portada`.
                     <img src={poster} alt="" loading="lazy" decoding="async" />
                   ) : (
                     <span className="cine-poster-vacio" aria-hidden="true">

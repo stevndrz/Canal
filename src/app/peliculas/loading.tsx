@@ -12,7 +12,9 @@ import { EsqueletoCatalogo } from "@/components/esqueleto-catalogo";
  */
 export default function CargandoCatalogo() {
   return (
-    <div className="app-shell bg-black" aria-busy="true" aria-label="Cargando el catálogo">
+    // Sin `bg-black`, igual que `pagina-catalogo.tsx`: con negro puro aquí y el
+    // fondo de la app allí, el fondo cambiaba al terminar de cargar.
+    <div className="app-shell" aria-busy="true" aria-label="Cargando el catálogo">
       <EsqueletoSuperior />
       <EsqueletoCatalogo />
     </div>

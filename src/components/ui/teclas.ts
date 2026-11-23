@@ -51,5 +51,7 @@ export function indiceSiguiente(
  * pierde, y «Borrar 120 favoritos» hace dudar a quien pensaba borrar dos.
  */
 export function contarCosas(cantidad: number, singular: string, plural: string): string {
-  return `${cantidad.toLocaleString("es")} ${cantidad === 1 ? singular : plural}`;
+  // «es-GT», como el resto de cifras de la app: con «es» a secas los miles de
+  // cuatro cifras no se separan, y Ajustes decía «4816» donde Canales «4,816».
+  return `${cantidad.toLocaleString("es-GT")} ${cantidad === 1 ? singular : plural}`;
 }

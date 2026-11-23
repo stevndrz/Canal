@@ -1,44 +1,9 @@
 import type { Channel } from "@/lib/types";
-import { CATEGORY_ORDER } from "@/lib/categories";
 import { normalizeChannelName } from "@/lib/text";
 import { claveDeCanalEstable, idsEnOrden } from "@/lib/claves-canal";
 import { publicConfig } from "@/lib/config";
 import { NOMBRE_DE_REGION, REGIONES } from "@/lib/origenes";
 import { apartarCaidos, type IndiceSecciones } from "@/lib/secciones-canales";
-
-// CATEGORY_ORDER vive en categories.ts: es también quien clasifica cada canal
-// en m3u.ts, así que una sola lista evita que las dos rutinas se desincronicen
-// (antes esta duplicaba el orden a mano y le faltaba "Documentales").
-export { CATEGORY_ORDER };
-
-/**
- * Posición de una categoría dentro de CATEGORY_ORDER, con el `as const` del
- * origen: `.category` en Channel es un `string` genérico (viene de un M3U
- * ajeno, no de un enum), así que `indexOf` necesita este cast explícito.
- */
-function orderIndex(category: string): number {
-  return CATEGORY_ORDER.indexOf(category as (typeof CATEGORY_ORDER)[number]);
-}
-
-// La numeración vive en `numeracion.ts` (fijos de Guatemala + un bloque por
-// región). La de centenas por categoría, `withChannelNumbers`, se retiró:
-// repetía 885 números con la lista por defecto.
-
-// `filterChannels` (nombre o prefijo del n\u00famero, con categor\u00eda) se retir\u00f3: la
-// b\u00fasqueda de canales vive en `buscar-canales.ts`, por niveles de relevancia y
-// con \u00edndice, y la categor\u00eda ya no es estado del shell.
-
-export function groupByCategory(channels: Channel[]) {
-  const groups = new Map<string, Channel[]>();
-  channels.forEach((channel) => {
-    const list = groups.get(channel.category);
-    if (list) list.push(channel);
-    else groups.set(channel.category, [channel]);
-  });
-  return [...groups.entries()]
-    .sort((a, b) => orderIndex(a[0]) - orderIndex(b[0]))
-    .map(([category, items]) => ({ category, items }));
-}
 
 /**
  * Canal siguiente/anterior dentro de la lista de zapeo, SIN dar la vuelta.

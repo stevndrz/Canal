@@ -98,9 +98,6 @@ function VistaCargando() {
   return <div className={PANTALLA} aria-hidden="true" data-vista-cargando="" />;
 }
 
-/** Canales ya no escribe en la búsqueda del shell: lo que pida, se ignora. */
-function ignorar() {}
-
 /**
  * Lo que Buscar ofrece antes de escribir nada: los de la casa, los vistos
  * hace poco y, para completar, los primeros de la lista. Doce: una fila y
@@ -164,9 +161,6 @@ export function VistaActiva(props: VistaActivaProps) {
           tuned={props.tuned}
           favorites={props.favorites.ids}
           recents={props.recentChannels}
-          // La búsqueda del shell ya no existe para Canales: la suya va dentro.
-          search=""
-          onSearchChange={ignorar}
           onSelect={props.onSelect}
           onTune={props.onTune}
           onToggleFavorite={props.favorites.toggle}

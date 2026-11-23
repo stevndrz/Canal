@@ -43,7 +43,6 @@ const LogoCanal = memo(function LogoCanal({ canal }: { canal: Channel }) {
       // un dominio que no es el suyo. Sin cabecera que mirar, sirven la
       // imagen real. Medido con el logo de ABC Kids: con `Referer` ajeno,
       // 404 disfrazado de imagen; sin él, la imagen de verdad.
-      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={canal.logoUrl}
         alt=""
@@ -68,7 +67,17 @@ export function detalleDeCanal(canal: Channel, { sinPais = false }: { sinPais?: 
 }
 
 /** La segunda línea: lo que dan ahora si hay guía; si no, el detalle; si cayó, eso. */
-function LineaDeDetalle({ canal, caido, sinPais }: { canal: Channel; caido: boolean; sinPais: boolean }) {
+function LineaDeDetalle({
+  canal,
+  caido,
+  sinPais,
+  minuto,
+}: {
+  canal: Channel;
+  caido: boolean;
+  sinPais: boolean;
+  minuto: number;
+}) {
   if (caido) {
     return (
       <span className="livetv-row-detalle is-caido">
@@ -82,11 +91,10 @@ function LineaDeDetalle({ canal, caido, sinPais }: { canal: Channel; caido: bool
     return <span className="livetv-row-detalle">{detalleDeCanal(canal, { sinPais })}</span>;
   }
 
-  // El reloj se lee al montar y no en un temporizador: una barra por fila son
-  // decenas de intervalos vivos, y en una tele eso cuesta más que la precisión
-  // que da.
-  // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
-  const progreso = porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now());
+  // El minuto llega de la vista (un solo reloj para todas las filas) y vale 0
+  // hasta montar: leer `Date.now()` aquí daba una barra distinta en el
+  // servidor y en el navegador, y React tiraba el HTML de Canales entero.
+  const progreso = porcentajeDelPrograma(canal.currentStart, canal.currentEnd, minuto * 60_000);
   return (
     <span className="livetv-row-detalle is-programa">
       <span className="livetv-row-programa">{canal.currentProgram}</span>
@@ -113,6 +121,7 @@ export const ChannelRow = memo(function ChannelRow({
   caido = false,
   sonando,
   sinPais = false,
+  minuto,
   onFocus,
   onPlay,
   onToggleFavorite,
@@ -135,6 +144,8 @@ export const ChannelRow = memo(function ChannelRow({
   sonando: boolean;
   /** Dentro de la sección de su país, no repetir el país en cada fila. */
   sinPais?: boolean;
+  /** El minuto en curso (0 antes de montar), para la barra del programa. */
+  minuto: number;
   onFocus: (channel: Channel) => void;
   onPlay: (channel: Channel) => void;
   onToggleFavorite: (channel: Channel) => void;
@@ -170,7 +181,7 @@ export const ChannelRow = memo(function ChannelRow({
 
         <span className="livetv-row-copy">
           <strong className="livetv-row-nombre">{channel.name}</strong>
-          <LineaDeDetalle canal={channel} caido={caido} sinPais={sinPais} />
+          <LineaDeDetalle canal={channel} caido={caido} sinPais={sinPais} minuto={minuto} />
         </span>
       </button>
 

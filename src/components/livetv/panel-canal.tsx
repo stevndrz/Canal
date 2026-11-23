@@ -21,6 +21,7 @@ export function PanelCanal({
   canal,
   sonando,
   esFavorito,
+  minuto,
   onSelect,
   onTune,
   onToggleFavorite,
@@ -29,6 +30,8 @@ export function PanelCanal({
   /** Es el que ya está en el reproductor. */
   sonando: boolean;
   esFavorito: boolean;
+  /** El minuto en curso, 0 antes de montar. Ver `EnEmision`. */
+  minuto: number;
   /** Ponerlo en el reproductor, sin pantalla completa: lo mismo que la fila. */
   onSelect: (canal: Channel) => void;
   /** Pantalla completa, pedida a propósito con su propio botón. */
@@ -73,7 +76,6 @@ export function PanelCanal({
           // `no-referrer` evita que un CDN con protección «anti-hotlink» —que
           // bloquea la imagen cuando ve un `Referer` de otro dominio— la
           // rechace precisamente por venir de esta app.
-          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={canal.logoUrl}
             alt=""
@@ -94,13 +96,13 @@ export function PanelCanal({
         {[canal.number, nombreDePais(paisDe(canal)), canal.category].filter(Boolean).join(" · ")}
       </p>
 
-      {canal.currentProgram ? <EnEmision canal={canal} /> : <AcercaDelCanal canal={canal} />}
+      {canal.currentProgram ? <EnEmision canal={canal} minuto={minuto} /> : <AcercaDelCanal canal={canal} />}
 
       {canal.nextProgram && (
         <div className="livetv-program is-next">
           <div className="livetv-program-head">
             <span>DESPUÉS</span>
-            {canal.nextStart && <em>{hora(canal.nextStart)}</em>}
+            {minuto > 0 && canal.nextStart && <em>{hora(canal.nextStart)}</em>}
           </div>
           <strong>{canal.nextProgram}</strong>
         </div>
@@ -134,17 +136,17 @@ export function PanelCanal({
   );
 }
 
-function EnEmision({ canal }: { canal: Channel }) {
-  // El reloj se lee al montar, como en la fila: un temporizador por panel para
-  // mover una barra que avanza un píxel por minuto no lo vale.
-  // eslint-disable-next-line react-hooks/purity -- el reloj decide cuánto lleva emitido
-  const progreso = porcentajeDelPrograma(canal.currentStart, canal.currentEnd, Date.now());
+function EnEmision({ canal, minuto }: { canal: Channel; minuto: number }) {
+  // Barra y horas solo tras montar (`minuto` > 0), como en la fila: el
+  // servidor no sabe la hora ni la zona horaria de quien mira, y pintarlas
+  // allí hacía que React descartara el HTML de Canales al hidratar.
+  const progreso = porcentajeDelPrograma(canal.currentStart, canal.currentEnd, minuto * 60_000);
 
   return (
     <div className="livetv-program">
       <div className="livetv-program-head">
         <span>AHORA</span>
-        {canal.currentStart && (
+        {minuto > 0 && canal.currentStart && (
           <em>
             {hora(canal.currentStart)} – {hora(canal.currentEnd)}
           </em>

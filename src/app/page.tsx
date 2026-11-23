@@ -71,15 +71,19 @@ function loJusto(paquete: PaqueteCanales): PaqueteCanales {
  * prerenderice en build y se vea al instante; antes TODO esperaba a la M3U.
  */
 async function Portada() {
-  const { paquete } = await paqueteDeCanales();
-
   /**
    * Solo el cascarón de un televisor arranca directo en el canal: quien lo
    * abre no quiere una portada que recorrer con el mando, quiere lo que ya
    * estaba viendo. En un navegador —también el de un televisor visitado a
    * mano, sin el cascarón— sigue siendo Inicio. Ver `esTelevisorUA`.
+   *
+   * Lo primero, antes de descargar nada: `headers()` es lo que le dice al
+   * prerender del build que esto es dinámico. Leído después, el build ya
+   * había lanzado la descarga de la guía, Next la cortaba al terminar y
+   * cada compilación escribía dos «❌ Guía EPG descartada» que no eran fallos.
    */
   const esTV = esTelevisorUA((await headers()).get("user-agent") ?? "");
+  const { paquete } = await paqueteDeCanales();
 
   // El catálogo alimenta la cabecera y los rieles de películas de Inicio. Va
   // envuelto porque son peticiones a TMDB: si la clave falta o la API se cae,

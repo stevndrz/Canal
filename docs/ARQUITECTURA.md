@@ -46,7 +46,7 @@ src/
 │
 ├── hooks/                    Estado con ciclo de vida (foco, cast, fuentes)
 ├── lib/                      Lógica pura: sin React, sin DOM, sin red donde se pueda
-│   ├── config.ts             ⭐ ÚNICA fuente de configuración
+│   ├── config.ts             ⭐ Configuración pública (la de servidor: config.server.ts)
 │   ├── channels.ts           Filtrar, agrupar y numerar canales
 │   ├── categories.ts         A qué categoría pertenece un canal
 │   ├── m3u.ts                Descargar e interpretar la lista
@@ -65,14 +65,15 @@ src/
 
 ## Reglas que sostienen todo esto
 
-### 1. `process.env` solo se lee en `src/lib/config.ts`
+### 1. `process.env` solo se lee en `src/lib/config.ts` y `config.server.ts`
 
 Antes lo leían siete archivos con siete criterios distintos para el valor por
 defecto, y no había forma de responder de un vistazo a «¿qué se puede
 configurar?». Ahora hay dos objetos:
 
-- `publicConfig` — lo que el navegador puede ver (`NEXT_PUBLIC_*`)
-- `serverConfig()` — lo que nunca sale del servidor (claves, secretos)
+- `publicConfig` (`config.ts`) — lo que el navegador puede ver (`NEXT_PUBLIC_*`)
+- `serverConfig()` (`config.server.ts`, con `import "server-only"`) — lo que
+  nunca sale del servidor (claves, secretos)
 
 `serverConfig` es una **función** y no un objeto: en el navegador esas claves
 están vacías, y un objeto evaluado al importar congelaría ese vacío.

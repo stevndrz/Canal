@@ -6,7 +6,7 @@ Plataforma de streaming de TV para hogares guatemaltecos. Organiza canales nacio
 
 ### Requisitos previos
 
-- **Node.js** 18.18+ (recomendado 20+)
+- **Node.js** 20.9+ (lo que pide `engines` en `package.json`)
 - Una lista M3U pública (por defecto se usa un [Gist](https://gist.github.com) con los canales de Guatemala)
 
 ### Instalación (desarrollo local)
@@ -26,7 +26,7 @@ Por defecto la app carga la lista M3U desde el Gist configurado en `src/lib/m3u.
 
 1. Sube el proyecto a GitHub e impórtalo en Vercel (detecta Next.js automáticamente).
 2. (Opcional) En **Settings → Environment Variables**, define `M3U_URL` si quieres apuntar a una lista distinta a la que trae el código por defecto.
-3. Despliega. No hace falta configurar ninguna base de datos: la lista de canales se descarga en cada request (`revalidate: 30`) directamente desde la URL del M3U.
+3. Despliega. No hace falta configurar ninguna base de datos: la portada descarga la lista M3U en cada carga, sin caché (pesa más de los 2 MB que guarda la caché de Next), y `/api/canales` la sirve entera con 5 minutos de caché en el borde.
 
 ### Actualizar la lista de canales
 
@@ -34,7 +34,7 @@ No hace falta redesplegar ni tocar el código:
 
 1. Edita el archivo M3U que apunta `M3U_URL` (o el Gist por defecto).
 2. Agrega/quita bloques `#EXTINF` con su URL de stream.
-3. Guarda los cambios. La página los recoge automáticamente (caché de 30s).
+3. Guarda los cambios. La portada los recoge al recargar; la lista completa de `/api/canales`, en 5 minutos como mucho.
 
 La importación elimina duplicados por URL de stream y organiza los canales priorizando Guatemala, deportes, noticias, películas/series, infantil, música, religión, entretenimiento e idioma.
 
@@ -172,7 +172,7 @@ request) y en `localStorage` del navegador. Lo que cada aparato recuerda:
 | `canalcasa:ajustes` | Los Ajustes de reproducción |
 | `canalcasa:ultimo` | El último canal visto, con su nombre para poder verificarlo |
 | `canalcasa:caidos` | Qué canales han dejado de responder — ver [`canales-caidos.ts`](src/lib/canales-caidos.ts) |
-| `canalcasa:favorites` · `canalcasa:recents` · `canalcasa:fuentes` | Favoritos, historial y «Mi enlace» |
+| `canalcasa:favoritos` · `canalcasa:recientes` · `canalcasa:fuentes` | Favoritos, historial y «Mi enlace» (las versiones viejas, `canalcasa:favorites` y `canalcasa:recents`, se conservan como copia: ver [`use-canales-guardados.ts`](src/hooks/use-canales-guardados.ts)) |
 
 Lo compartido entre aparatos NO va por ahí: va por configuración
 (`NEXT_PUBLIC_CANALES_CASA`), que se cambia en un sitio y aparece en todos.
@@ -207,7 +207,7 @@ El componente se carga con `next/dynamic` (`ssr: false`) porque estas librerías
 
 ## ⭐ Favoritos (sin base de datos)
 
-Los favoritos se guardan en `localStorage` del navegador (clave `canalcasa:favorites`), identificados por la URL del stream. No se pierden al recargar la página, pero son locales a cada navegador/dispositivo.
+Los favoritos se guardan en `localStorage` del navegador (clave `canalcasa:favoritos`), identificados por nombre normalizado + país (`canal7.gt`), no por posición ni por URL: así sobreviven a que la lista se reordene o el proveedor cambie el enlace. Ver [`claves-canal.ts`](src/lib/claves-canal.ts). No se pierden al recargar la página, pero son locales a cada navegador/dispositivo.
 
 ---
 
@@ -302,8 +302,8 @@ comería también ese comportamiento.
 
 ## 👥 El equipo de agentes
 
-Cinco agentes, cada uno dueño de una zona del código: canales, catálogo, diseño,
-calidad y dispositivos. Quién es quién, cómo se invocan y las reglas que
+Seis agentes, cada uno dueño de una zona del código: canales, catálogo, diseño,
+calidad, dispositivos y config-seguridad. Quién es quién, cómo se invocan y las reglas que
 comparten están en [`docs/EQUIPO.md`](docs/EQUIPO.md).
 
 ---
