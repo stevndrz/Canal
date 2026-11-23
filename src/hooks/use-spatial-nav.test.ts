@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { digitoDeTecla, saleDelCampo } from "./use-spatial-nav";
+import { desplazamientoBajoLaBarra, digitoDeTecla, saleDelCampo } from "./use-spatial-nav";
 
 /** Un campo con el cursor en `cursor` (o una selección de `cursor` a `fin`). */
 function campo(value: string, cursor: number | null, fin: number | null = cursor, tagName = "INPUT") {
@@ -52,5 +52,23 @@ describe("digitoDeTecla", () => {
     expect(digitoDeTecla({ key: "ArrowUp", keyCode: 38 })).toBeNull();
     // «(» comparte el 57 con el 9 en algunos teclados: manda el nombre.
     expect(digitoDeTecla({ key: "(", keyCode: 57 })).toBeNull();
+  });
+});
+
+describe("desplazamientoBajoLaBarra", () => {
+  const BARRA = 90;
+  const ALTO = 1080;
+
+  it("una fila tapada por la barra baja hasta quedar debajo, con aire", () => {
+    // El caso medido en la tele: la fila a 28 px, con la barra de 90 encima.
+    expect(desplazamientoBajoLaBarra({ top: 28, bottom: 117 }, BARRA, ALTO)).toBe(28 - 90 - 24);
+  });
+
+  it("una fila cortada por abajo sube solo lo justo, no hasta arriba", () => {
+    expect(desplazamientoBajoLaBarra({ top: 1000, bottom: 1089 }, BARRA, ALTO)).toBe(1089 - 1080 + 24);
+  });
+
+  it("si se ve entera, no se mueve nada", () => {
+    expect(desplazamientoBajoLaBarra({ top: 300, bottom: 389 }, BARRA, ALTO)).toBe(0);
   });
 });

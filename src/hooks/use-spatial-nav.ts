@@ -255,6 +255,46 @@ function aLaVistaEnLaVentana(el: HTMLElement) {
   }
 }
 
+/**
+ * Cuánto mover la ventana para que una caja quede entre la barra fija y el
+ * borde de abajo, con aire. 0 si ya se ve entera. Lo mínimo («nearest»): al
+ * bajar fila a fila la lista avanza una fila, no salta a dejarla arriba.
+ */
+export function desplazamientoBajoLaBarra(
+  caja: { top: number; bottom: number },
+  barra: number,
+  altoVentana: number,
+): number {
+  if (caja.top < barra + 8) return caja.top - barra - 24;
+  if (caja.bottom > altoVentana - 8) return caja.bottom - altoVentana + 24;
+  return 0;
+}
+
+function dentroDeAlgoFijo(el: HTMLElement): boolean {
+  for (let nodo: HTMLElement | null = el; nodo; nodo = nodo.parentElement) {
+    if (nodo.hasAttribute("data-nav-chrome") || getComputedStyle(nodo).position === "fixed") return true;
+  }
+  return false;
+}
+
+/**
+ * Tras mover el foco con las flechas. El scroll nativo de `focus()` da por
+ * visible una fila que está DEBAJO de la barra fija (está dentro de la
+ * ventana), y al subir por la lista de Canales la fila con el foco quedaba
+ * tapada: medido en la tele, a 28 px del borde con una barra de 90. Lo que va
+ * dentro de algo fijo (la propia barra, un diálogo) no mueve la página.
+ */
+function corregirBajoLaBarra(el: HTMLElement) {
+  if (dentroDeAlgoFijo(el)) return;
+  let barra = 0;
+  for (const cromo of document.querySelectorAll<HTMLElement>("[data-nav-chrome]")) {
+    const r = cromo.getBoundingClientRect();
+    if (r.height > 0 && r.top <= 0) barra = Math.max(barra, r.bottom);
+  }
+  const delta = desplazamientoBajoLaBarra(cajaConTitulo(el), barra, window.innerHeight);
+  if (delta !== 0) window.scrollBy({ top: delta });
+}
+
 /** Deja el elemento a la vista sin usar scrollIntoView (mueve la ventana en Tizen). */
 export function scrollNearest(el: HTMLElement) {
   let parent = el.parentElement;
@@ -400,6 +440,7 @@ export function useSpatialNav({ rootRef, onBack, onDigit, enabled = true }: Spat
       const destino = entradaDeGrupo(next, current);
       destino.focus();
       scrollNearest(destino);
+      corregirBajoLaBarra(destino);
     }
   }, [rootRef]);
 
