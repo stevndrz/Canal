@@ -3787,6 +3787,26 @@ body {
   margin-top: clamp(24px, 3.6vh, 40px);
 }
 
+/* PC ancho: los cuatro grupos en dos columnas. En una sola, de 880px pegada a
+   la izquierda, media pantalla de 1440 quedaba vacía y había que bajar para
+   llegar a «Canales» y «Avanzado». Columnas CSS y no rejilla: cada grupo mide
+   distinto y así no quedan huecos. La tele no: con el mando, una sola lista
+   que se recorre arriba y abajo es lo más fácil. */
+@media (min-width: 1320px) {
+  :root:not([data-pantalla="tv"]) .ui-contenedor.ajustes[data-ancho="lectura"] {
+    max-width: calc(2 * 760px + 48px + 2 * var(--margen));
+  }
+
+  :root:not([data-pantalla="tv"]) .ajustes-columna {
+    columns: 2;
+    column-gap: 48px;
+  }
+
+  :root:not([data-pantalla="tv"]) .ajustes-columna > * {
+    break-inside: avoid;
+  }
+}
+
 .ajustes-lista {
   overflow: hidden;
   border: 1px solid var(--borde-sutil);
@@ -4412,8 +4432,8 @@ body {
 /* ═══ Casa ═══════════════════════════════════════════════════════════════
    Los canales que se ven de cajón. NO es un riel, y por eso no comparte nada
    con `.rail`: un riel dice «hay más si sigues» —flechas, scroll, tarjetas
-   pegadas al margen izquierdo esperando compañía— y aquí son tres, siempre los
-   mismos, y no va a haber un cuarto.
+   pegadas al margen izquierdo esperando compañía— y aquí son unos pocos
+   (`canalesDeCasa`: hoy, cuatro), siempre los mismos.
 
    Centrados y grandes porque es lo primero que se ve al abrir y lo que se pide
    en voz alta desde el sofá: «pon el tres». */

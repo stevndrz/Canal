@@ -458,6 +458,14 @@ html[data-input="dpad"] .rail-ver-todo:focus {
     margin-left: 0;
   }
 
+  /* Con píldoras de tipo (Anime: Todo, Películas, Series y Género) a la fila
+     le quedaban 191px junto al orden y «Series» asomaba como una «S» bajo el
+     desvanecido. Ahí el orden baja a su línea y las píldoras se quedan con
+     todo el ancho: una línea más, pero ningún filtro escondido. */
+  .catalogo-controles:has(.catalogo-pildoras > :nth-child(2)) .catalogo-pildoras {
+    flex-basis: 100%;
+  }
+
   .catalogo-orden-etiqueta {
     position: absolute;
     width: 1px;
