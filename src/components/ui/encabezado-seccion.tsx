@@ -7,7 +7,8 @@ import { unir } from "./clases";
  * Había 13 recetas de encabezado con seis interletrados distintos para las
  * versalitas. Aquí hay tres tallas con nombre:
  *
- * - **pagina**: el título de la vista («Ajustes», «Mi enlace»).
+ * - **pagina**: el título de la vista («Ajustes», «Mi enlace»). Es el `<h1>`:
+ *   cada pantalla tiene uno, y es este.
  * - **seccion**: un bloque dentro de la vista («Guardados en este
  *   dispositivo»). Opcionalmente con una acción a la derecha («Ver todo»).
  * - **grupo**: el rótulo pequeño en versalitas encima de una lista de ajustes
@@ -34,7 +35,7 @@ type EncabezadoSeccionProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
   idTitulo?: string;
 };
 
-const NIVEL_POR_TALLA = { pagina: 2, seccion: 2, grupo: 3 } as const;
+const NIVEL_POR_TALLA = { pagina: 1, seccion: 2, grupo: 3 } as const;
 
 export function EncabezadoSeccion({
   titulo,

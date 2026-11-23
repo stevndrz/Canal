@@ -289,8 +289,10 @@ export async function SeccionCatalogo({
       orden={orden}
       cabecera={destacados.length > 0 ? <HeroCarrusel destacados={destacados} /> : null}
       /* El nombre de la sección, además del de la barra: con tres secciones
-         de catálogo parecidas, es lo que dice en cuál se está. */
-      titulo={<h2 className="catalogo-titulo">{seccion.titulo}</h2>}
+         de catálogo parecidas, es lo que dice en cuál se está. Es el `<h1>`
+         y no el título del destacado de arriba, que cambia cada pocos
+         segundos y no dice dónde se está. */
+      titulo={<h1 className="catalogo-titulo">{seccion.titulo}</h1>}
       filtros={
         <CatalogFilters
           base={base}

@@ -101,7 +101,7 @@ export function BarraFiltros({
     <header className="livetv-cabecera">
       <div className="livetv-topbar">
         <div className="livetv-heading">
-          <h2>Canales</h2>
+          <h1>Canales</h1>
           <span>{cifra(total)} canales</span>
         </div>
 

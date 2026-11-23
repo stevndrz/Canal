@@ -1569,7 +1569,7 @@
   flex-wrap: wrap;
 }
 
-.livetv-heading h2 {
+.livetv-heading h1 {
   margin: 0;
   font-size: var(--texto-2xl);
   font-weight: 700;
@@ -2253,6 +2253,21 @@
   flex-direction: column;
   gap: 2px;
   margin-right: auto;
+}
+
+/* En el teléfono la cifra va al lado del título, como en las cabeceras de
+   sección («Mis canales 4 canales»): en dos líneas se comía una fila de la
+   lista, y la pestaña de abajo ya dice dónde se está. */
+@media (max-width: 680px) {
+  .livetv-heading {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .livetv-heading h1 {
+    font-size: var(--texto-xl);
+  }
 }
 
 .livetv-search {

@@ -100,7 +100,7 @@ export function HeroDestacado({
           mismo borde que la cabecera y los rieles de debajo. Eran cuatro
           bordes izquierdos distintos en la misma pantalla. */}
         <div className="hero-copy">
-          <h1 className={`hero-titulo ${logoUrl ? "con-logo" : ""}`} id="hero-titulo">
+          <h2 className={`hero-titulo ${logoUrl ? "con-logo" : ""}`} id="hero-titulo">
             {logoUrl ? (
               // El logo ES el título: `alt` con el nombre, para el lector de
               // pantalla y por si la imagen no carga.
@@ -108,7 +108,7 @@ export function HeroDestacado({
             ) : (
               item.title
             )}
-          </h1>
+          </h2>
 
           {item.tagline && <p className="hero-lema">{item.tagline}</p>}
 
