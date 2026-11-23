@@ -145,6 +145,16 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
 
   /**
+   * Prefetch parcial: un `<Link>` trae el armazón de la ruta (uno por ruta,
+   * compartido por todos sus enlaces) en vez de prefetchear cada enlace por
+   * separado. Next avisaba en cada arranque de que faltaba decidirlo, y será
+   * lo único que haya en la próxima versión mayor. No había nada que migrar:
+   * ningún enlace usa `prefetch={true}` (la guía `adopting-partial-prefetching`
+   * dice que entonces se activa sin más).
+   */
+  partialPrefetching: true,
+
+  /**
    * `hls.js` y `mpegts.js` solo pueden vivir en el navegador: al evaluarse
    * tocan `self`, que en Node no existe. Marcarlos como externos del servidor
    * evita que entren ahí.
