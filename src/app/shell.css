@@ -1270,30 +1270,13 @@
   text-align: center;
 }
 
-.buscar-antetitulo {
-  margin: 0 0 14px;
-  font-size: var(--texto-2xs);
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: var(--tinta-4);
-}
-
 .buscar-titulo {
-  margin: 0;
+  margin: 0 0 clamp(26px, 4vh, 42px);
   font-size: clamp(38px, 5vw, 76px);
   font-weight: 650;
   line-height: 1;
   letter-spacing: -0.05em;
   color: var(--tinta-1);
-}
-
-.buscar-subtitulo {
-  margin: 16px 0 clamp(26px, 4vh, 42px);
-  max-width: 34rem;
-  font-size: var(--texto-base);
-  line-height: 1.55;
-  color: var(--tinta-3);
 }
 
 .buscar-form {
@@ -1403,7 +1386,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
   width: 100%;
   margin-top: 16px;
@@ -1456,6 +1439,12 @@
 .buscar-util.is-activo {
   background: var(--relleno);
   color: var(--tinta-1);
+}
+
+/* Con teclado de verdad (o el del teléfono) el de pantalla no se ofrece:
+   solo si se está navegando con flechas. */
+html:not([data-input="dpad"]) .buscar-util {
+  display: none;
 }
 
 /* En el teléfono hay teclado de verdad: el de pantalla no se ofrece. */
@@ -1571,12 +1560,6 @@
 
 .buscar-ficha .buscar-ficha-quitar:hover {
   color: var(--tinta-1);
-}
-
-.buscar-ficha-numero {
-  font-size: 0.85em;
-  font-variant-numeric: tabular-nums;
-  color: var(--tinta-4);
 }
 
 @media (prefers-reduced-motion: no-preference) {
