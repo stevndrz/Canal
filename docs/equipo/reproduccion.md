@@ -20,6 +20,34 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-23 — Imagen en imagen de verdad, y en el directo
+
+El dueño: «ninguno de imagen en imagen funciona, ni en los canales ni como
+app ni en PC», y en el teléfono faltaban botones útiles.
+
+- **Lo que se ve en su captura (☰ Servidores, engrane, CC) es el reproductor
+  del proveedor**, dentro de un iframe de otro dominio. Sus botones no se
+  pueden cambiar desde fuera (ni añadir ±10 s), y su vídeo no se extrae (regla
+  del dueño). Al iframe se le añadió `picture-in-picture` al `allow`.
+- **Reproductor propio** (`native-player.tsx`: Nuestras películas, Mi enlace,
+  la sala): el botón estaba en `is-opcional`, que se escondía por debajo de
+  640px (justo en el teléfono); salía aunque el navegador no tuviera la API (un
+  botón muerto en Firefox y en teles viejas), y no tenía la vía de WebKit, que
+  es la del iPhone. Ahora `lib/imagen-en-imagen.ts` (estándar → WebKit) y
+  `hooks/use-imagen-en-imagen.ts`; en la tele, nunca.
+- **Directo**: el botón en Inicio, Canales y pantalla completa
+  (`extraImagenEnImagen`). Con la ventanita puesta, el shell no desmonta la
+  tarjeta al ir a Buscar, Ajustes o Mi enlace (`.live-slot.is-flotando`). Al
+  catálogo no llega: con `cacheComponents` la ruta se oculta y el directo se
+  pausa a propósito (`stream-player.tsx`). Para eso habría que subir el
+  reproductor al layout raíz.
+- **iPhone SE**: el botón grande de reproducir quedaba debajo del riel (la
+  barra va en una capa encima) y no respondía. En el teléfono se centra en el
+  hueco sobre la barra.
+- Probado con el servidor de e2e y la ventanita simulada (Chromium sin
+  pantalla no abre ventanas): botón, cambio de pestaña, salida. En la tele no
+  sale.
+
 ### 2026-11-10 — La película en la pantalla de bloqueo, y la pantalla encendida en la sala
 
 - `use-sesion-de-medios.ts`, dos hooks:
