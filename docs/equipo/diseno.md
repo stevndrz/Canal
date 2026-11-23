@@ -46,6 +46,41 @@ Y las cuatro que muerden:
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-23 — Jerarquía y densidad: Canales, barra, títulos, Buscar
+
+Repaso con capturas en PC (1440×900), iPhone 14 y tele (1920×1080, UA de
+Tizen), medido con Playwright.
+
+- **Canales: el directo en franja** (`.live-slot.is-franja`, en
+  `globals.css`). En PC y en iPhone no se veía ni una fila sin bajar. Desde
+  900px el vídeo es una miniatura (26vw, 280–480px) con el rótulo y los mandos
+  al lado; en el teléfono, un mini reproductor (42% del ancho) sin
+  anterior/siguiente. Es solo una clase en el mismo `div`: el `LiveCard` no se
+  desmonta al pasar de Inicio a Canales. Resultado: 4 filas a la vista en PC,
+  2 en iPhone (antes 0), y en la tele la lista y el foco sin desplazar.
+- **La barra con palabras hasta 1024px** (antes solo iconos por debajo de
+  1500). Escalones medidos sin solaparse: ≤1500 relleno más justo; ≤1279 letra
+  `--texto-sm` y sin reloj (en la tele se queda); ≤1023 iconos. Con el texto
+  «Enorme», iconos hasta 1365 (a 1024 y 1280 se montaba sobre la marca).
+- **Un `<h1>` por pantalla.** `EncabezadoSeccion talla="pagina"` es `<h1>`;
+  Canales, Mi enlace y el catálogo («Películas», no el título del destacado)
+  lo tienen; Inicio lleva uno solo para el lector de pantalla.
+- **Panel de Canales**: `.livetv-detail-nombre` no tenía estilo y el nombre
+  salía más pequeño que «AHORA». Ahora el nombre manda (`--texto-xl`), luego
+  el programa y al final los rótulos.
+- **Buscar**: fuera el antetítulo, el subtítulo y los números 01–06 de
+  Explorar; «Teclado en pantalla» solo con `data-input="dpad"`.
+- **Ajustes** en dos columnas desde 1320px (no en la tele).
+- **Anime en iPhone**: con píldoras de tipo, el orden baja a su línea
+  (`:has()`); «Series» quedaba tapado.
+- **Notas con punto** («6.5»), como «4,816»: `es-GT` en todas las cifras.
+- **Mando**: al subir por la lista, la fila con foco quedaba debajo de la
+  barra fija (medido: a 28px con una barra de 90). `corregirBajoLaBarra` en
+  `use-spatial-nav.ts`.
+- **No se tocó**: «Casa» centrado (decisión de arriba) y el vídeo del
+  proveedor que la ficha carga sola (anuncios aceptados por el dueño a cambio
+  de que arranque al pulsar OK).
+
 ### 2026-11-13 — Mi enlace en la tele: la película ya tapa la barra
 
 - Foto del dueño: viendo una película en la tele, la barra de la app (logo,

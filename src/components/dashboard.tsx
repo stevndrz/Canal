@@ -665,10 +665,18 @@ export function Dashboard({
       )}
 
       <section className="content">
+        {/* Cada pantalla tiene su `<h1>`. Inicio no pinta título (la portada
+            es la señal en directo), así que va solo para el lector de
+            pantalla, y antes del reproductor para que sea lo primero. */}
+        {view === "home" && <h1 className="sr-only">Inicio</h1>}
+
         {/* Solo Inicio y Canales: en las demás no se monta, y así no se gasta
             ancho de banda en segundo plano. */}
+        {/* En Canales, en franja (ver `.live-slot.is-franja`). La clase cambia
+            y el elemento no: así la señal no se desmonta al pasar de Inicio a
+            Canales. */}
         {conReproductor && tuned && (
-          <div className="live-slot">
+          <div className={view === "canales" ? "live-slot is-franja" : "live-slot"}>
             <LiveCard
               channel={tuned}
               settings={settings}

@@ -426,7 +426,7 @@ export default function Sistema() {
 
         <Bloque titulo="Encabezado de sección" descripcion="Tres tallas con nombre; el nivel del h* va aparte.">
           <Muestra nombre="pagina" ancho>
-            <EncabezadoSeccion talla="pagina" sobretitulo="Pega el enlace de un vídeo y míralo aquí" titulo="Mi enlace" />
+            <EncabezadoSeccion talla="pagina" nivel={2} sobretitulo="Pega el enlace de un vídeo y míralo aquí" titulo="Mi enlace" />
           </Muestra>
           <Muestra nombre="seccion con acción" ancho>
             <div className="w-full">

@@ -644,9 +644,9 @@ export function FuenteView({ sinHueco }: { sinHueco?: boolean }) {
             <SalaVacia pc={lineaPc} />
           ) : !portada ? (
             // Dentro de la sala, con películas y ninguna puesta todavía.
-            <h2 id="cine-titulo" className="cine-titulo">
+            <h1 id="cine-titulo" className="cine-titulo">
               Elijan una película
-            </h2>
+            </h1>
           ) : undefined
         }
         estante={

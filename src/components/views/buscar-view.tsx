@@ -214,9 +214,10 @@ export function BuscarView({
   return (
     <div className="screen has-search-hero buscar-pagina">
       <section className="search-hero buscar-portada">
-        <p className="buscar-antetitulo">Todo tu contenido en un lugar</p>
+        {/* Solo el título: el antetítulo («Todo tu contenido en un lugar») y
+            el subtítulo («Busca canales, películas y series…») repetían lo
+            mismo que el título y el campo, en tres tallas. */}
         <h1 className="buscar-titulo">¿Qué quieres ver?</h1>
-        <p className="buscar-subtitulo">Busca canales, películas y series por su nombre.</p>
 
         <form className="buscar-form" role="search" onSubmit={enviar}>
           {/* Icono, campo y botones dentro de la MISMA pieza. Sueltos, cada
@@ -290,7 +291,9 @@ export function BuscarView({
             ))}
           </div>
 
-          {/* En la tele el teclado ya está abierto y no hay nada que pedir. */}
+          {/* En la tele el teclado ya está abierto y no hay nada que pedir. En
+              PC y teléfono solo asoma si se navega con flechas (CSS): es para
+              una tele que no se reconoce como tal, no para quien tiene teclado. */}
           {!esTele && (
             <button
               type="button"
@@ -359,10 +362,9 @@ export function BuscarView({
               <h2>Explorar</h2>
             </div>
             <ul className="buscar-fichas">
-              {EXPLORAR.map(({ texto, href }, i) => (
+              {EXPLORAR.map(({ texto, href }) => (
                 <li key={href}>
                   <Link href={href} data-nav="button" className="buscar-ficha buscar-ficha-enlace">
-                    <span className="buscar-ficha-numero">{String(i + 1).padStart(2, "0")}</span>
                     {texto}
                   </Link>
                 </li>

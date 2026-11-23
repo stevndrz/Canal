@@ -144,9 +144,9 @@ export function Portada({
         {vacia}
         {!vacia && sobretitulo && <p className="cine-sobretitulo">{sobretitulo}</p>}
         {!vacia && (
-          <h2 id="cine-titulo" className="cine-titulo">
+          <h1 id="cine-titulo" className="cine-titulo">
             {titulo}
-          </h2>
+          </h1>
         )}
         {!vacia && pildoras.length > 0 && (
           <ul className="cine-pildoras" aria-label="Detalles">
@@ -246,9 +246,9 @@ export interface PeliculaEstante {
 export function SalaVacia({ pc }: { pc?: ReactNode }) {
   return (
     <div className="cine-vacio">
-      <h2 id="cine-titulo" className="cine-titulo">
+      <h1 id="cine-titulo" className="cine-titulo">
         Nuestras películas
-      </h2>
+      </h1>
       <p className="cine-vacio-frase">Todavía no hay ninguna. Las que subas desde tu PC aparecen aquí, en todos los aparatos, para verlas juntos.</p>
       <ol className="cine-pasos" aria-label="Cómo llega una película">
         <li>Deja la película en la carpeta del PC</li>
@@ -264,9 +264,9 @@ export function SalaVacia({ pc }: { pc?: ReactNode }) {
 export function SalaCargando() {
   return (
     <div className="cine-vacio" aria-busy="true">
-      <h2 id="cine-titulo" className="cine-estante-titulo">
+      <h1 id="cine-titulo" className="cine-estante-titulo">
         Nuestras películas
-      </h2>
+      </h1>
       <div className="cine-esqueleto-fila" aria-hidden="true">
         <span className="cine-esqueleto is-poster" />
         <span className="cine-esqueleto is-poster" />
@@ -304,9 +304,9 @@ export function Estante({
   return (
     <section className="cine-estante" aria-labelledby="cine-estante-titulo">
       <div className="cine-estante-cabeza">
-        <h3 id="cine-estante-titulo" className="cine-estante-titulo">
+        <h2 id="cine-estante-titulo" className="cine-estante-titulo">
           Nuestras películas
-        </h3>
+        </h2>
         {nota}
       </div>
       <ul className="cine-estante-fila">

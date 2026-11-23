@@ -3787,6 +3787,26 @@ body {
   margin-top: clamp(24px, 3.6vh, 40px);
 }
 
+/* PC ancho: los cuatro grupos en dos columnas. En una sola, de 880px pegada a
+   la izquierda, media pantalla de 1440 quedaba vacía y había que bajar para
+   llegar a «Canales» y «Avanzado». Columnas CSS y no rejilla: cada grupo mide
+   distinto y así no quedan huecos. La tele no: con el mando, una sola lista
+   que se recorre arriba y abajo es lo más fácil. */
+@media (min-width: 1320px) {
+  :root:not([data-pantalla="tv"]) .ui-contenedor.ajustes[data-ancho="lectura"] {
+    max-width: calc(2 * 760px + 48px + 2 * var(--margen));
+  }
+
+  :root:not([data-pantalla="tv"]) .ajustes-columna {
+    columns: 2;
+    column-gap: 48px;
+  }
+
+  :root:not([data-pantalla="tv"]) .ajustes-columna > * {
+    break-inside: avoid;
+  }
+}
+
 .ajustes-lista {
   overflow: hidden;
   border: 1px solid var(--borde-sutil);
@@ -3942,6 +3962,125 @@ body {
 @media (max-width: 680px) and (orientation: portrait) {
   .live-slot {
     padding-top: var(--topbar-h);
+  }
+}
+
+/* ── Canales: el directo en franja ───────────────────────────────────
+   En Inicio la señal es la portada. En Canales lo que se viene a usar es la
+   lista, y con el reproductor de Inicio (16:9 casi a todo el alto) no se veía
+   ni una fila sin bajar, ni en PC ni en iPhone. Aquí el vídeo encoge a una
+   miniatura con el rótulo y los mandos al lado, como el «ahora suena» de una
+   app de música.
+
+   Solo CSS y sobre el mismo `LiveCard`: moverlo a otra parte del árbol lo
+   desmontaría al pasar de Inicio a Canales, y la señal volvería a sintonizar.
+   El logo del rótulo sobra: el canal se está viendo justo al lado. */
+.live-slot.is-franja .vivo-logo {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .live-slot.is-franja {
+    padding-top: calc(var(--topbar-h) + 20px);
+  }
+
+  .live-slot.is-franja .live-card-marco {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .live-slot.is-franja .live-card-video {
+    flex: 0 0 auto;
+    width: clamp(280px, 26vw, 480px);
+  }
+
+  /* Al lado y no encima del vídeo: en una miniatura, el rótulo sobre la
+     imagen la taparía entera. */
+  .live-slot.is-franja .live-card-pie {
+    position: static;
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    margin: 0 0 0 clamp(16px, 1.8vw, 32px);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    pointer-events: auto;
+  }
+
+  .live-slot.is-franja .live-card-pie .vivo-info {
+    text-shadow: none;
+  }
+
+  .live-slot.is-franja .live-card-pie .player-bar {
+    flex-shrink: 0;
+    margin: 0 0 0 16px;
+  }
+}
+
+/* Teléfono: mini reproductor, como el de YouTube al bajar a los comentarios.
+   De borde a borde el vídeo medía 390×219 y, con el rótulo y los mandos
+   debajo, llegaba a la barra de abajo: no se veía ni un canal. Anterior y
+   siguiente sobran con la lista justo debajo; el silencio no, que en el
+   iPhone la señal arranca muda. Doble toque o «Pantalla completa» la agranda. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-slot.is-franja {
+    padding-top: calc(var(--topbar-h) + 10px);
+  }
+
+  .live-slot.is-franja .live-card {
+    padding: 0 var(--margen);
+    margin-bottom: 16px;
+  }
+
+  .live-slot.is-franja .live-card-marco {
+    display: flex;
+    align-items: center;
+  }
+
+  .live-slot.is-franja .live-card-video {
+    flex: 0 0 42%;
+    border-radius: var(--radio-tarjeta);
+    box-shadow: 0 0 0 1px var(--borde-sutil);
+  }
+
+  .live-slot.is-franja .live-card-pie {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 0 0 12px;
+    padding-inline: 0;
+  }
+
+  .live-slot.is-franja .live-card-pie .player-bar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin-top: 4px;
+    padding: 0;
+  }
+
+  .live-slot.is-franja .player-btn.is-transport {
+    display: none;
+  }
+
+  .live-slot.is-franja .player-bar-extras {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .live-slot.is-franja .vivo-linea {
+    margin-bottom: 2px;
+  }
+
+  .live-slot.is-franja .vivo-nombre {
+    font-size: var(--texto-base);
+  }
+
+  .live-slot.is-franja .vivo-programa {
+    font-size: var(--texto-xs);
   }
 }
 
@@ -4293,8 +4432,8 @@ body {
 /* ═══ Casa ═══════════════════════════════════════════════════════════════
    Los canales que se ven de cajón. NO es un riel, y por eso no comparte nada
    con `.rail`: un riel dice «hay más si sigues» —flechas, scroll, tarjetas
-   pegadas al margen izquierdo esperando compañía— y aquí son tres, siempre los
-   mismos, y no va a haber un cuarto.
+   pegadas al margen izquierdo esperando compañía— y aquí son unos pocos
+   (`canalesDeCasa`: hoy, cuatro), siempre los mismos.
 
    Centrados y grandes porque es lo primero que se ve al abrir y lo que se pide
    en voz alta desde el sofá: «pon el tres». */

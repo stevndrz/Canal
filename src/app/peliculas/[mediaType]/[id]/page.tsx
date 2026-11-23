@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import { TitleDetail } from "@/components/catalog/title-detail";
 import { EsqueletoFicha } from "@/components/catalog/esqueleto-ficha";
 import { FichaNoEncontrada } from "@/components/catalog/ficha-no-encontrada";
@@ -72,7 +73,13 @@ async function Ficha({ params, searchParams }: PropsDeFicha) {
    * «También te puede interesar», al final de la ficha. En paralelo con la
    * comprobación de servidores de arriba: ninguna depende de la otra, y las
    * dos ya esperan a `resolveItem`.
+   *
+   * `connection()` antes: la comprobación de servidores mira la hora y
+   * pregunta a la red en cada visita, y eso no puede ir en el armazón que el
+   * prefetch parcial prerenderiza (Next lo marca: «unstable value
+   * `Date.now()` while prerendering»).
    */
+  await connection();
   const [servidoresIniciales, recomendados, enLatino] = await Promise.all([
     tmdbId
       ? servidoresConElTitulo(

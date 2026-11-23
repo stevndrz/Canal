@@ -1,13 +1,14 @@
 /**
- * Cómo se escriben los números del catálogo, en español.
+ * Cómo se escriben los números del catálogo: como en Guatemala.
  *
- * `toFixed(1)` da «6.5», con punto: así se escribe en inglés. En Guatemala, en
- * México y en España se escribe «6,5», y una nota con punto es de esos
- * detalles que hacen que la app parezca traducida en vez de hecha aquí.
+ * En Guatemala (y en México y Centroamérica) el decimal va con punto y los
+ * miles con coma: «6.5» y «4,816». Con el «es» genérico salía «6,5», como en
+ * España, al lado de «4,816 canales» en la misma pantalla. Todas las cifras
+ * de la app usan `es-GT`.
  */
-const NOTA = new Intl.NumberFormat("es", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const NOTA = new Intl.NumberFormat("es-GT", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-/** «6,5»: una nota de TMDB (0–10) con un decimal y coma. */
+/** «6.5»: una nota de TMDB (0–10) con un decimal. */
 export function formatearNota(nota: number): string {
   return NOTA.format(nota);
 }

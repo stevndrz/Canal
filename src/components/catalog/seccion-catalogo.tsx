@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { Clapperboard, SearchX, WifiOff } from "lucide-react";
 import { CatalogGrid } from "@/components/catalog/catalog-row";
 import { CatalogRowsPersonalizadas } from "@/components/catalog/catalog-rows-personalizadas";
@@ -207,6 +208,9 @@ export async function SeccionCatalogo({
     .flatMap((fila) => fila.items)
     .filter((item, i, todos) => item.backdrop && !item.generoIds?.includes(GENERO_TERROR) && todos.findIndex((otro) => otro.id === item.id) === i)
     .slice(0, 10);
+  // Un sorteo por visita: `connection()` lo deja fuera del armazón que el
+  // prefetch parcial prerenderiza, donde Next no admite `Math.random()`.
+  await connection();
   // eslint-disable-next-line react-hooks/purity -- RSC: corre una vez por request.
   const sorteo = candidatos.map((item) => ({ item, peso: Math.random() }));
   const elegidos = sorteo.sort((x, y) => x.peso - y.peso).slice(0, 5).map(({ item }) => item);
@@ -289,8 +293,10 @@ export async function SeccionCatalogo({
       orden={orden}
       cabecera={destacados.length > 0 ? <HeroCarrusel destacados={destacados} /> : null}
       /* El nombre de la sección, además del de la barra: con tres secciones
-         de catálogo parecidas, es lo que dice en cuál se está. */
-      titulo={<h2 className="catalogo-titulo">{seccion.titulo}</h2>}
+         de catálogo parecidas, es lo que dice en cuál se está. Es el `<h1>`
+         y no el título del destacado de arriba, que cambia cada pocos
+         segundos y no dice dónde se está. */
+      titulo={<h1 className="catalogo-titulo">{seccion.titulo}</h1>}
       filtros={
         <CatalogFilters
           base={base}
