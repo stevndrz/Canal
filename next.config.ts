@@ -11,7 +11,7 @@ import type { NextConfig } from "next";
  * pereza; cada una rompía algo concreto:
  *
  * - **`Permissions-Policy` sin `fullscreen` ni `autoplay`.** El iframe del
- *   reproductor declara `allow="autoplay; encrypted-media; fullscreen"`
+ *   reproductor declara `allow="autoplay; encrypted-media; fullscreen; picture-in-picture"`
  *   (`ficha-reproductor.tsx`). Una política restrictiva a nivel de documento
  *   **anula ese `allow`** y deja el reproductor sin arrancar ni poder ponerse a
  *   pantalla completa. Se restringen las capacidades que la app no usa jamás.

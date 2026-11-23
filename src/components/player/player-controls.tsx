@@ -8,6 +8,7 @@ import {
   Maximize,
   Minimize,
   Pause,
+  PictureInPicture2,
   Play,
   SkipBack,
   SkipForward,
@@ -186,6 +187,30 @@ export function PlayerControls({
 export const ICONO_GUIA = <List aria-hidden="true" />;
 export const ICONO_CAST = <Cast aria-hidden="true" />;
 export const ICONO_AIRPLAY = <Airplay aria-hidden="true" />;
+export const ICONO_PIP = <PictureInPicture2 aria-hidden="true" />;
+
+/**
+ * Imagen en imagen, compartida por Inicio, Canales y pantalla completa: el
+ * canal en una ventanita mientras se usa otra app. Solo donde funciona de
+ * verdad (`lib/imagen-en-imagen.ts`); en la tele, nunca.
+ */
+export function extraImagenEnImagen(pip: {
+  soportada: boolean;
+  activa: boolean;
+  alternar: () => Promise<void>;
+}): PlayerAction[] {
+  if (!pip.soportada) return [];
+  return [
+    {
+      id: "pip",
+      label: pip.activa ? "Salir de imagen en imagen" : "Imagen en imagen",
+      icon: ICONO_PIP,
+      active: pip.activa,
+      pressed: pip.activa,
+      onClick: () => void pip.alternar(),
+    },
+  ];
+}
 
 /**
  * Botones de transmisión, compartidos por Inicio y pantalla completa: uno por

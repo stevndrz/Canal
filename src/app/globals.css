@@ -1505,10 +1505,6 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 @media (max-width: 640px) {
-  .atv-btn.is-opcional {
-    display: none;
-  }
-
   .atv-volumen-riel {
     display: none;
   }
@@ -1517,9 +1513,14 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
     font-size: var(--texto-xs);
   }
 
+  /* Centrado en el hueco que deja la barra de abajo (88px en el teléfono), no
+     en el vídeo entero: en un iPhone SE el vídeo mide 158px de alto, la
+     barra va en una capa encima y el riel cruzaba el botón por la mitad. El
+     toque se lo llevaba el riel y «Reproducir» no respondía. */
   .atv-play-central {
-    width: 68px;
-    height: 68px;
+    bottom: 88px;
+    width: 56px;
+    height: 56px;
   }
 
   /* La fila entera cabe en el ancho del teléfono: objetivos de 36px y
@@ -4021,6 +4022,18 @@ body {
   }
 }
 
+/* Con el directo en imagen en imagen y otra pestaña delante: la tarjeta sigue
+   montada para que la ventanita no se cierre, pero no se ve ni ocupa sitio.
+   Sin `display: none`, que en algunos navegadores para el vídeo. */
+.live-slot.is-flotando {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
 /* Teléfono: mini reproductor, como el de YouTube al bajar a los comentarios.
    De borde a borde el vídeo medía 390×219 y, con el rótulo y los mandos
    debajo, llegaba a la barra de abajo: no se veía ni un canal. Anterior y
@@ -4054,8 +4067,10 @@ body {
     padding-inline: 0;
   }
 
+  /* `wrap`: con «Botones grandes» (52px) no caben en una fila, y partida en
+     dos se usa; salida de la pantalla, no. */
   .live-slot.is-franja .live-card-pie .player-bar {
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     justify-content: flex-start;
     margin-top: 4px;
     padding: 0;
@@ -4066,9 +4081,17 @@ body {
   }
 
   .live-slot.is-franja .player-bar-extras {
+    gap: 2px;
     margin-left: 0;
     padding-left: 0;
     border-left: 0;
+  }
+
+  /* Los cuatro a 44 (el mínimo para el dedo) y no a 48: así caben en una
+     fila junto a la miniatura. */
+  .live-slot.is-franja .player-bar:not(.is-big) .player-btn {
+    width: 44px;
+    height: 44px;
   }
 
   .live-slot.is-franja .vivo-linea {
@@ -4081,6 +4104,15 @@ body {
 
   .live-slot.is-franja .vivo-programa {
     font-size: var(--texto-xs);
+  }
+}
+
+/* Cuatro mandos de 44px (el mínimo para el dedo) junto a la miniatura: en un
+   teléfono de 320px no cabían y «Pantalla completa» se salía de la pantalla.
+   Ahí la miniatura cede ancho. */
+@media (max-width: 360px) and (orientation: portrait) {
+  .live-slot.is-franja .live-card-video {
+    flex-basis: 28%;
   }
 }
 

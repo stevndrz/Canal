@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Cast } from "lucide-react";
-import { extrasCast, ICONO_GUIA } from "@/components/player/player-controls";
+import { extraImagenEnImagen, extrasCast, ICONO_GUIA } from "@/components/player/player-controls";
 import { ControlesVivo } from "@/components/player/controles-vivo";
 import { estadoDeEmision } from "@/components/player/info-vivo";
 import type { Channel, PlaybackSettings } from "@/lib/types";
@@ -18,6 +18,7 @@ import { GuiaInteractiva, type GuiaInteractivaHandle } from "@/components/player
 import { useFullscreen } from "@/hooks/use-fullscreen";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { useCast } from "@/hooks/use-cast";
+import { useImagenEnImagen } from "@/hooks/use-imagen-en-imagen";
 
 interface FullscreenPlayerProps {
   channel: Channel;
@@ -88,6 +89,10 @@ export function FullscreenPlayer({
   // elemento primero, ambos leen `.current` en el momento de actuar.
   const { castMethod, isCasting, startCasting, stopCasting, castError, dismissCastError } =
     useCast(videoElRef, channel.streamUrl, channel.name);
+
+  // Imagen en imagen: el canal en una ventanita para seguir usando el móvil o
+  // el PC. Al salir de esta pantalla se cierra (el vídeo es de esta pantalla).
+  const pip = useImagenEnImagen(videoElRef, channel.id);
 
 
   const [showControls, setShowControls] = useState(true);
@@ -473,6 +478,7 @@ export function FullscreenPlayer({
             expanded: showGuide,
             onClick: () => (showGuide ? setShowGuide(false) : openGuide()),
           },
+          ...extraImagenEnImagen(pip),
           ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
         ]}
       />

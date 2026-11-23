@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { extrasCast, PlayerControls } from "@/components/player/player-controls";
+import { extraImagenEnImagen, extrasCast, PlayerControls } from "@/components/player/player-controls";
 import { estadoDeEmision, InfoVivo } from "@/components/player/info-vivo";
 import { useCast } from "@/hooks/use-cast";
+import { useImagenEnImagen } from "@/hooks/use-imagen-en-imagen";
 import { esIPhone } from "@/lib/dispositivo";
 import { girarAHorizontal } from "@/lib/orientacion";
 import { esToqueEnElVideo } from "@/lib/toque-en-el-video";
@@ -45,6 +46,12 @@ interface LiveCardProps {
    * sabe el reproductor. Ver `canales-caidos.ts`.
    */
   onSalud?: (canalId: number, funciona: boolean) => void;
+  /**
+   * Avisa al entrar y salir de imagen en imagen (y `false` al desmontarse).
+   * Con ella puesta, el shell no desmonta la tarjeta al cambiar de vista: si
+   * no, la ventanita se cerraba en cuanto se tocaba Buscar o Ajustes.
+   */
+  onImagenEnImagen?: (activa: boolean) => void;
 }
 
 export function LiveCard({
@@ -55,6 +62,7 @@ export function LiveCard({
   onPrev,
   onSilencio,
   onSalud,
+  onImagenEnImagen,
 }: LiveCardProps) {
   const playerRef = useRef<StreamPlayerHandle | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -153,7 +161,18 @@ export function LiveCard({
     channel.name,
   );
 
-  const transmision = extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting });
+  const pip = useImagenEnImagen(videoRef, channel.streamUrl);
+  useEffect(() => {
+    onImagenEnImagen?.(pip.activa);
+  }, [pip.activa, onImagenEnImagen]);
+  // Desmontada a media ventanita (al ir a pantalla completa), el navegador la
+  // cierra sin avisar a este oyente, que ya no está: se avisa aquí.
+  useEffect(() => () => onImagenEnImagen?.(false), [onImagenEnImagen]);
+
+  const transmision = [
+    ...extraImagenEnImagen(pip),
+    ...extrasCast({ metodo: castMethod, isCasting, startCasting, stopCasting }),
+  ];
 
   return (
     <section
