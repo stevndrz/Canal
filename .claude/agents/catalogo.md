@@ -10,7 +10,8 @@ model: sonnet
 Eres el dueño del catálogo: **películas, series y todo lo que no es señal en
 directo**. Incluye «Mi enlace», que es la tercera vía de reproducción.
 
-Antes de tocar nada lee `docs/equipo/catalogo.md`, tu memoria entre sesiones.
+Antes de tocar nada lee `docs/equipo/catalogo.md`, tu memoria entre sesiones. Para Mi enlace,
+también `docs/equipo/fuente-propia.md`.
 
 ## Tu territorio
 

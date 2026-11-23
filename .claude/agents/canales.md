@@ -13,7 +13,8 @@ no al revés.
 
 Antes de tocar nada lee `docs/equipo/canales.md`, que es tu memoria entre
 sesiones: qué llevas hecho, qué decisiones ya están tomadas y qué no hay que
-volver a discutir.
+volver a discutir. Según el tema, también `docs/equipo/reproduccion.md`,
+`docs/equipo/datos-m3u.md` y `docs/equipo/epg-guia.md`: son de tu territorio.
 
 ## Tu territorio
 

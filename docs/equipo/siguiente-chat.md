@@ -28,14 +28,12 @@ Lo que quiero que planifiques
    - Opcionales: reacciones con emoji, cola «Después vemos…», color de avatar, bienvenida de tres pasos para quien entra por enlace.
 
 4. Estabilidad y eficiencia. Dime qué haría falta, ordenado por valor frente a esfuerzo:
-   - sincronizar-sola.cmd no encuentra Node cuando Windows no refrescó el PATH; el #101 lo arregló en sincronizar.cmd y panel.cmd con buscar-node.cmd, pero ese se quedó fuera.
    - Pruebas con el motor de Safari (proyecto WebKit en Playwright), para cazar fallos de iPhone.
    - Ver errores reales: los logs de Vercel duran 1 hora. Mandar «no arrancó», «se desincronizó» y cortes a los eventos de src/lib/reproduccion/metricas.ts.
    - Cupo de peticiones propio para /api/pusher/auth, separado del de /api/buscar.
-   - Que use-ver-juntos.ts use lib/ver-juntos/conexion.ts (hoy hay dos copias de la conexión) y partir native-player.tsx, que tiene más de 1.300 líneas.
+   - Partir native-player.tsx, que tiene más de 1.350 líneas. (La conexión de la sala ya está unificada: use-ver-juntos.ts usa lib/ver-juntos/conexion.ts.)
    - Logos de canal más pequeños (pesan 1,6 MB en la portada): necesita mi sí porque usa un servicio externo.
    - Gestor de espacio de R2 en el panel: avisar de películas ya terminadas que ocupan sitio, sin borrar nunca solo.
-   - partialPrefetching de Next, que avisa al compilar.
    - Subtítulos automáticos (OpenSubtitles + alass): solo si cabe. Dime la clave que haría falta (nombre, tipo y entornos).
 
 Cómo quiero el plan
@@ -105,12 +103,12 @@ Ordenadas por valor frente a esfuerzo. Cada una, un PR propio desde `main`.
 | 2 | **Rediseño de Mi enlace por estados** (Parte A, tabla y reglas) | Lo que el dueño ve feo hoy | 2 d | Medio |
 | 3 | **Estado del PC en la app** (`estado.json` en R2) | Saber sin ir al PC si la película ya está | 1 d | Bajo |
 | 4 | **Invitar con enlace y QR** | Entrar a la sala sin dictar código | 1 d | Bajo |
-| 5 | **`sincronizar-sola.cmd` usa `buscar-node.cmd`** | Fallo pendiente: el doble clic no encuentra Node | 0,5 d | Bajo |
+| 5 | ~~`sincronizar-sola.cmd` usa `buscar-node.cmd`~~ | Hecho: ya llama a `buscar-node.cmd` | — | — |
 | 6 | **Pruebas con el motor de Safari** (proyecto WebKit en Playwright) | Cazar fallos de iPhone antes del iPhone | 1 d | Bajo |
 | 7 | **Media Session + Wake Lock** | Controles en pantalla de bloqueo; pantalla que no se apaga | 0,5 d | Bajo |
 | 8 | **Errores reales a la vista** | Hoy los logs duran 1 h; mandar «no arrancó», «se desincronizó» y cortes a los eventos de `src/lib/reproduccion/metricas.ts` | 1 d | Bajo |
 | 9 | **Cupo de peticiones separado para la sala** | Que `/api/buscar` nunca vuelva a bloquear `/api/pusher/auth` | 0,5 d | Bajo |
-| 10 | **Unificar la conexión de la sala** (`use-ver-juntos.ts` → `lib/ver-juntos/conexion.ts`) y partir `native-player.tsx` (1.335 líneas) | Menos sitios donde romper; ya hay 18 pruebas de red | 2–3 d | Medio |
+| 10 | **Partir `native-player.tsx`** (1.354 líneas). La conexión de la sala ya está unificada en `lib/ver-juntos/conexion.ts` | Menos sitios donde romper; ya hay 18 pruebas de red | 1–2 d | Medio |
 | 11 | **Logos de canal más pequeños** | 1,6 MB menos en la portada. Necesita el sí del dueño (servicio externo) | 1 d | Medio |
 | 12 | **Gestor de espacio de R2** | El panel avisa «3 películas terminadas ocupan 6 GB» usando el historial; nunca borra solo | 1 d | Bajo |
 | 13 | **Teléfono como mando de la tele** | Resuelve también la sincronía suave en la tele | 1,5 d | Medio |
