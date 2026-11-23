@@ -494,13 +494,53 @@
   white-space: nowrap;
 }
 
-/* Con siete destinos, cuando dejan de caber con etiqueta se quedan los
-   iconos. El `title` sigue nombrándolos para quien los necesite. */
+/* Con siete destinos, la etiqueta se defiende hasta donde cabe: la palabra
+   se reconoce antes que el icono, y el `title` solo aparece al pasar el
+   ratón, nunca en un toque ni con el mando. Antes se quitaba por debajo de
+   1500px, que es casi cualquier portátil (1280, 1366, 1440).
+
+   Escalones: hasta 1500 se aprieta el relleno; hasta 1280 la letra baja una
+   talla y el reloj se va (ya lo da el sistema del PC; en la tele se queda);
+   por debajo de 1024 —tableta— ya no hay sitio y quedan los iconos. */
 @media (max-width: 1500px) {
+  .sidebar nav {
+    gap: 2px;
+  }
+
+  .sidebar nav .nav-item {
+    gap: 7px;
+    padding: 0 clamp(8px, 0.75vw, 12px);
+  }
+}
+
+@media (max-width: 1279px) {
+  .sidebar nav .nav-item {
+    font-size: var(--texto-sm);
+  }
+
+  :root:not([data-pantalla="tv"]) .top-clock {
+    display: none;
+  }
+}
+
+@media (max-width: 1023px) {
   .sidebar nav .nav-item span {
     display: none;
   }
+
   .sidebar nav .nav-item {
+    padding: 0 clamp(9px, 0.8vw, 14px);
+  }
+}
+
+/* Con el texto «Enorme» las etiquetas se montaban sobre la marca a 1024 y a
+   1280 px (medido): ahí mandan los iconos hasta 1366. */
+@media (max-width: 1365px) {
+  :root[data-texto="enorme"] .sidebar nav .nav-item span {
+    display: none;
+  }
+
+  :root[data-texto="enorme"] .sidebar nav .nav-item {
     padding: 0 clamp(9px, 0.8vw, 14px);
   }
 }
