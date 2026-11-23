@@ -203,6 +203,8 @@ export function Dashboard({
     if (vistaPedida && vistaPedida !== "player") setView(vistaPedida);
   }
   const [lastView, setLastView] = useState<ViewId>("home");
+  /** El directo está en imagen en imagen (lo avisa `LiveCard`). */
+  const [pipVivo, setPipVivo] = useState(false);
   /**
    * El último canal que se estaba viendo, para abrir ahí la próxima vez.
    *
@@ -628,6 +630,12 @@ export function Dashboard({
 
   /** Las dos vistas que llevan la señal en directo encima. */
   const conReproductor = view === "home" || view === "canales";
+  /**
+   * En imagen en imagen, la tarjeta sigue montada (oculta) en Buscar, Ajustes
+   * o Mi enlace: si no, la ventanita se cerraba al tocar otra pestaña. En
+   * pantalla completa no, que trae su propio vídeo.
+   */
+  const directoFlotando = pipVivo && !conReproductor && view !== "player";
 
   return (
     <div ref={shellRef} className="app-shell">
@@ -675,8 +683,13 @@ export function Dashboard({
         {/* En Canales, en franja (ver `.live-slot.is-franja`). La clase cambia
             y el elemento no: así la señal no se desmonta al pasar de Inicio a
             Canales. */}
-        {conReproductor && tuned && (
-          <div className={view === "canales" ? "live-slot is-franja" : "live-slot"}>
+        {(conReproductor || directoFlotando) && tuned && (
+          <div
+            className={
+              directoFlotando ? "live-slot is-flotando" : view === "canales" ? "live-slot is-franja" : "live-slot"
+            }
+            inert={directoFlotando}
+          >
             <LiveCard
               channel={tuned}
               settings={settings}
@@ -685,6 +698,7 @@ export function Dashboard({
               onPrev={() => zap(-1)}
               onSilencio={recordarSilencio}
               onSalud={anotarSalud}
+              onImagenEnImagen={setPipVivo}
             />
           </div>
         )}
