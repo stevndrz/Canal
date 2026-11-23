@@ -667,8 +667,11 @@ export function Dashboard({
       <section className="content">
         {/* Solo Inicio y Canales: en las demás no se monta, y así no se gasta
             ancho de banda en segundo plano. */}
+        {/* En Canales, en franja (ver `.live-slot.is-franja`). La clase cambia
+            y el elemento no: así la señal no se desmonta al pasar de Inicio a
+            Canales. */}
         {conReproductor && tuned && (
-          <div className="live-slot">
+          <div className={view === "canales" ? "live-slot is-franja" : "live-slot"}>
             <LiveCard
               channel={tuned}
               settings={settings}

@@ -3945,6 +3945,125 @@ body {
   }
 }
 
+/* ── Canales: el directo en franja ───────────────────────────────────
+   En Inicio la señal es la portada. En Canales lo que se viene a usar es la
+   lista, y con el reproductor de Inicio (16:9 casi a todo el alto) no se veía
+   ni una fila sin bajar, ni en PC ni en iPhone. Aquí el vídeo encoge a una
+   miniatura con el rótulo y los mandos al lado, como el «ahora suena» de una
+   app de música.
+
+   Solo CSS y sobre el mismo `LiveCard`: moverlo a otra parte del árbol lo
+   desmontaría al pasar de Inicio a Canales, y la señal volvería a sintonizar.
+   El logo del rótulo sobra: el canal se está viendo justo al lado. */
+.live-slot.is-franja .vivo-logo {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .live-slot.is-franja {
+    padding-top: calc(var(--topbar-h) + 20px);
+  }
+
+  .live-slot.is-franja .live-card-marco {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .live-slot.is-franja .live-card-video {
+    flex: 0 0 auto;
+    width: clamp(280px, 26vw, 480px);
+  }
+
+  /* Al lado y no encima del vídeo: en una miniatura, el rótulo sobre la
+     imagen la taparía entera. */
+  .live-slot.is-franja .live-card-pie {
+    position: static;
+    flex: 1 1 auto;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0;
+    margin: 0 0 0 clamp(16px, 1.8vw, 32px);
+    padding: 0;
+    border-radius: 0;
+    background: none;
+    pointer-events: auto;
+  }
+
+  .live-slot.is-franja .live-card-pie .vivo-info {
+    text-shadow: none;
+  }
+
+  .live-slot.is-franja .live-card-pie .player-bar {
+    flex-shrink: 0;
+    margin: 0 0 0 16px;
+  }
+}
+
+/* Teléfono: mini reproductor, como el de YouTube al bajar a los comentarios.
+   De borde a borde el vídeo medía 390×219 y, con el rótulo y los mandos
+   debajo, llegaba a la barra de abajo: no se veía ni un canal. Anterior y
+   siguiente sobran con la lista justo debajo; el silencio no, que en el
+   iPhone la señal arranca muda. Doble toque o «Pantalla completa» la agranda. */
+@media (max-width: 680px) and (orientation: portrait) {
+  .live-slot.is-franja {
+    padding-top: calc(var(--topbar-h) + 10px);
+  }
+
+  .live-slot.is-franja .live-card {
+    padding: 0 var(--margen);
+    margin-bottom: 16px;
+  }
+
+  .live-slot.is-franja .live-card-marco {
+    display: flex;
+    align-items: center;
+  }
+
+  .live-slot.is-franja .live-card-video {
+    flex: 0 0 42%;
+    border-radius: var(--radio-tarjeta);
+    box-shadow: 0 0 0 1px var(--borde-sutil);
+  }
+
+  .live-slot.is-franja .live-card-pie {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 0 0 12px;
+    padding-inline: 0;
+  }
+
+  .live-slot.is-franja .live-card-pie .player-bar {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    margin-top: 4px;
+    padding: 0;
+  }
+
+  .live-slot.is-franja .player-btn.is-transport {
+    display: none;
+  }
+
+  .live-slot.is-franja .player-bar-extras {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .live-slot.is-franja .vivo-linea {
+    margin-bottom: 2px;
+  }
+
+  .live-slot.is-franja .vivo-nombre {
+    font-size: var(--texto-base);
+  }
+
+  .live-slot.is-franja .vivo-programa {
+    font-size: var(--texto-xs);
+  }
+}
+
 /* ── Mi enlace ───────────────────────────────────────────────────────
    La tercera vía de reproducción. Hecha con las primitivas: el margen lo pone
    `ContenedorVista`, los campos son `Campo`, «Añadir» es `Boton` primario y

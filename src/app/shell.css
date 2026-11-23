@@ -1787,9 +1787,25 @@
   object-fit: contain;
 }
 
+/* Jerarquía del panel: el canal manda, luego lo que emite y al final los
+   rótulos. Sin estas tallas el nombre heredaba la letra de cuerpo y salía lo
+   más pequeño del panel, por debajo de «AHORA». */
+.livetv-detail-nombre {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--texto-xl);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--tinta-1);
+}
+
 .livetv-detail-group {
   display: grid;
   gap: 6px;
+  margin: -6px 0 0;
+  font-size: var(--texto-sm);
+  color: var(--tinta-2);
 }
 
 .livetv-detail-actions {
@@ -1821,6 +1837,24 @@
   gap: 10px;
   font-size: var(--texto-xs);
   color: var(--soft);
+}
+
+.livetv-program-head span {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--tinta-3);
+}
+
+.livetv-program strong {
+  font-size: var(--texto-base);
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--tinta-1);
+}
+
+.livetv-program.is-next strong {
+  font-weight: 500;
+  color: var(--tinta-2);
 }
 
 /* ═══ Botones de acción ═════════════════════════════════════════════════ */
