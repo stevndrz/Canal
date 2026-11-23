@@ -25,6 +25,7 @@ import {
 import { useCast, type SubtituloCast } from "@/hooks/use-cast";
 import { useSeguirViendo } from "@/hooks/use-progreso";
 import { useFullscreen } from "@/hooks/use-fullscreen";
+import { useImagenEnImagen } from "@/hooks/use-imagen-en-imagen";
 import { useSesionDeMedios } from "@/hooks/use-sesion-de-medios";
 import { esIPhone } from "@/lib/dispositivo";
 import { extensionDe } from "@/lib/extension";
@@ -190,7 +191,6 @@ export const NativePlayer = memo(function NativePlayer({
   const [bufferedEnd, setBufferedEnd] = useState(0);
   /** Qué desplegable flota sobre la barra: solo uno a la vez, como en tvOS. */
   const [openMenu, setOpenMenu] = useState<null | "version" | "audio" | "subs" | "speed">(null);
-  const [isPip, setIsPip] = useState(false);
   /** Vista previa del tiempo al pasar por la barra, y si se está arrastrando. */
   const [scrubPreview, setScrubPreview] = useState<number | null>(null);
   const [seeking, setSeeking] = useState(false);
@@ -603,19 +603,14 @@ export const NativePlayer = memo(function NativePlayer({
         /* Algunos motores no exponen `buffered`: sin zona amortiguada y listo. */
       }
     };
-    const alPip = () => setIsPip(document.pictureInPictureElement === video);
     video.addEventListener("volumechange", alVolumen);
     video.addEventListener("ratechange", alRitmo);
     video.addEventListener("progress", alBuffer);
-    video.addEventListener("enterpictureinpicture", alPip);
-    video.addEventListener("leavepictureinpicture", alPip);
     alVolumen();
     return () => {
       video.removeEventListener("volumechange", alVolumen);
       video.removeEventListener("ratechange", alRitmo);
       video.removeEventListener("progress", alBuffer);
-      video.removeEventListener("enterpictureinpicture", alPip);
-      video.removeEventListener("leavepictureinpicture", alPip);
     };
   }, [stream?.url]);
 
@@ -656,19 +651,13 @@ export const NativePlayer = memo(function NativePlayer({
     [wake],
   );
 
+  /** Imagen en imagen, por la vía estándar o la de WebKit (iPhone). */
+  const pip = useImagenEnImagen(videoRef, stream?.url);
+  const { alternar: alternarPip } = pip;
   const togglePip = useCallback(async () => {
-    const video = videoRef.current as (HTMLVideoElement & {
-      requestPictureInPicture?: () => Promise<void>;
-    }) | null;
-    if (!video) return;
-    try {
-      if (document.pictureInPictureElement) await document.exitPictureInPicture();
-      else await video.requestPictureInPicture?.();
-    } catch {
-      /* Sin PiP en este aparato: el botón ya se oculta cuando no hay soporte. */
-    }
+    await alternarPip();
     wake();
-  }, [wake]);
+  }, [alternarPip, wake]);
 
   /** Tiempo que corresponde a un punto de la barra de progreso. */
   const timeFromClientX = useCallback(
@@ -834,10 +823,6 @@ export const NativePlayer = memo(function NativePlayer({
 
   const progresoPct = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const bufferPct = duration > 0 ? Math.min(100, (bufferedEnd / duration) * 100) : 0;
-  const puedePip =
-    typeof document !== "undefined" && "pictureInPictureEnabled" in document
-      ? (document as Document & { pictureInPictureEnabled?: boolean }).pictureInPictureEnabled !== false
-      : true;
 
   if (!stream) {
     return (
@@ -1201,14 +1186,16 @@ export const NativePlayer = memo(function NativePlayer({
                 </button>
               )}
 
-              {puedePip && (
+              {/* Solo donde funciona de verdad (ver `lib/imagen-en-imagen.ts`), y
+                  también en el teléfono: es donde más se usa. */}
+              {pip.soportada && (
                 <button
                   data-nav="button"
                   type="button"
                   onClick={togglePip}
-                  aria-label={isPip ? "Salir de imagen en imagen" : "Imagen en imagen"}
-                  aria-pressed={isPip}
-                  className={`atv-btn is-opcional ${isPip ? "is-activo" : ""}`}
+                  aria-label={pip.activa ? "Salir de imagen en imagen" : "Imagen en imagen"}
+                  aria-pressed={pip.activa}
+                  className={`atv-btn is-pip ${pip.activa ? "is-activo" : ""}`}
                 >
                   <PictureInPicture2 aria-hidden="true" className="h-5 w-5" />
                 </button>

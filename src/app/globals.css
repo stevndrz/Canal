@@ -1505,10 +1505,6 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
 }
 
 @media (max-width: 640px) {
-  .atv-btn.is-opcional {
-    display: none;
-  }
-
   .atv-volumen-riel {
     display: none;
   }
@@ -1517,9 +1513,14 @@ html[data-pantalla="tv"] .player-fallo .player-btn svg {
     font-size: var(--texto-xs);
   }
 
+  /* Centrado en el hueco que deja la barra de abajo (88px en el teléfono), no
+     en el vídeo entero: en un iPhone SE el vídeo mide 158px de alto, la
+     barra va en una capa encima y el riel cruzaba el botón por la mitad. El
+     toque se lo llevaba el riel y «Reproducir» no respondía. */
   .atv-play-central {
-    width: 68px;
-    height: 68px;
+    bottom: 88px;
+    width: 56px;
+    height: 56px;
   }
 
   /* La fila entera cabe en el ancho del teléfono: objetivos de 36px y
