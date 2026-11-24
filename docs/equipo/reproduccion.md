@@ -20,6 +20,37 @@ src/lib/teclas-mando.ts                Teclas del mando que llegan sin nombre (T
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-24 — La app instalada de iPhone no tiene imagen en imagen
+
+El dueño, tras el PR anterior: «sigue sin funcionar, y ahora cada cierto
+tanto se pausa y se me quita la pantalla completa». Preguntado: **iPhone, app
+instalada, película del catálogo, el botón no sale.**
+
+- **Es iOS, no la app.** En las apps instaladas en la pantalla de inicio de
+  iPhone y iPad no hay imagen en imagen, aunque la misma página la tenga en
+  Safari: fallo de WebKit 303885, abierto
+  (https://bugs.webkit.org/show_bug.cgi?id=303885). Y engaña:
+  `pictureInPictureEnabled` dice que sí y la petición falla después. Ahí el
+  botón ya no sale (`pipVetadaPorIOS`).
+- **La película del catálogo es el iframe del proveedor** (Vimeus, por su menú
+  «Servidores»): ahí no hay botón nuestro ni puede haberlo. Medido con una
+  ficha real 40 s: nuestro código no le cambia el `src` mientras se mira, y
+  `/api/stream` devuelve el mismo primer servidor que la página.
+- **Las pausas**: no las provoca nuestro código (medido y revisado: sin
+  recargas, sin service worker, sin cambios de URL). Lo más probable, sus
+  anuncios: en la app instalada, una ventana de anuncio se abre encima, y eso
+  pausa y saca de pantalla completa. Pendiente de confirmar comparando con
+  Safari.
+- Se quitó `picture-in-picture` del `allow` del iframe: no aportaba nada (la
+  lista por defecto ya es `*`) y era lo único que había cambiado en ese
+  reproductor.
+- Safari: con las dos vías, se va primero por WebKit y en el mismo turno del
+  toque. Probar la estándar y luego WebKit dejaba la segunda tras un `await`,
+  y Safari ya daba el gesto por terminado.
+- Lo que daría imagen en imagen y ±10 s en el catálogo: la fuente «Directo»
+  (`STREMIO_MANIFESTS`, hoy sin poner en Vercel), que reproduce con el
+  reproductor propio.
+
 ### 2026-11-23 — Imagen en imagen de verdad, y en el directo
 
 El dueño: «ninguno de imagen en imagen funciona, ni en los canales ni como

@@ -6,13 +6,17 @@
  *
  * - **La estándar** (`requestPictureInPicture`): Chrome, Edge, Android y
  *   Safari de Mac.
- * - **La de WebKit** (`webkitSetPresentationMode`): Safari de iPhone y iPad,
- *   también con la app instalada en la pantalla de inicio. Solo con la
- *   estándar, en el iPhone el botón no hacía nada.
+ * - **La de WebKit** (`webkitSetPresentationMode`): Safari de iPhone y iPad.
+ *   Solo con la estándar, en el iPhone el botón no hacía nada.
  *
  * Antes el botón salía también donde no hay ninguna de las dos (Firefox, las
  * teles con Chromium viejo): un botón que no hace nada. Ahora solo sale si
  * alguna de las dos existe de verdad.
+ *
+ * **Salvo en la app instalada de iPhone y iPad.** Ahí iOS no da imagen en
+ * imagen, aunque la misma página la tenga en Safari (fallo de WebKit 303885,
+ * abierto). Y engaña: `pictureInPictureEnabled` dice que sí y la petición
+ * falla después. Ver `pipVetadaPorIOS`.
  *
  * Sin React a propósito: así se prueba con objetos de mentira y lo usan igual
  * el reproductor propio y el del directo (`use-imagen-en-imagen.ts`).
@@ -50,6 +54,28 @@ function deWebkit(video: VideoPip): boolean {
   );
 }
 
+/** Lo que hace falta saber del aparato para el caso de iOS. */
+export interface AparatoPip {
+  userAgent: string;
+  maxTouchPoints: number;
+  /** `navigator.standalone`: solo existe en iOS, `true` en la app instalada. */
+  standalone?: boolean;
+  /** `(display-mode: standalone)`: la app abierta desde su icono. */
+  instalada: boolean;
+}
+
+/**
+ * ¿Es la app instalada en la pantalla de inicio de un iPhone o un iPad? Ahí no
+ * hay imagen en imagen: el botón no sirve, y al intentarlo (o al salir de la
+ * app con un vídeo en pantalla completa) iOS lo rechaza y el vídeo se queda
+ * en pausa. El iPad se presenta como un Mac, pero con pantalla táctil.
+ */
+export function pipVetadaPorIOS(aparato: AparatoPip): boolean {
+  const esIOS =
+    /iPhone|iPad|iPod/.test(aparato.userAgent) || (/Macintosh/.test(aparato.userAgent) && aparato.maxTouchPoints > 1);
+  return esIOS && (aparato.standalone === true || aparato.instalada);
+}
+
 /** ¿Este navegador sabe poner este vídeo en imagen en imagen? */
 export function soportaImagenEnImagen(video: VideoPip | null, doc: DocumentoPip): boolean {
   if (!video) return false;
@@ -67,8 +93,10 @@ export function estaEnImagenEnImagen(video: VideoPip | null, doc: DocumentoPip):
  * exige un gesto) y con el vídeo ya cargando: sin metadatos, la estándar
  * rechaza la petición.
  *
- * Si la estándar existe pero la rechaza y WebKit sabe hacerlo, se prueba la
- * de WebKit: en algunos iPhone las dos están y solo la segunda funciona.
+ * Con WebKit disponible (Safari) va primero por WebKit, y en el mismo turno
+ * del toque. Antes se probaba la estándar y WebKit solo si aquella fallaba,
+ * pero eso ya era después de un `await`: Safari daba el gesto por terminado y
+ * rechazaba también la segunda.
  */
 export async function alternarImagenEnImagen(video: VideoPip, doc: DocumentoPip): Promise<void> {
   if (estaEnImagenEnImagen(video, doc)) {
@@ -77,16 +105,12 @@ export async function alternarImagenEnImagen(video: VideoPip, doc: DocumentoPip)
     return;
   }
 
-  if (estandar(video, doc)) {
-    try {
-      await video.requestPictureInPicture?.();
-      return;
-    } catch (error) {
-      if (!deWebkit(video)) throw error;
-    }
+  if (deWebkit(video)) {
+    video.webkitSetPresentationMode?.("picture-in-picture");
+    return;
   }
 
-  if (deWebkit(video)) video.webkitSetPresentationMode?.("picture-in-picture");
+  if (estandar(video, doc)) await video.requestPictureInPicture?.();
 }
 
 /** Los eventos tras los que hay que volver a mirar soporte y estado. */

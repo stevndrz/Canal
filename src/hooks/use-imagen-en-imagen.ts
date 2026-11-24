@@ -5,6 +5,7 @@ import {
   alternarImagenEnImagen,
   estaEnImagenEnImagen,
   EVENTOS_PIP,
+  pipVetadaPorIOS,
   soportaImagenEnImagen,
   type DocumentoPip,
   type VideoPip,
@@ -37,11 +38,18 @@ export function useImagenEnImagen(videoRef: RefObject<HTMLVideoElement | null>, 
   );
 
   // En la tele no: no hay otras apps sobre las que flotar, y algún Chromium
-  // de tele dice tenerla sin tener ventana donde ponerla.
+  // de tele dice tenerla sin tener ventana donde ponerla. En la app instalada
+  // de iPhone tampoco: iOS no la da (ver `pipVetadaPorIOS`).
   const soportada = useSyncExternalStore(
     suscribir,
     () =>
       document.documentElement.dataset.pantalla !== "tv" &&
+      !pipVetadaPorIOS({
+        userAgent: navigator.userAgent,
+        maxTouchPoints: navigator.maxTouchPoints,
+        standalone: (navigator as Navigator & { standalone?: boolean }).standalone,
+        instalada: window.matchMedia?.("(display-mode: standalone)").matches ?? false,
+      }) &&
       soportaImagenEnImagen(videoRef.current as VideoPip | null, document as DocumentoPip),
     () => false,
   );
