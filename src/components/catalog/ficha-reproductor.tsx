@@ -568,7 +568,7 @@ function ReproductorCatalogo({
                  bloquea `window.open` por su cuenta. Ver `marcoAbierto`. */
               tabIndex={abierto ? 0 : -1}
               allowFullScreen
-              allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+              allow="autoplay; encrypted-media; fullscreen"
               referrerPolicy="origin"
             />
           )}
