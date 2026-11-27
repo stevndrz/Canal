@@ -29,6 +29,16 @@ interface VentanaDeTelevisor {
 }
 
 /**
+ * ¿Dentro de la cáscara de Android TV (`empaque/android`)? Ahí Atrás llega
+ * siempre: `MainActivity` lo atiende antes que la WebView, aunque el foco esté
+ * dentro del iframe de un proveedor. En una Samsung, no.
+ */
+export function enLaAppDeAndroid(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean((window as unknown as VentanaDeTelevisor).CanalCasaAndroid);
+}
+
+/**
  * Devuelve `true` si de verdad cerró algo.
  *
  * Quien llama lo necesita para no quedarse a medias: si esto devuelve `false`
