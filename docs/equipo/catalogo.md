@@ -39,6 +39,34 @@ src/hooks/use-buscar-titulos.ts · use-fuentes.ts
 Lo más reciente arriba. Una entrada por PR, y solo lo que le sirva a quien venga
 después: qué cambió, por qué, y qué me sorprendió.
 
+### 2026-11-27 — En la tele, el rescate tiraba Vimeus con la película sonando
+
+Fotos del dueño en su TCL (app de Android): «Se saltó 1 servidor», Servidor 2
+(Vidzee) activo con un QR de «Confirm you're not a robot», y el foco en
+«Manejar el vídeo con el mando». Dijo: «no me deja moverme con el control y
+Vimeus funciona re mal».
+
+- **Causa, nuestra**: con el marco abierto en TV, a los 20 s se hacía
+  `cerrarMarco()` **y** `descartar()`, fuera o no bien el vídeo (desde fuera
+  no se sabe). Se tiraba Vimeus en latino a media película, se le quitaba el
+  mando y se saltaba a Vidzee, en inglés y con anuncios.
+- **Ahora** (`lib/reproduccion/rescate-en-tele.ts`): con puerta antirrobot,
+  igual que antes (8 s y descartar). Sin puerta, en la app de Android
+  (`enLaAppDeAndroid`, el puente `CanalCasaAndroid`), no se rescata: Atrás lo
+  atiende `MainActivity`. Sin puerta y sin Atrás (Samsung): 20 s, devuelve el
+  mando, **no** descarta.
+- Medido con el UA de Google TV en Chromium: Vimeus carga una sola vez
+  (embed de Inception → JWPlayer de vimeos.net, 2:28:04) y Vidzee reproduce
+  sin ningún QR. El QR de la foto puede ser un anuncio o una comprobación del
+  proveedor; no es nuestro.
+- **Sin probar en la TCL de verdad.** Ojo con Atrás en la app de Android:
+  `alPulsarAtras` hace `webView.goBack()` si hay historial, así que desde una
+  ficha Atrás vuelve a la pantalla anterior en vez de cerrar los controles.
+- Lo que no se puede: moverse con el mando dentro de Vimeus (dos iframes
+  anidados, JWPlayer dentro) ni quitar sus anuncios (regla del dueño). Para
+  la tele, lo que de verdad va con el mando es el reproductor propio:
+  Nuestras películas, Mi enlace o la fuente «Directo» (`STREMIO_MANIFESTS`).
+
 ### 2026-11-10 — QR de la sala en la tele y bienvenida de tres pasos
 
 - `QrSala` (`sala-cine.tsx`): a solas en la sala, una tarjeta con el QR del

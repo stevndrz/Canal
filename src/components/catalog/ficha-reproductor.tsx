@@ -13,6 +13,8 @@ import {
 import type { ManualStream, MediaType, PlaybackSource } from "@/lib/catalog/types";
 import type { RespuestaStream, ServidorStream } from "@/lib/resolvers/types";
 import { registrarCarga, type ConteoDeCargas } from "@/lib/reproduccion/marco-en-bucle";
+import { rescateEnTele } from "@/lib/reproduccion/rescate-en-tele";
+import { enLaAppDeAndroid } from "@/lib/salir-de-la-app";
 import { claveDeTitulo } from "@/lib/progreso";
 import { esTeclaAtras } from "@/hooks/use-spatial-nav";
 import { accionDeTecla } from "@/lib/teclas-mando";
@@ -33,31 +35,8 @@ const ESPERA_ANTES_DE_OFRECER_MS = 12_000;
  */
 const ESPERA_CON_PUERTA_MS = 4_000;
 
-/**
- * En TV, cuánto se deja dentro de un servidor con puerta antirrobot antes de
- * sacar a la persona sola.
- *
- * Es la única salida que existe: con el mando entregado al iframe (`abierto`)
- * y una puerta de Cloudflare Turnstile pidiendo escanear un QR con el
- * teléfono, ninguna tecla que se pulse ahí dentro llega nunca a esta página
- * —es un documento de otro origen, no un permiso que falte—. Ni Atrás, ni el
- * botón «Volver a la app», ni las flechas del selector de servidores: todo
- * eso vive fuera del marco, y una vez el foco entra, no hay Tab en un mando
- * de televisor para sacarlo. `descartar` corre sola, sin que la persona
- * tenga que apretar nada, porque ya se demostró que no puede.
- */
-const ESPERA_ANTES_DE_ABANDONAR_MS = 8_000;
-
-/**
- * Lo mismo, para el resto de servidores en TV — probado con el mando en una
- * Samsung real, ninguno de los proveedores configurados responde bien:
- * esperan clics de ratón dentro de su propio reproductor, y el mando solo
- * puede darle foco al iframe entero, no a un botón concreto de ahí dentro.
- * Más tiempo que la puerta antirrobot porque aquí sí hay chance real de que
- * el vídeo arranque solo por el `autoplay` del iframe, sin que haga falta
- * ningún clic.
- */
-const ESPERA_ANTES_DE_ABANDONAR_SIN_PUERTA_MS = 20_000;
+// En TV, cuándo se saca a la persona del reproductor de un proveedor y si se
+// tira el servidor: `lib/reproduccion/rescate-en-tele.ts`.
 
 // El reproductor nativo arrastra hls.js: solo se descarga si la ficha usa un
 // enlace propio, no cuando se delega en el iframe del proveedor.
@@ -415,30 +394,29 @@ function ReproductorCatalogo({
   /**
    * La salida sola, para cuando el mando ya no puede pedirla.
    *
-   * Solo en TV y solo con el marco abierto. Antes era solo para los
-   * servidores con puerta antirrobot —el caso seguro, sin NINGUNA tecla que
-   * funcione desde dentro—, pero probado en una Samsung real ninguno de los
-   * proveedores responde bien al mando: son reproductores pensados para
-   * ratón o dedo, y darle OK al iframe no promete que eso equivalga a un
-   * clic en SU botón de play. Así que la salida sola cubre a todos en TV, no
-   * solo a los marcados — con la puerta antirrobot es un caso perdido y se
-   * sabe rápido (`ESPERA_ANTES_DE_ABANDONAR_MS`); al resto se le da más
-   * tiempo por si de verdad arranca solo con el `autoplay` del iframe.
+   * Solo en TV y solo con el marco abierto. Probado en una Samsung real:
+   * ningún proveedor responde bien al mando, y con el foco dentro de su
+   * iframe ni Atrás llega aquí. Pero el reloj no sabe si el vídeo va, así que
+   * ya no tira un servidor que puede estar sonando —antes cortaba Vimeus en
+   * latino a los 20 s y saltaba a otro—, y en la app de Android, donde Atrás
+   * llega siempre, no saca a nadie. La regla, en `rescateEnTele`.
    *
    * `cerrarMarco` primero —devuelve el foco a un botón de esta página— y
-   * `descartar` después, para que el siguiente servidor útil quede activo
-   * solo, sin que haya que volver a entrar a mano a ver si este ya cargó.
+   * `descartar` después, solo si toca, para que el siguiente servidor útil
+   * quede activo sin tener que entrar a mano.
    */
   useEffect(() => {
     if (!enTelevisor || !abierto || !esEmbed || !servidorActivoId) return;
+    const rescate = rescateEnTele({
+      conPuerta: Boolean(activo?.puertaAntirrobot),
+      atrasLlega: enLaAppDeAndroid(),
+    });
+    if (!rescate) return;
     const idAlAbrir = servidorActivoId;
-    const espera = activo?.puertaAntirrobot
-      ? ESPERA_ANTES_DE_ABANDONAR_MS
-      : ESPERA_ANTES_DE_ABANDONAR_SIN_PUERTA_MS;
     const reloj = setTimeout(() => {
       cerrarMarco();
-      descartar(idAlAbrir);
-    }, espera);
+      if (rescate.descartar) descartar(idAlAbrir);
+    }, rescate.esperaMs);
     return () => clearTimeout(reloj);
   }, [enTelevisor, abierto, esEmbed, servidorActivoId, activo?.puertaAntirrobot, cerrarMarco, descartar]);
 
