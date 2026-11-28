@@ -4,10 +4,9 @@ Tú y los agentes que se listan abajo. Cada agente es **dueño de una zona del
 código**, no de un tipo de tarea. Es lo que evita que dos toquen el mismo
 archivo a la vez y lo que deja que cada uno acumule contexto de lo suyo.
 
-Esta tabla no cubre todavía los diez agentes de `MAIN.md` — solo los que ya
-tienen definición en `.claude/agents/`. Si buscas un territorio que no está
-aquí (canales, reproducción, datos-m3u, epg-guía, catálogo, fuente propia),
-mira `MAIN.md` en la raíz del repo.
+Las reglas que todos siguen están en [`AGENTS.md`](../AGENTS.md), en la raíz:
+lo leen solos Claude Code, OpenCode y Codex, así que no hay que pegarlas en
+cada chat. Aquí va el porqué y cómo se trabaja en el día a día.
 
 ---
 
@@ -33,7 +32,10 @@ Los cuatro dolores que señalaste tienen dueño:
 
 ## Cómo los llamas
 
-Están en `.claude/agents/`. Se invocan por nombre:
+Están en `.claude/agents/` (Claude Code) y en `.opencode/agents/` (OpenCode,
+que apuntan a los mismos archivos). En cualquier herramienta basta con empezar
+el mensaje por **«Rol: X»**: `AGENTS.md` le dice que lea su definición y su
+memoria. Dentro de una sesión de Claude Code también se invocan por nombre:
 
 > «Usa el agente **diseno** para que la pestaña de Ajustes se vea como el resto»
 >
@@ -51,8 +53,11 @@ pueden trabajar en paralelo, pero `diseno` y otro que también toque CSS, no.
 
 ### 1. Cada agente abre un PR. Tú fusionas.
 
-Nadie empuja a `main` ni a la rama de trabajo directamente. Ramas:
-`agente/<nombre>/<lo-que-hace>`.
+Nadie trabaja en `main`. Una tarea, una rama nueva desde `main` —
+`<rol>/<tema>`, por ejemplo `diseno/franja-canales`— y un PR. Al fusionarlo la
+rama se borra: **un agente es un papel, no una rama**. Las ramas permanentes
+por agente (`agente-canales`, `agente-calidad`…) se quedaron atrás de `main`
+cientos de commits y chocaban entre sí; se borraron el 2026-11-28.
 
 Esto arregla el mayor riesgo del informe de CodeScene: **63 commits y 0 pull
 requests**. Sin PRs no hay revisión, y cada cambio entra sin que nadie más lo
@@ -84,6 +89,36 @@ algo se rompe, hay que saber cuál lo rompió.
 Es donde las reglas se rompen en silencio. Cambiar una expresión regular no da
 error de compilación, y te enteras cuando a alguien se le queda un canal fuera
 de su categoría.
+
+---
+
+## Trabajar con Orca (Claude Code, OpenCode o Codex)
+
+Orca abre cada agente en su propio worktree de git. El flujo:
+
+1. **La sesión de `main` es para pensar, no para programar.** Ahí se decide
+   qué hacer, se revisan los PR y se fusiona. Si un agente tiene que cambiar
+   código desde ahí, `AGENTS.md` le obliga a crear antes una rama.
+2. **Una tarea, un worktree nuevo desde `main`.** Nómbralo `<rol>/<tema>`.
+3. **Elige la herramienta** (Claude Code u OpenCode) y escribe:
+
+   ```
+   Rol: diseno
+   Tarea: que en el iPhone se vean dos filas de canales sin bajar
+   Hecho cuando: capturas de antes y después en iPhone, PC y tele
+   ```
+
+   Nada más: las reglas y la memoria del rol las lee el agente solo.
+4. **El agente trabaja, verifica y abre el PR.** Tú lo fusionas en GitHub.
+5. **Borra el worktree en Orca.** La rama de GitHub se borra sola si está
+   activada la opción de abajo.
+
+- **En paralelo, hasta tres**, y en zonas distintas: `diseno` y `canales` sí;
+  dos que toquen CSS, no.
+- **Para retomar en otro chat** no hace falta un prompt largo: la memoria del
+  rol y el PR ya cuentan la historia. «Rol: catalogo. Sigue con el PR #140.»
+- **Una sola vez en GitHub:** Settings → General → Pull Requests → activar
+  «Automatically delete head branches». Así no se vuelven a acumular ramas.
 
 ---
 
